@@ -1,0 +1,3 @@
+experiment A q0 (1.0, -0.95) W(z0) 1.1904016423172679
+PD+g: J_cl = sum h l = 0.516789; max|tau1|=18.02 max|tau2|=9.17; final |z| = 3.67e-03; W(z0)=1.190402
+N=20 (942s): J_cl = sum h l = 0.799428; V_N(z0) = 1.479250; max[V+ - V + h l] = -6.905e-12 (rel to h l: -9.445e-02); max step ratio (V+-V)/(-h l) min = 1.0945; fallbacks = 0; terminal constraint active at 14 steps; max|tau1|=18.47 max|tau2|=13.49; final |z| = 3.58e-05; V_N final = 7.017e-10; mean nit = 28.2

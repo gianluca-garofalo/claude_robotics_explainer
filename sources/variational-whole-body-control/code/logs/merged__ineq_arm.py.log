@@ -1,0 +1,25 @@
+# merged/ineq_arm.py 
+# exit 0, 160.02 s
+(1) diagonal R: box-QP minimizer vs componentwise clip, 2000 states (1515 saturated): max diff 3.2e-14
+    Gauss weight R = T0 M^-1 (T0 = 0.05 s), same 2000 states: largest |QP - clip| = 40.24 N m; at z = [-0.5  -0.07 -8.39 10.49]: unconstrained tau = [214.1  37.3], QP tau = [ 50.  -10.2], clipped tau = [50. 30.]; cost QP -290.40 < clip 66.50
+(2) ray search, seed  0 (1e5 directions): first failure of D_U <= 0 at W = 6.189
+(2) ray search, seed 11 (1e5 directions): first failure of D_U <= 0 at W = 6.033
+(2) ray search, seed 12 (1e5 directions): first failure of D_U <= 0 at W = 6.224
+    after local refinement over directions: the certificate with the torque box holds on {W <= c} for c up to about 5.92
+    without the box the same search gives about 1.0e3 (condcheck.py); below 0.340 the box is inactive (discrete_check.py)
+    discrete condition (h = 0.005 s, c = 1, clipped reference): on {W <= 0.34} sup h l/(W - W o Phi_h) = 0.9974, W decreases: True
+    discrete condition (h = 0.005 s, c = 1, clipped reference): on {W <= 1.0} sup h l/(W - W o Phi_h) = 1.0433, W decreases: True
+    discrete condition (h = 0.005 s, c = 1, clipped reference): on {W <= 2.0} sup h l/(W - W o Phi_h) = 1.0795, W decreases: True
+    discrete condition (h = 0.005 s, c = 1, clipped reference): on {W <= 4.0} sup h l/(W - W o Phi_h) = 1.1219, W decreases: True
+    discrete condition (h = 0.005 s, c = 1, clipped reference): on {W <= 6.0} sup h l/(W - W o Phi_h) = 1.1245, W decreases: True
+(3) KKT along the receding-window run from (1.0, -0.95), N = 10:
+    k = 0: terminal constraint active: True, mu =  39.241; bounds active:  6; min bound multiplier 1.361e-03; stationarity residual on free torques 1.3e-08
+    k = 1: terminal constraint active: True, mu =  25.901; bounds active:  1; min bound multiplier 2.519e-03; stationarity residual on free torques 3.9e-07
+    k = 2: terminal constraint active: True, mu =  17.757; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 1.9e-07
+    k = 3: terminal constraint active: True, mu =  12.393; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 2.0e-07
+    k = 4: terminal constraint active: True, mu =   8.403; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 1.5e-07
+    k = 5: terminal constraint active: True, mu =   5.457; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 9.7e-08
+    k = 6: terminal constraint active: True, mu =   3.296; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 5.4e-08
+    k = 7: terminal constraint active: True, mu =   1.723; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 1.8e-08
+    k = 8: terminal constraint active: True, mu =   0.594; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 1.3e-07
+    k = 9: terminal constraint active: False, mu =   0.000; bounds active:  0; min bound multiplier       inf; stationarity residual on free torques 1.8e-08

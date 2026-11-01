@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "reviewer": "presentation-reviewer",
+  "summary": "Fixture report (tests only) from presentation-reviewer: nothing found.",
+  "checks_run": [
+    {
+      "command": "fixture",
+      "result": "fixture"
+    }
+  ],
+  "findings": []
+}

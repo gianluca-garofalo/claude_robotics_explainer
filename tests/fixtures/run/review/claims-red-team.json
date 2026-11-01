@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "reviewer": "claims-red-team",
+  "summary": "Fixture report (tests only) from claims-red-team: nothing found.",
+  "checks_run": [
+    {
+      "command": "fixture",
+      "result": "fixture"
+    }
+  ],
+  "findings": []
+}

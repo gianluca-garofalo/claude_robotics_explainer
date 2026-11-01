@@ -1,0 +1,5 @@
+# Publishing jobs only (staging upload, publication after approval). Claude never runs these.
+google-api-python-client>=2.100
+google-auth>=2.23
+google-auth-httplib2>=0.2
+# One-time local helper tools/publish/get_refresh_token.py additionally needs: google-auth-oauthlib

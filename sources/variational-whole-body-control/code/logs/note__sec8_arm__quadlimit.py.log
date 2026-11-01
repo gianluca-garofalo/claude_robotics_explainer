@@ -1,0 +1,8 @@
+# note/sec8_arm/quadlimit.py 
+# exit 0, 0.52 s
+h=0.01: P - Ad^T P Ad > 0? min eig 5.791e-02;  needed c_W (quadratic limit) = 1.69104; spectral radius Ad = 0.98004
+h=0.005: P - Ad^T P Ad > 0? min eig 4.976e-02;  needed c_W (quadratic limit) = 0.96497; spectral radius Ad = 0.98992
+h=0.0025: P - Ad^T P Ad > 0? min eig 2.885e-02;  needed c_W (quadratic limit) = 0.86197; spectral radius Ad = 0.99493
+h=0.001: P - Ad^T P Ad > 0? min eig 1.232e-02;  needed c_W (quadratic limit) = 0.84949; spectral radius Ad = 0.99797
+continuous closed-loop eigenvalues: [-109.47230817+0.j   -8.22783578+0.j   -2.64227769+0.j   -2.03721889+0.j]
+W Hessian P eig [ 0.09628247  1.36044092 20.05539337 40.26714731]

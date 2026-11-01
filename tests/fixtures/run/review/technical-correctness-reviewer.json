@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "reviewer": "technical-correctness-reviewer",
+  "summary": "Fixture report (tests only): one major finding, refuted by the fixture verdict.",
+  "checks_run": [{"command": "fixture", "result": "fixture"}],
+  "findings": [
+    {"id": "TC-1", "severity": "major", "location": "Section 1.2, equation (1)", "issue": "Fixture finding.",
+     "evidence": "Fixture evidence.", "suggested_fix": "None needed.", "confidence": "low"},
+    {"id": "TC-2", "severity": "nit", "location": "Figure 1 caption", "issue": "Fixture nit.",
+     "evidence": "Fixture evidence.", "suggested_fix": "None needed.", "confidence": "high"}
+  ]
+}

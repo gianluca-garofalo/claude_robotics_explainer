@@ -1,0 +1,1 @@
+pytrends>=4.9  # optional, unofficial Google Trends client; tools/search_demand.py records "unavailable" without it

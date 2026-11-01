@@ -1,0 +1,371 @@
+{
+ "schema_version": 1,
+ "tool": "layout_probe",
+ "note": "Fixture for tests/test_selfcontained.py: on-screen texts of a made-up scene.",
+ "frame": {
+  "width": 14.222,
+  "height": 8.0,
+  "pixel_width": 1920,
+  "pixel_height": 1080,
+  "fps": 60.0,
+  "background": "#0f172a"
+ },
+ "scenes": {
+  "Episode": {
+   "snapshots": [],
+   "timeline": [
+    {
+     "id": 1,
+     "kind": "text",
+     "content": "symbolic check: the residual is exactly zero",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       5.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 2,
+     "kind": "math",
+     "content": "L=\\tfrac12 m\\dot q^2+\\tfrac12\\kappa q^2",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       2.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       6.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 3,
+     "kind": "math",
+     "content": "H\\big(q,-V'(q)\\big)=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       4.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       8.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 4,
+     "kind": "text",
+     "content": "The hilltop, step by step",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       5.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       9.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 5,
+     "kind": "text",
+     "content": "the descent inequality, shown again",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       6.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       10.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 6,
+     "kind": "math",
+     "content": "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       7.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       11.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 7,
+     "kind": "text",
+     "content": "the proof, in three steps",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       8.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       12.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 8,
+     "kind": "text",
+     "content": "Two-link arm: PD+g versus a receding window",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       10.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       14.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 9,
+     "kind": "math",
+     "content": "H\\big(q,-V'(q)\\big)=\\frac{\\kappa q^2}{2}-\\frac{\\kappa q^2}{2}=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       11.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       15.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 10,
+     "kind": "text",
+     "content": "exact: y″ − ω²y = 0,  y(0) = 0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       12.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       16.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 11,
+     "kind": "text",
+     "content": "the Hamilton–Jacobi equation, shown again",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       13.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       17.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 12,
+     "kind": "math",
+     "content": "H=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       14.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       18.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    }
+   ],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 60.0
+  }
+ }
+}

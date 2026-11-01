@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "channel_name": "Remaining Action",
+  "tagline": "Robotics and control, explained with the equations and the code.",
+  "description_footer": "Remaining Action explains robotics and control research with original animations.",
+  "links": {
+    "include": false,
+    "footer": "Every number in the video comes from a script you can run: the explainer and its code are linked above.",
+    "note": "Off by default: the video never refers to the explainer, code or site, and the description carries no link to them. Turn it on here, or for one run with the pipeline's 'links' input, to add the explainer and code links to the YouTube description only (never inside the video); that needs SITE_BASE_URL."
+  },
+  "language": "en",
+  "youtube": {
+    "category_id": "28",
+    "default_tags": [
+      "Remaining Action",
+      "robotics",
+      "control theory",
+      "robot control"
+    ],
+    "made_for_kids": false,
+    "contains_synthetic_media": "auto",
+    "license": "youtube",
+    "embeddable": true,
+    "public_stats_viewable": true,
+    "review_privacy": "private",
+    "publish_mode": "public",
+    "schedule_delay_hours": 0,
+    "on_reject": "keep_private",
+    "expected_channel_title": "Remaining Action"
+  },
+  "voice": {
+    "service": "piper",
+    "piper": {
+      "voice": "en_US-ljspeech-medium",
+      "revision": "main",
+      "sha256": "",
+      "length_scale": 1.0,
+      "sentence_pause_s": 0.25,
+      "speaker": null
+    },
+    "azure_voice": "en-US-AndrewNeural",
+    "draft_words_per_minute": 150,
+    "synthetic_voice_note": "Narrated with a synthetic voice.",
+    "disclosure": "Script, figures and animations were produced with an AI-assisted pipeline, checked by scripts and independent reviewers, and approved by a human before publication."
+  },
+  "video": {
+    "quality": "h",
+    "min_duration_s": 45,
+    "max_duration_s": 1200,
+    "loudness_lufs": -16
+  },
+  "linkedin": {
+    "commentary_template": "New on Remaining Action: {title}. {summary} Explainer with equations, code and sources: {explainer_url} Video: {video_url}",
+    "commentary_template_video": "New on Remaining Action: {title}. {summary} Video: {video_url}"
+  }
+}

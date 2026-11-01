@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:04,000
+The scripts behind every number are linked in the description.
+
+2
+00:00:04,100 --> 00:00:07,000
+In the last episode we saw the window: equation 4 of episode 2.
+
+3
+00:00:07,100 --> 00:00:10,000
+As figure 2 shows, the curve rises.

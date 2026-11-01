@@ -1,0 +1,74 @@
+{
+  "note": "Recorded (fictional) search answers for the fixture run: SEARCH_BACKEND=fake SEARCH_FAKE_DATA=<this file>.",
+  "autocomplete": {
+    "receding horizon control stability": [
+      "receding horizon control stability",
+      "receding horizon control stability proof",
+      "receding horizon control stability lecture"
+    ],
+    "mpc lyapunov function": [
+      "mpc lyapunov function",
+      "mpc lyapunov function terminal cost",
+      "mpc lyapunov function explained",
+      "mpc lyapunov function proof"
+    ],
+    "contact rich manipulation benchmark": [
+      "contact rich manipulation"
+    ],
+    "humanoid robot demo": [
+      "humanoid robot demo",
+      "humanoid robot demo 2026",
+      "humanoid robot demo fails",
+      "humanoid robot demo dance",
+      "humanoid robot demo kitchen"
+    ]
+  },
+  "youtube": {
+    "receding horizon control stability": [
+      {
+        "id": "fx01",
+        "title": "Receding horizon control and stability (lecture)",
+        "channel": "Fictional Control Lab",
+        "published": "2025-03-02",
+        "views": 41000
+      },
+      {
+        "id": "fx02",
+        "title": "MPC stability with terminal cost, receding horizon",
+        "channel": "Fictional Robotics",
+        "published": "2026-02-11",
+        "views": 9200
+      },
+      {
+        "id": "fx03",
+        "title": "Cooking with robots",
+        "channel": "Fictional Kitchen",
+        "published": "2026-05-01",
+        "views": 2000000
+      }
+    ],
+    "mpc lyapunov function": [
+      {
+        "id": "fx02",
+        "title": "MPC stability with terminal cost, receding horizon",
+        "channel": "Fictional Robotics",
+        "published": "2026-02-11",
+        "views": 9200
+      },
+      {
+        "id": "fx04",
+        "title": "Lyapunov function of MPC explained",
+        "channel": "Fictional Tutor",
+        "published": "2026-08-20",
+        "views": 3100
+      }
+    ]
+  },
+  "trends": {
+    "receding horizon control stability": {
+      "mean": 22.5,
+      "points": 52,
+      "recent_half_mean": 25.0
+    }
+  }
+}

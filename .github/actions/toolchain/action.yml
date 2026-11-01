@@ -1,0 +1,60 @@
+name: Pipeline toolchain (runner)
+description: >-
+  Installs what a Claude job needs on a GitHub-hosted Ubuntu runner. Profile "claude": bubblewrap and socat for Claude
+  Code's sandbox and Python (the scout needs nothing else). Profile "full" adds ffmpeg, SoX, TeX Live with dvisvgm,
+  the Python venv (.venv) with Manim and manim-voiceover, and Node with Playwright, Chromium and KaTeX 0.16.9.
+inputs:
+  profile:
+    description: claude or full
+    required: false
+    default: full
+  python-version:
+    description: Python version for .venv
+    required: false
+    default: "3.13"
+runs:
+  using: composite
+  steps:
+    - name: Sandbox packages
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends bubblewrap socat
+        # Ubuntu 24.04 restricts the user namespaces bubblewrap needs: the AppArmor profile from the Claude Code
+        # sandbox documentation grants them to bwrap only (not to the commands it runs)
+        if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ]; then
+          printf '%s\n' 'abi <abi/4.0>,' 'include <tunables/global>' '' \
+            'profile bwrap /usr/bin/bwrap flags=(unconfined) {' '  userns,' '  include if exists <local/bwrap>' '}' \
+            | sudo tee /etc/apparmor.d/bwrap > /dev/null
+          sudo systemctl reload apparmor
+        fi
+    - name: Rendering packages
+      if: inputs.profile == 'full'
+      shell: bash
+      run: |
+        sudo apt-get install -y --no-install-recommends ffmpeg pkg-config libcairo2-dev libpango1.0-dev \
+          texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science cm-super dvisvgm \
+          fonts-dejavu-core sox
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+        cache-dependency-path: requirements.txt
+    - name: Python venv
+      if: inputs.profile == 'full'
+      shell: bash
+      run: |
+        python -m venv .venv
+        .venv/bin/python -m pip install --upgrade pip setuptools wheel
+        .venv/bin/python -m pip install -r requirements.txt
+    - uses: actions/setup-node@v4
+      if: inputs.profile == 'full'
+      with:
+        node-version: "22"
+        cache: npm
+    - name: Node packages and Chromium
+      if: inputs.profile == 'full'
+      shell: bash
+      run: |
+        npm ci --no-audit --no-fund
+        npx playwright install --with-deps chromium

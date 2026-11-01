@@ -1,0 +1,58 @@
+# wbc/wbc_companion_checks.py 
+# exit 0, 0.11 s
+
+======================================================================
+1. Gauss's principle with a task constraint = operational-space control
+======================================================================
+|lambda_KKT - Lambda (a - J qdd0)| = 2.7755575615628914e-16
+Gauss value              = 1.3563816970493263
+1/2 |a - J qdd0|^2_Lambda = 1.3563816970493268
+1/2 tau_c^T M^-1 tau_c    = 1.3563816970493272
+impressed: |J M^-1 J^T F - Lambda^-1 F| = 5.551115123125783e-17
+
+======================================================================
+2. Hierarchy as block Gram-Schmidt in the M^-1 metric
+======================================================================
+|G - L D L^T| = 3.3306690738754696e-16
+|L^-1 A - Jbar (dynamically consistent, literature)| = 2.1094237467877974e-15
+off-diagonal blocks of Jbar M^-1 Jbar^T: 3.006784706907253e-16
+|xdot - L v| = 1.3322676295501878e-15
+kinetic energy 1/2 qd^T M qd = 72.71736124700325   sum 1/2 v_i^T Lambdabar_i v_i = 72.71736124700321
+
+======================================================================
+3. Stacked multipliers vs decoupled task forces: F = L^T lambda
+======================================================================
+|tau_c - Jbar^T F| = 4.440892098500626e-16
+Gauss effort 1/2 tau^T M^-1 tau = 0.37613524693037537   sum 1/2 F_i^T Lambdabar_i^-1 F_i = 0.37613524693037537
+last level: |F_r - lambda_r| = 0.0
+task 1 force, task 1 first : [-0.0792 -1.1966]
+task 1 force, task 1 last  : [ 0.2598 -0.858 ]  (= its multiplier [ 0.2598 -0.858 ] )
+
+======================================================================
+4. Power: total invariant, per-level not
+======================================================================
+F^T v = -0.39130899222940835   lambda^T xdot = -0.3913089922294067   tau_c^T qdot = -0.39130899222940685
+per-level power, order (1,2,3): [ 3.0565 -3.4159 -0.032 ]
+per-level power, order (3,2,1): [ 0.022  -0.4461  0.0328]  (listed as tasks 3,2,1)
+totals: -0.3913089922294081 -0.39130899222940746
+
+======================================================================
+5. Leak: a force on task i written with J_i^T spreads over levels j <= i
+======================================================================
+|J_3^T f - sum_j Jbar_j^T L_3j^T f| = 4.440892098500626e-16
+components on levels 1,2,3: [0.2702872980629761, 2.154379534435508, 2.2958817729097607]
+
+======================================================================
+6. One-step rule with an energy-type boundary term gives damping only
+======================================================================
+stationarity residual: 4.996003610813204e-16  -> tau* = tau_ff - R^-1 qdot (no position feedback beyond tau_ff)
+
+======================================================================
+7. An inequality task becoming active on top: same torque, new attribution
+======================================================================
+torque continuous: |A_b^T lam - A_a^T [0, lam]| = 4.440892098500626e-16
+F_task1 before: [1.6197 0.3716]   after: [1.6329 0.3856]
+F_task2 before: [ 0.4065 -0.9893 -0.6581]   after: [ 0.4065 -0.9893 -0.6581]  (last level: unchanged)
+F_ineq after  : [0.0125]  (nonzero although its multiplier is zero)
+per-level power before (task1, task2): [-3.1604 -4.3304]  total -7.490857
+per-level power after (ineq, task1, task2): [ 0.0236 -2.8402 -4.6743]  total -7.490857

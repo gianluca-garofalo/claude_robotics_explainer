@@ -1,0 +1,103 @@
+<!--
+  Component reference for draft parts (runs/<run>/draft/NN-name.html). Copy what you need; delete this comment.
+  tools/build_explainer.py numbers sections, equations and figures, builds the TOC, inlines SVGs and links citations.
+  Never type a section, equation or figure number by hand: use the markers below.
+-->
+
+<!-- The abstract opens the first part. -->
+<div class="abstract" id="abstract">
+  <strong>Abstract.</strong>
+  One paragraph: the news in one sentence, the idea it rests on, what the reader will be able to do or compute at
+  the end, and how every number was checked. Cite the primary source ([[cite:keerthi1988]]).
+</div>
+
+<!-- Optional part label; it is listed in the TOC. -->
+<div class="part-label first">Part I &middot; The idea</div>
+
+<section id="sec-idea">
+<h2>The Idea in One Picture</h2>
+
+<h3 id="sec-idea-picture">What the robot does</h3>
+
+<p>
+  Plain prose first, then the formalism. Inline math uses single dollars, $x_{k+1}=f(x_k,u_k)$, and a cross
+  reference to a figure prints its number (Fig.&nbsp;[[fig:concept]]). Textual citation:
+  [[citet:mayne2000]] showed ... Parenthetical citation: ([[cite:keerthi1988]]; [[cite:mayne2000]]).
+</p>
+
+<figure>
+<!--SVG:concept-->
+<figcaption>Figure [[figdef:concept]]. One-sentence caption that says what to look at. Drawn by
+  <code>code/make_concept_figure.py</code>.</figcaption>
+</figure>
+
+<h3 id="sec-idea-math">The equation that matters</h3>
+
+<p>A displayed, numbered equation (only display math may carry a tag):</p>
+
+<div class="equation-block">
+$$
+V(x_{k+1})-V(x_k)\le-\ell(x_k,u_k).
+\tag{[[eq:descent]]}
+$$
+</div>
+
+<p>Equation ([[eq:descent]]) is referenced by its label; Section&nbsp;[[sec:sec-idea]] by its id.</p>
+
+<div class="definition">
+  <strong>Definition (name).</strong> A precise statement the reader can come back to.
+</div>
+
+<div class="insight">
+  <strong>Why it matters.</strong> The one consequence a reader should remember.
+</div>
+
+<div class="margin-note">
+  A side remark: conventions, signs, a caveat that would interrupt the main line.
+</div>
+
+<div class="algorithm">
+  <div class="alg-title">Algorithm: one step of the controller</div>
+  <ol>
+    <li><strong>Measure.</strong> Read the state $x_k$.</li>
+    <li><strong>Solve.</strong> Minimize the cost over the window.</li>
+    <li><strong>Apply.</strong> Use only the first input, then repeat.</li>
+  </ol>
+</div>
+
+<!-- For news topics: separate what the sources show from what is only claimed. -->
+<div class="evidence">
+  <strong>What is established.</strong>
+  <ul>
+    <li><span class="status verified">verified</span> A claim checked against the paper ([[cite:keerthi1988]]).</li>
+    <li><span class="status unverified">not verified</span> A claim made only in a press release or video.</li>
+  </ul>
+</div>
+
+<table>
+  <tr><th>Quantity</th><th class="num">Value</th><th>Source</th></tr>
+  <tr><td>Every number comes from a script</td><td class="num">0.500</td><td><code>code/example.py</code></td></tr>
+</table>
+</section>
+
+<!-- The verification section closes the drafts; the build appends References after it. -->
+<section id="sec-verification">
+<h2>Verification Status</h2>
+
+<h3 id="sec-ver-num">Numerical and symbolic checks</h3>
+<p>
+  Every number in this document is printed by one of the scripts below, in the folder <code>code/</code>, whose
+  <code>README.md</code> maps scripts to sections. &ldquo;Exact&rdquo; means a symbolic identity; &ldquo;sampled&rdquo;
+  means a numerical search that can miss a counterexample and is not a proof.
+</p>
+<table class="ver">
+  <tr><th>Claim</th><th>Script</th><th>Result</th></tr>
+  <tr><td>Descent inequality ([[eq:descent]]) on 20 random starts</td><td><code>example.py</code></td><td>Holds in every case</td></tr>
+</table>
+
+<h3 id="sec-ver-lit">Literature checks</h3>
+<p>
+  Every reference was checked against publisher, repository or index records. A DOI is given only where it appeared
+  in such a record. Entries marked &#9675; were confirmed only through secondary sources.
+</p>
+</section>

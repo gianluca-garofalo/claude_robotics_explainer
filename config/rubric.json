@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "disclaimer": "The ranking is a transparent heuristic for choosing what to explain next. It is not a prediction of views, shares or impact. Search demand measures what people already look for, which drives the long tail of views from search; viral spikes come mostly from suggested and browse traffic, which no lookup here measures.",
+  "formula": "total = 100 * max(0, sum_known(w_i * s_i) / (5 * sum_known(w_i)) - w_hype * hype_risk / 5), with s_i and hype_risk on a 0-5 scale and sum_i(w_i) = 1; a computed criterion whose data could not be collected is unknown, not zero, and the weights of the known criteria are renormalised",
+  "criteria": {
+    "recency": {
+      "weight": 0.1,
+      "computed": true,
+      "description": "Days from the newest primary source about the topic (relation subject) to the run date, computed by tools/rank_topics.py; unknown, not 0, when no such source is dated.",
+      "bands_days": [[7, 5], [14, 4], [30, 3], [90, 2], [365, 1]],
+      "older": 0,
+      "source": "dates"
+    },
+    "search_demand": {
+      "weight": 0.15,
+      "computed": true,
+      "source": "search",
+      "description": "How much people already search for the topic: views of recent relevant YouTube videos, YouTube search suggestions and Google Trends interest, combined by tools/search_demand.py (computed, not judged; unknown when no source could be read)."
+    },
+    "supply_gap": {
+      "weight": 0.1,
+      "computed": true,
+      "source": "search",
+      "description": "How little good recent coverage exists: few recent relevant YouTube videos and weak competitors score high (computed by tools/search_demand.py from the YouTube Data API; unknown without an API key)."
+    },
+    "novelty": {
+      "weight": 0.15,
+      "description": "How new the idea or capability is relative to the published state of the art."
+    },
+    "visual_potential": {
+      "weight": 0.15,
+      "description": "How naturally the core idea becomes an original animation (motion, geometry, phase portraits, forces)."
+    },
+    "audience_fit": {
+      "weight": 0.15,
+      "description": "Relevance to robotics and control researchers and students (MPC, whole-body control, estimation, learning for control)."
+    },
+    "teachability": {
+      "weight": 0.2,
+      "description": "Whether the key idea reduces to a toy model, a few equations and a script that reproduces its numbers."
+    }
+  },
+  "penalty": {
+    "hype_risk": {
+      "weight": 0.3,
+      "description": "Controversy and hype risk: claims resting on demos, press releases or superlatives without a primary technical source. Penalised, never rewarded."
+    }
+  },
+  "gates": {
+    "require_primary_source": true,
+    "max_hype_risk_for_recommendation": 3,
+    "claim_roles_counted": ["central"],
+    "max_unverified_central_claims": 0,
+    "max_provisional_central_claims": null,
+    "definitions": "A primary source counts for the gate only with relation 'subject' (it presents this candidate's own work); prior work cited for novelty does not. Only claims with role 'central' (what the explainer would rely on: the method, the main result, the key number) are counted; limitations and context are never counted, so stating caveats costs nothing. 'provisional' claims (primary source seen only as a search tool's abstract, typically because the network blocked it) are allowed and flagged for re-verification before writing; null means no limit."
+  },
+  "tie_breakers": ["teachability", "visual_potential", "audience_fit"],
+  "changelog": [
+    "v2 (2026-10): search_demand 0.15 and supply_gap 0.10 added (computed from search data); recency 0.15 -> 0.10, novelty, visual_potential and audience_fit 0.20 -> 0.15, teachability 0.25 -> 0.20.",
+    "v2.1 (2026-10-31): gates count only central claims and subject primary sources; provisional claims allowed and flagged; recency unknown without a dated subject source."
+  ]
+}

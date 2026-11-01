@@ -1,0 +1,12 @@
+# merged/fig_bases.py 
+# exit 0, 0.15 s
+M(q_d) = [[1.5393, 0.4521], [0.4521, 0.24]]
+J_1 = [0.7536 0.4   ]  J_2 = [0. 1.]
+Theta_21 = 2.500000 (1/l_2 = 2.500000)
+Jbar_2 = [-1.8839  0.    ]   J_1 M^-1 Jbar_2^T = -4.5e-16
+tau_c = [1.5071 1.2   ]   check J1 F1 + Jbar2 F2 = [1.5071 1.2   ]
+lambda = (2.000, 0.400)   F = (3.000, 0.400)
+Lambda_1 J_1 M^-1 tau_c = 3.000000  (= F_1)
+order 2 > 1: F_2' = lambda_2 + Theta'_21 lambda_1 = 0.7573, F_1' = lambda_1 = 2.0000
+qdot = [ 0.5 -1. ]  stacked powers [-0.0464 -0.4   ]  decoupled powers [-0.0697 -0.3768]  totals -0.4464 -0.4464 -0.4464
+wrote fig_bases.svg

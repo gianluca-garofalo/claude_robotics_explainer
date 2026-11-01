@@ -1,0 +1,706 @@
+{
+  "schema_version": 2,
+  "slug": "mpc-mechanics",
+  "title": "The Mechanics of Predictive Control",
+  "source": "sources/variational-whole-body-control",
+  "explainer_sha256": "c810f7c6ee2da7cd262deefbc7e497e05f359973e425a8496e15bdf96d26d723",
+  "explainer_slug": "variational-whole-body-control",
+  "created_at": "2026-10-31T12:32:57+00:00",
+  "playlist": {
+    "title": "The Mechanics of Predictive Control",
+    "privacy": "public",
+    "description": "The Mechanics of Predictive Control\n\nA predictive controller plans a few steps ahead, applies only the first move, and plans again. This five-part series asks why that is stable, and what the optimizer inside it knows. The answer runs through one quantity: the least cost still to pay from the current state, which mechanics calls the remaining action. It is a Lyapunov function, its slope gives the momenta, and on a robot the velocity momentum sets the torque.\n\n1. Why predictive control is stable: the cost still to pay. Why the cost still to pay can only fall, what the window length does and does not change, and a controller that converges while the textbook proof of its stability fails.\n2. The hilltop: Hamilton–Jacobi and the stable manifold. Shrink the window to nothing: one minimization gives both the controller and its certificate, and a ball balanced on a hilltop shows the cost still to pay generating the one push that arrives.\n3. Multipliers are momenta: what the optimizer knows about torque. Robots choose torques, not velocities. The multipliers that enforce their dynamics are momenta, the slopes of the cost still to pay, and a solver already computes them.\n4. A zero-length window on a robot arm: PD control falls out. With the right boundary term, the zero-length window on a two-link arm is PD control with gravity compensation, and whether the mathematics certifies it depends on one spring.\n5. Ten steps ahead: receding windows on a robot arm. Real windows on the same arm, certified at every step, and what a longer window buys: more starting points and a lower cost estimate, not necessarily a cheaper motion.\n\nEvery episode restates, in a marked recap, each earlier result it uses, so you can start with any of them. You need calculus and basic dynamics; optimal control and analytical mechanics are introduced as they are needed.\n\nThe series continues, for whole-body control, in Forces on a Task: the mechanics of whole-body control."
+  },
+  "plan_sentence": "Over five episodes, we'll see why predictive control is stable, shrink its planning window down to nothing, find momenta hiding inside its optimizer, and then test all of it on a two-link robot arm: first with a window of length zero, then with real ones.",
+  "playlist_description": "The Mechanics of Predictive Control\n\nA predictive controller plans a few steps ahead, applies only the first move, and plans again. This five-part series asks why that is stable, and what the optimizer inside it knows. The answer runs through one quantity: the least cost still to pay from the current state, which mechanics calls the remaining action. It is a Lyapunov function, its slope gives the momenta, and on a robot the velocity momentum sets the torque.\n\n1. Why predictive control is stable: the cost still to pay. Why the cost still to pay can only fall, what the window length does and does not change, and a controller that converges while the textbook proof of its stability fails.\n2. The hilltop: Hamilton–Jacobi and the stable manifold. Shrink the window to nothing: one minimization gives both the controller and its certificate, and a ball balanced on a hilltop shows the cost still to pay generating the one push that arrives.\n3. Multipliers are momenta: what the optimizer knows about torque. Robots choose torques, not velocities. The multipliers that enforce their dynamics are momenta, the slopes of the cost still to pay, and a solver already computes them.\n4. A zero-length window on a robot arm: PD control falls out. With the right boundary term, the zero-length window on a two-link arm is PD control with gravity compensation, and whether the mathematics certifies it depends on one spring.\n5. Ten steps ahead: receding windows on a robot arm. Real windows on the same arm, certified at every step, and what a longer window buys: more starting points and a lower cost estimate, not necessarily a cheaper motion.\n\nEvery episode restates, in a marked recap, each earlier result it uses, so you can start with any of them. You need calculus and basic dynamics; optimal control and analytical mechanics are introduced as they are needed.\n\nThe series continues, for whole-body control, in Forces on a Task: the mechanics of whole-body control.",
+  "related_series": {
+    "follows": [],
+    "followed_by": [
+      "forces-on-a-task"
+    ]
+  },
+  "release": {
+    "order": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "launch_together": [
+      1,
+      2
+    ],
+    "cadence": "weekly after launch"
+  },
+  "_proposal_notes": [
+    "PROPOSAL ONLY (schema_version 2). Not applied; series/ is the owner's.",
+    "sections and section_ids are SOURCES, not a one-to-one mapping; material.section_ids repeats them for the v2 readers. tools/series.py and tools/video/plan.py must loosen their rules (PLAN.md, section 7).",
+    "prerequisites: an integer is an episode of this series; {series, episode} is an episode of another series and is allowed only when that series is released earlier (related_series.follows).",
+    "playlist.description duplicates playlist_description so the current publish tool keeps working; the tools should read playlist_description and drop the duplicate.",
+    "material.scripts_missing_from_series_source lists companion scripts that are not in the series source's code/ (8 of the companion scripts are there); sync them, with checks.toml entries, before producing that episode."
+  ],
+  "episodes": [
+    {
+      "number": 1,
+      "title": "Why predictive control is stable: the cost still to pay",
+      "short_title": "Why MPC is stable",
+      "kind": "first",
+      "hook": "A predictive controller plans a few steps ahead, takes only the first step, and throws the rest of the plan away. Then it plans again from wherever it landed. Why should that ever settle down? The answer is a number the controller computes anyway: the cost still to pay. And you'll see a controller that converges every time while the textbook proof of its stability fails at every step.",
+      "length_min": 11,
+      "sections": [
+        "1.1",
+        "1.3",
+        "2",
+        "3.1",
+        "3.3",
+        "3.4",
+        "4.1",
+        "4.2",
+        "4.3",
+        "15.2"
+      ],
+      "section_ids": [
+        "sec-idea",
+        "sec-dictionary",
+        "sec-core",
+        "sec-localrule",
+        "sec-exactness",
+        "sec-solvable",
+        "sec-proof-steps",
+        "sec-asymptotic",
+        "sec-numeric",
+        "sec-parallel"
+      ],
+      "visuals": "Sliding window with bold first segment; ledger bar 'paid / still to pay'; old plan shifting with a green reference step appended inside the terminal region; stacked bars window vs tail for N = 1, 2, 5, 10, 20; two step-cost ledgers (exact vs rectangle rule) with a per-step check; a dial for the inflation factor crossing 1.051.",
+      "data": "note/sec4_3_one_step_example.py (exact: V1 = W, dV = -Ld; rectangle: V1 0.504545 > W 0.5, dV -0.087566 vs -Ld -0.091322; x1.2 holds); note/sec5_6_symbolic_checks.py (P_DARE(rect) = 1.051249 at h = 0.1, 1.280776 at h = 0.5; e^-0.1 = 0.904837); merged/window_split.py (window/tail splits, P_d/2 = 0.5256).",
+      "story_beat": "Proves in five lines why a receding-window controller with a boundary term and a terminal region is stable; says what the window length does and does not change; explains why a convergent controller can still fail its certificate.",
+      "takeaway": {
+        "sentence": "The cost still to pay falls by at least the cost of each step, provided the boundary term pays for the tail; that certificate belongs to the pair of step cost and boundary term, not to the controller.",
+        "tex": [
+          "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)",
+          "W\\big(\\varphi_f(q)\\big)-W(q)\\le -L_d\\big(q,\\varphi_f(q)\\big)"
+        ]
+      },
+      "prerequisites": {
+        "must": [],
+        "helpful": []
+      },
+      "series_context": {
+        "spoken": "This is the first of five episodes in The Mechanics of Predictive Control, and it starts from scratch. Over five episodes, we'll see why predictive control is stable, shrink its planning window down to nothing, find momenta hiding inside its optimizer, and then test all of it on a two-link robot arm: first with a window of length zero, then with real ones.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 1 of 5",
+          "builds_on": []
+        }
+      },
+      "recap": [],
+      "outline": [
+        {
+          "beat": "Hook, series context and the spoken plan of the series",
+          "min": 1.0
+        },
+        {
+          "beat": "The receding window, named: window of N steps, terminal region, boundary term W, first step applied; cost per step = Lagrangian, total = action, least cost still to pay = remaining action V_N (four-row MPC-to-mechanics dictionary)",
+          "min": 1.5
+        },
+        {
+          "beat": "Why it falls: yesterday's plan minus the step taken, plus one reference step inside the region, is a valid plan today; if W falls along the reference motion at least as fast as cost is spent, V_N(q+) - V_N(q) <= -L_d(q,q+); the plan stays feasible; with the usual bounds, asymptotic stability",
+          "min": 3.0
+        },
+        {
+          "beat": "What the window length does: the proof never used N; a longer window enlarges the set of starting points and lowers V_N; with an exact boundary term the total stays 0.5 while the split between computed window and estimated tail moves",
+          "min": 1.5
+        },
+        {
+          "beat": "One step, exactly: N = 1 on the toy L = v^2/2 + q^2/2, h = 0.1, W = q^2/2; with the step's cost computed exactly, V_1 = W and the drop equals the step cost at every step (q shrinks by e^-0.1)",
+          "min": 2.0
+        },
+        {
+          "beat": "The paradox resolved: rectangle-rule step cost, same W: q -> 0.909 q converges, but V_1 > W and the drop 0.0876 is less than the step cost 0.0913, at every step; inflate W by 20 % (threshold 1.051) and every inequality holds: the certificate belongs to the pair",
+          "min": 2.0
+        }
+      ],
+      "teaser": "In the next episode: shrink the window to nothing, and a ball balanced on a hilltop shows what the cost still to pay is made of.",
+      "material": {
+        "section_ids": [
+          "sec-idea",
+          "sec-dictionary",
+          "sec-core",
+          "sec-localrule",
+          "sec-exactness",
+          "sec-solvable",
+          "sec-proof-steps",
+          "sec-asymptotic",
+          "sec-numeric",
+          "sec-parallel"
+        ],
+        "figures": [
+          "Figure 1 (one cycle of the scheme)",
+          "tables of 4.3",
+          "window/tail table of 15.2"
+        ],
+        "scripts": [
+          "note/sec4_3_one_step_example.py",
+          "note/sec5_6_symbolic_checks.py",
+          "merged/window_split.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [],
+        "scripts_missing_from_series_source": [],
+        "notes": "Simplified: proof shown for N = 1 with 'same idea for any N'; the exact discrete Lagrangian is 'the step's cost computed exactly'; continuous Riccati weight is 'the exact cost of the infinite future of the continuous problem'; comparison-function bounds in one sentence. Left out: KKT with active constraints (moved to episode 5), the 3-D matrix threshold 1.1055, the 3-D general-N test, discrete Legendre transforms, notation tables. 15.2 is used only for the exact-pair split (and one line on the inexact pair)."
+      },
+      "difficulty": 2,
+      "target_viewer": "Control engineers and students who use or have heard of MPC; no optimal control or analytical mechanics assumed. Search entry: MPC stability, terminal cost, Lyapunov.",
+      "entry_point": true
+    },
+    {
+      "number": 2,
+      "title": "The hilltop: Hamilton–Jacobi and the stable manifold",
+      "short_title": "The hilltop",
+      "kind": "middle",
+      "hook": "Here is a ball on a hill. I want it to stay on top: not held there, but arriving there, rolling, and stopping exactly on the summit. Of all the ways to push it, only one works. By the end of this video you will see what finds that one push: the remaining action, the cost still to be paid from here on.",
+      "length_min": 11,
+      "sections": [
+        "5.1",
+        "5.2",
+        "5.3",
+        "5.4",
+        "5.5",
+        "6.1",
+        "6.3",
+        "6.4",
+        "6.5",
+        "11.3"
+      ],
+      "section_ids": [
+        "sec-expansion",
+        "sec-momentum",
+        "sec-hcondition",
+        "sec-constrained-v",
+        "sec-noL",
+        "sec-which",
+        "sec-scalar",
+        "sec-boundary",
+        "sec-speedlimit",
+        "sec-resolution"
+      ],
+      "visuals": "Hill with three pushes; (q, p) saddle with green (in) and amber (out) lines; ledger bar paid vs remaining; bracket parabola for W = cV with live c; tanh(omega theta) -> 1; clipped law and constrained remaining action; bracket parabola vs line (why L). Also: the hook as its own opening, the series-context frame, the recap card, the outro.",
+      "data": "note/fig3_phase_portrait.py (m = kappa = 1, q0 = 1.6, H levels); note/sec5_6_symbolic_checks.py (HJ residual 0, integral of L - V = 0, time-to-go residual, exact one step V1 = W for h = 0.1 and 0.5, scaled-candidate table c = 0.5 ... 2); merged/hilltop_extra.py (Jacobi field); optional merged/ineq_hilltop.py (-0.125 at q = 1; 0.5417 vs 0.5).",
+      "story_beat": "Derives the certificate H(q, -grad W) >= 0 by shrinking the window; sees on a phase portrait why only the zero-energy push arrives; reads the cost still to pay as the generator of that push; sees that a speed limit changes which boundary term is exact.",
+      "takeaway": {
+        "sentence": "The cost still to pay generates the momentum, solves the Hamilton–Jacobi equation at zero energy and falls at exactly the rate of the cost; a boundary term W is certified wherever H(q, -grad W) is at least zero.",
+        "tex": [
+          "p=-V'(q),\\quad H\\big(q,-V'(q)\\big)=0,\\quad \\dot V=-L",
+          "H\\big(q,-\\nabla W(q)\\big)\\ge 0"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          1
+        ],
+        "helpful": []
+      },
+      "series_context": {
+        "spoken": "This is episode two of five in The Mechanics of Predictive Control. It builds on the first episode, on why predictive control is stable. If you're joining here, welcome: that result takes forty seconds to restate.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 2 of 5",
+          "builds_on": [
+            "Why MPC is stable"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: why predictive control is stable",
+          "from": [
+            1
+          ],
+          "seconds": 40,
+          "card": [
+            "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)",
+            "W\\big(\\varphi_f(q)\\big)-W(q)\\le -L_d\\big(q,\\varphi_f(q)\\big)"
+          ],
+          "restates": "A predictive controller plans over a window, pays a boundary term W at its end, applies the first step and repeats. The least cost still to pay then drops after each step by at least that step's cost, provided W drops at least as fast as cost is spent near the target; in continuous time, W-dot at most minus L. The requirement belongs to the pair of cost and boundary term: a controller can converge while a badly matched W fails to certify it."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook (its own opening scene)",
+          "min": 0.45
+        },
+        {
+          "beat": "Series context with the builds-on frame; Recap: why predictive control is stable",
+          "min": 0.85
+        },
+        {
+          "beat": "A ball on a hilltop: the cost read as kinetic minus potential energy; Newton's law on an inverted parabola; true minima (no conjugate point)",
+          "min": 1.05
+        },
+        {
+          "beat": "Only one push arrives: saddle in the (q, p) plane, three pushes, the stable manifold; V generates it: p = -V', H(q, -V') = 0, integral of L = V",
+          "min": 2.3
+        },
+        {
+          "beat": "Shrinking the window: the bracket L + grad W . v, Legendre transform, the certificate H(q, -grad W) >= 0; one minimization, two outputs; scaled candidates W = cV",
+          "min": 2.3
+        },
+        {
+          "beat": "A finite window and the role of the boundary term; Adding a speed limit (clipped law, constrained remaining action); Why the cost of motion stays",
+          "min": 3.25
+        },
+        {
+          "beat": "Three facts about V; outro with the takeaway card and teaser",
+          "min": 0.8
+        }
+      ],
+      "teaser": "In the next episode: a robot doesn't choose its velocity, it chooses a torque, and the multipliers that enforce its dynamics turn out to be momenta.",
+      "material": {
+        "section_ids": [
+          "sec-expansion",
+          "sec-momentum",
+          "sec-hcondition",
+          "sec-constrained-v",
+          "sec-noL",
+          "sec-which",
+          "sec-scalar",
+          "sec-boundary",
+          "sec-speedlimit",
+          "sec-resolution"
+        ],
+        "figures": [
+          "Figure 3 (phase portrait of the hilltop)"
+        ],
+        "scripts": [
+          "note/fig3_phase_portrait.py",
+          "note/sec5_6_symbolic_checks.py",
+          "merged/hilltop_extra.py",
+          "merged/ineq_hilltop.py"
+        ],
+        "optional_scripts": [
+          "merged/ineq_hilltop.py"
+        ],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "merged/ineq_hilltop.py"
+        ],
+        "notes": "Made fresh; it replaces the dropped pilot of former episode 3, and the pilot verdict (PLAN.md, section 8) still applies: no channel card; hook split out; series context and one recap added; finite-window claim about short-horizon MPC replaced (not in the document, and the W = 0 window still converges on the hilltop); HJ uniqueness qualified; 'exact discrete Lagrangian' said as 'the step's cost computed exactly'; outro with takeaway and teaser. Left out: dictionary with signs beyond p = -grad V, viscosity solutions, Figure 2."
+      },
+      "difficulty": 3,
+      "target_viewer": "Viewers who want intuition for Hamilton–Jacobi, Legendre and the stable manifold; control engineers meeting them for the first time. Search entry: Hamilton-Jacobi equation, stable manifold, phase portrait.",
+      "entry_point": true
+    },
+    {
+      "number": 3,
+      "title": "Multipliers are momenta: what the optimizer knows about torque",
+      "short_title": "Multipliers are momenta",
+      "kind": "middle",
+      "hook": "Here is the cheapest way to push a cart back to the origin. The force pulls, and then, just after one second, it starts braking. Now look at a second column of numbers that the optimizer computes for a different reason: the multiplier that enforces Newton's law. With a unit weight on the force, the two columns are identical. That multiplier is a momentum, and this episode is about why.",
+      "length_min": 12,
+      "sections": [
+        "7.1",
+        "7.2",
+        "7.3",
+        "7.5",
+        "7.6",
+        "7.7",
+        "8.1"
+      ],
+      "section_ids": [
+        "sec-so-setting",
+        "sec-so-augmented",
+        "sec-so-hamiltonian",
+        "sec-so-discrete",
+        "sec-so-example",
+        "sec-so-manipulator",
+        "sec-gauss-free"
+      ],
+      "visuals": "Two-column table (force, velocity momentum) lighting up equal entries; augmented Lagrangian assembled term by term, multipliers relabelled as momenta; the double-integrator phase plane with level sets of V and momentum arrows normal to them (Figure 4, animated); a solver 'receipt' of multipliers next to -P_{N-k} z_k; two-link arm silhouette with tau* = R^-1 M^-1 pi_v.",
+      "data": "note/sec7_numerical_checks.py (P = [[sqrt3, 1], [1, sqrt3]], K = (1, sqrt3), poles (-sqrt3 +/- i)/2, damping 0.8660, V(z0) = 0.866025 = integral of l, path table, shooting multipliers = -P_{N-k} z_k to ~1e-16, manipulator torque agreement ~1e-8); note/sec7_symbolic_checks.py (H = 0, V-dot = -l, exact); note/fig4_double_integrator.py.",
+      "story_beat": "Explains why the multipliers of a robot's equations of motion are momenta (minus the slope of the cost still to pay), computes a cart's optimal force as a momentum, and reads discrete momenta off a multiple-shooting solver with the right sign.",
+      "takeaway": {
+        "sentence": "The multipliers that enforce a robot's dynamics are momenta, minus the slope of the cost still to pay, and the optimal torque is set by the velocity momentum alone.",
+        "tex": [
+          "\\pi=-\\nabla_z V",
+          "\\tau^*=R^{-1}M(q)^{-1}\\,\\pi_v"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2
+        ],
+        "helpful": [
+          1
+        ]
+      },
+      "series_context": {
+        "spoken": "This is episode three of five in The Mechanics of Predictive Control. It builds on the hilltop episode. If you're joining here, welcome: the one idea we need from it comes next.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 3 of 5",
+          "builds_on": [
+            "The hilltop"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: the rule of the vanishing window",
+          "from": [
+            2
+          ],
+          "seconds": 45,
+          "card": [
+            "p=-V'(q),\\quad H\\big(q,-V'(q)\\big)=0,\\quad \\dot V=-L",
+            "H\\big(q,-\\nabla W(q)\\big)\\ge 0"
+          ],
+          "restates": "Plan over a vanishingly short window with a boundary term W: the selected velocity minimizes L plus the rate of change of W. Calling p = -grad W a momentum, the minimum of that bracket is minus the Hamiltonian. Its minimizer is the controller; its value is the certificate: W falls at least as fast as cost is spent exactly where H(q, -grad W) is at least zero. The cost still to pay solves H = 0, and its slope gives the one momentum that arrives."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: the rule of the vanishing window",
+          "min": 1.6
+        },
+        {
+          "beat": "A robot chooses torque, not velocity: half of the state's velocity is pinned (q-dot = v), so the momentum of the cost does not exist; attach a multiplier to each equation of motion: the multipliers become the canonical momenta, Pontryagin's costate equations follow, and on optimal paths pi = -grad V",
+          "min": 1.7
+        },
+        {
+          "beat": "The rule for a robot: H(z, pi) = sup over u; the selected control maximizes pi_v . f - l, so only the velocity momentum sets it; the certificate is unchanged: the descent defect min_u [l + W-dot] <= 0",
+          "min": 2.0
+        },
+        {
+          "beat": "The cart in full: closed-form Riccati solution, pi = -Pz, u* = pi_v; along the path V equals the cost still to pay and the force equals the velocity momentum, flipping just after one second; momentum normal to the level sets of V, not along the path; eigenvalues in +/- pairs, and the stable subspace is the four-dimensional version of the hilltop's green line",
+          "min": 3.0
+        },
+        {
+          "beat": "Your solver already computes them: defect multipliers of multiple shooting are discrete momenta, pi_k = -grad V_{N-k}(z_k); the initial-value multiplier is minus the slope of the Lyapunov function; check the sign once at the last node; caveat: in discrete time 'torque = momentum' depends on the integrator",
+          "min": 2.0
+        },
+        {
+          "beat": "The manipulator: tau* = R^-1 M^-1 pi_v ('how much the cost still to pay would drop if the joints moved a little faster'); with R proportional to M^-1 the inertia disappears; outro",
+          "min": 1.2
+        }
+      ],
+      "teaser": "In the next episode: put a two-link arm's energy at the end of a window of length zero, and out comes PD control with gravity compensation, while the classical spring fails to certify it.",
+      "material": {
+        "section_ids": [
+          "sec-so-setting",
+          "sec-so-augmented",
+          "sec-so-hamiltonian",
+          "sec-so-discrete",
+          "sec-so-example",
+          "sec-so-manipulator",
+          "sec-gauss-free"
+        ],
+        "figures": [
+          "Figure 4 (double-integrator phase plane)"
+        ],
+        "scripts": [
+          "note/sec7_numerical_checks.py",
+          "note/sec7_symbolic_checks.py",
+          "note/fig4_double_integrator.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "note/sec7_numerical_checks.py",
+          "note/sec7_symbolic_checks.py",
+          "note/fig4_double_integrator.py"
+        ],
+        "notes": "8.1 is used only for the one-line discrete caveat. Simplified: costate equations shown, not derived term by term; only the w_q = w_v = w_u = 1 case. Left out: Ostrogradsky momenta and instability (7.4), discrete Legendre transforms on state pairs and the stiff exact discrete Lagrangian, inequality KKT in multiple shooting, the 42 % zero-order-hold figure, state constraints, the w_v = 0 detectability case."
+      },
+      "difficulty": 4,
+      "target_viewer": "MPC practitioners who use multiple shooting, and robot-control engineers curious about costates. Search entry (secondary): costate, Lagrange multipliers in optimal control.",
+      "entry_point": false
+    },
+    {
+      "number": 4,
+      "title": "A zero-length window on a robot arm: PD control falls out",
+      "short_title": "PD from zero window",
+      "kind": "middle",
+      "hook": "Take a two-link robot arm and a predictive controller whose window has length zero. Give it one particular boundary term: the arm's kinetic energy at a shifted velocity, plus a spring. Out comes PD control with gravity compensation, a controller from 1981. Now ask the mathematics to certify it: with the classical spring, the certificate fails right next to the target, even though the arm converges.",
+      "length_min": 12,
+      "sections": [
+        "9.2",
+        "9.3",
+        "9.4",
+        "10.1",
+        "10.2",
+        "10.3",
+        "10.4"
+      ],
+      "section_ids": [
+        "sec-certificate",
+        "sec-strict",
+        "sec-plant-energy",
+        "sec-robot-plant",
+        "sec-robot-ingredients",
+        "sec-robot-rule",
+        "sec-robot-condition"
+      ],
+      "visuals": "The arm in a vertical plane with a ghost of the target; W as a bowl over (e, e-dot) with the line where W-dot vanishes highlighted for the plain energy; sheared level sets for the composite energy; term-by-term derivation u* = -R^-1 s -> tau*; eigenvalue bars for the matched and the Slotine–Li spring with text labels; a 'half the damping' balance graphic.",
+      "data": "note/sec8_arm/model.py (M(q_d), eigenvalues 0.098 and 1.681, design parameters, matched K_e); note/sec8_arm/sym_derive.py (W-dot, Slotine–Li identity, u*, D = -H, pi_v = -Ms, exact); note/sec8_arm/condcheck.py, edge.py, quadlimit.py (eigenvalues of the Hessian of D, sampled level ~1.0e3, failure point, knife edge 1.05 rho^3).",
+      "story_beat": "Derives PD with gravity compensation as the zero-window rule for the composite energy; explains why the arm's plain energy yields only damping (a weak certificate); checks whether a boundary term certifies a controller and sees the classical spring fail by a factor of two while a matched spring holds far beyond any practical motion.",
+      "takeaway": {
+        "sentence": "With the arm's composite energy as boundary term, the zero-length window is PD control with gravity compensation; whether that energy certifies it depends on how the spring matches the cost, not on the controller.",
+        "tex": [
+          "\\tau^*=g(q)-K_D\\,\\dot e-K_P\\,e,\\qquad K_D=R^{-1},\\ K_P=R^{-1}\\Gamma",
+          "\\mathcal D(z)=\\min_u\\big[\\ell+\\dot W\\big]\\le 0"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          3
+        ],
+        "helpful": [
+          1,
+          2
+        ]
+      },
+      "series_context": {
+        "spoken": "This is episode four of five in The Mechanics of Predictive Control. It builds on the episode about multipliers as momenta. If you're joining here, welcome: the rule we use is restated in the next minute.",
+        "at_s": 32,
+        "frame": {
+          "heading": "Episode 4 of 5",
+          "builds_on": [
+            "Multipliers are momenta"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: the rule for a robot",
+          "from": [
+            3
+          ],
+          "seconds": 50,
+          "card": [
+            "\\pi=-\\nabla_z V",
+            "\\tau^*=R^{-1}M(q)^{-1}\\,\\pi_v"
+          ],
+          "restates": "For a robot that chooses torques, choose the input that minimizes the cost rate plus the rate of change of a boundary term W. The minimizer is the controller; the minimum value, the descent defect, is the certificate: where it is at most zero, W falls at least as fast as cost is spent, so W is a Lyapunov function. The minimizing torque is set by the velocity momentum, minus the slope of W with respect to velocity, through the inverse inertia."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: the rule for a robot",
+          "min": 1.8
+        },
+        {
+          "beat": "The arm and its cost: two point masses on massless links in a vertical plane, target with the second link horizontal, torque limits 50 and 30 N m; the input is the gravity-compensated torque, so gravity compensation is put in by this choice and only the PD gains will fall out; inertia eigenvalues 0.098 and 1.681 at the target (a fast mode)",
+          "min": 1.5
+        },
+        {
+          "beat": "First try, the arm's own energy plus a spring: the torque enters only through power, the velocity momentum -M q-dot carries no position information, so the rule adds damping only around a torque you choose by hand; W-dot vanishes whenever the arm is at rest, so a cost on position error can never be paid: a weak Lyapunov function (LaSalle needed); the fix is a position-velocity cross term",
+          "min": 2.0
+        },
+        {
+          "beat": "The composite energy: s = e-dot + Gamma e, W = s'Ms/2 + e'K_e e/2; the input enters W-dot only through s'u, so u* = -R^-1 s, i.e. tau* = g - K_D e-dot - K_P e with K_D = R^-1, K_P = R^-1 Gamma; the Slotine–Li feedforward is not selected; in momentum terms pi_v = -M s carries the position error",
+          "min": 2.5
+        },
+        {
+          "beat": "Does W certify it? Near the target the coupling vanishes for one matched spring, with bounds on the cost weights; the classical Slotine–Li spring K_e = 2 Gamma K_D gives two positive eigenvalues (9.15, 24.22) and fails arbitrarily close to the target for every cost weight: the rule supplies only half the damping that spring needs and does not cancel the feedforward; the arm still converges",
+          "min": 2.5
+        },
+        {
+          "beat": "How far the matched design holds: Gamma = 2 I, R = diag(0.05, 0.1); eigenvalues -40, -20, -10.45, -4.44; a sampled search (not a proof) finds the certificate on W <= ~1000, first failure near 10 rad and 17 rad/s; at the knife edge the cubic terms break it: a margin buys robustness; outro",
+          "min": 1.7
+        }
+      ],
+      "teaser": "In the next episode: give the arm a real window, ten steps ahead, and its first move slams both motors into their limits, yet every step is certified.",
+      "material": {
+        "section_ids": [
+          "sec-certificate",
+          "sec-strict",
+          "sec-plant-energy",
+          "sec-robot-plant",
+          "sec-robot-ingredients",
+          "sec-robot-rule",
+          "sec-robot-condition"
+        ],
+        "figures": [],
+        "scripts": [
+          "note/sec8_arm/model.py",
+          "note/sec8_arm/sym_derive.py",
+          "note/sec8_arm/condcheck.py",
+          "note/sec8_arm/edge.py",
+          "note/sec8_arm/quadlimit.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "note/sec8_arm/model.py",
+          "note/sec8_arm/sym_derive.py",
+          "note/sec8_arm/condcheck.py",
+          "note/sec8_arm/edge.py",
+          "note/sec8_arm/quadlimit.py"
+        ],
+        "notes": "9.2-9.3 are used in their joint-space form (energy of PD + gravity) as the motivation for the composite energy; 9.4 only for 'the Lagrangian must match W'. Simplified: the Hessian of the defect shown as its coupling block and the matched-spring formula; the design table reduced to matched vs Slotine–Li plus a sentence on the knife edge. Left out: the Kawai et al. precedent, the spring without the inertia correction, the position-weight-too-large design, the Pinocchio cross-check. A sign map of D on a 2-D slice is optional and must be computed from the companion model's closed forms, with no new printed numbers."
+      },
+      "difficulty": 4,
+      "target_viewer": "Robot-control engineers who know PD with gravity compensation and Slotine–Li. Search entry: PD gravity compensation, Slotine-Li, MPC robot arm.",
+      "entry_point": true
+    },
+    {
+      "number": 5,
+      "title": "Ten steps ahead: receding windows on a robot arm",
+      "short_title": "Ten steps ahead",
+      "kind": "finale",
+      "hook": "Give the arm's predictive controller a window of ten steps, fifty milliseconds, and its very first move slams both motors into their torque limits. Give it forty steps and it moves calmly. Both are certified at every single step: the cost still to pay falls by more than the cost spent, five hundred steps in a row. So what does a longer window actually buy?",
+      "length_min": 11,
+      "sections": [
+        "2",
+        "3.2",
+        "3.4",
+        "10.5",
+        "10.6",
+        "10.7",
+        "17.1",
+        "15.2"
+      ],
+      "section_ids": [
+        "sec-core",
+        "sec-stationarity",
+        "sec-solvable",
+        "sec-robot-rh",
+        "sec-robot-results",
+        "sec-robot-limits",
+        "sec-syn-cert",
+        "sec-parallel"
+      ],
+      "visuals": "Arm animation from video/data/arm_A.npz (PD + gravity green dashed, N = 10 amber, N = 40 blue) with torque traces and limit lines (Figure 5); live ledger of V_N and the descent ratio (Figure 6); bar chart of the least reachable W versus N with the region line; per-step bars of mu with a shrinking 'inflated W' bowl; V_N(z0) versus cost paid per N with the PD + gravity and long-window lines; closing montage of four certified/uncertified pairs.",
+      "data": "note/sec8_arm/feas.py, discrete_check.py, omega_check.py (0.340; 0.965 and 0.994; 1.69 and 2.27; -109.5 1/s); note/sec8_arm/closedloop.py and longh.py (closed-loop table; V_100, V_200, V_400); merged/ineq_arm.py (mu = 39.241 ... 0.594, six bounds active); merged/arm_extra_checks.py (N = 1 within 0.5 %, torque gap 0.73 and 1.03 N m); video/data/arm_A.npz (N = 10, N = 40, PD + gravity from start A).",
+      "story_beat": "Sets up the terminal ingredients for a real robot (region from torque limits, step size versus boundary term), predicts which windows can start where, reads the terminal-constraint multiplier as an inflated boundary term, and says precisely what a longer window buys and what it doesn't.",
+      "takeaway": {
+        "sentence": "The window length never changes the certificate: a longer window enlarges the set of starting points and lowers the cost still to pay, but does not necessarily make the motion cheaper.",
+        "tex": [
+          "V_N(z^+)-V_N(z)\\le -h\\,\\ell(z,u)\\quad\\text{for every window length }N",
+          "\\pi_N=-(1+\\mu)\\,\\nabla W(z_N)"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          1,
+          4
+        ],
+        "helpful": [
+          2,
+          3
+        ]
+      },
+      "series_context": {
+        "spoken": "This is the last of five episodes in The Mechanics of Predictive Control. It builds on why predictive control is stable, and on the arm from the previous episode. If you're joining here, welcome: both come back in the next minute.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 5 of 5",
+          "builds_on": [
+            "Why MPC is stable",
+            "PD from zero window"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: why predictive control is stable",
+          "from": [
+            1
+          ],
+          "seconds": 30,
+          "card": [
+            "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)",
+            "W\\big(\\varphi_f(q)\\big)-W(q)\\le -L_d\\big(q,\\varphi_f(q)\\big)"
+          ],
+          "restates": "With a boundary term that falls along a reference motion at least as fast as cost is spent inside a terminal region, the cost still to pay drops by at least each step's cost, for any window length: the window length never enters the proof."
+        },
+        {
+          "title": "Recap: the arm and its boundary term",
+          "from": [
+            4
+          ],
+          "seconds": 30,
+          "card": [
+            "\\tau^*=g(q)-K_D\\,\\dot e-K_P\\,e,\\qquad K_D=R^{-1},\\ K_P=R^{-1}\\Gamma",
+            "\\mathcal D(z)=\\min_u\\big[\\ell+\\dot W\\big]\\le 0"
+          ],
+          "restates": "On the two-link arm, the composite energy as boundary term turns the zero-length window into PD control with gravity compensation; with the matched spring and a margin on the cost, that energy certifies it far beyond any practical motion."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: why predictive control is stable; Recap: the arm and its boundary term",
+          "min": 1.8
+        },
+        {
+          "beat": "Terminal ingredients for a real arm: 5 ms steps; the reference motion is PD + gravity itself; region W <= 0.3 because the reference torques stay within limits only below about 0.340; at 5 ms the plain W works (needed scale 0.994); at 10 ms the fast mode needs 2.27, so halve the step rather than inflate W",
+          "min": 2.0
+        },
+        {
+          "beat": "Who can start where: from rest at (1.0, -0.95), W = 1.190; least reachable W after N steps 1.089, 0.724, 0.266, 0.085, ~0 for N = 1, 5, 10, 20, 40; PD + gravity needs no feasibility but is uncertified until it enters the region",
+          "min": 1.5
+        },
+        {
+          "beat": "Certified at every step: six closed-loop runs of 500 steps; the descent inequality never fails (worst margin -6.9e-12) and the descent ratio stays at or above 1.09",
+          "min": 1.5
+        },
+        {
+          "beat": "Why ten steps slam the motors: the terminal constraint is active with multiplier 39.2, so the plan arrives with momentum -(1 + mu) grad W and acts as if its boundary term were about 40 W; six of the twenty planned torques sit at limits; mu decays to 0.59 and releases at step ten; cost paid 2.463 (4.8 times PD + gravity)",
+          "min": 2.0
+        },
+        {
+          "beat": "What a longer window buys: V_N(z0) falls from 5.30 to 1.48 to 0.76 toward about 0.505; the cost paid stays above PD + gravity's 0.517, which is within 2.3 % of the long-window value, because W over-estimates the tail (the price of a robust certificate); one step is the digital PD law (within 0.5 %)",
+          "min": 1.6
+        },
+        {
+          "beat": "Closing: the same controller certified by one boundary term and not by another, four times in this series, each shown again in one line; outro without teaser",
+          "min": 0.8
+        }
+      ],
+      "teaser": null,
+      "material": {
+        "section_ids": [
+          "sec-core",
+          "sec-stationarity",
+          "sec-solvable",
+          "sec-robot-rh",
+          "sec-robot-results",
+          "sec-robot-limits",
+          "sec-syn-cert",
+          "sec-parallel"
+        ],
+        "figures": [
+          "Figure 5 (arm motion and torques)",
+          "Figure 6 (remaining action and descent ratio)"
+        ],
+        "scripts": [
+          "note/sec8_arm/feas.py",
+          "note/sec8_arm/discrete_check.py",
+          "note/sec8_arm/omega_check.py",
+          "note/sec8_arm/closedloop.py",
+          "note/sec8_arm/longh.py",
+          "merged/ineq_arm.py",
+          "merged/arm_extra_checks.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [
+          "video/data/arm_A.npz"
+        ],
+        "scripts_missing_from_series_source": [
+          "note/sec8_arm/feas.py",
+          "note/sec8_arm/discrete_check.py",
+          "note/sec8_arm/omega_check.py",
+          "note/sec8_arm/closedloop.py",
+          "note/sec8_arm/longh.py",
+          "merged/ineq_arm.py",
+          "merged/arm_extra_checks.py"
+        ],
+        "notes": "arm_A.npz holds start A with N = 10, N = 40 and PD + gravity only: N = 20 and the second start need closedloop.py runs (several minutes each) or must be dropped. Simplified: solver details in one sentence; the second start's table rows dropped except the N = 1 comparison. Left out: saturated PD + gravity (clip vs projection in the inverse-inertia metric), the certificate under saturation (about 5.9), the discrete condition with a saturated reference, adjoint-gradient checks, the h/2, h/4, h/8 numbers (said as 'halves with the step')."
+      },
+      "difficulty": 3,
+      "target_viewer": "Practitioners running MPC on robots (horizon length, terminal constraints, solver behaviour). Search entry: MPC horizon length, terminal constraint, robot arm MPC.",
+      "entry_point": true
+    }
+  ]
+}

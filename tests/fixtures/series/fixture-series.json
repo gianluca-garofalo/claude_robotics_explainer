@@ -1,0 +1,210 @@
+{
+ "schema_version": 2,
+ "slug": "fixture-series",
+ "title": "Fixture: two episodes of predictive control",
+ "source": "sources/variational-whole-body-control",
+ "explainer_sha256": "set-by-tests/series_fixture.py",
+ "explainer_slug": "variational-whole-body-control",
+ "created_at": "2026-10-31T12:00:00+00:00",
+ "playlist": {
+  "title": "Fixture series",
+  "privacy": "public"
+ },
+ "plan_sentence": "Over two episodes we see why predictive control is stable and then shrink its window to nothing, on a ball balanced on a hilltop.",
+ "playlist_description": "Fixture series for the tests: two episodes adapted from a curator plan.",
+ "related_series": {
+  "follows": [],
+  "followed_by": []
+ },
+ "episodes": [
+  {
+   "number": 1,
+   "title": "Why predictive control is stable: the cost still to pay",
+   "short_title": "Why MPC is stable",
+   "kind": "first",
+   "hook": "A predictive controller plans a few steps ahead, takes only the first step, and throws the rest of the plan away. Then it plans again from wherever it landed. Why should that ever settle down? The answer is a number the controller computes anyway: the cost still to pay. And you'll see a controller that converges every time while the textbook proof of its stability fails at every step.",
+   "length_min": 11,
+   "sections": [
+    "1.1",
+    "1.3",
+    "2",
+    "3.1",
+    "3.3",
+    "3.4",
+    "4.1",
+    "4.2",
+    "4.3",
+    "15.2"
+   ],
+   "story_beat": "Proves in five lines why a receding-window controller with a boundary term and a terminal region is stable; says what the window length does and does not change; explains why a convergent controller can still fail its certificate.",
+   "takeaway": {
+    "sentence": "The cost still to pay falls by at least the cost of each step, provided the boundary term pays for the tail; that certificate belongs to the pair of step cost and boundary term, not to the controller.",
+    "tex": [
+     "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)",
+     "W\\big(\\varphi_f(q)\\big)-W(q)\\le -L_d\\big(q,\\varphi_f(q)\\big)"
+    ]
+   },
+   "prerequisites": {
+    "must": [],
+    "helpful": []
+   },
+   "series_context": {
+    "spoken": "This is the first of two episodes in The Mechanics of Predictive Control, and it starts from scratch. Over five episodes, we'll see why predictive control is stable, shrink its planning window down to nothing, find momenta hiding inside its optimizer, and then test all of it on a two-link robot arm: first with a window of length zero, then with real ones.",
+    "at_s": 30,
+    "frame": {
+     "heading": "Episode 1 of 2",
+     "builds_on": []
+    }
+   },
+   "recap": [],
+   "outline": [
+    {
+     "beat": "Hook, series context and the spoken plan of the series",
+     "min": 1.0
+    },
+    {
+     "beat": "The receding window, named: window of N steps, terminal region, boundary term W, first step applied; cost per step = Lagrangian, total = action, least cost still to pay = remaining action V_N (four-row MPC-to-mechanics dictionary)",
+     "min": 1.5
+    },
+    {
+     "beat": "Why it falls: yesterday's plan minus the step taken, plus one reference step inside the region, is a valid plan today; if W falls along the reference motion at least as fast as cost is spent, V_N(q+) - V_N(q) <= -L_d(q,q+); the plan stays feasible; with the usual bounds, asymptotic stability",
+     "min": 3.0
+    },
+    {
+     "beat": "What the window length does: the proof never used N; a longer window enlarges the set of starting points and lowers V_N; with an exact boundary term the total stays 0.5 while the split between computed window and estimated tail moves",
+     "min": 1.5
+    },
+    {
+     "beat": "One step, exactly: N = 1 on the toy L = v^2/2 + q^2/2, h = 0.1, W = q^2/2; with the step's cost computed exactly, V_1 = W and the drop equals the step cost at every step (q shrinks by e^-0.1)",
+     "min": 2.0
+    },
+    {
+     "beat": "The paradox resolved: rectangle-rule step cost, same W: q -> 0.909 q converges, but V_1 > W and the drop 0.0876 is less than the step cost 0.0913, at every step; inflate W by 20 % (threshold 1.051) and every inequality holds: the certificate belongs to the pair",
+     "min": 2.0
+    }
+   ],
+   "teaser": "In the next episode: shrink the window to nothing, on a ball balanced on a hilltop.",
+   "material": {
+    "section_ids": [
+     "sec-idea",
+     "sec-dictionary",
+     "sec-core",
+     "sec-localrule",
+     "sec-exactness",
+     "sec-solvable",
+     "sec-proof-steps",
+     "sec-asymptotic",
+     "sec-numeric",
+     "sec-parallel"
+    ],
+    "notes": "Simplified: proof shown for N = 1 with 'same idea for any N'; the exact discrete Lagrangian is 'the step's cost computed exactly'; continuous Riccati weight is 'the exact cost of the infinite future of the continuous problem'; comparison-function bounds in one sentence. Left out: KKT with active constraints (moved to episode 5), the 3-D matrix threshold 1.1055, the 3-D general-N test, discrete Legendre transforms, notation tables. 15.2 is used only for the exact-pair split (and one line on the inexact pair)."
+   },
+   "target_viewer": "Control engineers and students who use or have heard of MPC; no optimal control or analytical mechanics assumed. Search entry: MPC stability, terminal cost, Lyapunov."
+  },
+  {
+   "number": 2,
+   "title": "The hilltop: Hamilton–Jacobi and the stable manifold",
+   "short_title": "The hilltop",
+   "kind": "finale",
+   "hook": "Here is a ball on a hill. I want it to stay on top: not held there, but arriving there, rolling, and stopping exactly on the summit. Of all the ways to push it, only one works. By the end of this video you will see what finds that one push: the remaining action, the cost still to be paid from here on.",
+   "length_min": 11,
+   "sections": [
+    "5.1",
+    "5.2",
+    "5.3",
+    "5.4",
+    "5.5",
+    "6.1",
+    "6.3",
+    "6.4",
+    "6.5",
+    "11.3"
+   ],
+   "story_beat": "Derives the certificate H(q, -grad W) >= 0 by shrinking the window; sees on a phase portrait why only the zero-energy push arrives; reads the cost still to pay as the generator of that push; sees that a speed limit changes which boundary term is exact.",
+   "takeaway": {
+    "sentence": "The cost still to pay generates the momentum, solves the Hamilton–Jacobi equation at zero energy and falls at exactly the rate of the cost; a boundary term W is certified wherever H(q, -grad W) is at least zero.",
+    "tex": [
+     "p=-V'(q),\\quad H\\big(q,-V'(q)\\big)=0,\\quad \\dot V=-L",
+     "H\\big(q,-\\nabla W(q)\\big)\\ge 0"
+    ]
+   },
+   "prerequisites": {
+    "must": [
+     1
+    ],
+    "helpful": []
+   },
+   "series_context": {
+    "spoken": "This is episode two of two in The Mechanics of Predictive Control. It builds on the first episode, on why predictive control is stable. If you're joining here, welcome: that result takes forty seconds to restate.",
+    "at_s": 30,
+    "frame": {
+     "heading": "Episode 2 of 2",
+     "builds_on": [
+      "Why MPC is stable"
+     ]
+    }
+   },
+   "recap": [
+    {
+     "title": "Recap: why predictive control is stable",
+     "from": [
+      1
+     ],
+     "seconds": 40,
+     "card": [
+      "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)",
+      "W\\big(\\varphi_f(q)\\big)-W(q)\\le -L_d\\big(q,\\varphi_f(q)\\big)"
+     ],
+     "restates": "A predictive controller plans over a window, pays a boundary term W at its end, applies the first step and repeats. The least cost still to pay then drops after each step by at least that step's cost, provided W drops at least as fast as cost is spent near the target; in continuous time, W-dot at most minus L. The requirement belongs to the pair of cost and boundary term: a controller can converge while a badly matched W fails to certify it."
+    }
+   ],
+   "outline": [
+    {
+     "beat": "Hook (its own opening scene)",
+     "min": 0.45
+    },
+    {
+     "beat": "Series context with the builds-on frame; Recap: why predictive control is stable",
+     "min": 0.85
+    },
+    {
+     "beat": "A ball on a hilltop: the cost read as kinetic minus potential energy; Newton's law on an inverted parabola; true minima (no conjugate point)",
+     "min": 1.05
+    },
+    {
+     "beat": "Only one push arrives: saddle in the (q, p) plane, three pushes, the stable manifold; V generates it: p = -V', H(q, -V') = 0, integral of L = V",
+     "min": 2.3
+    },
+    {
+     "beat": "Shrinking the window: the bracket L + grad W . v, Legendre transform, the certificate H(q, -grad W) >= 0; one minimization, two outputs; scaled candidates W = cV",
+     "min": 2.3
+    },
+    {
+     "beat": "A finite window and the role of the boundary term; Adding a speed limit (clipped law, constrained remaining action); Why the cost of motion stays",
+     "min": 3.25
+    },
+    {
+     "beat": "Three facts about V; outro with the takeaway card and teaser",
+     "min": 0.8
+    }
+   ],
+   "teaser": null,
+   "material": {
+    "section_ids": [
+     "sec-expansion",
+     "sec-momentum",
+     "sec-hcondition",
+     "sec-constrained-v",
+     "sec-noL",
+     "sec-which",
+     "sec-scalar",
+     "sec-boundary",
+     "sec-speedlimit",
+     "sec-resolution"
+    ],
+    "notes": "Made fresh; it replaces the dropped pilot of former episode 3, and the pilot verdict (PLAN.md, section 8) still applies: no channel card; hook split out; series context and one recap added; finite-window claim about short-horizon MPC replaced (not in the document, and the W = 0 window still converges on the hilltop); HJ uniqueness qualified; 'exact discrete Lagrangian' said as 'the step's cost computed exactly'; outro with takeaway and teaser. Left out: dictionary with signs beyond p = -grad V, viscosity solutions, Figure 2."
+   },
+   "target_viewer": "Viewers who want intuition for Hamilton–Jacobi, Legendre and the stable manifold; control engineers meeting them for the first time. Search entry: Hamilton-Jacobi equation, stable manifold, phase portrait."
+  }
+ ]
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{html_title}}</title>
+
+<!-- KaTeX CSS + JS (pinned to 0.16.9; tools/check_html.js serves these files locally when offline) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+{{css}}
+</style>
+
+</head>
+
+<body>
+
+{{toc}}
+
+<article>
+
+<header>
+  <h1>{{title}}</h1>
+  <div class="subtitle">{{subtitle}}</div>
+  <div class="date">{{date}}</div>
+</header>
+
+{{body}}
+
+<footer class="copyright">&copy; {{year}} Gianluca Garofalo. All rights reserved.</footer>
+</article>
+</body>
+</html>

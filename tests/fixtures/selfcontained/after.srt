@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:04,000
+Every number here was computed exactly.
+
+2
+00:00:04,100 --> 00:00:07,000
+A short window plans a little way ahead.
+
+3
+00:00:07,100 --> 00:00:10,000
+As the curve shows, it rises.

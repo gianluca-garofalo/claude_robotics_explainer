@@ -1,0 +1,39 @@
+<section id="sec-idea">
+<h2>The Idea in One Picture</h2>
+
+<h3 id="sec-idea-picture">The value goes down</h3>
+<p>
+  Along the closed loop the value $V(x_k)$ falls to zero (Fig.&nbsp;[[fig:concept]]). [[citet:mayne2000]] state the
+  general conditions; here everything is scalar.
+</p>
+
+<figure>
+<!--SVG:concept-->
+<figcaption>Figure [[figdef:concept]]. The value $V(x_k)=Px_k^2$ along 20 closed-loop steps from $x_0=1$. Drawn by
+  <code>code/descent_demo.py</code>.</figcaption>
+</figure>
+
+<h3 id="sec-idea-numbers">The equation and the numbers</h3>
+<p>With $a=1.2$, $b=q=r=1$, the Riccati equation gives $P$ and the gain $K$, and the Bellman equation reads</p>
+
+<div class="equation-block">
+$$
+V(x_{k+1})-V(x_k)+\ell(x_k,u_k)=0,\qquad u_k=-Kx_k.
+\tag{[[eq:bellman]]}
+$$
+</div>
+
+<table>
+  <tr><th>Quantity</th><th class="num">Value</th></tr>
+  <tr><td>$P$</td><td class="num">1.952234</td></tr>
+  <tr><td>$K$</td><td class="num">0.793528</td></tr>
+  <tr><td>$a-bK$</td><td class="num">0.406472</td></tr>
+</table>
+
+<div class="evidence">
+  <strong>What is established.</strong>
+  <ul>
+    <li><span class="status verified">verified</span> Equation ([[eq:bellman]]) holds to rounding error on 20 steps (Section&nbsp;[[sec:sec-verification]]).</li>
+  </ul>
+</div>
+</section>

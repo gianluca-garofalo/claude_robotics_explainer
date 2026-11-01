@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "dontAsk",
+    "allow": [
+      "Bash(python3 tools/*)",
+      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/manim *)",
+      "Bash(node tools/*)",
+      "Bash(bash tools/render_video.sh *)",
+      "Bash(ffprobe *)",
+      "Bash(ffmpeg *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Edit(runs/**)",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Edit(.github/**)",
+      "Edit(.claude/**)",
+      "Edit(config/**)",
+      "Edit(tools/**)",
+      "Edit(templates/**)",
+      "Edit(ci/**)",
+      "Edit(docker/**)",
+      "Edit(**/approval.json)",
+      "Edit(**/selection.json)",
+      "Edit(**/published.json)",
+      "Edit(**/covered.json)",
+      "Edit(**/search.json)",
+      "Bash(*search_demand.py*)",
+      "Bash(*series.py start*)",
+      "Edit(**/episode.json)",
+      "Edit(series/**)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(gh *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(*tools/publish/*)",
+      "Bash(*auto_select.py*)",
+      "Bash(*approve_topic.py*)",
+      "Bash(*record_approval.py*)"
+    ]
+  },
+  "env": {
+    "VOICE_SERVICE": "silent",
+    "CHECK_HTML_OFFLINE": "1",
+    "MPLBACKEND": "Agg"
+  }
+}

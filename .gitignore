@@ -1,0 +1,37 @@
+# Environments and dependencies
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# Manim caches, draft renders, build intermediates
+media/
+**/video/media/
+**/video/checks/
+**/video/build/
+
+# CI working folders (Pages worktree, caches) and the one-time YouTube token helper's venv
+/site/
+.cache/
+.venv-auth/
+client_secret*.json
+
+# Run artifacts: runs are local working folders. To keep one in git, review it and force-add it
+# (git add -f runs/<run>). Delete the two lines below to track runs in git.
+runs/*
+!runs/README.md
+
+# Packaged runs, render-check screenshots
+*.zip
+**/review/screens/
+
+# Personal Claude Code files
+CLAUDE.local.md
+.claude/settings.local.json
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

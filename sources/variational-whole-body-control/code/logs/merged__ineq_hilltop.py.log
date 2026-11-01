@@ -1,0 +1,9 @@
+# merged/ineq_hilltop.py 
+# exit 0, 0.98 s
+m = kappa = 1.0, vbar = 0.5: saturation boundary q_s = vbar/omega = 0.5
+(1) max |H_V closed form - numerical sup| = 2.8e-08
+(2) H_V(q,-V_unc') vs formula: max diff 4.4e-16 ; at q = 1: -0.125000 ; certificate holds exactly on |q| <= q_s: True
+(3) max |H_V(q,-V_con')| = 0.0e+00 ; min (V_con - V_unc) = 0.0e+00 ; V_con(1) = 0.541667  V_unc(1) = 0.500000
+    one-sided values at q_s: V_con' 0.500000 | 0.500000;  V_con'' 1.000000 | 1.000000;  third derivative 0 | 2.000000  (C^2, not C^3)
+    clipped law from q0 = 1: int_0^60 L dt = 0.541667  (V_con(1) = 0.541667) ; saturated until t = 1.000 s
+(4) unconstrained step q' = 0.909091; with q - q' <= h vbar: q' = 0.950000, mu = 0.450000 (>= 0), p' = d_2 L_d = -0.500000 = -W'(q') + mu = -0.500000

@@ -1,0 +1,16 @@
+# merged/ineq_hierarchy.py 
+# exit 0, 0.63 s
+feasible stack: max residual of the equality tasks 1.1e-15; min lambda_2 0.0e+00 (>= 0); min gap J_2 qdd - a_2 -2.2e-16 (>= 0); max lambda_2 * gap 1.3e-14
+active for t in (0.1667, 0.8333) (switches at 1/6 and 5/6); max |tau_c(t+dt) - tau_c(t)| over the sweep 1.76e-02 (dt = 3.3e-04); across the two switches 2.94e-03, 2.94e-03
+at t = 0.1667 (lambda_2 = 0.0e+00, gap = 2.2e-16): row 2 excluded -> included
+   level 1 (above): F_1 [ 2.4646 -2.379 ] -> [ 2.4646 -2.379 ], power -10.0240 -> -10.0240
+   level 2 (switching): F_2 = -11.5013 with lambda_2 = 0, power -13.4762
+   level 3 (below, last): F_3 [ 6.1384 32.6935  4.6639] -> [ 6.1384 32.6935  4.6639], power -89.0660 -> -75.5898
+   total power -99.090026 -> -99.090026
+at t = 0.8333 (lambda_2 = 0.0e+00, gap = 2.2e-16): row 2 excluded -> included
+   level 1 (above): F_1 [ 2.4646 -2.379 ] -> [ 2.4646 -2.379 ], power -10.0240 -> -10.0240
+   level 2 (switching): F_2 = -11.5013 with lambda_2 = 0, power -13.4762
+   level 3 (below, last): F_3 [ 6.1384 32.6935  4.6639] -> [ 6.1384 32.6935  4.6639], power -89.0660 -> -75.5898
+   total power -99.090026 -> -99.090026
+active interval: lambda_2 in [0.0094, 31.0625] (>= 0); decoupled F_2 in [-11.4990, -4.0229]; fraction with F_2 < 0: 1.00
+reversed orientation: lambda_2 in [0.0094, 31.0625]; decoupled F_2 in [+11.5035, +18.9796]

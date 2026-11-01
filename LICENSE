@@ -1,0 +1,13 @@
+Copyright (c) 2026 Gianluca Garofalo. All rights reserved.
+
+This applies to everything in this repository: the code (tools/, templates/, tests/, ci/, docker/, .claude/,
+.github/, setup.sh and the companion scripts in sources/*/code/) and the content (the explainer documents, figures,
+data, storyboards, scenes and videos, in sources/, series/ and published runs).
+
+No license is granted. You may view this repository on GitHub, and GitHub's Terms of Service allow viewing and
+forking it on GitHub, but you may not copy, modify, distribute, publish or otherwise use any part of it without
+the prior written permission of the copyright holder.
+
+Third-party components keep their own licenses and are not covered by this notice: the Python and npm packages
+installed by setup.sh, KaTeX (loaded from a CDN when an explainer is read) and the Piper voice model (downloaded
+separately; see its MODEL_CARD). The works cited in the explainers belong to their authors.

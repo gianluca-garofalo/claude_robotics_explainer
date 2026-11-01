@@ -1,0 +1,9 @@
+# Fixture manifest (tests only).
+
+[[check]]
+script = "descent_demo.py"
+sections = ["1.2", "Figure 1"]
+claims = "Riccati value P, gain K, descent defect, Figure 1"
+timeout = 60
+expect = ["P = 1.952234", "K = 0.793528"]
+produces = ["figures/concept.svg"]

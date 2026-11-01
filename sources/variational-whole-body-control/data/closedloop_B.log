@@ -1,0 +1,5 @@
+experiment B q0 (0.9, -0.85) W(z0) 0.30408156466861036
+PD+g: J_cl = sum h l = 0.133673; max|tau1|=18.02 max|tau2|=7.17; final |z| = 1.69e-03; W(z0)=0.304082
+N=1 (4s): J_cl = sum h l = 0.134288; V_N(z0) = 0.301652; max[V+ - V + h l] = -4.519e-09 (rel to h l: -5.534e-01); max step ratio (V+-V)/(-h l) min = 1.5534; fallbacks = 0; terminal constraint active at 0 steps; max|tau1|=18.03 max|tau2|=7.15; final |z| = 3.86e-04; V_N final = 2.811e-07; mean nit = 6.4
+N=10 (117s): J_cl = sum h l = 0.151730; V_N(z0) = 0.273915; max[V+ - V + h l] = -2.689e-11 (rel to h l: -5.053e-01); max step ratio (V+-V)/(-h l) min = 1.5053; fallbacks = 0; terminal constraint active at 0 steps; max|tau1|=18.18 max|tau2|=7.53; final |z| = 5.69e-05; V_N final = 2.044e-09; mean nit = 21.3
+N=40 (1453s): J_cl = sum h l = 0.139402; V_N(z0) = 0.199017; max[V+ - V + h l] = -3.220e-11 (rel to h l: -1.101e-01); max step ratio (V+-V)/(-h l) min = 1.1101; fallbacks = 0; terminal constraint active at 0 steps; max|tau1|=18.27 max|tau2|=6.65; final |z| = 9.50e-05; V_N final = 5.161e-09; mean nit = 31.6

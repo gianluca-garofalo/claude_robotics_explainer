@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "reviewer": "video-design-reviewer",
+  "summary": "Fixture report: one scene, clear hierarchy, palette used with its meanings and labels. One minor point on the end card; no blocker.",
+  "checks_run": [
+    {"command": "python3 tools/video/check_design.py runs/<run> --stage draft", "result": "0 errors (fixture)"},
+    {"command": "Read review/design/draft/TemplateScene-sheet.jpg", "result": "frames looked at (fixture)"}
+  ],
+  "findings": [
+    {
+      "id": "VD-1",
+      "severity": "minor",
+      "location": "TemplateScene, end card, t = 13 s",
+      "issue": "The end card's second line is muted grey on the dark panel; it reads, but it competes little with the takeaway.",
+      "evidence": "Fixture finding (the template's end card); contrast measured by check_design.py above 4.5:1.",
+      "suggested_fix": "Keep as is, or set the second line in INK at a smaller size.",
+      "confidence": "medium"
+    }
+  ]
+}

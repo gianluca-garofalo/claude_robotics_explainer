@@ -1,0 +1,413 @@
+{
+ "schema_version": 1,
+ "tool": "layout_probe",
+ "note": "Fictional fixture for tools/video/check_numbers.py.",
+ "frame": {
+  "width": 14.222,
+  "height": 8.0,
+  "background": "#0f172a"
+ },
+ "scenes": {
+  "Numbers": {
+   "snapshots": [
+    {
+     "t": 5.0,
+     "settled": true,
+     "label": "play",
+     "texts": [
+      {
+       "id": 1,
+       "kind": "text",
+       "content": "V₁ = 0.5",
+       "bbox": [
+        -6.0,
+        2.6,
+        -3.0,
+        3.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 1,
+       "top": 1,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 2,
+       "kind": "text",
+       "content": "sum = V(q₀) = 1.28",
+       "bbox": [
+        -2.0,
+        -1.4,
+        1.0,
+        -1.1
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 2,
+       "top": 2,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 3,
+       "kind": "text",
+       "content": "q₀ = (1, −0.95) rad",
+       "bbox": [
+        2.0,
+        2.6,
+        5.5,
+        3.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 3,
+       "top": 3,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 4,
+       "kind": "text",
+       "content": "residual exactly 0",
+       "bbox": [
+        -6.0,
+        1.6,
+        -3.0,
+        2.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 4,
+       "top": 4,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 5,
+       "kind": "text",
+       "content": "error below 10⁻¹²",
+       "bbox": [
+        2.0,
+        1.6,
+        5.5,
+        2.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 5,
+       "top": 5,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 6,
+       "kind": "text",
+       "content": "one step takes 0.5 s",
+       "bbox": [
+        -6.0,
+        0.6,
+        -3.0,
+        1.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 6,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 7,
+       "kind": "math",
+       "content": "\\dot V=-L,\\quad V_1=0.5",
+       "bbox": [
+        2.0,
+        0.6,
+        5.5,
+        1.0
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 7,
+       "top": 7,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 8,
+       "kind": "text",
+       "content": "∫ L dt = 1.28",
+       "bbox": [
+        -2.0,
+        -2.2,
+        0.4,
+        -1.9
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 8,
+       "top": 8,
+       "live": true,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 9,
+       "kind": "text",
+       "content": "c = 1.00",
+       "bbox": [
+        1.0,
+        -2.2,
+        3.0,
+        -1.9
+       ],
+       "font_size": 26.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 9,
+       "top": 9,
+       "live": true,
+       "axis": false,
+       "lines": 1
+      }
+     ],
+     "paths": [],
+     "elements": 9
+    }
+   ],
+   "timeline": [
+    {
+     "id": 1,
+     "kind": "text",
+     "content": "V₁ = 0.5",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       -6.0,
+       2.6,
+       -3.0,
+       3.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 2,
+     "kind": "text",
+     "content": "sum = V(q₀) = 1.28",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       -2.0,
+       -1.4,
+       1.0,
+       -1.1,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 3,
+     "kind": "text",
+     "content": "q₀ = (1, −0.95) rad",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       2.0,
+       2.6,
+       5.5,
+       3.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 4,
+     "kind": "text",
+     "content": "residual exactly 0",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       -6.0,
+       1.6,
+       -3.0,
+       2.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 5,
+     "kind": "text",
+     "content": "error below 10⁻¹²",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       2.0,
+       1.6,
+       5.5,
+       2.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 6,
+     "kind": "text",
+     "content": "one step takes 0.5 s",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       -6.0,
+       0.6,
+       -3.0,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 7,
+     "kind": "math",
+     "content": "\\dot V=-L,\\quad V_1=0.5",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       0.5,
+       1,
+       2.0,
+       0.6,
+       5.5,
+       1.0,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 8,
+     "kind": "text",
+     "content": "∫ L dt = 0.00",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": true,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       -2.0,
+       -2.2,
+       0.4,
+       -1.9,
+       1.0
+      ]
+     ],
+     "values": [
+      [
+       1.0,
+       "∫ L dt = 0.00"
+      ],
+      [
+       2.0,
+       "∫ L dt = 0.64"
+      ],
+      [
+       3.0,
+       "∫ L dt = 1.04"
+      ],
+      [
+       4.0,
+       "∫ L dt = 1.28"
+      ]
+     ]
+    },
+    {
+     "id": 9,
+     "kind": "text",
+     "content": "c = 0.50",
+     "font_size": 26.0,
+     "lines": 1,
+     "live": true,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       1.0,
+       -2.2,
+       3.0,
+       -1.9,
+       1.0
+      ]
+     ],
+     "values": [
+      [
+       1.0,
+       "c = 0.50"
+      ],
+      [
+       2.0,
+       "c = 0.75"
+      ],
+      [
+       3.0,
+       "c = 1.00"
+      ]
+     ]
+    }
+   ],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 6.0
+  }
+ }
+}

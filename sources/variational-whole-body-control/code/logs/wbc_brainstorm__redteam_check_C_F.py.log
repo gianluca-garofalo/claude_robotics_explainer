@@ -1,0 +1,11 @@
+# wbc_brainstorm/redteam_check_C_F.py 
+# exit 0, 1.26 s
+C exact ZOH  tau* = -2*m*(delta**2*k*v + delta*k*x + 2*m*v)/(4*T*m + delta**3*k + 4*delta*m)
+C O(delta) truncation: -delta*k*x/(2*T) - m*v/T + delta*m*v/T**2
+   claimed: -(m v + (delta/2) k x)/(delta + T)  series: -delta*k*x/(2*T) - m*v/T + delta*m*v/T**2
+C impulse hold tau* O(delta): (-T*m*v - delta*(T*k*x - m*v))/T**2
+C delta=1e-03: optimal u(0): stiff=0.2985 damp=19.8023 | ZOH: stiff=0.1485 damp=19.8021 | k*d/(d+T)=0.2970
+C delta=1e-02: optimal u(0): stiff=2.8635 damp=18.2092 | ZOH: stiff=1.3636 damp=18.1948 | k*d/(d+T)=2.7273
+C delta=5e-02: optimal u(0): stiff=12.4417 damp=13.8517 | ZOH: stiff=4.9844 damp=13.5410 | k*d/(d+T)=10.0000
+F zoh: tau0=-4.55370, from vel-multiplier only: 2.63067, pos-multiplier share: 1.92303
+F symp: tau0=-5.15299, from vel-multiplier only: 5.15299, pos-multiplier share: -0.00000

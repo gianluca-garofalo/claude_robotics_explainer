@@ -1,0 +1,6 @@
+# merged/duals_check.py 
+# exit 0, 0.65 s
+(1) |mu - T0*lambda| = 2.7755575615628914e-17  |tau - J^T lambda| = 3.3306690738754696e-15
+(2) max |pi_v - pi~_s|, |pi_q - (pi~_e + Gamma^T pi~_s)| over 200 states = 7.1e-09
+    max |pi . zdot + Wdot| in both coordinate systems = 2.2e-07
+    example at rest, e = (0.2, -0.1): pi_q = [-7.973  1.999]  pi~_e = [-6.949  2.247]  pi_v = pi~_s = [-0.512 -0.124]

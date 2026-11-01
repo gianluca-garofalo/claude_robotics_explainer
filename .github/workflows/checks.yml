@@ -1,0 +1,47 @@
+# Checks for changes to this repository (no secrets, nothing published).
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  quick:
+    name: Lint, unit tests, workflow lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pyyaml actionlint-py shellcheck-py
+      - name: zsh, for the zsh checks of the scripts and of the documents' command blocks
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends zsh
+      - run: python3 tools/lint_project.py
+      - run: python3 -m unittest discover -s tests -v
+      - run: actionlint
+      - run: shellcheck setup.sh tools/*.sh tools/ci/*.sh
+      - run: python3 tests/dry_run.py --skip-browser --skip-video
+
+  full:
+    name: End-to-end dry runs (render check, video, stubbed publishing)
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+      - run: .venv/bin/python tests/dry_run.py
+      - run: .venv/bin/python tests/automation_dry_run.py

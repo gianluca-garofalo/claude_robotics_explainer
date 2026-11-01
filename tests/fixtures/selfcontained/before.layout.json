@@ -1,0 +1,458 @@
+{
+ "schema_version": 1,
+ "tool": "layout_probe",
+ "note": "Fixture for tests/test_selfcontained.py: on-screen texts of a made-up scene.",
+ "frame": {
+  "width": 14.222,
+  "height": 8.0,
+  "pixel_width": 1920,
+  "pixel_height": 1080,
+  "fps": 60.0,
+  "background": "#0f172a"
+ },
+ "scenes": {
+  "Episode": {
+   "snapshots": [],
+   "timeline": [
+    {
+     "id": 1,
+     "kind": "text",
+     "content": "checked by code/note/sec5_6_symbolic_checks.py",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       5.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 2,
+     "kind": "math",
+     "content": "L=\\tfrac12 m\\dot q^2+\\tfrac12\\kappa q^2\\qquad(18)",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       2.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       6.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 3,
+     "kind": "text",
+     "content": "(19)",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       3.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       7.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 4,
+     "kind": "math",
+     "content": "\\tag{3} H\\big(q,-V'(q)\\big)=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       4.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       8.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 5,
+     "kind": "text",
+     "content": "More in the explainer",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       5.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       9.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 6,
+     "kind": "text",
+     "content": "see Eq. 3",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       6.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       10.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 7,
+     "kind": "math",
+     "content": "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2\\quad(\\star)",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       7.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       11.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 8,
+     "kind": "text",
+     "content": "Section 6.5 has the proof",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       8.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       12.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 9,
+     "kind": "text",
+     "content": "example.org/explainers/variational",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       9.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       13.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 10,
+     "kind": "text",
+     "content": "Two-link arm: PD+g versus a receding window",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       10.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       14.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 11,
+     "kind": "math",
+     "content": "H\\big(q,-V'(q)\\big)=\\frac{\\kappa q^2}{2}-\\frac{\\kappa q^2}{2}=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       11.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       15.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 12,
+     "kind": "text",
+     "content": "exact: y″ − ω²y = 0,  y(0) = 0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       12.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       16.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 13,
+     "kind": "text",
+     "content": "recall equation 2",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       13.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       17.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 14,
+     "kind": "math",
+     "content": "\\label{eq:hj} H=0",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       14.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       18.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 15,
+     "kind": "text",
+     "content": "① the boxed result",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       15.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       19.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    }
+   ],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 60.0
+  }
+ }
+}

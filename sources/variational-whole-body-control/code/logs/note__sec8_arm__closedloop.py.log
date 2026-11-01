@@ -1,0 +1,5 @@
+# note/sec8_arm/closedloop.py B 1 100
+# exit 0, 1.64 s
+experiment B q0 (0.9, -0.85) W(z0) 0.30408156466861036
+PD+g: J_cl = sum h l = 0.118106; max|tau1|=17.80 max|tau2|=7.17; final |z| = 1.19e-01; W(z0)=0.304082
+N=1 (1s): J_cl = sum h l = 0.124705; V_N(z0) = 0.301652; max[V+ - V + h l] = -3.981e-04 (rel to h l: -5.534e-01); max step ratio (V+-V)/(-h l) min = 1.5534; fallbacks = 0; terminal constraint active at 0 steps; max|tau1|=17.91 max|tau2|=7.15; final |z| = 1.11e-01; V_N final = 2.387e-02; mean nit = 10.7

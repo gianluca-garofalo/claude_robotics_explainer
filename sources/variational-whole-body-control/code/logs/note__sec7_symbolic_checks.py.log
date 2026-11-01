@@ -1,0 +1,30 @@
+# note/sec7_symbolic_checks.py 
+# exit 0, 1.59 s
+=== A. Augmented-Lagrangian EL equations == Hamilton's equations of H(z,pi) (scalar q, generic f, l) ===
+EL_q  : PV*Derivative(f(Q, Vv, U), Q) + pqd - Derivative(l(Q, Vv, U), Q)   (=0)  vs  pq' + H_q = PV*Derivative(f(Q, Vv, U), Q) + pqd - Derivative(l(Q, Vv, U), Q)
+EL_v  : PQ + PV*Derivative(f(Q, Vv, U), Vv) + pvd - Derivative(l(Q, Vv, U), Vv)   (=0)  vs  pv' + H_v = PQ + PV*Derivative(f(Q, Vv, U), Vv) + pvd - Derivative(l(Q, Vv, U), Vv)
+EL_u  : PV*Derivative(f(Q, Vv, U), U) - Derivative(l(Q, Vv, U), U)   (=0)  vs  H_u = PV*Derivative(f(Q, Vv, U), U) - Derivative(l(Q, Vv, U), U)
+EL_pq : Vv - qd  EL_pv: -vd + f(Q, Vv, U)
+diff EL_q - (pq' + H_q): 0
+diff EL_v - (pv' + H_v): 0
+diff EL_u - H_u: 0
+
+=== B. Ostrogradsky momenta for f=u, l = lhat(q, qdot, qddot) ===
+pv - p2: 0   pq - p1: 0
+EL_q (pq' - l_q) + Euler-Poisson: 0
+
+=== C. Double integrator, l = 1/2(q1 q^2 + q2 v^2 + r u^2) ===
+CARE residual (simplified): Matrix([[0, 0], [0, 0]])
+p11 - p12 p22/r = 0
+u* = (-sqrt(q1)*z_q - z_v*sqrt(2*sqrt(q1)*sqrt(r) + q2))/sqrt(r)  ; -r^-1 B^T P z = (-sqrt(q1)*z_q - z_v*sqrt(2*sqrt(q1)*sqrt(r) + q2))/sqrt(r)  diff: 0
+H(z,-grad V) = 0
+Vdot + l = 0
+Hamiltonian matrix: Matrix([[0, 1, 0, 0], [0, 0, 0, 1/r], [q1, 0, 0, 0], [0, q2, -1, 0]])
+equals [[A, BR^-1B^T],[Q,-A^T]]: True
+char poly: (q1 - q2*s**2 + r*s**4)/r
+invariance residual Ham G - G Acl: Matrix([[0, 0], [0, 0], [0, 0], [0, 0]])
+closed-loop char poly: (sqrt(q1) + sqrt(r)*s**2 + s*sqrt(2*sqrt(q1)*sqrt(r) + q2))/sqrt(r)
+p2 - pi_v: 0    p1 - pi_q: 0
+H is linear in PQ: True
+  values {q1: 1, q2: 0, r: 1}  P = Matrix([[sqrt(2), 1], [1, sqrt(2)]])  K = Matrix([[1, sqrt(2)]])  cl eig: [-sqrt(2)/2 - sqrt(2)*I/2, -sqrt(2)/2 + sqrt(2)*I/2]  Ham eig: [sqrt(2)*(-1 - I)/2, sqrt(2)*(-1 + I)/2, sqrt(2)*(1 - I)/2, sqrt(2)*(1 + I)/2]
+  values {q1: 1, q2: 1, r: 1}  P = Matrix([[sqrt(3), 1], [1, sqrt(3)]])  K = Matrix([[1, sqrt(3)]])  cl eig: [-sqrt(3)/2 - I/2, -sqrt(3)/2 + I/2]  Ham eig: [-sqrt(3)/2 + I/2, sqrt(3)/2 - I/2, -sqrt(3)/2 - I/2, sqrt(3)/2 + I/2]

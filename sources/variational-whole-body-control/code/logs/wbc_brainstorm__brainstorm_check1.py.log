@@ -1,0 +1,13 @@
+# wbc_brainstorm/brainstorm_check1.py 
+# exit 0, 0.11 s
+offdiag blocks of Jb M^-1 Jb^T: 3.260547227838737e-16 1.2148315618464436e-16
+A Jb^-1 block lower unit-triangular? upper blocks: 3.002003726584906e-16 6.587486401243836e-16 diag blocks I: 2.220446049250313e-16 2.220446049250313e-16
+min Gauss = 2.4720916215906703  0.5|b-J q0|^2_Lambda = 2.472091621590672
+torque = J^T lam, lam=Lambda(b - J qdd0): Khatib force; check tau^T M^-1 tau = 2G: 4.9441832431813415 4.944183243181341
+tau^T M^-1 tau = 2.8190371683064304  sum F_i^T Lam_i^-1 F_i = 2.819037168306431
+stack vs hierarchy qdd: 1.580957587066223e-13  multipliers relate lam_s = L^-T F: 1.7962520360015333e-11
+--- order dependence of 'task forces' ---
+F1 (level-1 decoupled force) : [-11.54856885  19.84798127  14.19747003]
+lam1 (stacked multiplier)    : [-1046.10954338  1005.01526916   459.23459616]
+reversed-order qdd equal: 1.545430450278218e-13
+task-1 force when task 1 is LAST: [-1046.10954338  1005.01526916   459.23459616] (stacked multiplier, invariant) vs decoupled Fr[4:7]: [-1046.10954338  1005.01526916   459.23459616]

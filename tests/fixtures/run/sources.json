@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "run_date": "2026-10-30",
+  "window_days": 14,
+  "queries": [
+    "FIXTURE: no search was run; this file exercises the tools only"
+  ],
+  "unreadable": [
+    {
+      "url": "https://example.org/fixture/paywalled",
+      "reason": "fixture entry: HTTP 403",
+      "cause": "http_error"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "T1",
+      "title": "Fixture topic A: a receding-horizon controller with a certified descent (fictional)",
+      "slug": "fixture-descent-certificate",
+      "summary": "Fictional test candidate. A controller re-solves a short optimal control problem at every step and certifies that its cost-to-go decreases. Used only to exercise validation, ranking, approval and build tools.",
+      "central_claims": [
+        {
+          "claim": "The cost-to-go decreases by at least the stage cost at every step.",
+          "status": "verified",
+          "support": [
+            "S1"
+          ],
+          "role": "central"
+        },
+        {
+          "claim": "The certificate assumes a scalar plant and an exact model.",
+          "status": "unverified",
+          "role": "limitation",
+          "support": [
+            "S2"
+          ]
+        }
+      ],
+      "visual_hooks": [
+        "a value function shrinking along a trajectory"
+      ],
+      "sources": [
+        {
+          "id": "S1",
+          "url": "https://example.org/fixture/paper-a",
+          "title": "Fixture paper A",
+          "publisher": "Example Proceedings",
+          "kind": "paper",
+          "primary": true,
+          "published": "2026-10-27",
+          "accessed": "2026-10-30",
+          "read": "full",
+          "relation": "subject"
+        },
+        {
+          "id": "S2",
+          "url": "https://example.org/fixture/news-a",
+          "title": "Fixture news story A",
+          "publisher": "Example News",
+          "kind": "news",
+          "primary": false,
+          "published": "2026-10-28",
+          "accessed": "2026-10-30",
+          "read": "full",
+          "relation": "context"
+        },
+        {
+          "id": "S5",
+          "url": "https://example.org/fixture/classic-mpc-paper",
+          "title": "Fictional classic MPC paper",
+          "publisher": "Example Proceedings",
+          "kind": "paper",
+          "primary": true,
+          "relation": "prior_work",
+          "published": "2000-06-01",
+          "accessed": "2026-10-30",
+          "read": "abstract",
+          "notes": "Prior work for the novelty comparison; does not satisfy the primary-source gate."
+        }
+      ],
+      "search_queries": [
+        "receding horizon control stability",
+        "mpc lyapunov function"
+      ],
+      "coverage": {
+        "status": "new",
+        "by": [],
+        "note": "fixture: fictional topic"
+      }
+    },
+    {
+      "id": "T2",
+      "title": "Fixture topic B: contact-rich manipulation benchmark (fictional)",
+      "slug": "fixture-contact-benchmark",
+      "summary": "Fictional test candidate. A new benchmark for contact-rich manipulation with released code. Used only to exercise the tools.",
+      "central_claims": [
+        {
+          "claim": "The benchmark code is public.",
+          "status": "verified",
+          "support": [
+            "S3"
+          ],
+          "role": "central"
+        }
+      ],
+      "visual_hooks": [
+        "contact forces switching on and off"
+      ],
+      "sources": [
+        {
+          "id": "S3",
+          "url": "https://example.org/fixture/code-b",
+          "title": "Fixture repository B",
+          "publisher": "Example Code Host",
+          "kind": "code",
+          "primary": true,
+          "published": "2026-10-20",
+          "accessed": "2026-10-30",
+          "read": "full",
+          "relation": "subject"
+        }
+      ],
+      "search_queries": [
+        "contact rich manipulation benchmark"
+      ],
+      "coverage": {
+        "status": "new",
+        "by": [],
+        "note": "fixture: fictional topic"
+      }
+    },
+    {
+      "id": "T3",
+      "title": "Fixture topic C: viral humanoid demo video (fictional)",
+      "slug": "fixture-viral-demo",
+      "summary": "Fictional test candidate. A widely shared demo video with no technical report. Used to exercise the gates.",
+      "central_claims": [
+        {
+          "claim": "The robot acts fully autonomously.",
+          "status": "unverified",
+          "support": [
+            "S4"
+          ],
+          "role": "central"
+        }
+      ],
+      "visual_hooks": [
+        "none of our own"
+      ],
+      "sources": [
+        {
+          "id": "S4",
+          "url": "https://example.org/fixture/video-c",
+          "title": "Fixture video C",
+          "publisher": "Example Video Site",
+          "kind": "video",
+          "primary": false,
+          "published": "2026-10-29",
+          "accessed": "2026-10-30",
+          "read": "snippet",
+          "relation": "context"
+        }
+      ],
+      "search_queries": [
+        "humanoid robot demo"
+      ],
+      "coverage": {
+        "status": "new",
+        "by": [],
+        "note": "fixture: fictional topic"
+      }
+    }
+  ]
+}

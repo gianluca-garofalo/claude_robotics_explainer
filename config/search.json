@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "notes": "Search-demand lookups for tools/search_demand.py (run after the scout, before the ranking). Edit this file yourself: Claude may not. Every lookup can fail; a failed source is recorded as unavailable and never scores zero.",
+  "max_queries_per_topic": 2,
+  "max_api_queries_per_run": 12,
+  "language": "en",
+  "region": "US",
+  "published_within_days": 730,
+  "recent_days": 365,
+  "relevance_word_share": 0.6,
+  "demand_weights": {
+    "views": 0.5,
+    "autocomplete": 0.3,
+    "trends": 0.2
+  },
+  "trends": {
+    "enabled": true,
+    "timeframe": "today 12-m",
+    "gprop": "youtube"
+  },
+  "timeout_s": 15,
+  "sources": {
+    "autocomplete": "YouTube search suggestions (suggestqueries.google.com, ds=yt): unofficial, no key, no quota; a topic people type gets completions.",
+    "youtube": "YouTube Data API v3 search.list (100 quota units per call) and videos.list (1 unit): views and dates of recent relevant videos; needs the YOUTUBE_API_KEY secret.",
+    "trends": "Google Trends has no official API; the optional unofficial client pytrends (requirements-search.txt) is tried in isolation and recorded as unavailable when it fails."
+  }
+}

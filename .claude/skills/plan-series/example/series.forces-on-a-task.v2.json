@@ -1,0 +1,693 @@
+{
+  "schema_version": 2,
+  "slug": "forces-on-a-task",
+  "title": "Forces on a Task",
+  "source": "sources/variational-whole-body-control",
+  "explainer_sha256": "c810f7c6ee2da7cd262deefbc7e497e05f359973e425a8496e15bdf96d26d723",
+  "explainer_slug": "variational-whole-body-control",
+  "created_at": "2026-10-31T12:32:57+00:00",
+  "playlist": {
+    "title": "Forces on a Task: the mechanics of whole-body control",
+    "privacy": "public",
+    "description": "Forces on a Task: the mechanics of whole-body control\n\nA whole-body controller serves several tasks with one vector of joint torques. This five-part series asks a simple question with a slippery answer: what force does each task actually get, and which of those numbers are physical facts rather than bookkeeping?\n\n1. The force on a task: Gauss's principle and operational-space control. Nature picks the acceleration closest to free motion; impose a task as a constraint and its Lagrange multiplier is the force on it. Contacts are tasks whose forces can only push.\n2. Constraint or impressed force: two ways to act on a task. Imposing a motion and applying a spring and damper are both optimal over one instant, for different problems; the energy behind impedance control with natural inertia certifies only damping.\n3. One torque, two bases: what task priorities do to forces. Strict priority is Gram–Schmidt in the inverse-inertia metric, one torque splits into task forces in more than one way, and the force on a task depends on the priority order.\n4. Who gets the power? Task priorities, switches and energy tanks. For the same torque the total power through the tasks is the same in every priority order; its split is not, and the split jumps when inequality tasks switch, with consequences for energy tanks.\n5. Is whole-body control just MPC with a zero-length window? Only with the right boundary term. What a window length and a priority order both leave unchanged is what an argument can rely on.\n\nEvery episode restates, in a marked recap, each earlier result it uses, including the results it takes from The Mechanics of Predictive Control, so you can start with any of them. You need Newton's law, a mass matrix and a Jacobian; the rest is introduced as it is needed.\n\nThis series follows The Mechanics of Predictive Control, which explains why predictive control is stable and where the momenta in its optimizer come from."
+  },
+  "plan_sentence": "Over five episodes we go from the force on one task, to two ways of applying it, to what priorities do to those forces and to the power they inject, and we close by asking whether whole-body control is predictive control with no window.",
+  "playlist_description": "Forces on a Task: the mechanics of whole-body control\n\nA whole-body controller serves several tasks with one vector of joint torques. This five-part series asks a simple question with a slippery answer: what force does each task actually get, and which of those numbers are physical facts rather than bookkeeping?\n\n1. The force on a task: Gauss's principle and operational-space control. Nature picks the acceleration closest to free motion; impose a task as a constraint and its Lagrange multiplier is the force on it. Contacts are tasks whose forces can only push.\n2. Constraint or impressed force: two ways to act on a task. Imposing a motion and applying a spring and damper are both optimal over one instant, for different problems; the energy behind impedance control with natural inertia certifies only damping.\n3. One torque, two bases: what task priorities do to forces. Strict priority is Gram–Schmidt in the inverse-inertia metric, one torque splits into task forces in more than one way, and the force on a task depends on the priority order.\n4. Who gets the power? Task priorities, switches and energy tanks. For the same torque the total power through the tasks is the same in every priority order; its split is not, and the split jumps when inequality tasks switch, with consequences for energy tanks.\n5. Is whole-body control just MPC with a zero-length window? Only with the right boundary term. What a window length and a priority order both leave unchanged is what an argument can rely on.\n\nEvery episode restates, in a marked recap, each earlier result it uses, including the results it takes from The Mechanics of Predictive Control, so you can start with any of them. You need Newton's law, a mass matrix and a Jacobian; the rest is introduced as it is needed.\n\nThis series follows The Mechanics of Predictive Control, which explains why predictive control is stable and where the momenta in its optimizer come from.",
+  "related_series": {
+    "follows": [
+      "mpc-mechanics"
+    ],
+    "followed_by": []
+  },
+  "release": {
+    "order": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "launch_together": [
+      1,
+      2
+    ],
+    "cadence": "weekly after launch; episode 5 only after episodes 4 and 5 of mpc-mechanics are public"
+  },
+  "_proposal_notes": [
+    "PROPOSAL ONLY (schema_version 2). Not applied; series/ is the owner's.",
+    "sections and section_ids are SOURCES, not a one-to-one mapping; material.section_ids repeats them for the v2 readers. tools/series.py and tools/video/plan.py must loosen their rules (PLAN.md, section 7).",
+    "prerequisites: an integer is an episode of this series; {series, episode} is an episode of another series and is allowed only when that series is released earlier (related_series.follows).",
+    "playlist.description duplicates playlist_description so the current publish tool keeps working; the tools should read playlist_description and drop the duplicate.",
+    "material.scripts_missing_from_series_source lists companion scripts that are not in the series source's code/ (8 of the companion scripts are there); sync them, with checks.toml entries, before producing that episode."
+  ],
+  "episodes": [
+    {
+      "number": 1,
+      "title": "The force on a task: Gauss's principle and operational-space control",
+      "short_title": "Gauss's principle",
+      "kind": "first",
+      "hook": "A whole-body controller turns several tasks into one vector of joint torques: keep the hand on a line, hold the posture, keep the feet planted. So here is a simple question: how much force is the controller putting on the hand task? For one task there is a clean answer, and it comes from Gauss's principle, about how nature itself chooses accelerations: the force on a task is a Lagrange multiplier.",
+      "length_min": 10,
+      "sections": [
+        "8.1",
+        "8.2",
+        "8.3",
+        "8.4"
+      ],
+      "section_ids": [
+        "sec-gauss-free",
+        "sec-gauss-task",
+        "sec-gauss-dual",
+        "sec-unilateral"
+      ],
+      "visuals": "Acceleration plane with kinetic-metric ellipses around the free acceleration and a task line; the tangent point; the multiplier arrow becoming a force on the hand of a two-link arm; contact as a task; three unilateral rows, two pushing and one slack with its margin.",
+      "data": "wbc/wbc_companion_checks.py (Gauss value 1.3563816970 computed three ways; impressed-force residual); merged/ineq_gauss.py (multipliers 1.770, 0, 1.609; margin 0.375; Fourier inequality on 1407 samples).",
+      "story_beat": "Derives operational-space control from Gauss's principle, reads its Lagrange multiplier as the force on the task and the task inertia as the kinetic metric seen from the task, and treats a contact as a task whose force can only push.",
+      "takeaway": {
+        "sentence": "In Gauss's principle a task is a constraint, and its Lagrange multiplier is the force on the task: that is operational-space control.",
+        "tex": [
+          "\\lambda=\\Lambda\\,\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}",
+          "\\tau_c=J^\\top\\lambda"
+        ]
+      },
+      "prerequisites": {
+        "must": [],
+        "helpful": []
+      },
+      "series_context": {
+        "spoken": "This is the first of five episodes in Forces on a Task. It starts from scratch: all you need is Newton's law, a mass matrix and a Jacobian. Over five episodes we go from the force on one task, to two ways of applying it, to what priorities do to those forces and to the power they inject, and we close by asking whether whole-body control is predictive control with no window.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 1 of 5",
+          "builds_on": []
+        }
+      },
+      "recap": [],
+      "outline": [
+        {
+          "beat": "Hook, series context and the spoken plan of the series",
+          "min": 1.1
+        },
+        {
+          "beat": "Gauss's principle: free acceleration under the given (impressed) torques; among accelerations the constraints allow, nature picks the one closest to free motion in the kinetic metric; the correction torque and Gauss's function as the least correction effort",
+          "min": 2.2
+        },
+        {
+          "beat": "A task as a constraint: J q-ddot = a_x; the KKT conditions give lambda = Lambda (a_x - J q-ddot_free) and tau_c = J' lambda, operational-space control; the minimum effort is the missing task acceleration measured with Lambda: the kinetic metric pushed to task space",
+          "min": 2.7
+        },
+        {
+          "beat": "The multiplier is the force: a generalized force in task coordinates with power lambda' x-dot; a bilateral contact is a task with zero contact acceleration, its multiplier the contact force",
+          "min": 1.6
+        },
+        {
+          "beat": "Forces that can only push: inequality rows with nonnegative multipliers and complementarity; a seven-joint example with two active rows (1.770, 1.609) and one slack row (zero force, margin 0.375); a sign is a statement in one basis (hold that thought)",
+          "min": 2.0
+        },
+        {
+          "beat": "Outro: takeaway card and teaser",
+          "min": 0.4
+        }
+      ],
+      "teaser": "In the next episode: there is a second way to act on a task, as a force you apply rather than a constraint you impose, and it is optimal for a different problem.",
+      "material": {
+        "section_ids": [
+          "sec-gauss-free",
+          "sec-gauss-task",
+          "sec-gauss-dual",
+          "sec-unilateral"
+        ],
+        "figures": [],
+        "scripts": [
+          "wbc/wbc_companion_checks.py",
+          "merged/ineq_gauss.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "merged/ineq_gauss.py"
+        ],
+        "notes": "8.1 is used for Gauss's principle only (its reading as the zero-window rule moves to episode 2); 8.3's covector paragraph moves to episode 3; 8.4's power and Moreau paragraphs move to episode 4. Simplified: Gauss's principle stated, not derived; J-dot q-dot absorbed in a_x; the complementarity problem named in one phrase. Left out: Gauss's weight and units (episode 2), the multiplier table."
+      },
+      "difficulty": 2,
+      "target_viewer": "Whole-body and humanoid control engineers and students; anyone who has used operational-space control. Search entry: operational space control, Gauss principle of least constraint.",
+      "entry_point": true
+    },
+    {
+      "number": 2,
+      "title": "Constraint or impressed force: two ways to act on a task",
+      "short_title": "Two ways to act",
+      "kind": "middle",
+      "hook": "Here are two ways to make a robot's hand hold a target: impose the motion you want, or attach a virtual spring and damper to the hand. Both work. Both are the answer to an optimization over a single instant. But they solve different problems, they put different forces on the hand, and the energy behind the second one can certify only damping.",
+      "length_min": 10,
+      "sections": [
+        "9.1",
+        "8.1",
+        "9.2",
+        "9.3",
+        "11.5",
+        "11.4"
+      ],
+      "section_ids": [
+        "sec-two-ways",
+        "sec-gauss-free",
+        "sec-certificate",
+        "sec-strict",
+        "sec-meet",
+        "sec-shaping"
+      ],
+      "visuals": "Split screen of one hand target: 'constraint: unit-mass task' vs 'impressed: natural inertia', each with its closed-loop equation and a push arrow (schematic, no simulated numbers); the bracket 'cost + W-dot' for the energy with a damping arrow opposing q-dot; a phase strip where W-dot vanishes on the whole zero-velocity axis; a two-column 'argmin of / certified by' card; the physical bowl reshaped vs a problem solved every instant.",
+      "data": "wbc/wbc_companion_checks.py (impressed-force identity and the damping-only stationarity, residuals said in words as exactly zero to machine precision); optional merged/duals_check.py (multiplier in power units = T0 lambda).",
+      "story_beat": "Tells constraint forces from impressed forces in a whole-body controller, derives the passivity-based law with natural inertia as the zero-window rule with the robot's energy as boundary term, and explains why that energy certifies only damping.",
+      "takeaway": {
+        "sentence": "Operational-space control imposes the task as a constraint and shapes the inertia; impedance control applies an impressed force, keeps the natural inertia, and is the zero-window rule for an energy-type boundary term, which certifies only damping.",
+        "tex": [
+          "\\tau^*=\\tau_{\\rm imp}-R^{-1}\\dot q",
+          "\\mathcal D=\\ell_0(q,\\dot q)-\\tfrac12\\,\\dot q^\\top K_D\\,\\dot q\\le 0"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          1,
+          {
+            "series": "mpc-mechanics",
+            "episode": 2
+          }
+        ],
+        "helpful": [
+          {
+            "series": "mpc-mechanics",
+            "episode": 3
+          },
+          {
+            "series": "mpc-mechanics",
+            "episode": 4
+          }
+        ]
+      },
+      "series_context": {
+        "spoken": "This is episode two of five in Forces on a Task. It builds on Gauss's principle from the first episode, and on one rule from the hilltop episode of The Mechanics of Predictive Control. If you're joining here, welcome: both are restated in the next minute.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 2 of 5",
+          "builds_on": [
+            "Gauss's principle",
+            "The hilltop (The Mechanics of Predictive Control)"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: Gauss's principle and the task force",
+          "from": [
+            1
+          ],
+          "seconds": 20,
+          "card": [
+            "\\lambda=\\Lambda\\,\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}",
+            "\\tau_c=J^\\top\\lambda"
+          ],
+          "restates": "Nature picks the acceleration closest to free motion in the kinetic metric; imposing a task as a constraint gives the force lambda = Lambda (a_x - J q-ddot_free) and the torque J' lambda."
+        },
+        {
+          "title": "Recap: the vanishing window",
+          "from": [
+            {
+              "series": "mpc-mechanics",
+              "episode": 2
+            }
+          ],
+          "seconds": 40,
+          "card": [
+            "p=-V'(q),\\quad H\\big(q,-V'(q)\\big)=0,\\quad \\dot V=-L",
+            "H\\big(q,-\\nabla W(q)\\big)\\ge 0"
+          ],
+          "restates": "Plan over a vanishingly short window: choose the input that minimizes the cost rate plus the rate of change of a boundary term W. The minimizer is the controller; the minimum value is the certificate: where it is at most zero, W falls at least as fast as cost is spent, and W proves stability."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: Gauss's principle and the task force",
+          "min": 1.1
+        },
+        {
+          "beat": "Two ways: as a constraint, the controller supplies whatever force the imposed task acceleration needs, the task behaves like a unit mass, and an unmeasured push still meets the natural inertia; as an impressed force, a spring and damper applied through J', the task responds with its natural inertia; same convergence, different forces on the task, different power",
+          "min": 2.5
+        },
+        {
+          "beat": "Recap: the vanishing window (from The Mechanics of Predictive Control)",
+          "min": 0.7
+        },
+        {
+          "beat": "Gauss's principle is that rule: with Gauss's effort as the cost (weight T0 M^-1), the minimizing correction torque is the velocity momentum of W divided by T0, and the inertia cancels; with the robot's energy as W, that momentum is minus the mechanical momentum: pure damping, K_D = M/T0",
+          "min": 1.5
+        },
+        {
+          "beat": "Argmin or certificate: centre the cost on gravity compensation plus a task spring and the rule gives the passivity-based law; its certificate l_0 - q-dot' K_D q-dot / 2 <= 0 can never pay for task error at rest: the energy is a weak Lyapunov function, stiffness is put in by hand, convergence needs LaSalle, a strict certificate needs a position-velocity cross term; operational-space control instead minimizes Gauss's cost with the task as a hard constraint, has no boundary term, and is as stable as the imposed task dynamics",
+          "min": 2.6
+        },
+        {
+          "beat": "Two Lagrangians: impressed forces reshape the robot's physical Lagrangian (energy shaping plus damping); constraint forces come from a variational problem solved at every instant; outro",
+          "min": 1.6
+        }
+      ],
+      "teaser": "In the next episode: give the tasks priorities, and one torque splits into task forces in two different ways. So how much force does a task really get?",
+      "material": {
+        "section_ids": [
+          "sec-two-ways",
+          "sec-gauss-free",
+          "sec-certificate",
+          "sec-strict",
+          "sec-meet",
+          "sec-shaping"
+        ],
+        "figures": [],
+        "scripts": [
+          "wbc/wbc_companion_checks.py",
+          "merged/duals_check.py"
+        ],
+        "optional_scripts": [
+          "merged/duals_check.py"
+        ],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "merged/duals_check.py"
+        ],
+        "notes": "8.1 supplies Gauss's weight and tau_c = pi_v / T0 (the bridge to the other series); 11.4 one sentence. Simplified: Coriolis cancellation by skew symmetry stated, not derived. Left out: the discrete transcription caveat and its 42 %, the plant-energy precedent, controlled Lagrangians beyond one sentence, the stability-of-equilibria table."
+      },
+      "difficulty": 3,
+      "target_viewer": "Engineers choosing between operational-space and impedance or passivity-based control. Search entry: impedance control vs operational space control, passivity-based control.",
+      "entry_point": true
+    },
+    {
+      "number": 3,
+      "title": "One torque, two bases: what task priorities do to forces",
+      "short_title": "One torque, two bases",
+      "kind": "middle",
+      "hook": "A two-link arm has two tasks: hold the hand at a height, with first priority, and hold the elbow angle, second. The controller applies one torque. How much force is on the hand task? Three newtons. Now swap the priorities and keep exactly the same torque. The hand task now gets two newtons. Same robot, same torque, so the same motion. Which number is the force on the task?",
+      "length_min": 12,
+      "sections": [
+        "12.1",
+        "12.2",
+        "12.3",
+        "12.4",
+        "8.3"
+      ],
+      "section_ids": [
+        "sec-ldl",
+        "sec-consistency",
+        "sec-forces",
+        "sec-leak",
+        "sec-gauss-dual"
+      ],
+      "visuals": "Gram–Schmidt animation with an inverse-inertia ellipse as the inner product; the torque plane of Figure 7 (stacked basis blue, hierarchy basis amber, ellipse tangent); a priority swap with the hand's force label changing from 3 N to 2 N; bars of task 1's force in both orders; the leak as a torque arrow split by level with the higher parts struck out.",
+      "data": "merged/fig_bases.py (Theta_21 = 2.5, lambda = (2, 0.4), F = (3, 0.4); reversed order F = (2.0, 0.757); effort); wbc/wbc_companion_checks.py (task 1 force in both orders, kinetic energy split 72.717361247, residuals); wbc_brainstorm/redteam_check_ineq_order.py (0.369 vs 8.9e-16).",
+      "story_beat": "Builds the dynamically consistent hierarchy from one factorization (Gram–Schmidt in the inverse-inertia metric), converts stacked multipliers into decoupled task forces with F = Theta' lambda, and explains why the force on a task depends on the priority order.",
+      "takeaway": {
+        "sentence": "Strict priorities are Gram–Schmidt in the inverse-inertia metric: one torque has many decompositions into task forces, the priority order picks one, and, in general, only at the lowest level does a task's force equal its own multiplier.",
+        "tex": [
+          "JM^{-1}J^\\top=\\Theta\\,\\bar\\Lambda^{-1}\\,\\Theta^\\top",
+          "\\tau_c=J^\\top\\lambda=\\bar J^\\top F,\\qquad F=\\Theta^\\top\\lambda"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          1,
+          2
+        ],
+        "helpful": []
+      },
+      "series_context": {
+        "spoken": "This is episode three of five in Forces on a Task. It builds on Gauss's principle and on the two ways to act on a task. If you're joining here, welcome: both come back in the next minute.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 3 of 5",
+          "builds_on": [
+            "Gauss's principle",
+            "Two ways to act"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: forces on a task",
+          "from": [
+            1,
+            2
+          ],
+          "seconds": 45,
+          "card": [
+            "\\lambda=\\Lambda\\,\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}",
+            "\\tau_c=J^\\top\\lambda"
+          ],
+          "restates": "Gauss's principle measures accelerations in the kinetic metric; one task imposed as a constraint gets the force lambda = Lambda (a_x - J q-ddot_free) and the torque J' lambda. In the constraint view the controller computes the force; in the impressed view it prescribes the force itself."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: forces on a task",
+          "min": 1.6
+        },
+        {
+          "beat": "Priorities as Gram–Schmidt: stack the Jacobians in priority order and factor the stacked mobility (block LDL'); the rows are orthogonalized in the inverse-inertia inner product; J-bar = Theta^-1 J are the dynamically consistent projected Jacobians; a level never accelerates the levels above; decoupled inertias; for a square stack the kinetic energy splits by level (72.717 both ways); the standard construction, packaged",
+          "min": 2.5
+        },
+        {
+          "beat": "One torque, two bases: tau_c = J' lambda = J-bar' F, so F = Theta' lambda; each component is an inertia times the acceleration the torque produces in its own coordinate; on the arm at its target Theta_21 = 2.5 per metre, lambda = (2 N, 0.4 N m), F = (3 N, 0.4 N m); the effort separates by level; only the last level agrees",
+          "min": 3.0
+        },
+        {
+          "beat": "A force component depends on what is held fixed: change the velocity coordinates and the force changes by the transposed map; the priority order chooses which task coordinates are held fixed; in a seven-joint example task 1 carries (-0.079, -1.197) first and (0.260, -0.858) last, its multiplier",
+          "min": 1.5
+        },
+        {
+          "beat": "When the order changes the motion: in the constraint view with a feasible stack, never (same torque, same acceleration, only the attribution moves); under conflict, singularity or active inequalities, or with forces prescribed per level, the torque itself changes (joint accelerations differ by up to 0.37 versus 9e-16)",
+          "min": 1.0
+        },
+        {
+          "beat": "Strict priority and the leak: a lower task's own torque spreads over every level above it; strict priority keeps only its own level, which is generally not the gradient of any potential, so no single energy certifies a strict hierarchy and analyses go level by level; outro",
+          "min": 2.0
+        }
+      ],
+      "teaser": "In the next episode: one quantity doesn't depend on the priority order at all, the total power, and that matters for energy tanks when inequality tasks switch on and off.",
+      "material": {
+        "section_ids": [
+          "sec-ldl",
+          "sec-consistency",
+          "sec-forces",
+          "sec-leak",
+          "sec-gauss-dual"
+        ],
+        "figures": [
+          "Figure 7 (one torque, two bases)"
+        ],
+        "scripts": [
+          "merged/fig_bases.py",
+          "wbc/wbc_companion_checks.py",
+          "wbc_brainstorm/redteam_check_ineq_order.py",
+          "wbc_brainstorm/redteam_check_A_B.py"
+        ],
+        "optional_scripts": [
+          "wbc_brainstorm/redteam_check_A_B.py"
+        ],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "wbc_brainstorm/redteam_check_ineq_order.py",
+          "wbc_brainstorm/redteam_check_A_B.py"
+        ],
+        "notes": "8.3 supplies only the covector paragraph. Assumes a feasible, full-rank stack (said once). Simplified: block formulas for two levels; the extended-Jacobian formula shown once without derivation. Left out: pseudo-inverse pivots and non-uniqueness under conflict (one clause), 'inertial is not dynamic decoupling' (episode 4), literature attributions beyond 'standard construction', lexicographic QP details."
+      },
+      "difficulty": 4,
+      "target_viewer": "Users of prioritized whole-body control (null-space projections, hierarchical QP). Search entry: task priority control, null space projection, dynamically consistent.",
+      "entry_point": true
+    },
+    {
+      "number": 4,
+      "title": "Who gets the power? Task priorities, switches and energy tanks",
+      "short_title": "Who gets the power",
+      "kind": "middle",
+      "hook": "Energy tanks keep a robot controller passive by tracking the power that flows into its tasks. Here is the catch. Take a seven-joint arm with three prioritized tasks and one torque. In one priority order, the first task receives 3.06 units of power. Reverse the order, same torque, and it receives 0.03. The total is minus 0.39 both ways. So which power should a tank watch?",
+      "length_min": 11,
+      "sections": [
+        "14.1",
+        "14.2",
+        "14.3",
+        "13.1",
+        "13.2",
+        "13.3",
+        "8.4",
+        "12.2"
+      ],
+      "section_ids": [
+        "sec-invariance",
+        "sec-ineq-power",
+        "sec-tanks",
+        "sec-lexi",
+        "sec-ineq-switch",
+        "sec-ineq-signs",
+        "sec-unilateral",
+        "sec-consistency"
+      ],
+      "visuals": "Per-level power bars in two orders against one total line; a switch at t = 1/6 with the basis re-orthogonalizing from the switching level down (levels above greyed 'untouched'); the force-sign plot over the active interval (multiplier band vs decoupled force trace, labelled); tank gauges: one smooth total gauge vs per-level gauges jumping at the switch.",
+      "data": "wbc/wbc_companion_checks.py (total -0.391; per-level powers in both orders; top-level switch table, total -7.491); merged/ineq_hierarchy.py (switches at 1/6 and 5/6, torque continuity 1.8e-2 per step and 2.9e-3 across a switch, attribution table, force ranges); merged/ineq_gauss.py (powers 0 and +0.805).",
+      "story_beat": "Shows that the total power through the tasks is basis-free while its split among levels is not, predicts what an inequality task's activation does to forces and power at, above and below its level, and says what a single tank and per-level tanks would see.",
+      "takeaway": {
+        "sentence": "For a given torque, the total power through the tasks is the same in every basis and, in the constraint view, continuous across switches; its split among priority levels is a choice, and it jumps when an inequality switches.",
+        "tex": [
+          "\\tau_c^\\top\\dot q=F^\\top\\zeta=\\lambda^\\top\\dot x"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          3,
+          1
+        ],
+        "helpful": [
+          2
+        ]
+      },
+      "series_context": {
+        "spoken": "This is episode four of five in Forces on a Task. It builds on one torque, two bases, and on forces that can only push. If you're joining here, welcome: both are restated next.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 4 of 5",
+          "builds_on": [
+            "One torque, two bases",
+            "Gauss's principle"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: one torque, two bases",
+          "from": [
+            3,
+            1
+          ],
+          "seconds": 50,
+          "card": [
+            "JM^{-1}J^\\top=\\Theta\\,\\bar\\Lambda^{-1}\\,\\Theta^\\top",
+            "\\tau_c=J^\\top\\lambda=\\bar J^\\top F,\\qquad F=\\Theta^\\top\\lambda"
+          ],
+          "restates": "Strict priorities orthogonalize the tasks in the inverse-inertia metric; the same torque is J' lambda in the stacked basis and J-bar' F in the hierarchy's, with F = Theta' lambda, so the force attributed to a task depends on the order. An inequality task's force can only push, and only while its bound is reached."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: one torque, two bases",
+          "min": 1.7
+        },
+        {
+          "beat": "The total power is basis-free: tau_c' q-dot = F' zeta = lambda' x-dot, a force paired with its velocity; the split by level depends on the order (3.057, -3.416, -0.032 versus 0.033, -0.446, 0.022, total -0.391); a level's power is what is injected into it, not the change of its kinetic energy",
+          "min": 2.0
+        },
+        {
+          "beat": "An inequality switches on: it activates at its bound with zero force and deactivates when its force returns to zero; in the constraint view with a feasible stack the torque is continuous; the basis changes from the switching level down: levels above untouched (-10.024), the switching level appears with force -11.50 at zero multiplier, the last level keeps its force but its power goes from -89.066 to -75.590; total -99.090 both ways; with prescribed forces the torque itself jumps",
+          "min": 3.0
+        },
+        {
+          "beat": "Signs don't survive: over the active interval the multiplier stays at or above zero (up to 31.06) while the decoupled force stays between -11.50 and -4.02, against the only direction the constraint can push; power has no sign either: a persistent contact does no work, a receding feedback-bounded inequality injects +0.805; contacts with velocity-level complementarity are passive, feedback inequality tasks are not by construction",
+          "min": 2.0
+        },
+        {
+          "beat": "What a tank sees: one tank on the total port sees the same flow in every order, continuous across switches (constraint view); per-level tanks see flows that depend on the order and jump at switches, and spurious exchanges when an active set toggles; hysteresis or position- or velocity-level bounds help; consistent per-level bookkeeping is, as far as we know, an open design question; outro",
+          "min": 2.5
+        }
+      ],
+      "teaser": "In the next episode, the last: is whole-body control just predictive control with a window of length zero, and what do windows and priorities both leave untouched?",
+      "material": {
+        "section_ids": [
+          "sec-invariance",
+          "sec-ineq-power",
+          "sec-tanks",
+          "sec-lexi",
+          "sec-ineq-switch",
+          "sec-ineq-signs",
+          "sec-unilateral",
+          "sec-consistency"
+        ],
+        "figures": [],
+        "scripts": [
+          "wbc/wbc_companion_checks.py",
+          "merged/ineq_hierarchy.py",
+          "merged/ineq_gauss.py",
+          "wbc_brainstorm/redteam_check_power.py"
+        ],
+        "optional_scripts": [
+          "wbc_brainstorm/redteam_check_power.py"
+        ],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "merged/ineq_hierarchy.py",
+          "merged/ineq_gauss.py",
+          "wbc_brainstorm/redteam_check_power.py"
+        ],
+        "notes": "8.4 supplies the power-of-unilateral-forces and passivity paragraphs; 12.2 only the 'inertial is not dynamic decoupling' paragraph; 13.1 only its two organizing facts, one sentence. Feasible stacks only (the document's continuity checks cover the feasible case). Left out: soft priorities and the 0.1218/w convergence, infeasible stacks, contact modes and friction cones, the three complementarity levels beyond one sentence."
+      },
+      "difficulty": 4,
+      "target_viewer": "Engineers using energy tanks or passivity arguments in hierarchical control. Search entry: energy tank passivity, inequality task hierarchy.",
+      "entry_point": true
+    },
+    {
+      "number": 5,
+      "title": "Is whole-body control just MPC with a zero-length window?",
+      "short_title": "Windows and priorities",
+      "kind": "finale",
+      "hook": "Whole-body control decides one instant at a time. Predictive control plans a window ahead. So shrink the window to zero: do you get whole-body control back? Sometimes. It depends on what you pay at the end of the window. And on the way, we will find one thing that a window length and a priority order have in common.",
+      "length_min": 11,
+      "sections": [
+        "15.1",
+        "15.2",
+        "15.3",
+        "14.3",
+        "17.2",
+        "9.3"
+      ],
+      "section_ids": [
+        "sec-mpc-limit",
+        "sec-parallel",
+        "sec-cascade",
+        "sec-tanks",
+        "sec-syn-dict",
+        "sec-strict"
+      ],
+      "visuals": "A window bar shrinking to zero with three boundary terms plugged in (energy: damping arrow only; composite: spring and damper; longer-horizon value function: cascade icon); torque profiles over the 10 ms window (time-varying vs held) with stiffness readouts; the invariant/attributed table built row by row; an 'open' card; the dictionary card assembled from earlier takeaway cards.",
+      "data": "wbc_brainstorm/redteam_check_C_F.py (stiffness 2.8635 vs 1.3636 at a 10 ms window); reprises from merged/window_split.py, note/sec8_arm/closedloop.py (2.463 vs 0.517) and wbc/wbc_companion_checks.py (-0.391).",
+      "story_beat": "Answers 'is whole-body control the zero-window limit of whole-body MPC?' with the right qualifications, says what windows and priorities leave invariant and what they redistribute, and names the open problems this view leaves.",
+      "takeaway": {
+        "sentence": "A zero-length window gives whole-body control only with the right boundary term; what an argument can rely on is what each choice leaves invariant: the certificate, whatever the window, and the total task power, whatever the order.",
+        "tex": [
+          "V_N(q^+)-V_N(q)\\le -L_d(q,q^+)\\quad\\text{whatever the window length}",
+          "\\tau_c^\\top\\dot q=\\lambda^\\top\\dot x\\quad\\text{whatever the priority order}"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2,
+          4,
+          {
+            "series": "mpc-mechanics",
+            "episode": 4
+          },
+          {
+            "series": "mpc-mechanics",
+            "episode": 5
+          }
+        ],
+        "helpful": [
+          1,
+          3,
+          {
+            "series": "mpc-mechanics",
+            "episode": 1
+          },
+          {
+            "series": "mpc-mechanics",
+            "episode": 2
+          },
+          {
+            "series": "mpc-mechanics",
+            "episode": 3
+          }
+        ]
+      },
+      "series_context": {
+        "spoken": "This is the last of five episodes in Forces on a Task. It builds on two episodes of this series and two of The Mechanics of Predictive Control. If you're joining here, welcome: the four results we need come back in the next ninety seconds.",
+        "at_s": 30,
+        "frame": {
+          "heading": "Episode 5 of 5",
+          "builds_on": [
+            "Two ways to act",
+            "Who gets the power",
+            "PD from zero window",
+            "Ten steps ahead"
+          ]
+        }
+      },
+      "recap": [
+        {
+          "title": "Recap: what the boundary term decides",
+          "from": [
+            2,
+            {
+              "series": "mpc-mechanics",
+              "episode": 4
+            }
+          ],
+          "seconds": 45,
+          "card": [
+            "\\tau^*=\\tau_{\\rm imp}-R^{-1}\\dot q",
+            "\\tau^*=g(q)-K_D\\,\\dot e-K_P\\,e,\\qquad K_D=R^{-1},\\ K_P=R^{-1}\\Gamma"
+          ],
+          "restates": "Shrink a predictive window to zero and the boundary term decides the controller: the robot's energy gives damping only, with stiffness placed by hand; an energy with a position-velocity cross term gives PD control with gravity compensation, stiffness included."
+        },
+        {
+          "title": "Recap: two choices that leave something unchanged",
+          "from": [
+            {
+              "series": "mpc-mechanics",
+              "episode": 5
+            },
+            4
+          ],
+          "seconds": 45,
+          "card": [
+            "V_N(z^+)-V_N(z)\\le -h\\,\\ell(z,u)\\quad\\text{for every window length }N",
+            "\\tau_c^\\top\\dot q=F^\\top\\zeta=\\lambda^\\top\\dot x"
+          ],
+          "restates": "The window length never changes the certificate; a longer window only moves the cut between the computed cost and the estimated tail. For a given torque the priority order never changes the total power; it only moves its split among the levels."
+        }
+      ],
+      "outline": [
+        {
+          "beat": "Hook, series context; Recap: what the boundary term decides; Recap: two choices that leave something unchanged",
+          "min": 2.4
+        },
+        {
+          "beat": "The qualified answer: with an energy-type boundary term, no (pure damping); stiffness needs a cross term or a finite window, and with a finite window the gains depend on how the torque is held over it: one-joint test (2 kg, spring 30 N/m in W, T0 = 0.1 s, 10 ms window) gives first-instant stiffness 2.86 N/m with the optimal time-varying torque and 1.36 N/m with a zero-order hold; with the value function of a longer horizon as W, yes in spirit: the construction behind value-function-based whole-body control in cascaded MPC, and with a control Lyapunov function, the receding-horizon generalization of pointwise min-norm controllers",
+          "min": 3.0
+        },
+        {
+          "beat": "Invariant versus attributed: the table of window length and priority order (left unchanged, redistributed, pure redistribution when, otherwise, tempting misreading, what an argument can rely on); the parallel is structural, not a theorem",
+          "min": 2.5
+        },
+        {
+          "beat": "What is open: no single energy of the kinetic-plus-potential kind certifies a strict hierarchy, and no strict alternative is known to us; a hierarchical receding-horizon certificate would be cascaded level by level, and whether the per-level descent defects add up, and how per-level power enters at switches, is open; so is tank bookkeeping at switches",
+          "min": 1.5
+        },
+        {
+          "beat": "One dictionary, from the cost still to pay to the force on a task, assembled from the takeaway cards of both series; outro without teaser",
+          "min": 1.6
+        }
+      ],
+      "teaser": null,
+      "material": {
+        "section_ids": [
+          "sec-mpc-limit",
+          "sec-parallel",
+          "sec-cascade",
+          "sec-tanks",
+          "sec-syn-dict",
+          "sec-strict"
+        ],
+        "figures": [],
+        "scripts": [
+          "wbc_brainstorm/redteam_check_C_F.py",
+          "merged/window_split.py",
+          "note/sec8_arm/closedloop.py",
+          "wbc/wbc_companion_checks.py"
+        ],
+        "optional_scripts": [],
+        "data_files": [],
+        "scripts_missing_from_series_source": [
+          "wbc_brainstorm/redteam_check_C_F.py",
+          "note/sec8_arm/closedloop.py"
+        ],
+        "notes": "Cross-series finale; nothing depends on it, so it can be deferred without breaking either series. Literature named on screen as attribution only (cascaded MPC with tuning-free whole-body control, 2025; receding-horizon min-norm controllers, 2000). Left out: the discrete transcription caveat beyond one clause, floating base and centroidal momentum, the full synthesis tables."
+      },
+      "difficulty": 4,
+      "target_viewer": "Viewers of both series; researchers bridging whole-body MPC and whole-body control. Search entry (secondary): whole-body MPC vs whole-body control.",
+      "entry_point": false
+    }
+  ]
+}

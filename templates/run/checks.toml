@@ -1,0 +1,11 @@
+# Manifest of the scripts that back the explainer's claims (read by tools/run_code_checks.py).
+# One [[check]] per script. Paths are relative to this code/ folder; each script runs from its own folder.
+#
+# [[check]]
+# script = "example.py"            # required
+# sections = ["3.2"]               # sections of explainer.html it supports
+# claims = "table of Section 3.2"  # what it reproduces, in a few words
+# timeout = 120                    # seconds (default 300)
+# args = []                        # command-line arguments, if any
+# expect = ["max residual"]        # optional: substrings that must appear in the output
+# produces = ["figures/concept.svg"]   # optional: files that must exist afterwards

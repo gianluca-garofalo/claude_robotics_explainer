@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "reviewer": "presentation-reviewer",
+  "symbols": [
+    {"symbol": "V", "uses": [
+      {"section": "Abstract", "location": "abstract, 'the value V(x)=Px^2'", "meaning": "value function of the scalar plant", "defined_from": "P", "change": "first"},
+      {"section": "1.1", "location": "first sentence", "meaning": "value along the closed loop, V(x_k)", "defined_from": "P", "change": "none"},
+      {"section": "1.2", "location": "equation (1)", "meaning": "value in the Bellman equation", "defined_from": "P", "change": "none"}]},
+    {"symbol": "P", "uses": [
+      {"section": "Abstract", "location": "abstract", "meaning": "coefficient of the quadratic value", "change": "first"},
+      {"section": "1.2", "location": "table", "meaning": "Riccati solution, printed by the script", "change": "announced"}]},
+    {"symbol": "K", "uses": [
+      {"section": "1.2", "location": "first sentence", "meaning": "feedback gain, u_k = -K x_k", "change": "first"}]},
+    {"symbol": "ℓ", "uses": [
+      {"section": "Abstract", "location": "abstract", "meaning": "stage cost q x^2 + r u^2", "change": "first"},
+      {"section": "1.2", "location": "equation (1)", "meaning": "stage cost", "change": "none"}]}
+  ]
+}

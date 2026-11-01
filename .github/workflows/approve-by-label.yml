@@ -1,0 +1,83 @@
+# Label-based approval, for private repositories whose plan has no required reviewers on environments.
+# Active only when the repository variable APPROVAL_MODE is "label". Only the GitHub user named in APPROVER_LOGIN
+# counts: a label added by anyone else, or by a bot, does nothing. Claude never holds a token that can label issues.
+name: Approve by label
+
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+jobs:
+  route:
+    name: Read the decision
+    if: >-
+      vars.APPROVAL_MODE == 'label' &&
+      (github.event.label.name == 'approve-publish' || github.event.label.name == 'reject-publish') &&
+      contains(github.event.issue.labels.*.name, 'pipeline:review') &&
+      github.event.sender.type == 'User' && github.event.sender.login == vars.APPROVER_LOGIN
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: read
+    outputs:
+      run: ${{ steps.meta.outputs.run }}
+      video_id: ${{ steps.meta.outputs.video_id }}
+      token: ${{ steps.meta.outputs.token }}
+      source_run_id: ${{ steps.meta.outputs.source_run_id }}
+      reason: ${{ steps.meta.outputs.reason }}
+    steps:
+      - id: meta
+        uses: actions/github-script@v7
+        env:
+          APPROVER: ${{ vars.APPROVER_LOGIN }}
+        with:
+          script: |
+            const m = /<!-- pipeline-meta (\{.*?\}) -->/.exec(context.payload.issue.body || '');
+            if (!m) { core.setFailed('no pipeline metadata in the issue body'); return; }
+            const meta = JSON.parse(m[1]);
+            const shape = { run: /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/, video_id: /^[A-Za-z0-9_-]{0,20}$/,
+                            token: /^[0-9a-f]{12}$/, source_run_id: /^\d+$/ };
+            for (const [k, re] of Object.entries(shape)) {
+              if (!re.test(String(meta[k] ?? ''))) { core.setFailed(`pipeline metadata: bad ${k}`); return; }
+            }
+            for (const k of ['video_id', 'token', 'source_run_id']) core.setOutput(k, String(meta[k] || ''));
+            core.setOutput('run', `runs/${meta.run}`);
+            const comments = await github.paginate(github.rest.issues.listComments,
+              { ...context.repo, issue_number: context.payload.issue.number, per_page: 100 });
+            const mine = comments.filter(c => c.user && c.user.login === process.env.APPROVER);
+            core.setOutput('reason', mine.length ? mine[mine.length - 1].body.slice(0, 1000) : 'rejected by label');
+
+  publish:
+    needs: route
+    if: github.event.label.name == 'approve-publish'
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    uses: ./.github/workflows/publish-run.yml
+    with:
+      run: ${{ needs.route.outputs.run }}
+      video_id: ${{ needs.route.outputs.video_id }}
+      token: ${{ needs.route.outputs.token }}
+      issue: ${{ github.event.issue.number }}
+      environment: publish-label
+      source_run_id: ${{ needs.route.outputs.source_run_id }}
+    secrets: inherit
+
+  archive:
+    needs: route
+    if: github.event.label.name == 'reject-publish'
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    uses: ./.github/workflows/archive-run.yml
+    with:
+      run: ${{ needs.route.outputs.run }}
+      video_id: ${{ needs.route.outputs.video_id }}
+      token: ${{ needs.route.outputs.token }}
+      issue: ${{ github.event.issue.number }}
+      source_run_id: ${{ needs.route.outputs.source_run_id }}
+      reason: ${{ needs.route.outputs.reason }}
+    secrets: inherit

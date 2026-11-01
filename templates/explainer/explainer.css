@@ -1,0 +1,460 @@
+  /* Explainer house style: extracted from the reference document (sources/variational-whole-body-control/explainer.html), document-specific selectors removed.
+     tools/build_explainer.py inlines this file into <style> so every explainer is a single self-contained HTML file. */
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f7f8fa;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --heading: #0f172a;
+    --accent: #2563eb;          /* 5.2:1 on white (WCAG AA for link text) */
+    --accent-light: #eff6ff;
+    --accent-dim: #eff6ff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+    --code-text: #0f172a;
+    --table-header-bg: #f1f5f9;
+    --row-stripe: #f8fafc;
+    --sidebar-bg: #f8fafc;
+    --definition-bg: #f0fdf4;
+    --definition-border: #22c55e;
+    --definition-strong: #15803d;
+    --insight-bg: #fffbeb;
+    --insight-border: #f59e0b;
+    --insight-strong: #b45309;
+    --blockquote-bg: #f8fafc;
+    --danger: #b91c1c;
+    --sidebar-width: 240px;
+    --content-width: 960px;
+    --margin-note-width: 260px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    font-size: 17px;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Georgia', serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+    padding: 0;
+  }
+
+  /* Layout */
+  article {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem 2rem;
+    margin-left: calc(var(--sidebar-width) + 2rem);
+    position: relative;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1.5rem;
+  }
+
+  header h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--heading);
+    margin-bottom: 0.5rem;
+  }
+
+  header .subtitle {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  footer.copyright {
+    margin-top: 2.5rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  header .date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.3rem;
+  }
+
+  /* Abstract */
+  .abstract {
+    background: var(--accent-dim);
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.2rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .abstract strong { color: var(--accent); }
+
+  /* Sections */
+  section { margin-bottom: 2.5rem; }
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--heading);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--heading);
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.2rem;
+    margin-bottom: 0.4rem;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 0.8rem; }
+
+  /* Margin notes (rendered inline to avoid overflow) */
+  .margin-note {
+    float: none;
+    clear: both;
+    width: 100%;
+    margin: 0.5rem 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    padding: 0.5rem 0.8rem;
+    border-left: 3px solid var(--border);
+    background: var(--accent-light);
+  }
+
+  /* Equation blocks: no visual container, tight spacing */
+  .equation-block {
+    margin: 0.8rem 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    scrollbar-width: thin;
+  }
+
+  .katex-display {
+    overflow: visible !important;
+    margin: 0.5em 0 !important;
+  }
+
+  .katex-display > .katex {
+    max-width: 100%;
+  }
+  .katex-display > .katex > .katex-html > .tag {
+    position: absolute;
+    right: 0;
+    padding-left: 1em;
+  }
+
+  /* Code */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    max-width: 100%;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 1rem 0;
+  }
+
+  code {
+    font-family: 'Fira Code', 'Source Code Pro', 'Consolas', monospace;
+    font-size: 0.85em;
+    color: var(--code-text);
+  }
+
+  p code, li code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.82em;
+  }
+
+  /* Figures: original figures only (inline SVG produced by the run's scripts) */
+  figure {
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+
+  figure img {
+    max-width: 100%;
+  }
+  figure img.plot {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+  }
+
+  th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  tr:nth-child(even) { background: var(--row-stripe); }
+
+  /* Lists */
+  ol, ul {
+    margin: 0.5rem 0 0.8rem 1.5rem;
+  }
+
+  li { margin-bottom: 0.3rem; }
+
+  /* Algorithm box */
+  .algorithm {
+    background: var(--bg);
+    border: none;
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .algorithm .alg-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 0.3rem;
+  }
+
+  .algorithm ol { margin-left: 1.2rem; }
+  .algorithm li { margin-bottom: 0.5rem; }
+
+  /* Definition boxes */
+  .definition {
+    background: var(--definition-bg);
+    border-left: 4px solid var(--definition-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+
+  .definition strong { color: var(--definition-strong); }
+
+  /* Insight / warning boxes */
+  .insight {
+    background: var(--insight-bg);
+    border-left: 4px solid var(--insight-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+  }
+
+  .insight strong { color: var(--insight-strong); }
+
+  /* Evidence box: what the sources show, what is claimed but not verified (news topics) */
+  .evidence {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--text-secondary);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .evidence .status { font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .evidence .status.verified { color: var(--definition-strong); }
+  .evidence .status.unverified { color: var(--insight-strong); }
+  .evidence .status.disputed { color: var(--danger); }
+
+  blockquote {
+    border-left: 4px solid var(--accent);
+    padding: 0.6rem 1rem;
+    margin: 1rem 0;
+    background: var(--blockquote-bg);
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover { text-decoration: underline; }
+
+  /* Sidebar nav */
+  nav.toc {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0.8rem;
+    font-size: 0.78rem;
+    z-index: 100;
+  }
+
+  nav.toc .toc-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  nav.toc li { margin-bottom: 0.35rem; }
+
+  nav.toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    line-height: 1.4;
+    display: block;
+    padding: 0.15rem 0;
+    transition: color 0.2s;
+  }
+
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc ol ol { padding-left: 0.7rem; }
+
+  /* References and attribution */
+  .references { font-size: 0.88rem; }
+  .references li { margin-bottom: 0.5rem; }
+  .references li:target { background: var(--insight-bg); }
+  .references .unverified { color: var(--danger); font-weight: 700; }
+  .attribution { font-size: 0.88rem; color: var(--text-secondary); }
+
+  .katex { color: var(--heading); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    article {
+      max-width: 100%;
+      margin-left: calc(var(--sidebar-width) + 0.5rem);
+      padding: 1rem 1.5rem 3rem 1rem;
+    }
+  }
+
+  @media (max-width: 800px) {
+    nav.toc {
+      position: static;
+      width: 100%;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    article {
+      margin-left: 0;
+      padding: 1rem 1rem 3rem 1rem;
+    }
+  }
+
+  /* Print */
+  @media print {
+    nav.toc { display: none !important; }
+    article { padding: 0; margin: 0 auto; margin-left: 0; max-width: 100%; }
+    h2 {
+      page-break-before: always;
+      page-break-after: avoid;
+      margin-top: 2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--border);
+    }
+    /* the first section follows the abstract; sections marked .flow continue on the same page */
+    .abstract + section > h2, .abstract + .part-label + section > h2, section.flow > h2 { page-break-before: auto; }
+    .part-label { page-break-before: always; page-break-after: avoid; }
+    .part-label + section > h2 { page-break-before: auto; }
+    .part-label.first { page-break-before: auto; }
+    .algorithm, .equation-block, table, figure, blockquote, .definition, .insight, .evidence { page-break-inside: avoid; }
+    h3, h4 { page-break-after: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    figure svg { max-height: 800px; width: auto; max-width: 100%; }
+    pre { font-size: 0.72rem; line-height: 1.4; padding: 0.5rem 0.7rem; page-break-inside: avoid; }
+    .margin-note { margin: 0.6rem 0 0.6rem 1.5rem; }
+    body {
+      background: #ffffff;
+      color: var(--text);
+      font-size: 11pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  /* Details that keep math, tables and figures inside the page at every width */
+  td .katex-display { margin: 0.2em 0 !important; }
+  figure svg { display: block; margin: 0 auto; }
+  .algorithm .katex-display { margin: 0.4em 0 !important; }
+  .definition .katex-display, .algorithm .katex-display, .insight .katex-display, td .katex-display {
+    overflow-x: auto !important; overflow-y: hidden !important; }
+  td { overflow-wrap: anywhere; }
+  td code { overflow-wrap: normal; }
+  .part-label {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin: 3rem 0 0.5rem 0; padding-top: 0.6rem; border-top: 3px solid var(--accent-light);
+  }
+  nav.toc .toc-part {
+    margin: 0.9rem 0 0.3rem 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--heading);
+  }
+  tr.group th { background: var(--accent-light); color: var(--accent); font-size: 0.82rem;
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.ver td:nth-child(2) { width: 27%; }
+  table.ver td:nth-child(3) { width: 20%; }
+  @media (max-width: 800px) {
+    table { display: block; overflow-x: auto; }
+    /* long displays scroll inside their own box, and tags follow the formula instead of overlapping it (the
+       reader features of tools/html_features.py put a numbered display's tag on screen, under the formula) */
+    .katex-display { overflow-x: auto !important; overflow-y: hidden !important; }
+    .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
+    /* scrolling boxes must contain KaTeX's absolutely positioned MathML, or it widens the page */
+    table, .equation-block, .katex-display { position: relative; }
+    td, th { overflow-wrap: break-word; hyphens: auto; }
+  }

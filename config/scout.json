@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "window_days": 14,
+  "max_candidates": 8,
+  "min_candidates": 3,
+  "primary_source_kinds": ["paper", "preprint", "official_post", "code", "dataset"],
+  "secondary_source_kinds": ["news", "press_release", "video", "social", "other"],
+  "primary_domains": [
+    "arxiv.org",
+    "openreview.net",
+    "ieeexplore.ieee.org",
+    "dl.acm.org",
+    "roboticsproceedings.org",
+    "proceedings.mlr.press",
+    "www.science.org",
+    "www.nature.com",
+    "github.com"
+  ],
+  "news_domains": [
+    "spectrum.ieee.org",
+    "www.therobotreport.com",
+    "techcrunch.com",
+    "www.theverge.com",
+    "www.wired.com"
+  ],
+  "search_angles": [
+    "new robotics papers this week (locomotion, manipulation, humanoids, aerial, field robots)",
+    "robot control and model predictive control results",
+    "robot learning results with released code or data",
+    "official lab or company robotics announcements with a technical report",
+    "robotics conference news (ICRA, IROS, RSS, CoRL, Humanoids)"
+  ],
+  "exclude": [
+    "funding rounds, valuations and hiring news without a technical result",
+    "pages that require bypassing a paywall or login",
+    "content whose only source is an anonymous social media post"
+  ]
+}

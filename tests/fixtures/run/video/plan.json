@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "title": "Fixture: why the cost-to-go goes down",
+  "summary": "Fixture video for the automated pipeline test (fictional topic). A scalar example shows the value decreasing along the closed loop, exactly by the stage cost.",
+  "tags": ["model predictive control", "Lyapunov function", "test fixture"],
+  "scenes": [{"file": "scene_template.py", "class": "TemplateScene", "section": "sec-idea-picture", "chapter": "The idea in a picture"}],
+  "thumbnail": {"scene": "TemplateScene", "time": 7.0, "text": "The value goes down"}
+}

@@ -1,0 +1,22 @@
+{
+ "schema_version": 1,
+ "reviewer": "final-cut-reviewer",
+ "independent": true,
+ "reviewed_by": "fixture (stands in for the final-cut-reviewer subagent in the dry runs)",
+ "summary": "Fixture report for the dry runs: the assembled video was watched frame sheet by frame sheet; one minor finding, no blocker or major.",
+ "checks_run": [
+  {"command": "python3 tools/video/final_frames.py runs/<run>", "result": "frames every 2 s, at scene changes and chapter starts, with contact sheets"}
+ ],
+ "findings": [
+  {
+   "id": "FC-1",
+   "severity": "minor",
+   "location": "first scene, first seconds",
+   "time_s": 1.0,
+   "issue": "The title fades in while the narration has already started; it could appear a few frames earlier.",
+   "evidence": "review/final_cut/frames/t0000.50.jpg (fixture)",
+   "suggested_fix": "Start the title's fade at 0 s.",
+   "confidence": "medium"
+  }
+ ]
+}

@@ -1,0 +1,18 @@
+# note/sec10_general_N_descent.py 
+# exit 0, 0.48 s
+c*=1.1055
+c=1.106 N=1: max (dV+Ld)/|q|^2 = -2.81e-04 OK
+c=1.106 N=2: max (dV+Ld)/|q|^2 = -1.39e-03 OK
+c=1.106 N=3: max (dV+Ld)/|q|^2 = -1.11e-03 OK
+c=1.106 N=5: max (dV+Ld)/|q|^2 = -6.53e-04 OK
+c=1.106 N=8: max (dV+Ld)/|q|^2 = -4.81e-05 OK
+c=1.500 N=1: max (dV+Ld)/|q|^2 = -4.04e-02 OK
+c=1.500 N=2: max (dV+Ld)/|q|^2 = -3.27e-02 OK
+c=1.500 N=3: max (dV+Ld)/|q|^2 = -2.66e-02 OK
+c=1.500 N=5: max (dV+Ld)/|q|^2 = -1.52e-02 OK
+c=1.500 N=8: max (dV+Ld)/|q|^2 = -4.67e-03 OK
+c=3.000 N=1: max (dV+Ld)/|q|^2 = -2.04e-01 OK
+c=3.000 N=2: max (dV+Ld)/|q|^2 = -1.45e-01 OK
+c=3.000 N=3: max (dV+Ld)/|q|^2 = -1.07e-01 OK
+c=3.000 N=5: max (dV+Ld)/|q|^2 = -5.22e-02 OK
+c=3.000 N=8: max (dV+Ld)/|q|^2 = -1.49e-02 OK

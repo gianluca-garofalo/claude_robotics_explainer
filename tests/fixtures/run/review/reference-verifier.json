@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "reviewer": "reference-verifier",
+  "summary": "Fixture report (tests only) from reference-verifier: nothing found.",
+  "checks_run": [
+    {
+      "command": "fixture",
+      "result": "fixture"
+    }
+  ],
+  "findings": []
+}

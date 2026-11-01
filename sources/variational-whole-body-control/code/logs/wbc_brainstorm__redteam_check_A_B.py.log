@@ -1,0 +1,21 @@
+# wbc_brainstorm/redteam_check_A_B.py 
+# exit 0, 0.33 s
+A1 |L^-1 A - Jbar_lit| per level: [np.float64(2.220446049250313e-16), np.float64(6.661338147750939e-16), np.float64(4.739264536368637e-15)]
+A1 |D_i - Jbar_i M^-1 Jbar_i^T|: [np.float64(0.0), np.float64(2.220446049250313e-16), np.float64(3.677613769070831e-16)]
+A1 offdiag of Jbar M^-1 Jbar^T: 4.0939474033052647e-16
+A1 tau - A^T lam: 2.7000623958883807e-13
+A1 F - L^T lam: 1.9895196601282805e-13 | F_last - lam_last: 1.9895196601282805e-13 | F_1 - lam_1: 512.1425982804541
+A1 effort separation residual: 1.1254996934439987e-11
+A1 decoupled force on task1: first-priority [ 1.169 -1.837]  last-priority [-510.974  484.95 ]  lam1 [-510.974  484.95 ]
+A1 leak identity resid: 5.551115123125783e-17
+A1 F* + dV/dv: 0.0 (quasi-velocity partial at fixed q, no integrability needed)
+B lam - Lam(a - Jdqd - J qdd0): 1.7763568394002505e-15
+B Gauss value - 1/2|dx|_Lam: 1.3322676295501878e-15
+B CLF tau - mu R^-1 M^-1 pi_v: 0.0
+A2 |L^-1A - Jbar_lit| (rank-def): [np.float64(1.5543122344752192e-15), np.float64(1.3322676295501878e-15), np.float64(2.886579864025407e-15)]  ranks of Jbar_i: [np.int64(2), np.int64(2), np.int64(3)]
+A2 eigs D_i: [array([0.553, 0.607]), array([0.   , 0.201, 1.309]), array([0.058, 0.209, 0.303])]
+A2 lexi W=I                 task residual norms: [np.float64(0.0), np.float64(0.1789), np.float64(0.0)]
+A2 lexi W=Lambda_task       task residual norms: [np.float64(0.0), np.float64(0.1931), np.float64(0.0)]
+A2 lexi W=Lambda_bar(reg)   task residual norms: [np.float64(0.0), np.float64(0.1789), np.float64(0.0)]
+A2 decoupled pinv           task residual norms: [np.float64(0.0), np.float64(0.1789), np.float64(0.0)]
+A2 |decoupled - lexi(W=I)| = 4.884981308350689e-15  |lexi W=I - W=Lam_task| = 0.047573070351497826

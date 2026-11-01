@@ -1,0 +1,786 @@
+# Remaining Action explainer pipeline: news -> explainer -> narrated video -> private upload -> human review -> publish.
+# Series mode (Run workflow, mode: series) makes one episode of a series from an existing explainer instead.
+# The only human step is the video review: the `publish` job waits for your approval (environment `publish` with you as
+# required reviewer). Nothing is public before that. SETUP-AUTOMATION.md lists the one-time setup.
+name: Explainer pipeline
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"            # Mondays 06:17 UTC, news mode; GitHub runs schedules from the default branch only
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: news (scout the news) or series (one episode of a series in series/)
+        type: choice
+        options: [news, series]
+        default: news
+      focus:
+        description: News mode, optional topic focus, for example "humanoid whole-body control"
+        required: false
+        default: ""
+      series:
+        description: >-
+          Series mode, required there: the folder name of a plan in series/ (made by /plan-series or
+          /produce-from-source; tools/series.py from-source lists a source's series in release order)
+        required: false
+        default: ""
+      episode:
+        description: Series mode, episode number or "next"
+        required: false
+        default: next
+      fresh:
+        description: >-
+          Series mode: start the episode without the scenes kept for it in series/<series>/episodes/epNN/ (when
+          there are any): every scene is written anew
+        type: boolean
+        default: false
+      voice:
+        description: >-
+          Narration voice for this run. config = voice.service in config/channel.json (piper: offline, no key,
+          its model is in the CI image); recorded stops before rendering with the list of blocks to record (you
+          finish locally); silent stops at the final narration gate
+        type: choice
+        options: [config, piper, azure, recorded, silent]
+        default: config
+      links:
+        description: >-
+          Explainer and code links in the YouTube description for this run (never inside the video). config =
+          links.include in config/channel.json (default off); on needs the SITE_BASE_URL variable
+        type: choice
+        options: [config, "on", "off"]
+        default: config
+      stop_after:
+        description: Stop after this stage (full = up to the human review)
+        type: choice
+        options: [full, produce, render]
+        default: full
+
+permissions: {}
+
+concurrency:
+  group: explainer-pipeline
+  cancel-in-progress: false
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  preflight:
+    name: Kill switch
+    if: vars.PIPELINE_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.cfg.outputs.image }}
+    steps:
+      - id: cfg
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/explainer-ci:latest" >> "$GITHUB_OUTPUT"
+
+  scout:
+    name: Claude - scout the news
+    needs: preflight
+    if: inputs.mode != 'series'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      FOCUS: ${{ inputs.focus }}
+      TMPDIR: ${{ github.workspace }}/.cache/tmp
+      XDG_CACHE_HOME: ${{ github.workspace }}/.cache
+      CLAUDE_SETTINGS: >-
+        ${{ vars.CLAUDE_SANDBOX == 'false' && 'ci/claude-ci-settings.nosandbox.json' || 'ci/claude-ci-settings.json' }}
+    outputs:
+      run: ${{ steps.start.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Published-topics ledger (gh-pages, read only)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: .ledger
+          persist-credentials: false
+          sparse-checkout: ledger.json
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/toolchain
+        with:
+          profile: claude
+      - name: New run folder and workspace trust
+        id: start
+        run: |
+          mkdir -p "$TMPDIR"
+          run="$(python3 tools/run.py new --focus "$FOCUS")"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          if [ -f .ledger/ledger.json ]; then
+            cp .ledger/ledger.json "$run/published.json"
+            python3 tools/coverage.py "$run"
+          fi
+          rm -rf .ledger
+          python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
+      - name: Scout (Claude)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /robotics-news-scout ${{ steps.start.outputs.run }} ${{ inputs.focus }}
+          claude_args: --permission-mode dontAsk --max-turns 80 --max-budget-usd ${{ vars.CLAUDE_BUDGET_SCOUT_USD || '6' }}
+      - name: Validate the candidates
+        env:
+          RUN: ${{ steps.start.outputs.run }}
+        run: python3 tools/validate.py "$RUN"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: run-scout
+          retention-days: 30
+          path: ${{ steps.start.outputs.run }}
+
+  search:
+    name: Search demand (data lookups, no Claude, no run code)
+    needs: [preflight, scout]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      RUN: ${{ needs.scout.outputs.run }}
+    outputs:
+      sha: ${{ steps.search.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Optional Google Trends client (unofficial; failures are recorded, never fatal)
+        run: pip install -r requirements-search.txt || echo "pytrends not installed; trends will be recorded as unavailable"
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-scout
+          path: ${{ needs.scout.outputs.run }}
+      - name: Search data (YouTube suggestions, YouTube Data API, Google Trends)
+        id: search
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: |
+          python3 tools/search_demand.py "$RUN"
+          echo "sha=$(sha256sum "$RUN/search.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: run-scouted
+          retention-days: 30
+          path: ${{ needs.scout.outputs.run }}
+
+  produce:
+    name: Claude - rank, write, review, storyboard
+    needs: [preflight, scout, search]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    permissions:
+      contents: read
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      SCOUTED: ${{ needs.scout.outputs.run }}
+      TMPDIR: ${{ github.workspace }}/.cache/tmp
+      XDG_CACHE_HOME: ${{ github.workspace }}/.cache
+      MPLCONFIGDIR: ${{ github.workspace }}/.cache/matplotlib
+      CLAUDE_SETTINGS: >-
+        ${{ vars.CLAUDE_SANDBOX == 'false' && 'ci/claude-ci-settings.nosandbox.json' || 'ci/claude-ci-settings.json' }}
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/toolchain
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-scouted
+          path: ${{ needs.scout.outputs.run }}
+      - name: Workspace trust
+        run: |
+          mkdir -p "$TMPDIR" "$MPLCONFIGDIR"
+          python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
+      - name: Rank (Claude)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /virality-ranker ${{ needs.scout.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 40 --max-budget-usd ${{ vars.CLAUDE_BUDGET_RANK_USD || '3' }}
+      - name: Automatic topic approval (deterministic, logged)
+        id: select
+        env:
+          SEARCH_SHA: ${{ needs.search.outputs.sha }}
+        run: |
+          echo "$SEARCH_SHA  $SCOUTED/search.json" | sha256sum --check --quiet \
+            || { echo "search.json changed after the search job: refusing to rank" >&2; exit 1; }
+          python3 tools/validate.py "$SCOUTED"
+          python3 tools/rank_topics.py "$SCOUTED"
+          python3 tools/auto_select.py "$SCOUTED"
+          run="$(python3 tools/run.py finalize "$SCOUTED")"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          cat "$run/selection.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Write the explainer (Claude)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /didactic-html-writer ${{ steps.select.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_WRITE_USD || '25' }}
+      - name: Explainer checks (deterministic)
+        env:
+          RUN: ${{ steps.select.outputs.run }}
+        run: |
+          .venv/bin/python tools/run_code_checks.py "$RUN"
+          python3 tools/build_explainer.py "$RUN" --strict
+          node tools/check_html.js "$RUN/explainer.html" --offline --json "$RUN/review/check_html.json"
+      - name: Independent review and fixes (Claude)
+        # Five reviewer subagents plus one verifier per serious finding: a review of a long (19-section) explainer used
+        # about 1.3 M subagent tokens, plus about 0.5 M for verification. If this step stops at its budget, raise the
+        # repository variable CLAUDE_BUDGET_REVIEW_USD (SETUP-AUTOMATION.md, step 7); the default stays 25.
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /explainer-review ${{ steps.select.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '25' }}
+      - name: Storyboard, narrated scenes, design review (Claude)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /manim-video-producer ${{ steps.select.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_VIDEO_USD || '20' }}
+      - name: Upload the run
+        if: always() && steps.select.outputs.run != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-src
+          retention-days: 30
+          path: |
+            ${{ steps.select.outputs.run }}
+            !${{ steps.select.outputs.run }}/video/media
+
+  episode:
+    name: Claude - series episode (narrated scenes, design review)
+    needs: preflight
+    if: inputs.mode == 'series'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      SERIES: ${{ inputs.series }}
+      EPISODE: ${{ inputs.episode }}
+      FRESH: ${{ inputs.fresh && '--fresh' || '' }}
+      TMPDIR: ${{ github.workspace }}/.cache/tmp
+      XDG_CACHE_HOME: ${{ github.workspace }}/.cache
+      MPLCONFIGDIR: ${{ github.workspace }}/.cache/matplotlib
+      CLAUDE_SETTINGS: >-
+        ${{ vars.CLAUDE_SANDBOX == 'false' && 'ci/claude-ci-settings.nosandbox.json' || 'ci/claude-ci-settings.json' }}
+    outputs:
+      run: ${{ steps.start.outputs.run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Ledger (gh-pages, read only)
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: .ledger
+          persist-credentials: false
+          sparse-checkout: ledger.json
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/toolchain
+      - name: Start the episode (deterministic, logged) and workspace trust
+        id: start
+        run: |
+          if [ -z "$SERIES" ] || [ ! -f "series/$SERIES/series.json" ]; then
+            echo "::error::series mode needs the series input: the folder name of a plan committed under series/" \
+              "(found: $(ls series/*/series.json 2>/dev/null | cut -d/ -f2 | tr '\n' ' '))"
+            exit 1
+          fi
+          mkdir -p "$TMPDIR" "$MPLCONFIGDIR"
+          # shellcheck disable=SC2086  # FRESH is empty or the single word --fresh
+          run="$(python3 tools/series.py start "series/$SERIES" --episode "$EPISODE" --ledger .ledger/ledger.json \
+                 --by "workflow_dispatch by $GITHUB_ACTOR" $FRESH)"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          rm -rf .ledger
+          python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
+          python3 -c 'import json,sys; e = json.load(open(sys.argv[1])); print("Episode", e["episode"], e["title"])' \
+            "$run/episode.json" >> "$GITHUB_STEP_SUMMARY"
+      - name: Narrated scenes and design review (Claude)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /produce-episode resume ${{ steps.start.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_EPISODE_USD || '20' }}
+      - name: Upload the run
+        if: always() && steps.start.outputs.run != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-src
+          retention-days: 30
+          path: |
+            ${{ steps.start.outputs.run }}
+            !${{ steps.start.outputs.run }}/video/media
+
+  gate:
+    name: Gates before rendering (fresh checkout, the repository's own tools)
+    # Claude could change any file in its own job's workspace, tools included. So the checks that decide whether the
+    # run goes on are re-run here, on a clean checkout, with the run folder as data: code checks (the explainer must
+    # be reproducible from code/), strict build and render check (news mode), silent draft renders with layout logs,
+    # the design and reading-time checks, then tools/gate.py (which also requires the video design review).
+    needs: [preflight, produce, episode]
+    if: >-
+      always() && needs.preflight.result == 'success' && inputs.stop_after != 'produce' &&
+      (needs.produce.result == 'success' || needs.episode.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      RUN: ${{ needs.produce.outputs.run || needs.episode.outputs.run }}
+      MANIM: /opt/venv/bin/manim
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+      scenes: ${{ steps.plan.outputs.scenes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-src
+          path: ${{ needs.produce.outputs.run || needs.episode.outputs.run }}
+      - name: Checks and pre-render gates
+        run: |
+          python3 tools/run_code_checks.py "$RUN"
+          if [ ! -f "$RUN/episode.json" ]; then
+            python3 tools/build_explainer.py "$RUN" --strict
+            node tools/check_html.js "$RUN/explainer.html" --offline --json "$RUN/review/check_html.json"
+          fi
+          bash tools/render_video.sh "$RUN" --check
+          python3 tools/video/check_design.py "$RUN" --stage draft || true
+          python3 tools/video/check_reading.py "$RUN" --stage draft || true
+          python3 tools/video/check_selfcontained.py "$RUN" --stage draft || true
+          python3 tools/gate.py "$RUN" --stage pre-render
+      - name: Render matrix
+        id: plan
+        run: |
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          echo "scenes=$(python3 tools/ci/scene_matrix.py "$RUN")" >> "$GITHUB_OUTPUT"
+      - name: Gate report
+        if: always()
+        run: |
+          if [ -f "$RUN/review/gates.md" ]; then cat "$RUN/review/gates.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          for f in check_design check_reading check_selfcontained check_numbers check_series; do
+            if [ -f "$RUN/review/design/draft/$f.md" ]; then cat "$RUN/review/design/draft/$f.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: run-gated
+          retention-days: 30
+          path: |
+            ${{ needs.produce.outputs.run || needs.episode.outputs.run }}
+            !${{ needs.produce.outputs.run || needs.episode.outputs.run }}/video/media
+
+  voice:
+    name: Narration (text to speech; no run code is executed here)
+    needs: [preflight, gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      RUN: ${{ needs.gate.outputs.run }}
+      # one setting: config/channel.json voice.service, unless this run's `voice` input names another service
+      VOICE_SERVICE: ${{ inputs.voice != 'config' && inputs.voice || '' }}
+      # optional: only the azure service reads these (piper needs no key)
+      AZURE_SUBSCRIPTION_KEY: ${{ secrets.AZURE_SUBSCRIPTION_KEY }}
+      AZURE_SERVICE_REGION: ${{ secrets.AZURE_SERVICE_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-gated
+          path: ${{ needs.gate.outputs.run }}
+      - name: Synthesize every voiceover block once (scene files are parsed, never run)
+        run: |
+          set -o pipefail
+          rm -rf "$RUN/video/voice"
+          SVC="${VOICE_SERVICE:-$(python3 -c 'import json; print(json.load(open("config/channel.json"))["voice"]["service"])')}"
+          if [ "$SVC" = recorded ]; then
+            # your own voice cannot be made here: list what to record, then stop before rendering
+            python3 tools/video/voice_script.py "$RUN" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::voice=recorded: record the blocks listed in the job summary, then finish locally" \
+              "from the run-gated artifact (SETUP-AUTOMATION.md, step 4, Your own voice)"
+            exit 1
+          fi
+          python3 tools/video/synthesize_voice.py "$RUN" | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice
+          retention-days: 30
+          path: ${{ needs.gate.outputs.run }}/video/voice
+
+  render:
+    name: Render ${{ matrix.scene.class }} (1080p60, narrated)
+    needs: [preflight, gate, voice]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: true
+      max-parallel: 8
+      matrix:
+        scene: ${{ fromJSON(needs.gate.outputs.scenes) }}
+    env:
+      RUN: ${{ needs.gate.outputs.run }}
+      VOICE_SERVICE: recorded
+      MANIM: /opt/venv/bin/manim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-gated
+          path: ${{ needs.gate.outputs.run }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: voice
+          path: ${{ needs.gate.outputs.run }}/video/voice
+      - name: Render (with the layout log for the design checks)
+        env:
+          SCENE: ${{ matrix.scene.file }}:${{ matrix.scene.class }}
+        run: bash tools/render_video.sh "$RUN" --quality h --scene "$SCENE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scene-${{ matrix.scene.id }}
+          retention-days: 30
+          path: ${{ needs.gate.outputs.run }}/video/renders/${{ matrix.scene.class }}*
+
+  assemble:
+    name: Design checks, assembly, captions, chapters, thumbnail, metadata, final gates
+    needs: [preflight, gate, render]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    container:
+      image: ${{ needs.preflight.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      RUN: ${{ needs.gate.outputs.run }}
+      SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+      # links in the description: this run's `links` input, else links.include in config/channel.json (default off)
+      INCLUDE_LINKS: ${{ inputs.links != 'config' && inputs.links || '' }}
+      MANIM: /opt/venv/bin/manim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-gated
+          path: ${{ needs.gate.outputs.run }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: voice
+          path: ${{ needs.gate.outputs.run }}/video/voice
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: scene-*
+          merge-multiple: true
+          path: ${{ needs.gate.outputs.run }}/video/renders
+      - name: Design and reading-time checks of the final scene renders (before assembly)
+        run: |
+          python3 tools/video/check_design.py "$RUN" --stage final --no-frames
+          python3 tools/video/check_reading.py "$RUN" --stage final
+      - name: Assemble (no channel card; the outro scene ends the video), thumbnail, metadata
+        run: |
+          python3 tools/video/assemble.py "$RUN"
+          python3 tools/video/thumbnail.py "$RUN"
+          python3 tools/video/metadata.py "$RUN"
+          python3 tools/video/check_design.py "$RUN" --stage final --no-frames
+          python3 tools/video/check_selfcontained.py "$RUN" --stage final || true
+          python3 tools/video/check_numbers.py "$RUN" --stage final || true
+          python3 tools/video/check_series.py "$RUN" --stage final
+      - name: Final gates
+        run: python3 tools/gate.py "$RUN" --stage final --require-links
+      - name: Gate report
+        if: always()
+        run: |
+          if [ -f "$RUN/review/gates.md" ]; then cat "$RUN/review/gates.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          for f in check_design check_reading check_selfcontained check_numbers check_series; do
+            if [ -f "$RUN/review/design/final/$f.md" ]; then cat "$RUN/review/design/final/$f.md" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: run-final
+          retention-days: 90
+          path: |
+            ${{ needs.gate.outputs.run }}
+            !${{ needs.gate.outputs.run }}/video/media
+            !${{ needs.gate.outputs.run }}/video/build
+
+  final-review:
+    name: Claude - final-cut review of the assembled video (a separate reviewer watches it)
+    # After the final render and before the private upload. Like every Claude job: read-only token, no environment,
+    # no secret but the Claude key. Only review/final_cut/ leaves this job; the stage job merges nothing else.
+    needs: [preflight, gate, assemble]
+    if: inputs.stop_after != 'produce' && inputs.stop_after != 'render'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+      RUN: ${{ needs.gate.outputs.run }}
+      TMPDIR: ${{ github.workspace }}/.cache/tmp
+      XDG_CACHE_HOME: ${{ github.workspace }}/.cache
+      CLAUDE_SETTINGS: >-
+        ${{ vars.CLAUDE_SANDBOX == 'false' && 'ci/claude-ci-settings.nosandbox.json' || 'ci/claude-ci-settings.json' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-final
+          path: ${{ needs.gate.outputs.run }}
+      - uses: ./.github/actions/toolchain
+      - name: Frames for the reviewer (deterministic) and workspace trust
+        run: |
+          mkdir -p "$TMPDIR"
+          python3 tools/video/final_frames.py "$RUN"
+          python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
+      - name: Final-cut review (Claude; reviewer and verifier subagents)
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          settings: ${{ env.CLAUDE_SETTINGS }}
+          prompt: /final-cut-review ${{ needs.gate.outputs.run }}
+          claude_args: --permission-mode dontAsk --max-turns 120 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '10' }}
+      - name: Upload the review only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-review
+          retention-days: 90
+          path: |
+            ${{ needs.gate.outputs.run }}/review/final_cut
+            !${{ needs.gate.outputs.run }}/review/final_cut/frames
+
+  stage:
+    name: Private upload, preview, review issue
+    needs: [gate, assemble, final-review]
+    if: inputs.stop_after != 'produce' && inputs.stop_after != 'render'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: staging
+    permissions:
+      contents: write
+      issues: write
+    outputs:
+      video_id: ${{ steps.yt.outputs.video_id }}
+      token: ${{ steps.token.outputs.token }}
+      issue: ${{ steps.issue.outputs.result }}
+    env:
+      RUN: ${{ needs.gate.outputs.run }}
+      SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+      APPROVAL_MODE: ${{ vars.APPROVAL_MODE || 'environment' }}
+      PREVIEW_MODE: ${{ vars.PREVIEW_MODE || 'pages' }}
+      YOUTUBE_UPLOAD: ${{ vars.YOUTUBE_UPLOAD || 'api' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-publish.txt
+      - run: pip install -r requirements-publish.txt
+      - uses: actions/download-artifact@v4
+        with:
+          name: run-final
+          path: ${{ needs.gate.outputs.run }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: final-review
+          path: ${{ needs.gate.outputs.run }}/review/final_cut
+      - name: Release gate (final gates for this video, final-cut review merged with no open blocker)
+        run: |
+          python3 tools/merge_reviews.py "$RUN" --set final_cut
+          python3 tools/gate.py "$RUN" --stage release
+          cat "$RUN/review/final_cut/summary.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Pages branch
+        run: bash tools/ci/pages_checkout.sh site
+      - id: token
+        run: echo "token=$(python3 -c 'import secrets; print(secrets.token_hex(6))')" >> "$GITHUB_OUTPUT"
+      - name: Upload to YouTube (private, idempotent)
+        id: yt
+        if: env.YOUTUBE_UPLOAD == 'api'
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+        run: |
+          out="$(python3 tools/publish/youtube.py stage "$RUN" --ledger site/ledger.json)"
+          echo "$out"
+          echo "video_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["video_id"])' "$out")" >> "$GITHUB_OUTPUT"
+      - name: Preview on Pages and ledger
+        id: preview
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          VIDEO_ID: ${{ steps.yt.outputs.video_id }}
+        run: |
+          if [ "$PREVIEW_MODE" = pages ]; then
+            path="$(python3 tools/publish/site.py preview site "$RUN" --token "$TOKEN")"
+            echo "url=${SITE_BASE_URL%/}/$path" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+          fi
+          python3 tools/publish/site.py mark site "$RUN" --status staged --video-id "$VIDEO_ID"
+          bash tools/ci/pages_push.sh site "Stage $(basename "$RUN") for review"
+      - name: Review package
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          VIDEO_ID: ${{ steps.yt.outputs.video_id }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        run: |
+          python3 tools/review_package.py "$RUN" --video-id "$VIDEO_ID" --preview-url "$PREVIEW_URL" \
+            --workflow-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --approval-mode "$APPROVAL_MODE" --token "$TOKEN" --source-run-id "$GITHUB_RUN_ID"
+          cat "$RUN/review/package.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open or update the review issue
+        id: issue
+        uses: actions/github-script@v7
+        env:
+          BODY_FILE: ${{ needs.gate.outputs.run }}/review/package.md
+        with:
+          result-encoding: string
+          script: |
+            const fs = require('fs');
+            const run = process.env.RUN.split('/').pop();
+            const body = fs.readFileSync(process.env.BODY_FILE, 'utf8');
+            const title = `Review: ${body.split('\n')[0].replace(/^## Review: /, '')} [${run}]`.slice(0, 250);
+            const { owner, repo } = context.repo;
+            const open = await github.paginate(github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', labels: 'pipeline:review', per_page: 100 });
+            const existing = open.find(i => i.title.includes(`[${run}]`));
+            if (existing) {
+              await github.rest.issues.update({ owner, repo, issue_number: existing.number, body });
+              return String(existing.number);
+            }
+            const created = await github.rest.issues.create({ owner, repo, title, body, labels: ['pipeline:review'] });
+            return String(created.data.number);
+
+  publish:
+    name: Publish after your approval
+    needs: [gate, stage]
+    if: vars.APPROVAL_MODE != 'label'
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    uses: ./.github/workflows/publish-run.yml
+    with:
+      run: ${{ needs.gate.outputs.run }}
+      video_id: ${{ needs.stage.outputs.video_id }}
+      token: ${{ needs.stage.outputs.token }}
+      issue: ${{ needs.stage.outputs.issue }}
+      environment: publish
+      source_run_id: ${{ github.run_id }}
+    secrets: inherit
+
+  archive:
+    name: Archive a rejected or expired run
+    needs: [gate, stage, publish]
+    if: always() && needs.stage.result == 'success' && (needs.publish.result == 'failure' || needs.publish.result == 'cancelled')
+    permissions:
+      contents: write
+      issues: write
+      actions: read
+    uses: ./.github/workflows/archive-run.yml
+    with:
+      run: ${{ needs.gate.outputs.run }}
+      video_id: ${{ needs.stage.outputs.video_id }}
+      token: ${{ needs.stage.outputs.token }}
+      issue: ${{ needs.stage.outputs.issue }}
+      source_run_id: ${{ github.run_id }}
+      reason: ""
+    secrets: inherit
+
+  notify-failure:
+    name: Report a stopped run
+    needs: [preflight, scout, search, produce, episode, gate, voice, render, assemble, final-review, stage]
+    if: always() && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        with:
+          script: |
+            const needs = JSON.parse(process.env.NEEDS);
+            const failed = Object.entries(needs).filter(([, v]) => v.result === 'failure').map(([k]) => k);
+            const url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const uploaded = needs.stage && needs.stage.result === 'success';
+            await github.rest.issues.create({
+              owner: context.repo.owner, repo: context.repo.repo, labels: ['pipeline:stopped'],
+              title: `Pipeline stopped at ${failed.join(', ')} (run ${context.runId})`,
+              body: [`The explainer pipeline stopped: failed job(s) ${failed.join(', ')}.`,
+                     uploaded ? 'The video had been uploaded privately; nothing was made public.'
+                              : 'Nothing was uploaded or published.',
+                     `Logs, gate report (job summary) and the run folder (artifact) are here: ${url}`].join('\n\n'),
+            });

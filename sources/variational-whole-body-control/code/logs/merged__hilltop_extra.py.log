@@ -1,0 +1,6 @@
+# merged/hilltop_extra.py 
+# exit 0, 2.3 s
+(1) y'' - omega^2 y = 0  y(0) = 0 | oscillator sin(omega t) at t = pi/omega: 0
+    extremal check m q'' - kappa q = 0
+(2) action of extremal - closed form L_d^E = 0
+(3) V_1 - W(q) = 0 | grad V_1 - d_1 L_d^E(q,q*) = 0 | d_2 L_d^E(q,q*) + grad W(q*) = 0

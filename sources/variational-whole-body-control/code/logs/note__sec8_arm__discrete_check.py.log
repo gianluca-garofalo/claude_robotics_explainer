@@ -1,0 +1,13 @@
+# note/sec8_arm/discrete_check.py 
+# exit 0, 38.37 s
+torque-limit level c_tau = 0.3402535264170176 at z= [ 0.04201437  0.01295837  0.58720697 -2.43820589] tau= [ 4.07106438 30.        ]  q= [ 0.82741253 -0.77243979]
+h=0.01 c=0.5000: W decreases everywhere? True; max[dW + h l] (c_W=1) = 1.285e-01; needed c_W = 1.83190; max |tau| ratio = 0.910; invariant: max W(F)/c = 0.9610
+h=0.01 c=1.0000: W decreases everywhere? True; max[dW + h l] (c_W=1) = 3.301e-01; needed c_W = 2.48872; max |tau| ratio = 1.297; invariant: max W(F)/c = 0.9619
+h=0.01 c=2.0000: W decreases everywhere? True; max[dW + h l] (c_W=1) = 6.445e-01; needed c_W = 5.27647; max |tau| ratio = 1.545; invariant: max W(F)/c = 0.9641
+h=0.01 c=0.3403: W decreases everywhere? True; max[dW + h l] (c_W=1) = 1.192e-01; needed c_W = 1.97183; max |tau| ratio = 0.781; invariant: max W(F)/c = 0.9645
+h=0.005 c=0.5000: W decreases everywhere? True; max[dW + h l] (c_W=1) = -2.699e-11; needed c_W = 0.97831; max |tau| ratio = 0.771; invariant: max W(F)/c = 0.9792
+h=0.005 c=1.0000: W decreases everywhere? True; max[dW + h l] (c_W=1) = 6.872e-03; needed c_W = 1.03523; max |tau| ratio = 1.436; invariant: max W(F)/c = 0.9832
+h=0.005 c=2.0000: W decreases everywhere? True; max[dW + h l] (c_W=1) = 3.121e-02; needed c_W = 1.05768; max |tau| ratio = 1.475; invariant: max W(F)/c = 0.9807
+h=0.005 c=0.3403: W decreases everywhere? True; max[dW + h l] (c_W=1) = -1.812e-11; needed c_W = 0.97881; max |tau| ratio = 0.681; invariant: max W(F)/c = 0.9810
+near-origin needed c_W h= 0.01 1.6825010571278274
+near-origin needed c_W h= 0.005 0.9627273858313485

@@ -1,0 +1,16 @@
+# note/sec8_arm/omega_check.py 
+# exit 0, 14.46 s
+h=0.005: per-shell (fraction of boundary radius, max ratio, W decreases, max|tau|/limit, max W(F)/c):
+     ['1', '0.9938', np.True_, '0.948', '0.9834']
+     ['0.7', '0.9786', np.True_, '0.7225', '0.4821']
+     ['0.4', '0.9709', np.True_, '0.507', '0.1575']
+     ['0.1', '0.9653', np.True_, '0.3971', '0.00986']
+     ['0.001', '0.9649', np.True_, '0.3609', '9.866e-07']
+  sup ratio (sampled + refined) on Omega_0.3: 0.99408
+h=0.01: per-shell (fraction of boundary radius, max ratio, W decreases, max|tau|/limit, max W(F)/c):
+     ['1', '2.251', np.True_, '0.948', '0.9662']
+     ['0.7', '2.032', np.True_, '0.7225', '0.4736']
+     ['0.4', '1.864', np.True_, '0.507', '0.1547']
+     ['0.1', '1.726', np.True_, '0.3971', '0.009675']
+     ['0.001', '1.69', np.True_, '0.3609', '9.677e-07']
+  sup ratio (sampled + refined) on Omega_0.3: 2.26903

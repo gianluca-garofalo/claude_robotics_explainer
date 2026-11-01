@@ -1,0 +1,17 @@
+{
+  "name": "claude-robotics-explainer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Render checks for the explainer HTML (Playwright + local KaTeX 0.16.9).",
+  "scripts": {
+    "check:html": "node tools/check_html.js",
+    "check:source": "node tools/check_html.js sources/variational-whole-body-control/explainer.html --offline"
+  },
+  "devDependencies": {
+    "katex": "0.16.9",
+    "playwright": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

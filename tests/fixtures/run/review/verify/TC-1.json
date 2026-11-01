@@ -1,0 +1,2 @@
+{"schema_version": 1, "finding": "TC-1", "verdict": "refuted", "reason": "Fixture verdict: the equation holds (defect below 1e-15).",
+ "checks_run": [{"command": "fixture", "result": "fixture"}]}

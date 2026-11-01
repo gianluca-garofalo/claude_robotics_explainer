@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "reviewer": "linear-reader",
+  "summary": "Fixture report (tests only) from linear-reader: read front to back; one minor gap, no break in the argument.",
+  "checks_run": [
+    {
+      "command": "python3 tools/explainer_text.py runs/<run>/explainer.html --until sec-idea-numbers --grep 'Riccati'",
+      "result": "fixture: no earlier mention"
+    }
+  ],
+  "findings": [
+    {
+      "id": "LR-1",
+      "severity": "minor",
+      "location": "Section 1.2, first sentence: 'the Riccati equation gives P and the gain K'",
+      "issue": "Fixture finding: the Riccati equation is named but never written; the reader can still take P and K from the table, so the argument stays followable.",
+      "evidence": "Fixture evidence: no Riccati equation appears before this sentence or after it.",
+      "suggested_fix": "Write the scalar Riccati equation before the table, or say that the script prints P and K.",
+      "confidence": "medium"
+    }
+  ]
+}

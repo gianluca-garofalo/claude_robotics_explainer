@@ -1,0 +1,11 @@
+# merged/riccati_threshold.py 
+# exit 0, 0.43 s
+c* = lambda_max(P^-1 P_d) = 1.105546
+  c = 1.000000: min eig(cP - T(cP)) = -7.519e-02  -> not PSD
+  c = 1.104546: min eig(cP - T(cP)) = -7.027e-04  -> not PSD
+  c = 1.105545: min eig(cP - T(cP)) = -7.019e-07  -> not PSD
+  c = 1.105546: min eig(cP - T(cP)) = -4.312e-16  -> PSD
+  c = 1.105547: min eig(cP - T(cP)) = +7.019e-07  -> PSD
+  c = 1.106546: min eig(cP - T(cP)) = +7.011e-04  -> PSD
+  c = 1.500000: min eig(cP - T(cP)) = +1.016e-01  -> PSD
+  c = 3.000000: min eig(cP - T(cP)) = +6.301e-01  -> PSD

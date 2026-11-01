@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(python3 tools/*)",
+      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/manim *)",
+      "Bash(node tools/*)",
+      "Bash(bash tools/render_video.sh *)",
+      "Bash(ffprobe *)",
+      "Bash(ffmpeg *)",
+      "Bash(python3 -m unittest *)",
+      "Bash(python3 tests/dry_run.py *)",
+      "Bash(bash setup.sh --check)",
+      "WebSearch",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:export.arxiv.org)",
+      "WebFetch(domain:doi.org)",
+      "WebFetch(domain:api.crossref.org)",
+      "WebFetch(domain:openreview.net)",
+      "WebFetch(domain:*.ieee.org)",
+      "WebFetch(domain:dl.acm.org)",
+      "WebFetch(domain:roboticsproceedings.org)",
+      "WebFetch(domain:proceedings.mlr.press)",
+      "WebFetch(domain:www.science.org)",
+      "WebFetch(domain:www.nature.com)",
+      "WebFetch(domain:github.com)"
+    ],
+    "ask": [
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(pip install *)",
+      "Bash(npm install *)"
+    ],
+    "deny": [
+      "Bash(git push *)",
+      "Bash(gh release *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh repo create *)",
+      "Bash(gh gist create *)",
+      "Bash(npm publish *)",
+      "Bash(twine upload *)",
+      "Bash(youtube-upload *)",
+      "Bash(youtubeuploader *)",
+      "Bash(*approve_topic.py*)",
+      "Bash(*record_approval.py*)",
+      "Edit(**/approval.json)",
+      "Edit(/config/**)",
+      "Edit(/tools/hooks/**)",
+      "Edit(/tools/human/**)",
+      "Edit(**/selection.json)",
+      "Edit(**/episode.json)",
+      "Edit(**/search.json)",
+      "Edit(**/covered.json)",
+      "Edit(**/published.json)",
+      "Edit(/series/**)",
+      "Edit(/.github/**)",
+      "Edit(/tools/publish/**)",
+      "Edit(/tools/ci/**)",
+      "Edit(/ci/**)",
+      "Bash(*tools/publish/*)",
+      "Bash(gh issue edit *)",
+      "Bash(gh api *pending_deployments*)",
+      "Bash(gh variable *)",
+      "Bash(gh secret *)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/tools/hooks/block_publish.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/tools/hooks/after_edit.py"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "matcher": "approve-topic",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/tools/hooks/record_approval.py"
+            ],
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

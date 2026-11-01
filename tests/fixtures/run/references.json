@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "references": [
+    {
+      "key": "keerthi1988",
+      "type": "article",
+      "authors": ["S.S. Keerthi", "E.G. Gilbert"],
+      "title": "Optimal infinite-horizon feedback laws for a general class of constrained discrete-time systems: Stability and moving-horizon approximations",
+      "venue": "Journal of Optimization Theory and Applications",
+      "year": 1988,
+      "volume": "57",
+      "number": "2",
+      "pages": "265-293",
+      "doi": "10.1007/BF00938540",
+      "verification": {
+        "status": "verified",
+        "checked_against": ["reference list of sources/variational-whole-body-control/explainer.html"],
+        "doi_seen_in": "reference list of sources/variational-whole-body-control/explainer.html"
+      }
+    },
+    {
+      "key": "mayne2000",
+      "type": "article",
+      "authors": ["D.Q. Mayne", "J.B. Rawlings", "C.V. Rao", "P.O.M. Scokaert"],
+      "title": "Constrained model predictive control: Stability and optimality",
+      "venue": "Automatica",
+      "year": 2000,
+      "volume": "36",
+      "number": "6",
+      "pages": "789-814",
+      "doi": "10.1016/S0005-1098(99)00214-9",
+      "verification": {
+        "status": "verified",
+        "checked_against": ["reference list of sources/variational-whole-body-control/explainer.html"],
+        "doi_seen_in": "reference list of sources/variational-whole-body-control/explainer.html"
+      }
+    }
+  ]
+}
