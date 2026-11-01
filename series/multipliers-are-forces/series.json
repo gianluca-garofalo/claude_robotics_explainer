@@ -1,0 +1,689 @@
+{
+  "schema_version": 2,
+  "slug": "multipliers-are-forces",
+  "title": "Multipliers Are Forces: Whole-Body Control Through Mechanics",
+  "source": "sources/variational-whole-body-control",
+  "explainer_sha256": "d879b2986f934bc1d122c1dec35001494d5fcf934711d06b4a6b32f0bb70a686",
+  "explainer_slug": "variational-whole-body-control",
+  "playlist": {
+    "title": "Multipliers Are Forces: Whole-Body Control Through Mechanics",
+    "privacy": "public"
+  },
+  "plan_sentence": "In whole-body control the Lagrange multipliers are physical: momenta, then forces on tasks; this series asks what the force on a task really is when one torque serves many prioritized tasks, and which quantities survive the choice of priorities.",
+  "playlist_description": "One torque vector has to serve many tasks at once: a hand, a posture, joint limits, contacts. Whole-body control shares it out by priority. This series reads that machinery with analytical mechanics, starting from one fact: the Lagrange multipliers of a controller are physical quantities.\n\nSix episodes, best watched in order, each made to stand on its own:\n1. The multipliers of the equations of motion are momenta, and a multiple-shooting solver hands them to you for free.\n2. Gauss's principle of least constraint as a one-step controller, and the operational-space force as the multiplier of a task.\n3. Impressed versus constraint forces: impedance with natural inertia against operational-space control, and why the mechanical energy certifies only damping.\n4. A priority order is a change of basis: one factorization gives the whole hierarchy, and the force on a task depends on the order.\n5. Inequality tasks: forces that can only push, active-set switches, and a decoupled force that points the wrong way.\n6. Power and energy tanks: what stays invariant when the priorities change, and what a tank actually sees.\n\nFor robotics researchers and engineers who know Jacobians and task-space control. It follows the series The Remaining Action, whose momentum it builds on; each episode recaps what it uses.",
+  "related_series": {
+    "follows": [
+      "remaining-action"
+    ],
+    "followed_by": [],
+    "note": "Released after the remaining-action series; episode 1 recaps its momentum, the finale its window/tail split."
+  },
+  "release": {
+    "order": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "note": "In episode order, after the remaining-action series."
+  },
+  "target_viewer": "Robotics researchers and engineers in whole-body and task-space control",
+  "episodes": [
+    {
+      "number": 1,
+      "kind": "first",
+      "title": "The Multipliers Are the Momenta",
+      "short_title": "Multipliers Are Momenta",
+      "hook": "Every optimal-control solver attaches a Lagrange multiplier to the equations of motion and calls it a costate. Those numbers have a name in mechanics: they are momenta, and in continuous time the one on the velocity is what sets the torque.",
+      "length_min": 10,
+      "takeaway": {
+        "sentence": "Adjoin the equations of motion with multipliers and the multipliers are the momenta, minus the gradient of the remaining action; a multiple-shooting solver's defect multipliers are discrete momenta.",
+        "tex": [
+          "\\tilde L=\\ell+\\pi_q\\cdot(\\dot q-v)+\\pi_v\\cdot\\big(\\dot v-f(q,v,u)\\big)",
+          "\\pi=(\\pi_q,\\pi_v)=-\\nabla_z V\\quad\\text{along optimal paths}",
+          "\\pi_j=-\\nabla V_{N-j}(z_j)\\quad\\text{for the defect multipliers}"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          {
+            "series": "remaining-action",
+            "episode": 2
+          }
+        ],
+        "helpful": []
+      },
+      "recap": [
+        {
+          "title": "Recap: momentum and the Hamilton-Jacobi certificate",
+          "from": [
+            {
+              "series": "remaining-action",
+              "episode": 2
+            }
+          ],
+          "seconds": 45,
+          "card": [
+            "\\partial_\\vartheta V_\\vartheta=-H\\big(q,-\\nabla V_\\vartheta\\big),\\qquad p=-\\nabla V",
+            "v^*=\\arg\\min_v\\big[L+\\nabla W\\cdot v\\big]",
+            "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0"
+          ],
+          "restates": "The remaining action is the least action still to be paid from where you are; with N steps left it is built by a one-step recursion from the terminal term. Minus its gradient is a momentum, and minimizing cost plus the rate of change of a terminal term gives a controller, its argmin, and a certificate, the sign of minus a Hamiltonian."
+        }
+      ],
+      "series_context": {
+        "at_s": 55,
+        "spoken": "This is the first of six episodes on whole-body control read through mechanics. It picks up the momentum of the series The Remaining Action; if you are joining here, the short recap has all you need.",
+        "frame": {
+          "heading": "Episode 1 of 6",
+          "builds_on": [
+            "Rule and Certificate"
+          ]
+        }
+      },
+      "teaser": "In the next episode, we give the torque cost the robot's own inertia, and the one-step rule becomes Gauss's principle of least constraint, with the force on a task as its multiplier.",
+      "material": {
+        "section_ids": [
+          "sec-second-order",
+          "sec-so-setting",
+          "sec-so-hj",
+          "sec-so-augmented",
+          "sec-so-example",
+          "sec-so-manipulator",
+          "sec-so-discrete"
+        ],
+        "scripts": [
+          "note/sec7_symbolic_checks.py",
+          "note/sec7_numerical_checks.py",
+          "note/fig4_double_integrator.py",
+          "checks/torque_momentum_share.py"
+        ],
+        "notes": "Ideas: (1) why a second-order plant needs multipliers: q-dot is pinned to v, the Lagrangian is degenerate, only the velocity momentum enters the choice of control; (2) the augmented Lagrangian: its canonical momenta are the multipliers, its Euler-Lagrange equations are Pontryagin's costate equations (exact, note/sec7_symbolic_checks.py); (3) multiple shooting: defect multipliers are discrete momenta, pi_j = -grad V_{N-j}(z_j), checked to machine precision on the double integrator (h = 0.2, N = 10, note/sec7_numerical_checks.py), and a sign check at the last node. Example: double integrator, P from the Riccati equation, the table along the optimal path for w_q = w_v = w_u = 1 (V and the action still to pay agree, pi_v changes sign shortly after t = 1 where the force switches from pulling to braking), the phase plane with momentum arrows normal to the level sets (note/fig4_double_integrator.py idea, redrawn). Manipulator torque tau* = R^-1 M^-1 pi_v as the bridge to the next episode. Left out: Ostrogradsky's momenta and the Ostrogradsky instability (a fine side story, but a fourth idea; one sentence at most), DMOC, the transcription dependence beyond one sentence, state constraints as measures. The caveat itself stays (SRT-3): 'torque equals velocity momentum' is exact in continuous time and holds to first order in the step; with a one-step 10 ms window under zero-order hold the position momentum supplies 110.0 % of the first torque, 35.5 % at 5 ms x 2 steps, 5.5 % at 1 ms x 10 steps (symplectic Euler 53.7 % and 10.5 %), all from checks/torque_momentum_share.py; show one or two of these numbers. The recap adds one clause on the N-step recursion because the takeaway's pi_j = -grad V_{N-j}(z_j) uses it (SRT-10)."
+      },
+      "outline": [
+        {
+          "beat": "Hook: the costate has a name in mechanics",
+          "min": 0.75
+        },
+        {
+          "beat": "Recap: momentum and the Hamilton-Jacobi certificate",
+          "min": 0.75
+        },
+        {
+          "beat": "Second-order plants: state (q, v), torque sets acceleration; the degenerate Lagrangian; the phase-space Hamilton-Jacobi equation, linear in the position momentum; only the velocity momentum chooses the control",
+          "min": 2.25
+        },
+        {
+          "beat": "The augmented Lagrangian: multipliers as canonical momenta; its Euler-Lagrange equations are the costate equations; sign conventions in one card",
+          "min": 2.0
+        },
+        {
+          "beat": "Double integrator: Riccati solution, momenta along the optimal path, the sign change of the force; the phase plane",
+          "min": 2.0
+        },
+        {
+          "beat": "Multiple shooting: the defect multipliers are discrete momenta; read the gradient of the Lyapunov function off the solver; torque from the velocity momentum, exact in continuous time only: in a discretized solver the position momentum also enters the first torque, to first order in the step (one number)",
+          "min": 1.5
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.75
+        }
+      ],
+      "story_beat": "Opens the second story with its first identification: multipliers of the dynamics are momenta, and the velocity momentum sets the torque.",
+      "target_viewer": "Optimal-control and MPC practitioners who use multiple shooting",
+      "difficulty": 3,
+      "entry_point": true
+    },
+    {
+      "number": 2,
+      "kind": "middle",
+      "title": "Gauss's Principle Is a One-Step Controller",
+      "short_title": "Gauss's Principle",
+      "hook": "Gauss stated that nature picks the acceleration closest to the free one, measured by the inertia. Read as a controller, his principle is a one-step rule, and the multiplier of a task in it is exactly Khatib's operational-space force.",
+      "length_min": 11,
+      "takeaway": {
+        "sentence": "With Gauss's weight the one-step rule is Gauss's principle: the correction torque is the velocity momentum per unit time, and a task constraint's multiplier is the operational-space force.",
+        "tex": [
+          "\\tau_c=\\pi_v/T_0\\qquad\\text{with Gauss's weight } R=T_0M^{-1}",
+          "\\lambda=\\Lambda\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\tau_c=J^\\top\\lambda",
+          "\\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          1,
+          {
+            "series": "remaining-action",
+            "episode": 2
+          }
+        ],
+        "helpful": []
+      },
+      "recap": [
+        {
+          "title": "Recap: momenta, rule and certificate",
+          "from": [
+            1,
+            {
+              "series": "remaining-action",
+              "episode": 2
+            }
+          ],
+          "seconds": 45,
+          "card": [
+            "\\pi=(\\pi_q,\\pi_v)=-\\nabla_z V\\quad\\text{along optimal paths}",
+            "u^*=\\arg\\min_u\\big[\\ell+\\dot W\\big]",
+            "\\min_u\\big[\\ell+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(z,-\\nabla_z W\\big)\\ge 0"
+          ],
+          "restates": "Attach multipliers to the equations of motion and they are the momenta, minus the gradient of the remaining action; the velocity momentum sets the control. Minimizing cost plus the rate of change of a terminal term gives the controller, and the sign of that minimum is its certificate."
+        }
+      ],
+      "series_context": {
+        "at_s": 45,
+        "spoken": "This is episode two of six on whole-body control read through mechanics. Last time the multipliers of the dynamics became momenta; here the multipliers of tasks become forces.",
+        "frame": {
+          "heading": "Episode 2 of 6",
+          "builds_on": [
+            "Multipliers Are Momenta",
+            "Rule and Certificate"
+          ]
+        }
+      },
+      "teaser": "In the next episode, we compare two ways of acting on a task, as an impressed force or as a constraint force, and ask what certifies each.",
+      "material": {
+        "section_ids": [
+          "sec-gauss",
+          "sec-gauss-free",
+          "sec-gauss-task",
+          "sec-gauss-dual",
+          "sec-so-manipulator"
+        ],
+        "scripts": [
+          "wbc/wbc_companion_checks.py",
+          "merged/duals_check.py",
+          "note/sec7_numerical_checks.py"
+        ],
+        "notes": "Ideas: (1) Gauss's function equals the torque cost 1/2 tau_c^T M^-1 tau_c centred on the impressed torque; with a time constant T_0 it is a one-step rule, and the correction torque is pi_v / T_0 (the inertia cancels); (2) the task as a constraint: KKT gives lambda = Lambda (a_x - J qdd_free), Khatib's operational-space law, Lambda as the Gauss metric pushed forward (KKT multiplier and closed form agree to 3e-16, Gauss value 1.3564 three ways, wbc/wbc_companion_checks.py section 1); (3) the dual is the task force, and in power units both multipliers are momenta (T_0 lambda an impulse, merged/duals_check.py); bilateral contacts as tasks whose multiplier is the contact force (a sentence). Credit Udwadia-Kalaba and Bruyninckx-Khatib on screen as names only. The derivation of tau_c = pi_v / T_0 is the infinitesimal-window rule, which is why the recap carries the rule and the certificate (SRT-2). Left out: the discrete-time shares of the position momentum (shown in the momentum episode), unilateral rows (they open the inequality episode)."
+      },
+      "outline": [
+        {
+          "beat": "Hook: Gauss's principle of least constraint read as a controller",
+          "min": 0.75
+        },
+        {
+          "beat": "Recap: momenta, rule and certificate",
+          "min": 0.75
+        },
+        {
+          "beat": "Gauss's principle of least constraint: the free acceleration, the inertia metric, the correction torque; Gauss's function as a torque cost with weight M^-1",
+          "min": 2.25
+        },
+        {
+          "beat": "As a one-step rule with a boundary term: tau_c = pi_v / T_0, inertia cancels",
+          "min": 1.75
+        },
+        {
+          "beat": "As a one-step rule with a task constraint: the KKT system, lambda = Lambda (a_x - J qdd_free), operational-space control; Lambda as the Gauss metric pushed to task space",
+          "min": 2.75
+        },
+        {
+          "beat": "The dual is the task force; power units make both multipliers momenta; contacts as tasks",
+          "min": 2.0
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.75
+        }
+      ],
+      "story_beat": "The series' title claim: the multiplier of a task is the force on it; whole-body control enters through Gauss's principle.",
+      "target_viewer": "Roboticists who know operational-space control and want its variational origin",
+      "difficulty": 3,
+      "entry_point": true
+    },
+    {
+      "number": 3,
+      "kind": "middle",
+      "title": "Impressed or Constraint Force? Impedance, Operational Space and the Energy",
+      "short_title": "Impressed or Constraint",
+      "hook": "Two controllers drive the same hand to the same target. One treats the robot's inertia as given and pushes; the other overwrites it and makes the hand behave like a unit mass. They agree on where the hand goes, and disagree on the force, the power and the proof.",
+      "length_min": 10,
+      "takeaway": {
+        "sentence": "A controller can act through impressed forces, keeping the natural inertia and certified by an energy, or through constraint forces that shape the inertia; the mechanical energy certifies only damping.",
+        "tex": [
+          "\\tau^*=\\tau_{\\rm imp}-R^{-1}\\dot q",
+          "\\mathcal D=\\ell_0-\\tfrac12 v^\\top K_D v\\le 0",
+          "\\Delta\\ddot x=\\Lambda^{-1}F\\ \\ \\text{(impressed)}\\qquad \\ddot x=a_x\\ \\ \\text{(constraint)}"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2,
+          {
+            "series": "remaining-action",
+            "episode": 2
+          }
+        ],
+        "helpful": [
+          {
+            "series": "remaining-action",
+            "episode": 6
+          }
+        ]
+      },
+      "recap": [
+        {
+          "title": "Recap: Gauss's principle and the task force",
+          "from": [
+            2
+          ],
+          "seconds": 30,
+          "card": [
+            "\\tau_c=\\pi_v/T_0\\qquad\\text{with Gauss's weight } R=T_0M^{-1}",
+            "\\lambda=\\Lambda\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\tau_c=J^\\top\\lambda",
+            "\\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}"
+          ],
+          "restates": "Gauss's principle picks the acceleration closest to the free one in the inertia metric. With a task imposed as a constraint, its multiplier is the operational-space force: the task inertia times the task acceleration missing from the free motion."
+        },
+        {
+          "title": "Recap: what a certificate is",
+          "from": [
+            {
+              "series": "remaining-action",
+              "episode": 2
+            }
+          ],
+          "seconds": 25,
+          "card": [
+            "u^*=\\arg\\min_u\\big[\\ell+\\dot W\\big]",
+            "\\min_u\\big[\\ell+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(z,-\\nabla_z W\\big)\\ge 0"
+          ],
+          "restates": "Minimizing cost plus the rate of change of a terminal term gives a controller; if that minimum is never positive, the terminal term falls at least as fast as cost is spent, and that sign is the certificate of stability."
+        }
+      ],
+      "series_context": {
+        "at_s": 45,
+        "spoken": "This is episode three of six on whole-body control read through mechanics. We now have the force on a task as a multiplier; here we compare it with the other way to act on a task, and ask what proves each one stable.",
+        "frame": {
+          "heading": "Episode 3 of 6",
+          "builds_on": [
+            "Gauss's Principle",
+            "Rule and Certificate"
+          ]
+        }
+      },
+      "teaser": "In the next episode, many tasks share one torque, and the priority order turns out to be a change of basis for the forces.",
+      "material": {
+        "section_ids": [
+          "sec-impressed",
+          "sec-two-ways",
+          "sec-certificate",
+          "sec-strict",
+          "sec-plant-energy",
+          "sec-meet",
+          "sec-shaping"
+        ],
+        "scripts": [
+          "wbc/wbc_companion_checks.py"
+        ],
+        "notes": "Ideas: (1) impressed versus constraint forces: impedance with natural inertia (Lambda xdd + K_D xd + K_P x~ = F_ext) against operational-space control (xdd = a_x, an unmeasured external force still meets the natural inertia); the impressed identity Delta xdd = Lambda^-1 F checked in wbc/wbc_companion_checks.py; (2) the passivity-based law as an argmin: energy-type W, cost centred on the impressed torque, tau* = tau_imp - R^-1 qdot; Gauss's weight gives damping proportional to the mechanical momentum; its certificate D = l_0 - 1/2 v^T K_D v (closed forms); (3) the mechanical energy is weak: it certifies only damping, stiffness must be placed by hand, convergence comes from LaSalle; a strict certificate needs position-velocity cross terms, the composite energy of the arm in the remaining-action series (helpful, a soft pointer by title). One card on the two Lagrangians: impressed forces reshape the robot's own Lagrangian, constraint forces come from a variational problem. Animation (SRT-14): schematic only, no numerical readouts: a task point responding with its natural inertia versus as a unit mass, drawn from the formulas; any number shown would need a script, and none is planned. Left out: Kawai et al.'s plant-energy terminal cost (a sentence), the stability-of-equilibria literature, controlled Lagrangians (a sentence), the finite-window stiffness 1.36 versus 2.86 N/m (checks/torque_momentum_share.py and wbc_brainstorm/redteam_check_C_F.py), an open question for the owner."
+      },
+      "outline": [
+        {
+          "beat": "Hook: two controllers, same target, different forces, power and proof",
+          "min": 0.75
+        },
+        {
+          "beat": "Recaps: Gauss's principle and the task force; what a certificate is",
+          "min": 0.95
+        },
+        {
+          "beat": "Impressed versus constraint forces: impedance with the natural inertia against a unit-mass task; what an unmeasured external force meets",
+          "min": 2.4
+        },
+        {
+          "beat": "The passivity-based law as the argmin of a centred cost plus the rate of the energy; Gauss's weight gives damping proportional to momentum",
+          "min": 2.25
+        },
+        {
+          "beat": "Its certificate and why the energy is weak: no term in the energy's rate punishes a position error at rest; stiffness by hand, LaSalle; cross terms for a strict certificate",
+          "min": 2.15
+        },
+        {
+          "beat": "The two Lagrangians, in one card: what each kind of controller reshapes",
+          "min": 0.75
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.75
+        }
+      ],
+      "story_beat": "Places the two families of whole-body controllers on the map, impressed and constraint, and carries argmin versus certificate into task space.",
+      "target_viewer": "Researchers comparing impedance or passivity-based control with operational-space control",
+      "difficulty": 3,
+      "entry_point": true
+    },
+    {
+      "number": 4,
+      "kind": "middle",
+      "title": "A Priority Order Is a Change of Basis",
+      "short_title": "Priority Is a Basis",
+      "hook": "Ask a hierarchical controller what force acts on the hand. Then swap two priorities, keep the very same torque, and ask again. The answer changes, because the force on a task depends on which other tasks you hold fixed.",
+      "length_min": 10,
+      "takeaway": {
+        "sentence": "A priority order is a change of basis: one factorization of the stacked mobility gives the hierarchy, and the decoupled task forces are the multipliers written in that basis.",
+        "tex": [
+          "JM^{-1}J^\\top=\\Theta\\,\\bar\\Lambda^{-1}\\Theta^\\top,\\qquad \\bar J=\\Theta^{-1}J",
+          "\\tau_x=J^\\top\\lambda=\\bar J^\\top F,\\qquad F=\\Theta^\\top\\lambda",
+          "F_r=\\lambda_r"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2
+        ],
+        "helpful": [
+          3
+        ]
+      },
+      "recap": [
+        {
+          "title": "Recap: the task force and the task inertia",
+          "from": [
+            2
+          ],
+          "seconds": 30,
+          "card": [
+            "\\lambda=\\Lambda\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\tau_c=J^\\top\\lambda",
+            "\\Lambda=\\big(JM^{-1}J^\\top\\big)^{-1}"
+          ],
+          "restates": "Imposing a task as a constraint in Gauss's principle gives a multiplier that is the force on the task, with the task inertia converting a missing task acceleration into that force."
+        }
+      ],
+      "series_context": {
+        "at_s": 45,
+        "spoken": "This is episode four of six on whole-body control read through mechanics. So far one task had one force; here several tasks share one torque under strict priorities.",
+        "frame": {
+          "heading": "Episode 4 of 6",
+          "builds_on": [
+            "Gauss's Principle"
+          ]
+        }
+      },
+      "teaser": "In the next episode, tasks become inequalities, forces that can only push, and a switch anywhere in the hierarchy re-assigns the forces at and below its level.",
+      "material": {
+        "section_ids": [
+          "sec-hierarchy",
+          "sec-covectors",
+          "sec-ldl",
+          "sec-consistency",
+          "sec-forces"
+        ],
+        "scripts": [
+          "merged/fig_bases.py",
+          "wbc/wbc_companion_checks.py"
+        ],
+        "notes": "Three ideas (SRT-6): (1) forces are covectors: a component of a force depends on which other coordinates are held fixed, only its pairing with a velocity is invariant; shown on a plain two-coordinate picture (a force on a plane, read in two skew coordinate grids), no arm composite velocity (SRT-10); (2) one factorization: block LDL^T of the stacked mobility, Gram-Schmidt in the M^-1 metric; its consequences shown as ONE visual: each level's Jacobian made inertia-orthogonal to the levels above, so a lower level's torque cannot accelerate a higher task, and each level gets its own decoupled inertia (no kinetic-energy number); (3) F = Theta^T lambda: same torque, two bases, only the last level agrees. Main example: the two-link arm at its target, task 1 hand height, task 2 elbow angle, Theta_21 = 2.5 per metre, lambda = (2 N, 0.4 N m), F = (3, 0.4); with the order reversed the hand-height force equals its multiplier, 2, and the elbow's becomes 0.7573 (merged/fig_bases.py, which also draws the two-bases figure). Optional: the 7-DOF fixed-seed task 1 force (-0.079, -1.197) first versus (0.260, -0.858) last (wbc/wbc_companion_checks.py). The leak of strict priority moved to the finale. Left out: inertial versus dynamic decoupling and the Coriolis couplings between levels, the kinetic-energy split, conflicts and singular pivots, the literature on sparse factorizations."
+      },
+      "outline": [
+        {
+          "beat": "Hook: swap priorities, same torque, different force on the hand",
+          "min": 0.75
+        },
+        {
+          "beat": "Recap: the task force and the task inertia",
+          "min": 0.5
+        },
+        {
+          "beat": "Forces are covectors: one force read in two coordinate grids; only its pairing with velocity is invariant",
+          "min": 2.0
+        },
+        {
+          "beat": "One factorization of the stacked mobility: Gram-Schmidt in the inertia metric; one visual of what it gives: lower levels cannot accelerate higher ones, each level its own inertia",
+          "min": 2.75
+        },
+        {
+          "beat": "The dictionary F = Theta^T lambda on the arm: two bases for one torque, animated; reversed order; only the last level agrees",
+          "min": 3.25
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.75
+        }
+      ],
+      "story_beat": "The hierarchy itself: priorities are a choice of basis for the task forces, which sets up the question of what survives that choice.",
+      "target_viewer": "Whole-body control researchers using dynamically consistent null-space projections",
+      "difficulty": 4,
+      "entry_point": true
+    },
+    {
+      "number": 5,
+      "kind": "middle",
+      "title": "Forces That Can Only Push: Inequality Tasks in a Hierarchy",
+      "short_title": "Forces That Only Push",
+      "hook": "A limit can only push, never pull. Put such a limit inside a task hierarchy as an inequality task and ask which way the hierarchy says its force points. In this episode's example it points against the push, for as long as the limit is active.",
+      "length_min": 10,
+      "takeaway": {
+        "sentence": "Unilateral forces can only push, but the sign lives in one basis: a switch re-attributes forces at and below its level, and the decoupled force can point against the push.",
+        "tex": [
+          "0\\le\\lambda_{\\mathcal I}\\ \\perp\\ J_{\\mathcal I}\\ddot q-a_{\\mathcal I}\\ge 0",
+          "F_i=\\lambda_i+\\sum_{j>i}\\Theta_{ji}^\\top\\lambda_j"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2,
+          4
+        ],
+        "helpful": []
+      },
+      "recap": [
+        {
+          "title": "Recap: task forces in the basis of a hierarchy",
+          "from": [
+            2,
+            4
+          ],
+          "seconds": 50,
+          "card": [
+            "\\lambda=\\Lambda\\big(a_x-J\\ddot q_{\\rm free}\\big),\\qquad \\tau_c=J^\\top\\lambda",
+            "JM^{-1}J^\\top=\\Theta\\,\\bar\\Lambda^{-1}\\Theta^\\top,\\qquad \\bar J=\\Theta^{-1}J",
+            "\\tau_x=J^\\top\\lambda=\\bar J^\\top F,\\qquad F=\\Theta^\\top\\lambda"
+          ],
+          "restates": "The multiplier of a task constraint in Gauss's principle is the force on the task. With several tasks, one factorization of the stacked mobility defines the basis of the hierarchy, and the decoupled forces are the multipliers mapped into that basis; only the last level's force equals its own multiplier."
+        }
+      ],
+      "series_context": {
+        "at_s": 45,
+        "spoken": "This is episode five of six on whole-body control read through mechanics. Limits, obstacles and contacts are inequalities; here we see what they keep and what they break in a hierarchy.",
+        "frame": {
+          "heading": "Episode 5 of 6",
+          "builds_on": [
+            "Gauss's Principle",
+            "Priority Is a Basis"
+          ]
+        }
+      },
+      "teaser": "In the next episode, the finale, we follow the power: what stays the same in every basis, and what an energy tank actually sees when the active set switches.",
+      "material": {
+        "section_ids": [
+          "sec-unilateral",
+          "sec-ineq-hier",
+          "sec-lexi",
+          "sec-ineq-switch",
+          "sec-ineq-signs",
+          "sec-soft"
+        ],
+        "scripts": [
+          "merged/ineq_gauss.py",
+          "merged/ineq_hierarchy.py",
+          "wbc/wbc_companion_checks.py"
+        ],
+        "notes": "Ideas: (1) unilateral rows in Gauss's principle: lambda >= 0 with complementarity, the Delassus matrix, example n = 7: lambda = 1.770, 0, 1.609, margin 0.375 (merged/ineq_gauss.py); Fourier's inequality and the three levels of complementarity get one clause each (SRT-9); (2) activation and deactivation: for a fixed active set it is an equality hierarchy; a switch at level i leaves the levels above untouched and re-orthogonalizes level i and below; the torque stays continuous (example: switches at t = 1/6 and 5/6, torque jump 2.9e-3 across a switch; level 1 unchanged, level 2 appears with F_2 = -11.50 and lambda_2 = 0, level 3 keeps its force, merged/ineq_hierarchy.py); (3) the sign of a multiplier is not the sign of the decoupled force: lambda_2 in [0, 31.06] while F_2 in [-11.50, -4.02]; reversed row gives [+11.50, +18.98]. Keep the per-level powers of the switch table for the finale (show the forces here). Left out: soft priorities and the weighted limit 0.1218/w (merged/ineq_soft.py; one sentence that strict priority is the limit of weighted priority), conflicts (feasible stacks only, said once), contacts on a floating base, friction cones and impacts (outlook material without numbers)."
+      },
+      "outline": [
+        {
+          "beat": "Hook: an inequality task's force inside a hierarchy points against the push",
+          "min": 0.75
+        },
+        {
+          "beat": "Recap: task forces in the basis of a hierarchy",
+          "min": 0.85
+        },
+        {
+          "beat": "Unilateral rows in Gauss's principle: forces that only push, complementarity; Fourier's inequality and the three levels of complementarity in one clause each",
+          "min": 2.0
+        },
+        {
+          "beat": "Activation and deactivation at any level: what changes above, at and below the switching level; the continuous torque",
+          "min": 2.5
+        },
+        {
+          "beat": "A sign on the multiplier is not a sign on the decoupled force: the sweep, and the reversed row",
+          "min": 3.15
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.75
+        }
+      ],
+      "story_beat": "Adds the limits and contacts of real robots and shows that signs, like forces, belong to a basis, the last step before asking what is truly invariant.",
+      "target_viewer": "Researchers working with hierarchical QPs, joint limits and contact constraints",
+      "difficulty": 4,
+      "entry_point": false
+    },
+    {
+      "number": 6,
+      "kind": "finale",
+      "title": "What Survives a Change of Priorities: Power and Energy Tanks",
+      "short_title": "Power and Tanks",
+      "hook": "Change the priority order of a whole-body controller, keep the torque, and almost every number changes: the forces, the power on each task, even their signs. One number does not. That number is what an energy tank should watch.",
+      "length_min": 11,
+      "takeaway": {
+        "sentence": "For a given torque, total task power is the same in every basis and order, its split among levels is not; in the constraint view one total-port tank sees a clean flow.",
+        "tex": [
+          "\\tau_x^\\top\\dot q=F^\\top\\zeta=\\lambda^\\top\\dot x\\qquad\\text{for a given }\\tau_x",
+          "\\text{per level: } F_i^\\top\\zeta_i\\ \\text{depends on the order and the active set}"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          4,
+          5,
+          {
+            "series": "remaining-action",
+            "episode": 4
+          }
+        ],
+        "helpful": [
+          3
+        ]
+      },
+      "recap": [
+        {
+          "title": "Recap: forces in a basis, and switches",
+          "from": [
+            4,
+            5
+          ],
+          "seconds": 45,
+          "card": [
+            "\\tau_x=J^\\top\\lambda=\\bar J^\\top F,\\qquad F=\\Theta^\\top\\lambda",
+            "F_i=\\lambda_i+\\sum_{j>i}\\Theta_{ji}^\\top\\lambda_j"
+          ],
+          "restates": "A priority order is a change of basis: the decoupled forces are the multipliers mapped by one factorization, and only the last level keeps its own multiplier. An inequality that switches re-assigns the forces at and below its level while the torque stays continuous."
+        },
+        {
+          "title": "Recap: window and tail",
+          "from": [
+            {
+              "series": "remaining-action",
+              "episode": 4
+            }
+          ],
+          "seconds": 30,
+          "card": [
+            "\\mathcal B W=W\\ \\Longleftrightarrow\\ V_N=W\\ \\text{for every }N"
+          ],
+          "restates": "In a receding-window controller the window length moves the cut between the part of the remaining action that is computed and the part estimated by the terminal term; with an exact terminal term the total does not move at all."
+        }
+      ],
+      "series_context": {
+        "at_s": 55,
+        "spoken": "This is the last of six episodes on whole-body control read through mechanics. Forces and their signs turned out to depend on the basis; here we look for what does not, and what that means for keeping a controller passive.",
+        "frame": {
+          "heading": "Episode 6 of 6",
+          "builds_on": [
+            "Priority Is a Basis",
+            "Forces That Only Push",
+            "One Exact Step"
+          ]
+        }
+      },
+      "teaser": "",
+      "material": {
+        "section_ids": [
+          "sec-power",
+          "sec-invariance",
+          "sec-ineq-power",
+          "sec-tanks",
+          "sec-mpc",
+          "sec-parallel",
+          "sec-cascade",
+          "sec-threads",
+          "sec-leak"
+        ],
+        "scripts": [
+          "merged/fig_bases.py",
+          "wbc/wbc_companion_checks.py",
+          "merged/ineq_hierarchy.py",
+          "merged/ineq_gauss.py",
+          "merged/window_split.py"
+        ],
+        "notes": "Ideas: (1) total power is invariant, tau_x^T qdot = F^T zeta = lambda^T xdot, its split is not: on the arm, stacked powers (-0.0464, -0.4) and decoupled powers (-0.0697, -0.3768), total -0.4464 three ways (merged/fig_bases.py); on the 7-DOF example total -0.391 in both orders, per level (3.057, -3.416, -0.032) against (0.033, -0.446, 0.022) (wbc/wbc_companion_checks.py); at a switch -89.066 on the last level becomes -13.476 and -75.590, total -99.090 unchanged (merged/ineq_hierarchy.py); the unilateral power +0.805 of a receding active row (merged/ineq_gauss.py); (2) tanks: a single tank on the total port sees a clean, order-independent flow, per-level tanks see re-attributions and chattering; the open design question of transferring energy between levels at switches; (3) the parallel with the window length: both choices leave a certificate-level quantity untouched and redistribute something else (window/tail values, exact pair 0.5 for every N, inexact 0.5857 to 0.5269, merged/window_split.py), and where the parallel stops (no window analogue of the non-integrable projections); close with the open problem of hierarchical certificates, introduced by the leak of strict priority (moved here from the priority episode, SRT-6): a lower task's force written with its own Jacobian spreads over the levels above, strict priority keeps only the projected part, which is not the gradient of one potential, so no single energy certifies a strict hierarchy (one picture, no numbers). Caveats spoken in beat 4 (SRT-13): the total is invariant for a given torque, and continuous across switches only in the constraint view; with prescribed per-level forces the total jumps too. The finale has three must prerequisites, merged into two recap blocks (75 s, within the 90 s of a finale). Left out: whole-body control as the zero-window limit of whole-body MPC (qualified answer, 1.36 versus 2.86 N/m), the floating base and contacts outlook, the six-thread synthesis beyond one closing card, the literature on tanks beyond names."
+      },
+      "outline": [
+        {
+          "beat": "Hook: change the priorities, everything changes but one number",
+          "min": 0.75
+        },
+        {
+          "beat": "Recaps: forces in a basis and switches; window and tail",
+          "min": 1.25
+        },
+        {
+          "beat": "Total power is invariant: the pairing of a covector with a velocity; the arm, three ways; the 7-DOF example in two orders",
+          "min": 2.25
+        },
+        {
+          "beat": "At a switch: totals continuous in the constraint view, attributions not; with prescribed per-level forces the total jumps too; a unilateral force's power has no sign",
+          "min": 1.75
+        },
+        {
+          "beat": "Energy tanks: one tank on the total port versus per-level tanks; chattering; the open design question",
+          "min": 2.0
+        },
+        {
+          "beat": "Invariant versus attributed: window length and priority order side by side, and where the parallel stops; the leak of strict priority and hierarchical certificates as an open problem",
+          "min": 2.0
+        },
+        {
+          "beat": "Outro: takeaway card, the series question answered (no teaser)",
+          "min": 1.0
+        }
+      ],
+      "story_beat": "The finale answers the series question: the force on a task is basis-dependent, the total power is not, and that invariant, like the certificate of the first series, is what a design can rely on.",
+      "target_viewer": "Researchers designing passivity-based hierarchical controllers and energy tanks",
+      "difficulty": 4,
+      "entry_point": true
+    }
+  ],
+  "provenance": {
+    "proposal": "runs/2026-11-01-series-plan-variational-whole-body-control/series_plan/series.multipliers-are-forces.v2.json",
+    "plan_run": "runs/2026-11-01-series-plan-variational-whole-body-control",
+    "red_team": "runs/2026-11-01-series-plan-variational-whole-body-control/review/series_plan/summary.json",
+    "written_at": "2026-11-01T14:19:43+00:00"
+  }
+}
