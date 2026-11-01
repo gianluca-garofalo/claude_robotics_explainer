@@ -19,6 +19,11 @@ here uploads, commits or pushes, and nothing under `sources/` is edited.
    `python3 tools/video/piper_model.py path`; when the model is missing, `python3 tools/video/piper_model.py fetch`.
    If the fetch stops on a host the network refuses, name the host (CLOUD-SESSION.md lists the entries), make the
    plan and the episode up to its pre-render gates, and stop there: there is no fallback voice.
+   Then the source itself: `python3 tools/check_source.py sources/<name>`. On an error (an external script in the
+   page, a lint error, a manifest entry without its script) stop and give the owner the message with its fix line:
+   the owner fixes the source, Claude never edits `sources/`. Warnings (a script the document names that `code/`
+   lacks, scripts outside `checks.toml`, stale section tags) do not stop the run: list them in the report, and plan
+   and make no episode whose numbers rest on a missing script.
 1. **Plans.** `python3 tools/series.py from-source sources/<name>` lists the series made from the source, in release
    order. When it lists none, read `.claude/skills/plan-series/SKILL.md` and follow its stages with the source as the
    argument (the planning run, the `series-curator`, the independent `series-red-team`, verification, merge and
@@ -51,9 +56,10 @@ here uploads, commits or pushes, and nothing under `sources/` is edited.
 
 The owner adds `sources/<name>/explainer.html` (one self-contained HTML page), with `code/` (the scripts that print
 its numbers and draw its figures, a `checks.toml` listing them, a README) and `data/` when they exist, commits and
-pushes, then types `/produce-from-source sources/<name>` in a new session. Claude never writes under `sources/`;
-`python3 tools/run_code_checks.py sources/<name>` runs the scripts in a temporary copy and leaves the folder as it
-is, except `code/logs/`.
+pushes, then types `/produce-from-source sources/<name>` in a new session. Claude never writes under `sources/`:
+`python3 tools/check_source.py sources/<name>` says what the owner must fix (its `--strip-external-scripts --write`
+is for the owner to run), and `python3 tools/run_code_checks.py sources/<name>` runs the scripts in a temporary copy
+and leaves the folder as it is, except `code/logs/`.
 
 ## Gotchas
 

@@ -1,4 +1,4 @@
 # wbc_brainstorm/redteam_check_power.py 
-# exit 0, 0.29 s
+# exit 0, 0.45 s
 [0, 1, 2] total power F.v - lam.xdot: 1.7763568394002505e-15 per-level F_i.v_i: [np.float64(6.824), np.float64(0.101), np.float64(-0.356)]
 [2, 0, 1] total power F.v - lam.xdot: 8.881784197001252e-16 per-level F_i.v_i: [np.float64(0.583), np.float64(5.673), np.float64(0.312)]

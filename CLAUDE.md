@@ -34,13 +34,14 @@ map, CLOUD-SESSION.md the cloud environment, SETUP-AUTOMATION.md the optional au
 - Series: `python3 tools/series.py from-source sources/<name>` (a source's series in release order),
   `list|next|validate|start series/<series>` (`start --fresh`: leave out kept scenes); planning: `/plan-series
   <explainer run or sources/<name>>` (`tools/series.py plan|write`). Sources are `sources/<name>/` (explainer.html,
-  code/ and data/ when they exist); `series/` holds only plans made from them
+  code/ and data/ when they exist); `series/` holds only plans made from them. Check a source first:
+  `python3 tools/check_source.py sources/<name>` (errors stop; warnings go into the report)
 - Final-cut review of an assembled video: `/final-cut-review runs/<run>` (`tools/video/final_frames.py`), then
   `python3 tools/gate.py runs/<run> --stage release`; hand-over package: `python3 tools/deliver.py runs/<run>`
 - Gates: `python3 tools/gate.py runs/<run> --stage pre-render|final|release` (a session runs final and release in
   `finish-video`; with the workflow, CI does)
-- Tests: `python3 -m unittest discover -s tests`, `python3 tests/dry_run.py`, `python3 tests/automation_dry_run.py`;
-  config and CI lint: `python3 tools/lint_project.py`
+- Tests: `python3 -m unittest discover -s tests`, `python3 tests/dry_run.py`, `python3 tests/automation_dry_run.py`
+  (they use only `tests/fixtures/`; CONTRIBUTING.md, Testing); config and CI lint: `python3 tools/lint_project.py`
 
 ## Rules with no exceptions (enforced by settings, hooks and the CI job boundaries)
 

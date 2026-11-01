@@ -1,5 +1,5 @@
 # wbc_brainstorm/redteam_check_C_F.py 
-# exit 0, 1.26 s
+# exit 0, 1.47 s
 C exact ZOH  tau* = -2*m*(delta**2*k*v + delta*k*x + 2*m*v)/(4*T*m + delta**3*k + 4*delta*m)
 C O(delta) truncation: -delta*k*x/(2*T) - m*v/T + delta*m*v/T**2
    claimed: -(m v + (delta/2) k x)/(delta + T)  series: -delta*k*x/(2*T) - m*v/T + delta*m*v/T**2

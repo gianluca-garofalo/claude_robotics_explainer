@@ -69,8 +69,11 @@ rules.
 ## A new source
 
 Put `sources/<name>/explainer.html` in the repository (with `code/`, its `checks.toml` and `data/` when the explainer
-has companion scripts), commit and push, then type `/produce-from-source sources/<name>` in a new session. README.md,
-"Adding a new source", has the details; without companion code the episodes write their own scripts.
+has companion scripts), commit and push, then type `/produce-from-source sources/<name>` in a new session. The
+session first runs `python3 tools/check_source.py sources/<name>` and stops on an error with its fix (for example a
+script tag a viewer added when the page was saved: `--strip-external-scripts --write` removes it); the checks
+workflow runs the same check on every push. README.md, "Adding a new source", has the details; without companion
+code the episodes write their own scripts.
 
 ## When something is missing
 

@@ -11,7 +11,10 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 RUNS = REPO / "runs"
-CONFIG = REPO / "config"
+# The user's preferences. $RA_CONFIG_DIR is for the tests only (tests/testenv.py points it at tests/fixtures/config,
+# so that config/ can change without changing a test, as $VIDEO_CONFIG and $CHANNEL_CONFIG do for the scene helpers);
+# the workflow, the gate job and sessions never set it.
+CONFIG = Path(os.environ["RA_CONFIG_DIR"]).resolve() if os.environ.get("RA_CONFIG_DIR") else REPO / "config"
 TEMPLATES = REPO / "templates"
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")

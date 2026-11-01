@@ -35,7 +35,7 @@ runs:
         sudo apt-get install -y --no-install-recommends ffmpeg pkg-config libcairo2-dev libpango1.0-dev \
           texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science cm-super dvisvgm \
           fonts-dejavu-core sox
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         python-version: ${{ inputs.python-version }}
         cache: pip
@@ -47,7 +47,7 @@ runs:
         python -m venv .venv
         .venv/bin/python -m pip install --upgrade pip setuptools wheel
         .venv/bin/python -m pip install -r requirements.txt
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v5
       if: inputs.profile == 'full'
       with:
         node-version: "22"

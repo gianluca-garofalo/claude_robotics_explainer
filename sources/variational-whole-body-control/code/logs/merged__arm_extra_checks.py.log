@@ -1,5 +1,5 @@
 # merged/arm_extra_checks.py 
-# exit 0, 3.46 s
+# exit 0, 3.44 s
 (a) adjoint vs finite differences, N = 10: cost gradient 9.3e-10, terminal-constraint gradient 7.8e-10
 (b) N = 1: closed-loop action 0.134288; max torque gap to PD+g: joint 1 0.729 N m at t = 0.050 s, joint 2 1.029 N m at t = 0.040 s
     largest gaps after t = 0.05 s: 0.729, 1.021 N m

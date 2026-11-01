@@ -17,8 +17,31 @@ The unit tests; the local pipeline on fictional fixtures (no network, nothing pu
 LinkedIn and search stubbed, series mode included (needs ffmpeg, Manim, Node); and the lint of the `.claude/` formats,
 CI settings and workflows, repository hygiene and the documents' command blocks (they must paste into zsh as well as
 bash: no comments inside blocks, no `<placeholders>`, no unquoted `[ ] * ?`). All four must pass (`checks.yml` runs
-them, plus actionlint, on every push). If you changed the HTML template or CSS, also run `node tools/check_html.js` on
-the source document (`sources/variational-whole-body-control/explainer.html`) and on a dry-run build (`python3 tests/dry_run.py --keep` prints the folder).
+them, plus actionlint and `tools/check_source.py --all`, on every push). If you changed the HTML template or CSS,
+also run `node tools/check_html.js` on a source document and on a dry-run build (`python3 tests/dry_run.py --keep`
+prints the folder).
+
+## Testing
+
+Tests and dry runs never depend on anything the owner may change: the source documents in `sources/`, the series
+plans in `series/`, the preferences in `config/` and the wording of the documents.
+
+- Tool tests use fixtures under `tests/fixtures/`: the fixture source `tests/fixtures/sources/fixture-predictive-control/`
+  (a small explainer built with `tools/build_explainer.py`, its scripts with `checks.toml` and logs, a data file), the
+  fixture series `tests/fixtures/series/fixture-series.json` (made by `tests/series_fixture.py`), and
+  `tests/fixtures/config/`, a frozen copy of the preferences.
+- Every test module and dry run calls `testenv.activate()` (`tests/testenv.py`) before it imports a tool: the tools,
+  also in subprocesses, then read `tests/fixtures/config` (`$RA_CONFIG_DIR`, `$VIDEO_CONFIG`, `$CHANNEL_CONFIG`).
+  A test that needs another preference makes a variant (`testenv.variant(folder, {"pipeline": {...}})`) and passes
+  `testenv.env(variant)` to the tool; it never assumes the owner's value.
+- The only test that reads `sources/` is `tests/test_sources_smoke.py`: it runs `tools/check_source.py` on each real
+  source, asserts that it passes (properties, never wording, numbers, counts or hashes), and skips when `sources/` is
+  empty.
+- `tests/test_hermetic.py` fails if any other test file reads `sources/`, `series/` or `config/` of the repository, or
+  names a real source or series, and checks that every test module activates the fixtures first.
+- The lint rules on the documents (zsh-safe command blocks, no absolute paths, no model names) are deliberate; no test
+  checks other wording of README.md, CLAUDE.md or the other documents.
+- To change a fixture, change the tests that depend on it in the same commit.
 
 ## Skills
 

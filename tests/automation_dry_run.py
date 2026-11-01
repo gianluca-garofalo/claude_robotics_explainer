@@ -41,6 +41,9 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 FIX = REPO / "tests" / "fixtures" / "run"
 PY = sys.executable
 RESULTS: list[tuple[str, str, str]] = []
@@ -86,17 +89,8 @@ def keyless_voice(manim: str) -> tuple[str, str]:
     return "silent", "Piper's voice model is not here (./setup.sh downloads it), so this dry run is explicitly silent"
 
 
-QUICK_SCRIPTS = ("note/sec4_3_one_step_example.py", "note/sec5_6_symbolic_checks.py", "note/fig3_phase_portrait.py",
-                 "merged/window_split.py", "merged/riccati_threshold.py", "merged/hilltop_extra.py",
-                 "merged/fig_bases.py", "merged/ineq_hilltop.py")     # the hilltop episode's scripts (seconds, not minutes)
-
-
-def trim_checks(run: Path) -> None:
-    """Keep the hilltop episode's checks in the run's checks.toml (the arm runs take many minutes; CI runs them all)."""
-    p = run / "code" / "checks.toml"
-    head, *blocks = p.read_text(encoding="utf-8").split("[[check]]")
-    keep = [b for b in blocks if any(f'script = "{q}"' in b for q in QUICK_SCRIPTS)]
-    p.write_text(head + "".join("[[check]]" + b for b in keep), encoding="utf-8")
+CHANNEL = json.loads((testenv.CONFIG / "channel.json").read_text(encoding="utf-8"))     # the fixture preferences
+PIPELINE = json.loads((testenv.CONFIG / "pipeline.json").read_text(encoding="utf-8"))
 
 
 def final_cut(run: Path, label: str) -> None:
@@ -165,9 +159,12 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
          [PY, "tools/series.py", "start", str(unapproved), "--episode", "1", "--root", str(tmp / "refused"), "--date",
           "2026-11-09", "--by", "dry run", "--require-approval"], expect=1,
          check=lambda r: ("approve_series.py" in r.stderr, r.stderr.strip()[-110:]))
-    step("series: approval optional (the owner's setting): the unapproved plan starts, with a note",
+    optional = testenv.env(testenv.variant(tmp / "optional-config", {"pipeline": {"series": {"plan_approval":
+                                                                                           "optional"}}}))
+    step("series: approval optional: the unapproved plan starts, with a note",
          [PY, "tools/series.py", "start", str(unapproved), "--episode", "1", "--root", str(tmp / "optional"), "--date",
-          "2026-11-09", "--by", "dry run"],
+          "2026-11-09", "--by", "dry run"], env=dict(optional, **{k: v for k, v in env.items()
+                                                                  if k not in testenv.environ()}),
          check=lambda r: ("note: plan approval is optional" in r.stderr and "approve_series.py" not in r.stderr and
                           (Path(r.stdout.strip()) / "episode.json").exists(), r.stderr.strip()[-110:]))
     changed = series_fixture.make_series(tmp / "changed")
@@ -188,7 +185,7 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
         scenes = sorted(f.name for f in (run_ / "video/scenes").glob("*.py"))
         return (ctx["episode"] == 2 and ctx["context"]["frame"]["heading"] == "Episode 2 of 2" and
                 scenes == ["common.py", "reading_model.py", "voice.py"] and ep["scenes_from_plan"] == [] and
-                (run_ / "video/data/arm_A.npz").exists() and (run_ / "code/checks.toml").exists(),
+                (run_ / "video/data/hilltop_samples.csv").exists() and (run_ / "code/checks.toml").exists(),
                 "series context (episode 2 of 2), the source's code and data, no scenes")
     r = step("series: start episode 2 of the approved plan (fresh)",
              [PY, "tools/series.py", "start", str(approved), "--episode", "2", "--root", str(tmp / "runs"), "--date",
@@ -196,6 +193,9 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
     if r.returncode != 0:
         return
     run = Path(r.stdout.strip())
+    slug = json.loads((approved / "series.json").read_text(encoding="utf-8"))["explainer_slug"]
+    plan_guard = ("series plan (owner approval optional)" if PIPELINE["series"]["plan_approval"] == "optional"
+                  else "series plan approved by the owner")
     scenes = run / "video" / "scenes"
     # the body is stood in for by the template scene, before the series context and the outro (keeps it short)
     shutil.copy(REPO / "templates" / "manim" / "scene_template.py", scenes / "scene_template.py")
@@ -213,11 +213,11 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
             "thumbnail": {"scene": "TemplateScene", "time": 7.0, "text": "Only H = 0 arrives"}}
     (run / "video" / "plan.json").write_text(json.dumps(plan, indent=2, ensure_ascii=False), encoding="utf-8")
     draft_and_review(run, env, " (series)")
-    trim_checks(run)
-    step("series: code checks of the hilltop episode's companion scripts", [PY, "tools/run_code_checks.py", str(run)])
+    step("series: code checks of the episode's companion scripts (the fixture source's)",
+         [PY, "tools/run_code_checks.py", str(run)])
     step("series: gates before rendering (the plan, explainer unchanged, design, reading, review)",
          [PY, "tools/gate.py", str(run), "--stage", "pre-render"],
-         check=lambda r: ("| series plan (owner approval optional) | pass |" in (run / "review/gates.md").read_text(),
+         check=lambda r: (f"| {plan_guard} | pass |" in (run / "review/gates.md").read_text(),
                           r.stdout.strip()[-80:]))
     step(f"series: narration ({voice}, no keys)", [PY, "tools/video/synthesize_voice.py", str(run), "--service", voice],
          env=env)
@@ -235,7 +235,7 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
     RESULTS.append(("series: the description starts 'Episode 2 of 2 · <series>' and links the explainer, the video "
                     "does not", "ok" if (m["snippet"]["description"].startswith(
                         "Episode 2 of 2 · Fixture: two episodes of predictive control") and
-                        "/explainers/variational-whole-body-control/#" in m["explainer_url"] and
+                        f"/explainers/{slug}/#" in m["explainer_url"] and
                         m["explainer_url"] in m["snippet"]["description"] and m["links"]["included"])
                     else "FAIL", m["explainer_url"]))
     step("series: final design, reading and series checks", ["bash", "-c",
@@ -268,14 +268,15 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
     pid = json.loads(r.stdout).get("playlist_id", "") if r.returncode == 0 else ""
     step("series: explainer published once for the whole series", [PY, "tools/publish/site.py", "promote", str(site),
                                                                     str(run), "--token", "abc123", "--video-id", vid],
-         check=lambda r: ((site / "explainers/variational-whole-body-control/index.html").exists(), r.stdout.strip()))
+         check=lambda r: ((site / "explainers" / slug / "index.html").exists(), r.stdout.strip()))
     step("series: ledger records the episode and the playlist", [PY, "tools/publish/site.py", "mark", str(site),
                                                                   str(run), "--status", "published", "--playlist", pid])
     step("series: playlist again: no duplicate", [PY, "tools/publish/youtube.py", "playlist", str(run), "--video-id",
                                                    vid, "--ledger", str(site / "ledger.json")], env=env,
          check=lambda r: (json.loads(r.stdout).get("added") is False, r.stdout.strip()[:110]))
     step("series: the next episode is 1, the one not yet published",
-         [PY, "tools/series.py", "next", str(approved), "--ledger", str(site / "ledger.json")],
+         [PY, "tools/series.py", "next", str(approved), "--ledger", str(site / "ledger.json"), "--root",
+          str(tmp / "runs")],
          check=lambda r: (r.stdout.strip() == "1", r.stdout.strip()))
 
 
@@ -336,7 +337,7 @@ def main() -> int:
                YOUTUBE_FAKE_STATE=str(tmp / "youtube.json"), LINKEDIN_BACKEND="fake",
                LINKEDIN_FAKE_STATE=str(tmp / "linkedin.json"), SITE_BASE_URL="https://example.org/remaining-action")
     try:
-        r = step("new run", [PY, "tools/run.py", "new", "--root", str(tmp / "runs"), "--date", "2026-10-30"])
+        r = step("new run", [PY, "tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(tmp / "runs"), "--date", "2026-10-30"])
         run = Path(r.stdout.strip())
         for f in ("sources.json", "scores.json"):
             shutil.copy(FIX / f, run / f)
@@ -400,9 +401,10 @@ def main() -> int:
 
         def meta_ok(r):
             m = json.loads((run / "video/final/youtube.json").read_text())
-            return ("Run: " in m["snippet"]["description"] and "Remaining Action" in m["snippet"]["tags"]
-                    and m["status"]["containsSyntheticMedia"] is True and m["status"]["privacyStatus"] == "private"
-                    and "synthetic voice" in m["snippet"]["description"], r.stdout.strip()[:110])
+            return ("Run: " in m["snippet"]["description"] and CHANNEL["youtube"]["default_tags"][0] in m["snippet"]["tags"]
+                    and m["status"]["containsSyntheticMedia"] is True
+                    and m["status"]["privacyStatus"] == CHANNEL["youtube"]["review_privacy"]
+                    and CHANNEL["voice"]["synthetic_voice_note"] in m["snippet"]["description"], r.stdout.strip()[:110])
         silent = ["--allow-silent"] if voice == "silent" else []
         nolinks = {k: v for k, v in env.items() if k != "SITE_BASE_URL"}     # links off: no site URL needed at all
         step("metadata (links off by default: no site URL needed; synthetic voice declared from the manifest)",
@@ -485,7 +487,7 @@ def main() -> int:
         step("wrong channel is refused", [PY, "tools/publish/youtube.py", "whoami"],
              env=dict(env, YOUTUBE_FAKE_STATE=str(tmp / "other.json"), YOUTUBE_FAKE_CHANNEL="Someone Else"), expect=1)
 
-        r = step("second run", [PY, "tools/run.py", "new", "--root", str(tmp / "runs"), "--date", "2026-11-06"])
+        r = step("second run", [PY, "tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(tmp / "runs"), "--date", "2026-11-06"])
         run2 = Path(r.stdout.strip())
         for f in ("sources.json", "scores.json"):
             shutil.copy(FIX / f, run2 / f)

@@ -1,0 +1,9 @@
+# steps/window_steps.py 
+# exit 0, 0.03 s
+decay factor exp(-omega h) = 0.904837
+V(q+) = 0.409365
+step cost L_d(q, q+) = 0.090635
+descent defect with the exact pair = 0.0e+00
+c = 0.5: H(q, -cV') = -0.375000
+c = 1.0: H(q, -cV') = 0.000000
+c = 2.0: H(q, -cV') = 1.500000

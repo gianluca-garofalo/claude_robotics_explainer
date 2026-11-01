@@ -24,6 +24,9 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 FIX = REPO / "tests" / "fixtures" / "run"
 PY = sys.executable
 RESULTS: list[tuple[str, str, str]] = []
@@ -55,7 +58,7 @@ def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="explainer-dry-run-"))
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp))
     try:
-        r = run("run.py new", [PY, "tools/run.py", "new", "--root", str(tmp / "runs"), "--date", "2026-10-30",
+        r = run("run.py new", [PY, "tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(tmp / "runs"), "--date", "2026-10-30",
                                "--focus", "fixture"])
         rundir = REPO / r.stdout.strip() if not Path(r.stdout.strip()).is_absolute() else Path(r.stdout.strip())
         if not rundir.is_dir():

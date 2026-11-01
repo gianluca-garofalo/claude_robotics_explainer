@@ -1,5 +1,5 @@
 # wbc_brainstorm/redteam_check_ineq_order.py 
-# exit 0, 0.33 s
+# exit 0, 0.36 s
 compliance: |qdd(order 123) - qdd(order 312)| = 0.36913437635035695
 acc-level feasible: |qdd(123)-qdd(312)| = 8.881784197001252e-16
 b1=bc+1e-06 active=False tau[:3]=[ -3.166 -33.386   5.15 ] F_task2=[ 6.611 -4.456  4.201] lam1=0.00e+00

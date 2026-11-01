@@ -1,5 +1,5 @@
 # merged/ineq_hilltop.py 
-# exit 0, 0.98 s
+# exit 0, 1.05 s
 m = kappa = 1.0, vbar = 0.5: saturation boundary q_s = vbar/omega = 0.5
 (1) max |H_V closed form - numerical sup| = 2.8e-08
 (2) H_V(q,-V_unc') vs formula: max diff 4.4e-16 ; at q = 1: -0.125000 ; certificate holds exactly on |q| <= q_s: True

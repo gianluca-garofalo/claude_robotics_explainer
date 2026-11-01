@@ -1,5 +1,5 @@
 # wbc_brainstorm/brainstorm_check1.py 
-# exit 0, 0.11 s
+# exit 0, 0.19 s
 offdiag blocks of Jb M^-1 Jb^T: 3.260547227838737e-16 1.2148315618464436e-16
 A Jb^-1 block lower unit-triangular? upper blocks: 3.002003726584906e-16 6.587486401243836e-16 diag blocks I: 2.220446049250313e-16 2.220446049250313e-16
 min Gauss = 2.4720916215906703  0.5|b-J q0|^2_Lambda = 2.472091621590672

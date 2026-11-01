@@ -3,6 +3,7 @@
 
 Usage:
   python3 tools/run.py new [--focus "legged locomotion"] [--slug scouting] [--date YYYY-MM-DD] [--root runs]
+                          [--sources DIR] [--series DIR]   # covered.json from other folders (the tests' fixtures)
   python3 tools/run.py status runs/<run> [--json]
   python3 tools/run.py finalize runs/<run>        # after topic approval: rename to runs/<date>-<slug>
   python3 tools/run.py package runs/<run>         # deterministic zip next to the run (local only, never uploaded)
@@ -63,7 +64,10 @@ def cmd_new(a) -> int:
                                             "note": "Empty ledger: local run. CI copies ledger.json from the Pages "
                                                     "branch here; sources/ and series/ are in covered.json."})
     import coverage
-    write_json(run / "covered.json", coverage.build(run))
+    cov = coverage.build(run, Path(a.series) if a.series else None, Path(a.sources) if a.sources else None)
+    write_json(run / "covered.json", cov)
+    for skipped in cov["skipped"]:
+        print(f"warning: coverage skipped {skipped}", file=sys.stderr)
     print(rel(run))
     return 0
 
@@ -281,6 +285,8 @@ def main() -> int:
     n.add_argument("--window-days", type=int, help="search window for this run (default: config/scout.json)")
     n.add_argument("--ledger", help="a ledger.json to copy in as published.json (default: an empty ledger)")
     n.add_argument("--root", help="parent folder (default: runs/)")
+    n.add_argument("--sources", help="folder of source documents for covered.json (default: sources/; tests)")
+    n.add_argument("--series", help="folder of series plans for covered.json (default: series/; tests)")
     s = sub.add_parser("status")
     s.add_argument("run")
     s.add_argument("--json", action="store_true")

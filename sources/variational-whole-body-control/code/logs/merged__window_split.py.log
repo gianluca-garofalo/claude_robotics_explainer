@@ -1,5 +1,5 @@
 # merged/window_split.py 
-# exit 0, 0.1 s
+# exit 0, 0.13 s
 P_d (rectangle rule, h=0.1) = 1.0512492197250394  -> P_d/2 = 0.5256246098625197
 
 (a) exact L_d, W = 1/2 q^2

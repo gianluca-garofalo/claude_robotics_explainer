@@ -16,16 +16,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - run: pip install pyyaml actionlint-py shellcheck-py
       - name: zsh, for the zsh checks of the scripts and of the documents' command blocks
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends zsh
       - run: python3 tools/lint_project.py
+      - name: Source documents (tools/check_source.py on every folder in sources/; warnings are listed, errors fail)
+        run: python3 tools/check_source.py --all
       - run: python3 -m unittest discover -s tests -v
       - run: actionlint
       - run: shellcheck setup.sh tools/*.sh tools/ci/*.sh
@@ -39,7 +41,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: ./.github/actions/toolchain

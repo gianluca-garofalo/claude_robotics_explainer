@@ -1,0 +1,6 @@
+# steps/speed_limit.py 
+# exit 0, 0.1 s
+switch point q_s = 0.400000
+cost of the clipped law from q0 = 1 = 0.590000
+cost by integration = 0.590000
+extra cost of the speed limit = 0.090000

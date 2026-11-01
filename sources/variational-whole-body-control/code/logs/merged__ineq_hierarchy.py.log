@@ -1,5 +1,5 @@
 # merged/ineq_hierarchy.py 
-# exit 0, 0.63 s
+# exit 0, 0.81 s
 feasible stack: max residual of the equality tasks 1.1e-15; min lambda_2 0.0e+00 (>= 0); min gap J_2 qdd - a_2 -2.2e-16 (>= 0); max lambda_2 * gap 1.3e-14
 active for t in (0.1667, 0.8333) (switches at 1/6 and 5/6); max |tau_c(t+dt) - tau_c(t)| over the sweep 1.76e-02 (dt = 3.3e-04); across the two switches 2.94e-03, 2.94e-03
 at t = 0.1667 (lambda_2 = 0.0e+00, gap = 2.2e-16): row 2 excluded -> included

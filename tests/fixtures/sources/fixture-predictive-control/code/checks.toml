@@ -1,0 +1,22 @@
+# Manifest of the fixture source's scripts (tests only), read by tools/run_code_checks.py.
+
+[[check]]
+script = "hilltop_values.py"
+sections = ["3.1", "3.2"]
+claims = "omega, V(1), the integral of L along the arriving motion, H at p = -V'"
+timeout = 60
+expect = ["omega = 1.000000", "V(q0) = 0.500000", "integral of L along the extremal = 0.500000"]
+
+[[check]]
+script = "steps/window_steps.py"
+sections = ["2.2", "3.3"]
+claims = "one step with the exact pair; the scaled candidates"
+timeout = 60
+expect = ["V(q+) = 0.409365", "step cost L_d(q, q+) = 0.090635", "c = 2.0: H(q, -cV') = 1.500000"]
+
+[[check]]
+script = "steps/speed_limit.py"
+sections = ["4"]
+claims = "cost of the clipped law with the speed limit"
+timeout = 60
+expect = ["cost of the clipped law from q0 = 1 = 0.590000", "cost by integration = 0.590000"]

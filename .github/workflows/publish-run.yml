@@ -53,8 +53,8 @@ jobs:
       # (an unaudited API project keeps uploads private): you upload the approved video yourself.
       YT_MANUAL: ${{ inputs.video_id == '' || vars.YOUTUBE_UPLOAD == 'manual' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "topic_approval": "auto",
+  "auto_selection": {
+    "min_total": 50,
+    "require_eligible": true,
+    "skip_ledger_statuses": [
+      "published",
+      "staged",
+      "rejected"
+    ],
+    "skip_same_slug": true,
+    "skip_same_primary_url": true
+  },
+  "series": {
+    "plan_approval": "optional",
+    "final_cut_review": "required"
+  },
+  "gates": {
+    "max_open_blocker": 0,
+    "max_open_confirmed_major": 0,
+    "require_reference_verifier_report": true,
+    "allowed_reference_status": [
+      "verified",
+      "secondary_only"
+    ],
+    "require_chapters": false,
+    "max_thumbnail_bytes": 2000000
+  },
+  "notes": "Test fixture: a frozen copy of config/pipeline.json as of 2026-11-01, the preferences the tests and dry runs are written against (tests/testenv.py points the tools here). Change config/ freely; change this file only together with the tests that depend on it."
+}

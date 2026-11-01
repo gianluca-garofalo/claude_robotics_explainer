@@ -5,6 +5,9 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 
 import series as S  # noqa: E402

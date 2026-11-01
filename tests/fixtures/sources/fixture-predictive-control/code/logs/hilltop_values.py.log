@@ -1,0 +1,6 @@
+# hilltop_values.py 
+# exit 0, 0.24 s
+omega = 1.000000
+V(q0) = 0.500000
+integral of L along the extremal = 0.500000
+H(q0, -V'(q0)) = 0.0e+00

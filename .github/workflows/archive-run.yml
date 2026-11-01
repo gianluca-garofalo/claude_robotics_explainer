@@ -88,9 +88,9 @@ jobs:
                     'YouTube kept the video private (API project not yet audited), set the repository variable ' +
                     'YOUTUBE_UPLOAD to manual first: the re-run then publishes the explainer and lists the files ' +
                     'to upload by hand.' });
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.decision.outputs.outcome != 'failed-after-approval'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: steps.decision.outputs.outcome != 'failed-after-approval'
         with:
           python-version: "3.13"

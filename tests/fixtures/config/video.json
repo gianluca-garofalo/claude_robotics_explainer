@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "notes": "Test fixture: a frozen copy of config/video.json as of 2026-11-01, the preferences the tests and dry runs are written against (tests/testenv.py points the tools here). Change config/ freely; change this file only together with the tests that depend on it.",
+  "palette": {
+    "background": "#0f172a",
+    "background_note": "The video background: read by templates/manim/common.py (BG, config.background_color), tools/video/thumbnail.py, tools/video/assemble.py (padding) and tools/video/check_design.py. Keep every semantic colour at 4.5:1 or more against it (tests/test_video_design.py checks).",
+    "semantic": {
+      "#2dd4bf": "green: holds, stable, verified (teal-green, told apart from red by deuteranopes)",
+      "#fbbf24": "amber: contrast case, unstable, second option",
+      "#818cf8": "blue: reference case, first option (indigo, told apart from green by tritanopes)",
+      "#ef4444": "red: failure or violation, always with a text label"
+    },
+    "neutral": [
+      "#e2e8f0",
+      "#94a3b8",
+      "#334155",
+      "#ffffff",
+      "#000000"
+    ],
+    "former": {
+      "#22c55e": "green until 2026-10",
+      "#f59e0b": "amber until 2026-10",
+      "#60a5fa": "blue until 2026-10",
+      "#f87171": "red until 2026-10 (indistinguishable from the green for deuteranopes: CIEDE2000 1.9)"
+    }
+  },
+  "design": {
+    "action_safe_inset": 0.035,
+    "graphics_safe_inset": 0.05,
+    "min_cap_px_1080_warn": 22,
+    "min_cap_px_1080_error": 17,
+    "phone_height_px": 390,
+    "min_cap_px_phone_warn": 7.5,
+    "min_cap_px_phone_error": 6,
+    "contrast_warn": 4.5,
+    "contrast_error": 3.0,
+    "large_text_cap_px": 30,
+    "cvd_delta_e_warn": 12,
+    "cvd_delta_e_error": 5,
+    "max_elements_warn": 16,
+    "max_elements_error": 26,
+    "max_text_items_warn": 12,
+    "max_text_items_error": 20,
+    "strong_stroke_width": 3.0,
+    "strong_stroke_contrast": 2.0,
+    "faded_opacity": 0.5,
+    "veil_opacity": 0.5,
+    "veil_area": 0.6,
+    "sample_interval_s": 5.0,
+    "max_frames_per_scene": 80,
+    "thumbnail_small": [
+      168,
+      94
+    ],
+    "thumbnail_min_cap_px_warn": 7,
+    "thumbnail_min_cap_px_error": 5,
+    "thumbnail_max_words": 4,
+    "min_gap_warn": 0.15,
+    "min_gap_error": 0.05,
+    "thumbnail_title_shade": 0.96,
+    "thumbnail_busy_max_edges": 0.02,
+    "thumbnail_busy_max_std": 12,
+    "space_grid": [
+      48,
+      27
+    ],
+    "space_balance_warn": 0.35,
+    "space_empty_region_warn": 0.4,
+    "space_empty_min_coverage": 0.15,
+    "space_min_coverage_warn": 0.1,
+    "space_min_extent_warn": 0.45,
+    "motion_min_opacity": 0.6,
+    "motion_overlap_warn_s": 0.25,
+    "motion_overlap_error_s": 1.5,
+    "readout_width_jitter_warn": 0.12,
+    "align_tol": 0.03,
+    "align_max": 0.4,
+    "align_outlier_max": 0.8,
+    "align_stack_gap": 0.6,
+    "align_row_height_ratio": 0.35,
+    "panel_gutter_min": 0.5,
+    "panel_min_width": 0.15,
+    "panel_header_band": 0.9,
+    "panel_bottom_diff_warn": 1.0,
+    "panel_centre_diff_warn": 0.6,
+    "panel_empty_warn": 0.35
+  },
+  "reading": {
+    "text_wpm": 200,
+    "orientation_s": 0.6,
+    "equation_base_s": 1.0,
+    "equation_term_s": 0.6,
+    "equation_min_s": 2.0,
+    "narration_factor": 1.4,
+    "narration_overlap": 0.5,
+    "min_display_s": 1.0,
+    "error_fraction": 0.75,
+    "max_words_on_screen_warn": 40,
+    "max_words_on_screen_error": 60,
+    "narration_wpm_target": 150,
+    "narration_wpm_warn": 165,
+    "narration_wpm_error": 180
+  },
+  "sources": {
+    "action_safe_inset, graphics_safe_inset": "EBU R 95, safe areas for 16:9 television production: action-safe 93 %, graphics-safe 90 % of the picture. YouTube has no overscan, but the player's controls and captions cover the edges.",
+    "min_cap_px_*": "Tunable default. Reasoning: on a phone held in landscape about 30 cm away the picture is about 7 cm tall; a cap height of 22 px in 1080 lines is then about 1.4 mm, an x-height of about 1 mm, or 0.2 degrees: the lower end of the fluent reading range (about 0.2 to 2 degrees of x-height) in Legge and Bigelow (2011), Journal of Vision 11(5):8. The house rule 'font size 24 or more at 1080p' gives a 33 px cap height for Text and 23 px for MathTex.",
+    "contrast_*": "WCAG 2.x contrast ratio: 4.5:1 for normal text, 3:1 for large text (success criterion 1.4.3).",
+    "cvd_*": "Colour-vision deficiency simulation with the Machado, Oliveira and Fernandes (2009) matrices at full severity, colour difference CIEDE2000. Thresholds are tunable defaults: below 5 two colours read as the same, below 12 they need a text label or a different shape as well.",
+    "max_elements_*, max_text_items_*": "Tunable defaults against clutter (one idea per scene).",
+    "thumbnail_small": "168 x 94 px, the small thumbnail size in YouTube's suggested-video lists.",
+    "text_wpm": "Tunable default below the 238 words per minute average silent reading rate of adults for non-fiction (Brysbaert 2019, Journal of Memory and Language 109:104047), because viewers read while they listen and the text is technical.",
+    "equation_*": "House rule from the episode plan: hold every new equation 2 to 3 s before speaking over it; per-term time is a tunable default.",
+    "narration_factor, narration_overlap": "Tunable default: reading while the narration says something else takes longer.",
+    "min_display_s": "Tunable default for any label; subtitle guidelines use a similar floor (for example, about 5/6 s minimum per subtitle event in Netflix's timed-text style guide).",
+    "narration_wpm_*": "House pacing rule (130 to 150 spoken words per minute); warning and error thresholds are tunable defaults.",
+    "checked": "EBU R 95, Brysbaert 2019, Legge and Bigelow 2011 and the Netflix minimum duration were checked against their publishers' pages on 2026-10-30; WCAG and Machado et al. are cited from the standard texts.",
+    "equation_numbers": "House rule (2026-10, the channel owner): a viewer never looks an equation up by its tag, so the video carries no equation labels; false rejects all of them, true allows only the video's own numbering, (1), (2), ... in order of first appearance, never the explainer's numbers. Checked by tools/video/check_selfcontained.py.",
+    "self_contained": "House rule (2026-10, the channel owner): the video assumes that nothing exists besides itself: no reference to the explainer, code, files, links or a document's numbering on screen, in narration, captions or chapters. 'allow' lists regular expressions removed before matching (robotics 'link' usage). Mentions of other episodes of the series (by title or meaning; the words episode, series, previously, next time) are not flagged; another episode's equation numbers always are. Tunable.",
+    "recall": "Recall load (design warning, never an error, tools/video/check_reading.py): a callback to an equation that is no longer on screen asks the viewer to hold it in memory; working memory holds few items and decays within tens of seconds without rehearsal (Cowan 2001, Behavioral and Brain Sciences 24:87; Peterson and Peterson 1959, Journal of Experimental Psychology 58:193). window_s and max_callbacks are tunable defaults.",
+    "min_gap_*": "Tunable defaults: 0.15 Manim units is about 20 px at 1080p, the smallest gap that keeps two labels visibly separate on a phone; below 0.05 (about 7 px) they read as one block. The same two thresholds apply between a text and any strong stroke (a curve, an arrow, a plot line, an outline; strong_stroke_width and strong_stroke_contrast decide, so faint grid lines do not count). A label made with templates/manim/common.py attach() is exempt from the strokes of the object it labels; the crossing rule still applies.",
+    "thumbnail_*": "thumbnail_title_shade is the opacity of the uniform dark panel under the thumbnail title (0.96: labels left in the frame there fade to near invisibility instead of reading as clutter around the title); the busy thresholds are the edge density (share of pixels with a strong local gradient) and the standard deviation of luminance (0-255) behind the title after the panel: tunable defaults.",
+    "numbers": "House rule (2026-10, the channel owner): numbers read the way a person writes them: 2-3 significant digits for readouts, no trailing zeros (0.500000 becomes 0.5), exact values shown exactly ('0', 'exactly 0', '½'), one quantity at one precision within a scene, a real minus sign, a space before a unit. templates/manim/common.py fmt() formats them; tools/video/check_numbers.py checks the layout logs (live readouts sampled over time), narration, captions, chapters and thumbnail. Digit counts and the comparison tolerance are tunable defaults.",
+    "space_*": "Tunable defaults for the space-usage warnings (check_design.py, settled frames): coverage of the graphics-safe area by content boxes on a 48 x 27 grid, the centre of mass of that content (0 = centred, 1 = at the edge), the largest empty rectangle while content crowds the rest, and the extent of the content's bounding box. Composition guidance, not a standard: warnings only.",
+    "motion_*": "Tunable defaults for the checks during animations (check_design.py, from the probe's 15 fps timeline): two opaque texts overlapping while something moves (warning from 0.25 s, error from 1.5 s), and a live readout whose width changes by more than readout_width_jitter_warn units (about 16 px at 1080p) while it updates.",
+    "series": "The owner's decisions (2026-10), after the 3Blue1Brown pattern: speech from 0 s with the hook, no channel card; the spoken series context at the first natural break (about 30-90 s) over a 4-6 s builds-on frame; recaps of what the episode uses, marked and with their own chapter; a 15-20 s outro with the takeaway card, the channel name and the teaser, the right ~40 % of the frame (x > 1.4 Manim units) empty for YouTube's end-screen elements (which show in the last 5-20 s of a video). tools/video/check_series.py warns; the reviewers judge.",
+    "align_*": "Tunable defaults for the alignment warnings (check_design.py, settled frames), added 2026-10-31 after a legend whose tags were staggered by 0.51 units passed every check: three or more texts of one kind and size stacked within align_stack_gap of each other (a column), or side by side with heights within align_row_height_ratio (a row), warn when their left edges, centres or right edges (rows: centres or bottoms) are all within align_max but none within align_tol (about 4 px at 1080p), or when all but one align and the odd one is off by less than align_outlier_max. A larger offset reads as a deliberate indent. Warnings only; legend_table() in common.py aligns by construction.",
+    "panel_*": "Tunable defaults for the panel-balance warnings (check_design.py, settled frames), added 2026-10-31: content split by an empty vertical gutter of at least panel_gutter_min units (titles in the top panel_header_band are ignored) forms side-by-side panels of at least panel_min_width of the safe width. A warning when their content bottoms differ by more than panel_bottom_diff_warn while their centres differ by more than panel_centre_diff_warn (one side ends much higher; a short column centred beside a tall picture is fine), or when a panel's largest empty block is more than panel_empty_warn of its area. The outro is exempt (it keeps the end-screen area empty). Warnings only."
+  },
+  "equation_numbers": false,
+  "self_contained": {
+    "allow": [
+      "\\b(?:two|three|four|five|six|seven|n|k|multi|single|\\d+)-link\\b",
+      "\\blinks? (?:lengths?|mass(?:es)?|angles?|frames?|inertias?|\\d+)\\b",
+      "\\b(?:first|second|third|each|every|end|distal|proximal|lower|upper|rigid|robot|arm) links?\\b",
+      "\\bcolou?r code\\b"
+    ]
+  },
+  "recall": {
+    "window_s": 60,
+    "max_callbacks": 3,
+    "phrases": [
+      "\\brecall\\b",
+      "\\bremember\\b",
+      "\\b(?:earlier|previous|former|last) (?:equation|formula|identity|inequality|condition|result|expression)\\b",
+      "\\b(?:equation|formula|identity|inequality|condition|result|expression) (?:from|we saw) (?:before|earlier)\\b",
+      "\\bas (?:we saw|shown) (?:before|earlier)\\b",
+      "\\bgo(?:ing)? back to\\b"
+    ],
+    "named": [
+      "\\bHamilton[-–]Jacobi (?:equation|condition|inequality)\\b",
+      "\\bdescent (?:inequality|condition|identity)\\b",
+      "\\bEuler[-–]Lagrange (?:equation|equations)\\b",
+      "\\bLegendre transform\\b",
+      "\\bNewton'?s (?:second )?law\\b",
+      "\\bRiccati equation\\b",
+      "\\bBellman equation\\b",
+      "\\btransversality condition\\b",
+      "\\bstability condition\\b",
+      "\\bvelocity law\\b",
+      "\\bJacobi (?:equation|field)\\b"
+    ]
+  },
+  "numbers": {
+    "sig": {
+      "readout": 3,
+      "label": 3,
+      "table": 4
+    },
+    "readout_decimals": 2,
+    "max_sig": {
+      "screen": 4,
+      "readout": 3,
+      "narration": 3,
+      "captions": 4
+    },
+    "error_extra_sig": 2,
+    "trailing_zeros_error": 3,
+    "compare_rel_tol": 0.02,
+    "narration_max_spoken_digits": 3,
+    "units": [
+      "s",
+      "ms",
+      "rad",
+      "deg",
+      "m",
+      "cm",
+      "mm",
+      "kg",
+      "N",
+      "Nm",
+      "Hz",
+      "kHz",
+      "J",
+      "W"
+    ]
+  },
+  "series": {
+    "speech_start_max_s": 1.0,
+    "context_min_s": 25,
+    "context_max_s": 90,
+    "builds_on_min_s": 4,
+    "builds_on_max_s": 6,
+    "recap_min_s": 15,
+    "recap_max_s": 75,
+    "outro_min_s": 15,
+    "outro_max_s": 20,
+    "endscreen_x_min": 1.4
+  }
+}

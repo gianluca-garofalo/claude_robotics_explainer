@@ -14,8 +14,8 @@
       "doi": "10.1007/BF00938540",
       "verification": {
         "status": "verified",
-        "checked_against": ["reference list of sources/variational-whole-body-control/explainer.html"],
-        "doi_seen_in": "reference list of sources/variational-whole-body-control/explainer.html"
+        "checked_against": ["reference list of a verified source document (test fixture)"],
+        "doi_seen_in": "reference list of a verified source document (test fixture)"
       }
     },
     {
@@ -31,8 +31,8 @@
       "doi": "10.1016/S0005-1098(99)00214-9",
       "verification": {
         "status": "verified",
-        "checked_against": ["reference list of sources/variational-whole-body-control/explainer.html"],
-        "doi_seen_in": "reference list of sources/variational-whole-body-control/explainer.html"
+        "checked_against": ["reference list of a verified source document (test fixture)"],
+        "doi_seen_in": "reference list of a verified source document (test fixture)"
       }
     }
   ]

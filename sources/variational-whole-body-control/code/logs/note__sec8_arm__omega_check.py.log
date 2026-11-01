@@ -1,5 +1,5 @@
 # note/sec8_arm/omega_check.py 
-# exit 0, 14.46 s
+# exit 0, 11.64 s
 h=0.005: per-shell (fraction of boundary radius, max ratio, W decreases, max|tau|/limit, max W(F)/c):
      ['1', '0.9938', np.True_, '0.948', '0.9834']
      ['0.7', '0.9786', np.True_, '0.7225', '0.4821']

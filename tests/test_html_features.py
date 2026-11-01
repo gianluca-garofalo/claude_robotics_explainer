@@ -12,6 +12,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 
@@ -19,7 +22,7 @@ import html_features as HF  # noqa: E402
 import lint_html  # noqa: E402
 from check_design import contrast, hex_rgb  # noqa: E402
 
-SOURCE = REPO / "sources" / "variational-whole-body-control" / "explainer.html"
+SOURCE = testenv.SOURCE_DIR / "explainer.html"           # the fixture source document, never the owner's
 
 
 def light_vars() -> dict:
@@ -47,7 +50,7 @@ class Contrast(unittest.TestCase):
                     self.assertGreaterEqual(contrast(hex_rgb(vs[fg]), hex_rgb(vs[bg])), 4.5, (vs[fg], vs[bg]))
 
     def test_dark_set_uses_the_video_palette(self):
-        v = json.loads((REPO / "config" / "video.json").read_text())["palette"]
+        v = json.loads((testenv.CONFIG / "video.json").read_text())["palette"]
         self.assertEqual(HF.DARK_VARS["--bg"], v["background"])
         for c in ("#2dd4bf", "#fbbf24", "#818cf8"):
             self.assertIn(c, HF.DARK_VARS.values())
@@ -230,8 +233,10 @@ class Reinject(unittest.TestCase):
         self.assertIn("const MIN_LABEL_PX = 9;", check)
 
 
-class SourceDocument(unittest.TestCase):
-    def test_source_explainer_has_the_features(self):
+class BuiltPage(unittest.TestCase):
+    def test_a_built_explainer_has_the_features(self):
+        """The fixture source's explainer, built by tools/build_explainer.py: toggle, unique equation anchors, every
+        equation reference resolves."""
         html = SOURCE.read_text(encoding="utf-8")
         self.assertIn('class="theme-toggle"', html)
         self.assertEqual(len(set(re.findall(r'id="(eq-[\w.-]+)"', html))), len(re.findall(r'id="(eq-[\w.-]+)"', html)))

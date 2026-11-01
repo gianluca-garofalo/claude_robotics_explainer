@@ -1,5 +1,5 @@
 # note/sec7_symbolic_checks.py 
-# exit 0, 1.59 s
+# exit 0, 1.82 s
 === A. Augmented-Lagrangian EL equations == Hamilton's equations of H(z,pi) (scalar q, generic f, l) ===
 EL_q  : PV*Derivative(f(Q, Vv, U), Q) + pqd - Derivative(l(Q, Vv, U), Q)   (=0)  vs  pq' + H_q = PV*Derivative(f(Q, Vv, U), Q) + pqd - Derivative(l(Q, Vv, U), Q)
 EL_v  : PQ + PV*Derivative(f(Q, Vv, U), Vv) + pvd - Derivative(l(Q, Vv, U), Vv)   (=0)  vs  pv' + H_v = PQ + PV*Derivative(f(Q, Vv, U), Vv) + pvd - Derivative(l(Q, Vv, U), Vv)

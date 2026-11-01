@@ -1,5 +1,5 @@
 # merged/ineq_soft.py 
-# exit 0, 0.12 s
+# exit 0, 0.17 s
 lexicographic: J_1 qdd - a_1 = [-0.  0.] ; inequality multipliers (>= 0): [0.1959 0.1481] ; posture residual |qdd - qdd_des| = 0.5051
    w        |qdd_w - qdd_lex|   w * error    violation max(a_1 - J_1 qdd_w)
       1e+00   9.741622e-02        0.0974      1.611e-01

@@ -1,5 +1,5 @@
 # wbc_brainstorm/redteam_check_A_B.py 
-# exit 0, 0.33 s
+# exit 0, 0.31 s
 A1 |L^-1 A - Jbar_lit| per level: [np.float64(2.220446049250313e-16), np.float64(6.661338147750939e-16), np.float64(4.739264536368637e-15)]
 A1 |D_i - Jbar_i M^-1 Jbar_i^T|: [np.float64(0.0), np.float64(2.220446049250313e-16), np.float64(3.677613769070831e-16)]
 A1 offdiag of Jbar M^-1 Jbar^T: 4.0939474033052647e-16

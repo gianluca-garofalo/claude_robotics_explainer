@@ -10,6 +10,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 sys.path.insert(0, str(REPO / "tests"))
@@ -18,9 +21,9 @@ import series as S  # noqa: E402
 from series_fixture import make_series  # noqa: E402
 
 
-def series_cli(*args, cwd=REPO):
+def series_cli(*args, cwd=REPO, env=None):
     return subprocess.run([sys.executable, str(REPO / "tools" / "series.py"), *args], cwd=cwd, capture_output=True,
-                          text=True)
+                          text=True, env=env)
 
 
 class Validate(unittest.TestCase):
@@ -67,46 +70,62 @@ class Validate(unittest.TestCase):
 
 
 class Approval(unittest.TestCase):
-    """Plan approval: required (the owner approves each plan; --require-approval asks for it whatever the setting) or
-    optional (the owner's setting since 2026-11-01: an unapproved plan starts with an informational note)."""
+    """Plan approval, under both settings of config/pipeline.json series.plan_approval (each test names the setting
+    it runs with, in a variant of the fixture configuration): "required" refuses an unapproved or changed plan,
+    "optional" starts it with an informational note; --require-approval asks for the approval whatever the setting."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="series-approval-"))
+        self.env = {name: testenv.env(testenv.variant(self.tmp / name, {"pipeline": {"series": {"plan_approval": name}}}))
+                    for name in ("optional", "required")}
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def start(self, d, *extra):
+    def start(self, d, *extra, setting="optional"):
         return series_cli("start", str(d), "--episode", "2", "--root", str(self.tmp / "runs"), "--date", "2026-11-14",
-                          *extra)
+                          *extra, env=self.env[setting])
 
     def test_unapproved_plan_is_refused_when_required(self):
-        r = self.start(make_series(self.tmp, approve=False), "--require-approval")
-        self.assertEqual(r.returncode, 1)
-        self.assertIn("not approved", r.stderr)
-        self.assertIn("approve_series.py", r.stderr)
+        d = make_series(self.tmp, approve=False)
+        for setting, extra in (("required", ()), ("optional", ("--require-approval",))):
+            with self.subTest(setting=setting, extra=extra):
+                r = self.start(d, *extra, setting=setting)
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("not approved", r.stderr)
+                self.assertIn("approve_series.py", r.stderr)
 
     def test_changed_after_approval_is_refused_when_required(self):
         d = make_series(self.tmp)
         data = json.loads((d / "series.json").read_text())
         data["episodes"][1]["hook"] += " Changed."
         (d / "series.json").write_text(json.dumps(data))
-        r = self.start(d, "--require-approval")
+        r = self.start(d, setting="required")
         self.assertEqual(r.returncode, 1)
         self.assertIn("changed since", r.stderr)
 
     def test_optional_setting_starts_an_unapproved_plan_with_a_note(self):
-        self.assertEqual(S.approval_setting(), "optional")                # config/pipeline.json, the owner's choice
-        r = self.start(make_series(self.tmp, approve=False))
+        r = self.start(make_series(self.tmp, approve=False), setting="optional")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("note: plan approval is optional", r.stderr)
         self.assertNotIn("warning", r.stderr.lower())
         self.assertNotIn("approve_series.py", r.stderr)                    # no nag
         ep = json.loads((Path(r.stdout.strip()) / "episode.json").read_text())
         self.assertEqual((ep["plan_approval"]["required"], ep["plan_approval"]["approved"]), (False, False))
-        st = S.approval_state(self.tmp / "series" / "fixture-series" / "series.json",
-                              json.loads((self.tmp / "series" / "fixture-series" / "series.json").read_text()))
-        self.assertIn("none needed", st["detail"])
+
+    def test_approval_state_under_both_settings(self):
+        sp = make_series(self.tmp, approve=False) / "series.json"
+        data = json.loads(sp.read_text())
+        saved = S.approval_setting
+        try:
+            for setting in ("optional", "required"):
+                S.approval_setting = lambda setting=setting: setting
+                st = S.approval_state(sp, data)
+                self.assertEqual((st["required"], st["approved"]), (setting == "required", False))
+                self.assertIn("none needed" if setting == "optional" else "approve_series.py", st["detail"])
+                self.assertTrue(S.approval_state(sp, data, require=True)["required"])     # never the other way round
+        finally:
+            S.approval_setting = saved
 
     def test_a_plan_without_schema_2_is_refused(self):
         d = make_series(self.tmp, edit=lambda s: s.update(schema_version=1))
@@ -141,13 +160,13 @@ class FromSourceAndNext(unittest.TestCase):
         second = make_series(self.tmp, edit=lambda d: d.update(slug="fixture-second", related_series={
             "follows": ["fixture-series"], "followed_by": []}))
         self.assertEqual(second.name, "fixture-second")
-        r = series_cli("from-source", "sources/variational-whole-body-control", "--root", str(self.tmp))
+        r = series_cli("from-source", testenv.SOURCE, "--root", str(self.tmp))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual([ln.split("\t")[0].rsplit("/", 1)[-1] for ln in r.stdout.splitlines()],
                          ["fixture-series", "fixture-second"])
-        r = series_cli("from-source", "sources/nothing-here", "--root", str(self.tmp))
+        r = series_cli("from-source", "tests/fixtures/nothing-here", "--root", str(self.tmp))
         self.assertEqual(r.returncode, 1)
-        self.assertIn("/plan-series sources/nothing-here", r.stderr)
+        self.assertIn("/plan-series tests/fixtures/nothing-here", r.stderr)
 
     def test_next_skips_delivered_episodes(self):
         d = make_series(self.tmp)
@@ -164,11 +183,11 @@ class FromSourceAndNext(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)                          # an explicit number may be made again
 
     def test_a_source_without_code(self):
-        src = self.tmp / "sources" / "bare"
+        src = self.tmp / "bare"
         src.mkdir(parents=True)
-        shutil.copy(REPO / "sources" / "variational-whole-body-control" / "explainer.html", src / "explainer.html")
+        shutil.copy(testenv.SOURCE_DIR / "explainer.html", src / "explainer.html")
         data = json.loads((make_series(self.tmp) / "series.json").read_text())
-        errs, warns = S.validate_v2(dict(data, source="sources/bare"), repo=self.tmp)
+        errs, warns = S.validate_v2(dict(data, source="bare"), repo=self.tmp)
         self.assertEqual(errs, [])
         self.assertTrue(any("no companion code" in w for w in warns), warns)
 
@@ -198,7 +217,7 @@ class Start(unittest.TestCase):
         for needle in ("Hook first", "builds_on()", "recap_tag()", "never \"you must have watched\"", "15-20 s"):
             self.assertIn(needle, brief)
         self.assertIn("Existing scenes: none: write them", brief)                   # a fresh start: no kept scenes
-        self.assertTrue((run / "video" / "data" / "arm_A.npz").exists())             # data/ of the source
+        self.assertTrue((run / "video" / "data" / "hilltop_samples.csv").exists())   # data/ of the source
 
     def test_fresh_copies_no_scenes(self):
         r = series_cli("start", str(self.d), "--episode", "2", "--root", str(self.tmp / "runs"), "--date", "2026-11-14",
@@ -215,15 +234,22 @@ class Write(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="series-write-"))
         try:
             src = make_series(tmp / "src", approve=False) / "series.json"
-            r = series_cli("write", str(src), "--root", str(tmp / "out"))
+            required = testenv.env(testenv.variant(tmp / "required", {"pipeline": {"series": {"plan_approval":
+                                                                                            "required"}}}))
+            r = series_cli("write", str(src), "--root", str(tmp / "req"), env=required)
+            self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+            self.assertIn("approve_series.py", r.stdout)                 # required: the owner's step is named
+            optional = testenv.env(testenv.variant(tmp / "optional", {"pipeline": {"series": {"plan_approval":
+                                                                                            "optional"}}}))
+            r = series_cli("write", str(src), "--root", str(tmp / "out"), env=optional)
             self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
             out = tmp / "out" / "series" / "fixture-series"
-            self.assertIn("Plan approval is optional", r.stdout)       # the owner's setting: no approval step
+            self.assertIn("Plan approval is optional", r.stdout)       # optional: no approval step
             self.assertNotIn("approve_series.py", r.stdout)
             data = json.loads((out / "series.json").read_text())
             data["plan_approval"] = {"status": "approved", "plan_sha256": S.plan_hash(data)}
             (out / "series.json").write_text(json.dumps(data))
-            r2 = series_cli("write", str(src), "--root", str(tmp / "out"))
+            r2 = series_cli("write", str(src), "--root", str(tmp / "out"), env=optional)
             self.assertEqual(r2.returncode, 1)
             self.assertIn("approved plan", r2.stderr)
         finally:
@@ -235,13 +261,12 @@ class PlanSections(unittest.TestCase):
         import plan as P
         tmp = Path(tempfile.mkdtemp(prefix="plan-roles-"))
         try:
-            shutil.copy(REPO / "sources" / "variational-whole-body-control" / "explainer.html",
-                        tmp / "explainer.html")
+            shutil.copy(testenv.SOURCE_DIR / "explainer.html", tmp / "explainer.html")
             (tmp / "video" / "scenes").mkdir(parents=True)
             (tmp / "video" / "scenes" / "a.py").write_text("class A(RAScene):\n    pass\nclass B(RAScene):\n    pass\n")
             (tmp / "episode.json").write_text(json.dumps({"slug": "x", "sections": ["5"]}))
             plan = {"schema_version": 1, "title": "T", "summary": "S.", "tags": [],
-                    "scenes": [{"file": "a.py", "class": "A", "section": "sec-hierarchy", "chapter": "One",
+                    "scenes": [{"file": "a.py", "class": "A", "section": "sec-speedlimit", "chapter": "One",
                                 "role": "hook"},
                                {"file": "a.py", "class": "B", "section": "sec-hj", "chapter": "Recap: two",
                                 "role": "recap"}],

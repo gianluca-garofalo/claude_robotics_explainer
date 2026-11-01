@@ -3,6 +3,8 @@
 
 Usage:
   python3 tools/coverage.py runs/<run>          # writes runs/<run>/covered.json (tools/run.py new runs it too)
+  options: --sources DIR (folder of source documents, default sources/), --series DIR (folder of series plans,
+           default series/); the tests point both at fixtures
 
 Collects, each with its keywords:
   ledger    runs in published.json (the ledger: ledger.json on the Pages branch, copied in by CI; tools/run.py new
@@ -56,8 +58,9 @@ def explainer_items(html: Path) -> list[dict]:
     return items
 
 
-def build(run: Path, series_root: Path | None = None) -> dict:
-    """series_root: the folder holding <slug>/series.json (default series/; tests pass their own)."""
+def build(run: Path, series_root: Path | None = None, sources_root: Path | None = None) -> dict:
+    """series_root: the folder holding <slug>/series.json (default series/); sources_root: the folder holding
+    <name>/explainer.html (default sources/). A file that cannot be read is listed in "skipped", never fatal."""
     items = []
     led_p = run / "published.json"
     led = json.loads(led_p.read_text(encoding="utf-8")) if led_p.exists() else {"runs": {}}
@@ -66,31 +69,45 @@ def build(run: Path, series_root: Path | None = None) -> dict:
             items.append({"source": "ledger", "title": e.get("title") or name, "where": name, "status": e["status"],
                           "slug": e.get("slug"), "primary_urls": e.get("primary_urls", []),
                           "keywords": keywords(f"{e.get('title', '')} {e.get('slug', '')}")})
-    for html in sorted((REPO / "sources").glob("*/explainer.html")):
-        items += explainer_items(html)
-    for sp in sorted(Path(series_root or REPO / "series").glob("*/series.json")):
-        s = json.loads(sp.read_text(encoding="utf-8"))
-        items.append({"source": "series", "title": s["title"], "where": rel(sp), "status": "series",
-                      "keywords": keywords(s["title"])})
-        for ep in s.get("episodes", []):
-            items.append({"source": "series", "title": f"{s['title']}, episode {ep['number']}: {ep['title']}",
-                          "where": rel(sp), "status": "planned", "keywords": keywords(ep["title"])})
+    skipped = []
+    src_root = Path(sources_root or REPO / "sources")
+    for html in sorted(src_root.glob("*/explainer.html")):
+        try:
+            items += explainer_items(html)
+        except (OSError, UnicodeDecodeError) as exc:
+            skipped.append(f"{rel(html)}: {exc}")
+    ser_root = Path(series_root or REPO / "series")
+    for sp in sorted(ser_root.glob("*/series.json")):
+        try:
+            s = json.loads(sp.read_text(encoding="utf-8"))
+            items.append({"source": "series", "title": s["title"], "where": rel(sp), "status": "series",
+                          "keywords": keywords(s["title"])})
+            for ep in s.get("episodes", []):
+                items.append({"source": "series", "title": f"{s['title']}, episode {ep['number']}: {ep['title']}",
+                              "where": rel(sp), "status": "planned", "keywords": keywords(ep["title"])})
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            skipped.append(f"{rel(sp)}: {exc}")
     return {"schema_version": 1, "made_at": utc_now(), "tool": "tools/coverage.py",
-            "sources": {"ledger": rel(led_p) if led_p.exists() else None, "sources": "sources/*/explainer.html",
-                        "series": "series/*/series.json"}, "items": items}
+            "sources": {"ledger": rel(led_p) if led_p.exists() else None,
+                        "sources": f"{rel(src_root)}/*/explainer.html", "series": f"{rel(ser_root)}/*/series.json"},
+            "items": items, "skipped": skipped}
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
+    ap.add_argument("--sources", help="folder of source documents (default sources/)")
+    ap.add_argument("--series", help="folder of series plans (default series/)")
     a = ap.parse_args()
     run = resolve_run(a.run)
-    data = build(run)
+    data = build(run, Path(a.series) if a.series else None, Path(a.sources) if a.sources else None)
     write_json(run / "covered.json", data)
     by = {}
     for it in data["items"]:
         by[it["source"]] = by.get(it["source"], 0) + 1
     print(f"wrote {rel(run / 'covered.json')}: " + ", ".join(f"{n} {k} item(s)" for k, n in sorted(by.items())))
+    for s in data["skipped"]:
+        print(f"warning: skipped {s}", file=sys.stderr)
     return 0
 
 

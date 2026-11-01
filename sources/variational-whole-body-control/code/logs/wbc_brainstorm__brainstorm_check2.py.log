@@ -1,5 +1,5 @@
 # wbc_brainstorm/brainstorm_check2.py 
-# exit 0, 0.79 s
+# exit 0, 0.89 s
 exact argmin tau: -2*m*(delta**2*k*v + delta*k*x + 2*m*v)/(delta**3*k + 4*delta*m + 4*m*r)
 series in delta: -m*v/r + delta*(-k*x/(2*r) + m*v/r**2) + delta**2*(-k*v/(2*r) + k*x/(2*r**2) - m*v/r**3) + O(delta**3)
 2nd-order-expansion argmin: (-delta*k*x/2 - m*v)/(delta + r)

@@ -8,6 +8,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "hooks"))
 
@@ -51,7 +54,7 @@ class BlockPublish(unittest.TestCase):
 
 class Recency(unittest.TestCase):
     def test_bands(self):
-        crit = json.loads((REPO / "config" / "rubric.json").read_text())["criteria"]["recency"]
+        crit = json.loads((testenv.CONFIG / "rubric.json").read_text())["criteria"]["recency"]
         for days, want in [(0, 5), (7, 5), (8, 4), (14, 4), (30, 3), (90, 2), (365, 1), (366, 0), (None, None)]:
             self.assertEqual(rank_topics.recency_score(days, crit), want, days)
 
@@ -214,7 +217,7 @@ class SetupAsRoot(unittest.TestCase):
 
 
 class CodeChecksOnASource(unittest.TestCase):
-    """tools/run_code_checks.py on sources/<name> runs in a temporary copy: the scripts' side files, overwritten
+    """tools/run_code_checks.py on a source folder runs in a temporary copy: the scripts' side files, overwritten
     figures and caches never reach the source, which stays byte-identical except code/logs/ (or entirely, with
     --logs DIR); a run folder still runs in place."""
     SCRIPT = ("import pathlib\n"

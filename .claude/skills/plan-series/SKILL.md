@@ -15,6 +15,9 @@ team) or `required` (the owner approves each plan once before any episode).
 
 ## Stages
 
+0. **Check the source.** For a source folder, `python3 tools/check_source.py sources/<name>` first: on an error stop
+   and give the user its message and fix (only the owner changes `sources/`); warnings go to the curator (no episode
+   may rest on a script the source lacks) and into the hand-over.
 1. **Planning run.** `python3 tools/series.py plan <explainer run>` prints `runs/<date>-series-plan-<slug>/` with the
    explainer, its code and data copied in, `series_plan/` for the proposals and `review/series_plan/` for the red
    team. A series made from a news run's explainer gets its own source folder, `sources/<name>/` (explainer.html,

@@ -9,6 +9,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 
@@ -130,7 +133,7 @@ class Selection(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp(prefix="select-test-"))
-        r = subprocess.run([sys.executable, "tools/run.py", "new", "--root", str(cls.tmp / "runs"), "--date",
+        r = subprocess.run([sys.executable, "tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(cls.tmp / "runs"), "--date",
                             "2026-10-30"], cwd=REPO, capture_output=True, text=True, check=True)
         cls.run_dir = Path(r.stdout.strip())
         for f in ("sources.json", "scores.json"):

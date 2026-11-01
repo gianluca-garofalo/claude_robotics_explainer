@@ -1,5 +1,5 @@
 # merged/ineq_gauss.py 
-# exit 0, 0.24 s
+# exit 0, 0.22 s
 (1) stationarity |M(qdd - qdd_free) - J^T lambda| = 5.3e-15
     lambda_I = [1.7697 0.     1.6095]  J_I qdd - a_I = [ 0.      0.3751 -0.    ]  complementarity max|lambda_i gap_i| = 1.6e-15
 (2) Fourier's inequality on 1407 admissible accelerations: min tau_c^T (qdd' - qdd) = 1.685e-01 (>= 0)

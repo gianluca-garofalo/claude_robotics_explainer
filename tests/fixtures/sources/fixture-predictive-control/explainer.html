@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fixture: The Cost Still to Pay</title>
+
+<!-- KaTeX CSS + JS (pinned to 0.16.9; tools/check_html.js serves these files locally when offline) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+<style>
+  /* Explainer house style: extracted from the reference document (sources/variational-whole-body-control/explainer.html), document-specific selectors removed.
+     tools/build_explainer.py inlines this file into <style> so every explainer is a single self-contained HTML file. */
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f7f8fa;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --heading: #0f172a;
+    --accent: #2563eb;          /* 5.2:1 on white (WCAG AA for link text) */
+    --accent-light: #eff6ff;
+    --accent-dim: #eff6ff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+    --code-text: #0f172a;
+    --table-header-bg: #f1f5f9;
+    --row-stripe: #f8fafc;
+    --sidebar-bg: #f8fafc;
+    --definition-bg: #f0fdf4;
+    --definition-border: #22c55e;
+    --definition-strong: #15803d;
+    --insight-bg: #fffbeb;
+    --insight-border: #f59e0b;
+    --insight-strong: #b45309;
+    --blockquote-bg: #f8fafc;
+    --danger: #b91c1c;
+    --sidebar-width: 240px;
+    --content-width: 960px;
+    --margin-note-width: 260px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    font-size: 17px;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Georgia', serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+    padding: 0;
+  }
+
+  /* Layout */
+  article {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem 2rem;
+    margin-left: calc(var(--sidebar-width) + 2rem);
+    position: relative;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1.5rem;
+  }
+
+  header h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--heading);
+    margin-bottom: 0.5rem;
+  }
+
+  header .subtitle {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  footer.copyright {
+    margin-top: 2.5rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  header .date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.3rem;
+  }
+
+  /* Abstract */
+  .abstract {
+    background: var(--accent-dim);
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.2rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .abstract strong { color: var(--accent); }
+
+  /* Sections */
+  section { margin-bottom: 2.5rem; }
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--heading);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--heading);
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.2rem;
+    margin-bottom: 0.4rem;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 0.8rem; }
+
+  /* Margin notes (rendered inline to avoid overflow) */
+  .margin-note {
+    float: none;
+    clear: both;
+    width: 100%;
+    margin: 0.5rem 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    padding: 0.5rem 0.8rem;
+    border-left: 3px solid var(--border);
+    background: var(--accent-light);
+  }
+
+  /* Equation blocks: no visual container, tight spacing */
+  .equation-block {
+    margin: 0.8rem 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    scrollbar-width: thin;
+  }
+
+  .katex-display {
+    overflow: visible !important;
+    margin: 0.5em 0 !important;
+  }
+
+  .katex-display > .katex {
+    max-width: 100%;
+  }
+  .katex-display > .katex > .katex-html > .tag {
+    position: absolute;
+    right: 0;
+    padding-left: 1em;
+  }
+
+  /* Code */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    max-width: 100%;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 1rem 0;
+  }
+
+  code {
+    font-family: 'Fira Code', 'Source Code Pro', 'Consolas', monospace;
+    font-size: 0.85em;
+    color: var(--code-text);
+  }
+
+  p code, li code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.82em;
+  }
+
+  /* Figures: original figures only (inline SVG produced by the run's scripts) */
+  figure {
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+
+  figure img {
+    max-width: 100%;
+  }
+  figure img.plot {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+  }
+
+  th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  tr:nth-child(even) { background: var(--row-stripe); }
+
+  /* Lists */
+  ol, ul {
+    margin: 0.5rem 0 0.8rem 1.5rem;
+  }
+
+  li { margin-bottom: 0.3rem; }
+
+  /* Algorithm box */
+  .algorithm {
+    background: var(--bg);
+    border: none;
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .algorithm .alg-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 0.3rem;
+  }
+
+  .algorithm ol { margin-left: 1.2rem; }
+  .algorithm li { margin-bottom: 0.5rem; }
+
+  /* Definition boxes */
+  .definition {
+    background: var(--definition-bg);
+    border-left: 4px solid var(--definition-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+
+  .definition strong { color: var(--definition-strong); }
+
+  /* Insight / warning boxes */
+  .insight {
+    background: var(--insight-bg);
+    border-left: 4px solid var(--insight-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+  }
+
+  .insight strong { color: var(--insight-strong); }
+
+  /* Evidence box: what the sources show, what is claimed but not verified (news topics) */
+  .evidence {
+    background: var(--bg-secondary);
+    border-left: 4px solid var(--text-secondary);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .evidence .status { font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .evidence .status.verified { color: var(--definition-strong); }
+  .evidence .status.unverified { color: var(--insight-strong); }
+  .evidence .status.disputed { color: var(--danger); }
+
+  blockquote {
+    border-left: 4px solid var(--accent);
+    padding: 0.6rem 1rem;
+    margin: 1rem 0;
+    background: var(--blockquote-bg);
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover { text-decoration: underline; }
+
+  /* Sidebar nav */
+  nav.toc {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0.8rem;
+    font-size: 0.78rem;
+    z-index: 100;
+  }
+
+  nav.toc .toc-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  nav.toc li { margin-bottom: 0.35rem; }
+
+  nav.toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    line-height: 1.4;
+    display: block;
+    padding: 0.15rem 0;
+    transition: color 0.2s;
+  }
+
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc ol ol { padding-left: 0.7rem; }
+
+  /* References and attribution */
+  .references { font-size: 0.88rem; }
+  .references li { margin-bottom: 0.5rem; }
+  .references li:target { background: var(--insight-bg); }
+  .references .unverified { color: var(--danger); font-weight: 700; }
+  .attribution { font-size: 0.88rem; color: var(--text-secondary); }
+
+  .katex { color: var(--heading); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    article {
+      max-width: 100%;
+      margin-left: calc(var(--sidebar-width) + 0.5rem);
+      padding: 1rem 1.5rem 3rem 1rem;
+    }
+  }
+
+  @media (max-width: 800px) {
+    nav.toc {
+      position: static;
+      width: 100%;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    article {
+      margin-left: 0;
+      padding: 1rem 1rem 3rem 1rem;
+    }
+  }
+
+  /* Print */
+  @media print {
+    nav.toc { display: none !important; }
+    article { padding: 0; margin: 0 auto; margin-left: 0; max-width: 100%; }
+    h2 {
+      page-break-before: always;
+      page-break-after: avoid;
+      margin-top: 2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--border);
+    }
+    /* the first section follows the abstract; sections marked .flow continue on the same page */
+    .abstract + section > h2, .abstract + .part-label + section > h2, section.flow > h2 { page-break-before: auto; }
+    .part-label { page-break-before: always; page-break-after: avoid; }
+    .part-label + section > h2 { page-break-before: auto; }
+    .part-label.first { page-break-before: auto; }
+    .algorithm, .equation-block, table, figure, blockquote, .definition, .insight, .evidence { page-break-inside: avoid; }
+    h3, h4 { page-break-after: avoid; }
+    p, li { orphans: 3; widows: 3; }
+    figure svg { max-height: 800px; width: auto; max-width: 100%; }
+    pre { font-size: 0.72rem; line-height: 1.4; padding: 0.5rem 0.7rem; page-break-inside: avoid; }
+    .margin-note { margin: 0.6rem 0 0.6rem 1.5rem; }
+    body {
+      background: #ffffff;
+      color: var(--text);
+      font-size: 11pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  /* Details that keep math, tables and figures inside the page at every width */
+  td .katex-display { margin: 0.2em 0 !important; }
+  figure svg { display: block; margin: 0 auto; }
+  .algorithm .katex-display { margin: 0.4em 0 !important; }
+  .definition .katex-display, .algorithm .katex-display, .insight .katex-display, td .katex-display {
+    overflow-x: auto !important; overflow-y: hidden !important; }
+  td { overflow-wrap: anywhere; }
+  td code { overflow-wrap: normal; }
+  .part-label {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin: 3rem 0 0.5rem 0; padding-top: 0.6rem; border-top: 3px solid var(--accent-light);
+  }
+  nav.toc .toc-part {
+    margin: 0.9rem 0 0.3rem 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--heading);
+  }
+  tr.group th { background: var(--accent-light); color: var(--accent); font-size: 0.82rem;
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.ver td:nth-child(2) { width: 27%; }
+  table.ver td:nth-child(3) { width: 20%; }
+  @media (max-width: 800px) {
+    table { display: block; overflow-x: auto; }
+    /* long displays scroll inside their own box, and tags follow the formula instead of overlapping it (the
+       reader features of tools/html_features.py put a numbered display's tag on screen, under the formula) */
+    .katex-display { overflow-x: auto !important; overflow-y: hidden !important; }
+    .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
+    /* scrolling boxes must contain KaTeX's absolutely positioned MathML, or it widens the page */
+    table, .equation-block, .katex-display { position: relative; }
+    td, th { overflow-wrap: break-word; hyphens: auto; }
+  }
+/* reader-features:css */
+  /* Reader features (tools/html_features.py): dark mode, equation links, collapsible contents */
+  :root { --accent: #2563eb; --fig-ink: #1e293b; --fig-muted: #64748b; --fig-faint: #e2e8f0; --fig-bg: #ffffff; --highlight: #fef3c7; --fig-mix: 100%; --fig-keep: 100%; }
+  :root[data-theme="dark"] { --bg: #0f172a; --bg-secondary: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8; --heading: #f1f5f9; --accent: #818cf8; --accent-light: #1e2446; --accent-dim: #1e2446; --border: #334155; --code-bg: #1e293b; --code-text: #e2e8f0; --table-header-bg: #1e293b; --row-stripe: #131d33; --sidebar-bg: #131d33; --definition-bg: #0d2b2c; --definition-border: #2dd4bf; --definition-strong: #5eead4; --insight-bg: #2b2410; --insight-border: #fbbf24; --insight-strong: #fcd34d; --blockquote-bg: #1e293b; --danger: #f87171; --fig-ink: #e2e8f0; --fig-muted: #94a3b8; --fig-faint: #334155; --fig-bg: #0f172a; --highlight: #3b3417; --fig-mix: 65%; --fig-keep: 0%; color-scheme: dark; }
+  :root[data-theme="dark"] .algorithm { box-shadow: 0 0 0 1px var(--border); }
+  :root[data-theme="dark"] img { opacity: 0.92; }
+  figure svg { color: var(--fig-ink); }
+  figure svg:not([fill]) { fill: var(--fig-ink); }
+  .reader-controls { position: fixed; top: 0.6rem; right: 0.7rem; z-index: 120; display: flex; gap: 0.4rem; }
+  .reader-controls button, .toc-toggle {
+    font: inherit; font-size: 1.05rem; line-height: 1; min-width: 2.4rem; min-height: 2.4rem; padding: 0.35rem;
+    color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; }
+  .reader-controls button:focus-visible, .toc-toggle:focus-visible, nav.toc a:focus-visible, a.eqref:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; }
+  .toc-toggle { position: fixed; top: 0.6rem; left: 0.7rem; z-index: 130; display: none; }
+  html.js .toc-toggle { display: inline-block; }
+  html.js nav.toc { padding-top: 3.4rem; }
+  html.js.toc-collapsed nav.toc { display: none; }
+  html.js.toc-collapsed article { margin-left: auto; margin-right: auto; }
+  nav.toc a.current { color: var(--accent); font-weight: 700; }
+  .toc-backdrop { display: none; }
+  a.eqref { white-space: nowrap; }
+  .eq-anchor { display: block; position: relative; height: 0; scroll-margin-top: 4.5rem; }
+  [id] { scroll-margin-top: 4rem; }
+  .eq-anchor:target + .katex-display, .eq-anchor:target + p .katex-display, .equation-block:target {
+    animation: eq-flash 2.4s ease-out; border-radius: 6px; }
+  @keyframes eq-flash { 0%, 30% { background: var(--highlight); } 100% { background: transparent; } }
+  .eq-back { position: fixed; bottom: 1rem; right: 1rem; z-index: 120; padding: 0.5rem 0.8rem; font-size: 0.9rem;
+    color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); cursor: pointer; }
+  .eq-back[hidden] { display: none; }
+  @media (max-width: 800px) {
+    html.js nav.toc { position: fixed; top: 0; left: 0; bottom: 0; width: min(85vw, 320px); height: 100%;
+      transform: translateX(-105%); transition: transform 0.25s ease; border-right: 1px solid var(--border);
+      border-bottom: none; z-index: 125; visibility: hidden; }
+    html.js.toc-open nav.toc { transform: none; visibility: visible; }
+    html.js.toc-collapsed nav.toc { display: block; }
+    html.js .toc-backdrop { position: fixed; inset: 0; z-index: 124; background: rgba(2, 6, 23, 0.55); }
+    html.js.toc-open .toc-backdrop { display: block; }
+    html.js article { padding-top: 3.4rem; }
+    /* nothing wider than the screen: long formulas, tables and code scroll in their own box */
+    .katex-display, .equation-block, table, pre { max-width: 100% !important; overflow-x: auto !important;
+      overflow-y: hidden !important; position: relative; }
+    table { display: block; }
+    .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
+    /* a numbered formula scrolls inside its display and its number stays on screen, on the line below it */
+    .katex-display:has(.tag) { overflow: visible !important; padding-bottom: 1.6em; }
+    .katex-display:has(.tag) > .katex { overflow-x: auto; overflow-y: hidden; }
+    .katex-display:has(.tag) > .katex > .katex-html { position: static !important; }
+    .katex-display:has(.tag) > .katex > .katex-html > .tag { position: absolute !important; right: 0; bottom: 0;
+      padding-left: 0 !important; }
+    .katex-display:has(.tag) > .katex > .katex-html > .tag > .strut { display: none; }   /* only the number's height */
+    .katex .katex-mathml { position: absolute; clip: rect(1px, 1px, 1px, 1px); width: 1px; height: 1px; overflow: hidden; }
+    img, svg, video { max-width: 100%; height: auto; }
+  }
+  .nb { white-space: nowrap; }      /* a number in a table cell never breaks across lines (the body script) */
+  /* the body script marks a numbered formula too wide for its number beside it: the number goes on the line below,
+     and a table that no longer fits its column scrolls in its own box instead of widening the page */
+  .katex-display.tag-below { position: relative !important; overflow: visible !important; padding-bottom: 1.6em; }
+  .katex-display.tag-below > .katex { overflow-x: auto; overflow-y: hidden; }
+  .katex-display.tag-below > .katex > .katex-html { position: static !important; }
+  .katex-display.tag-below > .katex > .katex-html > .tag { position: absolute !important; right: 0; bottom: 0;
+    padding-left: 0 !important; }
+  .katex-display.tag-below > .katex > .katex-html > .tag > .strut { display: none; }
+  table.tbl-scroll { display: block; overflow-x: auto; }
+  figure.fig-scroll { overflow-x: auto; overflow-y: hidden; }   /* labels kept at 9 px or more: the figure scrolls */
+  @media (max-width: 380px) { html { font-size: 15px; } }   /* long inline formulas still fit a 360 px phone */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    html.js nav.toc { transition: none; }
+    .eq-anchor:target + .katex-display, .eq-anchor:target + p .katex-display, .equation-block:target {
+      animation: none; background: var(--highlight); }
+  }
+  @media print {
+    :root, :root[data-theme="dark"] { --bg: #ffffff; --bg-secondary: #f7f8fa; --text: #1e293b; --text-secondary: #64748b; --heading: #0f172a; --accent: #2563eb; --accent-light: #eff6ff; --accent-dim: #eff6ff; --border: #e2e8f0; --code-bg: #f1f5f9; --code-text: #0f172a; --table-header-bg: #f1f5f9; --row-stripe: #f8fafc; --sidebar-bg: #f8fafc; --definition-bg: #f0fdf4; --definition-border: #22c55e; --definition-strong: #15803d; --insight-bg: #fffbeb; --insight-border: #f59e0b; --insight-strong: #b45309; --blockquote-bg: #f8fafc; --danger: #b91c1c; --fig-ink: #1e293b; --fig-muted: #64748b; --fig-faint: #e2e8f0; --fig-bg: #ffffff; --highlight: #fef3c7; --fig-mix: 100%; --fig-keep: 100%; color-scheme: light; }
+    .reader-controls, .toc-toggle, .toc-backdrop, .eq-back { display: none !important; }
+  }
+/* /reader-features:css */
+</style>
+
+<!-- reader-features:head -->
+<script>
+/* Theme before first paint (no flash): the stored choice, else the system setting; light without JavaScript. */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('ra-theme'); } catch (e) {}
+  if (t !== 'dark' && t !== 'light') {
+    t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.classList.add('js');
+  try { if (localStorage.getItem('ra-toc') === 'collapsed' && window.innerWidth > 800) {
+    document.documentElement.classList.add('toc-collapsed'); } } catch (e) {}
+})();
+</script>
+<!-- /reader-features:head -->
+</head>
+
+<body>
+<!-- reader-features:controls -->
+<button type="button" class="toc-toggle" aria-controls="toc" aria-expanded="true" aria-label="Contents">&#9776;</button>
+<div class="toc-backdrop" hidden></div>
+<div class="reader-controls"><button type="button" class="theme-toggle" aria-pressed="false" aria-label="Dark mode" title="Dark mode">&#9790;</button></div>
+<button type="button" class="eq-back" hidden>&#8617; back to text</button>
+<!-- /reader-features:controls -->
+
+<!-- Table of Contents (sidebar) -->
+<nav class="toc" id="toc" aria-label="Contents">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#abstract">Abstract</a></li>
+    <li><a href="#sec-idea">1. The Idea in One Picture</a>
+      <ol>
+        <li><a href="#sec-idea-window">1.1 A window and a boundary term</a></li>
+      </ol>
+    </li>
+    <li><a href="#sec-core">2. The Remaining Action</a>
+      <ol>
+        <li><a href="#sec-localrule">2.1 The local rule</a></li>
+        <li><a href="#sec-exactness">2.2 When the boundary term is exact</a></li>
+      </ol>
+    </li>
+    <li><a href="#sec-hj">3. The Hilltop: Hamilton&ndash;Jacobi and the Stable Manifold</a>
+      <ol>
+        <li><a href="#sec-momentum">3.1 The momentum is a gradient</a></li>
+        <li><a href="#sec-hcondition">3.2 The certificate</a></li>
+        <li><a href="#sec-scalar">3.3 Scaled candidates</a></li>
+      </ol>
+    </li>
+    <li><a href="#sec-speedlimit">4. A Speed Limit</a></li>
+    <li><a href="#sec-verification">5. Verification Status</a>
+      <ol>
+        <li><a href="#sec-ver-num">5.1 Numerical checks</a></li>
+        <li><a href="#sec-ver-lit">5.2 Literature checks</a></li>
+      </ol>
+    </li>
+    <li><a href="#sec-references">6. References</a></li>
+  </ol>
+</nav>
+
+<article>
+
+<header>
+  <h1>Fixture: The Cost Still to Pay</h1>
+  <div class="subtitle">A short source document in the house format, for the tests (a test fixture, not a real explainer)</div>
+  <div class="date">November 2026</div>
+</header>
+
+<div class="abstract" id="abstract">
+  <strong>Abstract.</strong>
+  A test fixture, not a real explainer: a short source document in the house format that the tests plan video series
+  from. A receding-window controller pays a boundary term $W$ at the end of its window. When $W$ falls at least as
+  fast as cost is spent, the least cost still to pay falls at every step (<a href="#ref-keerthi1988">Keerthi &amp; Gilbert, 1988</a>;
+  <a href="#ref-mayne2000">Mayne et al., 2000</a>). On a ball balanced on a hilltop, that cost still to pay generates the momentum, solves the
+  Hamilton&ndash;Jacobi equation at zero energy, and certifies every boundary term with $H(q,-\nabla W)\ge 0$. Every
+  number is printed by a script in <code>code/</code>.
+</div>
+
+<section id="sec-idea">
+<h2>1. The Idea in One Picture</h2>
+
+<p>
+  A predictive controller looks ahead over a window of $N$ steps, chooses the cheapest way through it, applies the
+  first step and starts again from where it lands. What it plans is a trade: the cost of the steps inside the window
+  against a price $W$ for the state where the window ends. This document follows one question through that trade:
+  when does the price at the end make the whole loop settle?
+</p>
+
+<h3 id="sec-idea-window">1.1 A window and a boundary term</h3>
+<p>
+  The least cost of a window that starts at $q$ is the value
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-window" aria-hidden="true"></span>$$
+V_N(q)=\min_{q_1,\dots,q_N}\;\sum_{k=0}^{N-1}L_d(q_k,q_{k+1})+W(q_N),\qquad q_0=q.
+\tag{1}
+$$
+</div>
+
+<p>
+  Here $L_d(q_k,q_{k+1})$ is the cost of one step and $W$ the boundary term. The controller applies the first step of
+  the minimizer and solves the same problem again at the next state. Nothing in the definition says that $V_N$ falls
+  along the closed loop: that depends on the pair of cost and boundary term, and the next section names the
+  condition.
+</p>
+<p>
+  The picture to keep is a ball on a hill. Pushing costs effort, standing away from the summit costs too, and the
+  window plans a few pushes ahead. The boundary term says what it costs to be left at the end of the window, and
+  everything below asks whether that statement is honest.
+</p>
+</section>
+
+<section id="sec-core">
+<h2>2. The Remaining Action</h2>
+
+<p>
+  Call $V_N$ in <a class="eqref" href="#eq-window">(1)</a> the remaining action: the cost still to pay from here on, as far as the window can
+  see. The classical argument of receding-window control compares the window from $q$ with the window one step later.
+</p>
+
+<h3 id="sec-localrule">2.1 The local rule</h3>
+<p>
+  Suppose there is a step $\varphi(q)$ near the target along which the boundary term falls at least as fast as cost
+  is spent:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-local" aria-hidden="true"></span>$$
+W\big(\varphi(q)\big)-W(q)\le -L_d\big(q,\varphi(q)\big).
+\tag{2}
+$$
+</div>
+
+<p>
+  Then the tail of yesterday's plan, extended by one such step, is an admissible plan for today, and the value falls
+  by at least the cost of the step that was applied:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-descent" aria-hidden="true"></span>$$
+V_N(q^+)-V_N(q)\le -L_d(q,q^+).
+\tag{3}
+$$
+</div>
+
+<p>
+  The rule is local: it asks one inequality of $W$ near the target, and the descent <a class="eqref" href="#eq-descent">(3)</a> holds for every
+  window length $N$.
+</p>
+
+<h3 id="sec-exactness">2.2 When the boundary term is exact</h3>
+<p>
+  If $W$ is the true infinite-horizon value and the step cost is computed exactly along the optimal motion, the
+  inequality <a class="eqref" href="#eq-local">(2)</a> holds with equality, and so does the descent. On the hilltop of the next section, with a
+  step of $h=0.1$, one step shrinks the state by the factor $0.904837$, the value falls from $0.5$ to $0.409365$ and
+  the step costs $0.090635$: the descent defect is zero to rounding. Any other pair leaves a gap, and the gap is the
+  price of an inexact boundary term.
+</p>
+</section>
+
+<section id="sec-hj">
+<h2>3. The Hilltop: Hamilton&ndash;Jacobi and the Stable Manifold</h2>
+
+<p>
+  Shrink the step to zero and the window problem becomes a problem in continuous time. Take a ball of mass $m$ on an
+  inverted parabola and charge it for speed and for distance from the summit:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-lagrangian" aria-hidden="true"></span>$$
+L(q,v)=\tfrac12 m v^2+\tfrac12\kappa q^2 .
+\tag{4}
+$$
+</div>
+
+<p>
+  Read as kinetic minus potential energy, the potential is $-\tfrac12\kappa q^2$: a hilltop. Its Euler&ndash;Lagrange
+  equation $m\ddot q=\kappa q$ has the solutions $e^{\pm\omega t}$ with $\omega=\sqrt{\kappa/m}$, and only the
+  decaying one arrives at the summit and stops there.
+</p>
+
+<h3 id="sec-momentum">3.1 The momentum is a gradient</h3>
+<p>
+  Along the arriving motion $q(t)=q_0e^{-\omega t}$ the cost still to pay is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-value" aria-hidden="true"></span>$$
+V(q)=\tfrac12\sqrt{m\kappa}\,q^2,\qquad p=-V'(q).
+\tag{5}
+$$
+</div>
+
+<p>
+  With $m=\kappa=1$ and $q_0=1$: $\omega=1$, $V(1)=0.5$, and the integral of $L$ along the motion is $0.5$ as well.
+  The momentum of the arriving motion is minus the gradient of the cost still to pay.
+</p>
+
+<h3 id="sec-hcondition">3.2 The certificate</h3>
+<p>
+  The Hamiltonian of <a class="eqref" href="#eq-lagrangian">(4)</a> is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-hamiltonian" aria-hidden="true"></span>$$
+H(q,p)=\frac{p^2}{2m}-\tfrac12\kappa q^2 ,
+\tag{6}
+$$
+</div>
+
+<p>
+  and $V$ solves the Hamilton&ndash;Jacobi equation at zero energy, $H(q,-V'(q))=0$. Shrinking the window turns the
+  local rule <a class="eqref" href="#eq-local">(2)</a> into a condition on any boundary term $W$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-certificate" aria-hidden="true"></span>$$
+H\big(q,-\nabla W(q)\big)\ge 0 .
+\tag{7}
+$$
+</div>
+
+<h3 id="sec-scalar">3.3 Scaled candidates</h3>
+<p>
+  For $W=cV$ the left side of <a class="eqref" href="#eq-certificate">(7)</a> is $\tfrac12\kappa q^2(c^2-1)$. At $\kappa=q=1$:
+</p>
+
+<table>
+  <tr><th>$c$</th><th class="num">$H(q,-cV')$</th></tr>
+  <tr><td>$0.5$</td><td class="num">&minus;0.375</td></tr>
+  <tr><td>$1$</td><td class="num">0</td></tr>
+  <tr><td>$2$</td><td class="num">1.5</td></tr>
+</table>
+
+<p>
+  Every $c\ge1$ is certified; $c=1$ is the exact boundary term, where the window value of <a class="eqref" href="#eq-window">(1)</a> no longer
+  depends on $N$.
+</p>
+</section>
+
+<section id="sec-speedlimit">
+<h2>4. A Speed Limit</h2>
+
+<p>
+  Now cap the speed: $|v|\le\bar v$. Far from the summit the free motion would be faster than allowed, so the best law
+  moves at the limit until the state reaches $q_s=\bar v/\omega$, and from there follows the free motion of
+  <a class="eqref" href="#eq-value">(5)</a>. With $m=\kappa=1$, $\bar v=0.4$ and $q_0=1$ the switch is at $q_s=0.4$ and the clipped law costs
+  $0.59$, which is $0.09$ more than the unconstrained $V(1)=0.5$.
+</p>
+<p>
+  The certificate <a class="eqref" href="#eq-certificate">(7)</a> still decides which boundary terms are honest, with the Hamiltonian of the
+  constrained problem in place of <a class="eqref" href="#eq-hamiltonian">(6)</a>. The window of <a class="eqref" href="#eq-window">(1)</a> does not change: only the set
+  of admissible steps does.
+</p>
+<p>
+  The speed limit shows the general pattern. A constraint changes the cost still to pay, and with it the exact
+  boundary term; a boundary term that was exact without the constraint can stop being certified with it.
+</p>
+</section>
+
+<section id="sec-verification">
+<h2>5. Verification Status</h2>
+<h3 id="sec-ver-num">5.1 Numerical checks</h3>
+<p>
+  Every number above is printed by a script in <code>code/</code>, whose <code>checks.toml</code> lists them for the
+  automated check. The one-step numbers of Section&nbsp;<a class="secref" href="#sec-exactness">2.2</a> come from <code>window_steps.py</code>.
+</p>
+<table class="ver">
+  <tr><th>Claim</th><th>Script</th><th>Result</th></tr>
+  <tr><td>$\omega$, $V(1)$ and the integral of $L$ along the arriving motion, equation <a class="eqref" href="#eq-value">(5)</a></td><td><code>hilltop_values.py</code></td><td>Agreement to $10^{-6}$</td></tr>
+  <tr><td>One step with the exact pair; the scaled candidates of Section&nbsp;<a class="secref" href="#sec-scalar">3.3</a></td><td><code>steps/window_steps.py</code></td><td>Descent defect zero to rounding</td></tr>
+  <tr><td>The clipped law and its cost, Section&nbsp;<a class="secref" href="#sec-speedlimit">4</a></td><td><code>steps/window_steps.py</code>, <code>speed_limit.py</code></td><td>Closed form and integration agree</td></tr>
+</table>
+<h3 id="sec-ver-lit">5.2 Literature checks</h3>
+<p>The two references were copied from the dry-run fixture's reference list (this is a test fixture).</p>
+</section>
+
+<section id="sec-references">
+<h2>6. References</h2>
+<p id="attribution" class="attribution">
+  <strong>Sources and attribution.</strong> This explainer describes the cited work in our own words. All figures
+  and animations are original: they are drawn by the scripts in the companion <code>code/</code> folder from
+  published equations or from data we computed, and no text, figure or video frame of the cited sources is
+  reproduced. Quotations, if any, are marked as such and attributed. Entries marked &#9675; were confirmed only
+  through secondary sources. Errors are ours; corrections are welcome.
+</p>
+<ol class="references">
+  <li id="ref-keerthi1988">S.S. Keerthi and E.G. Gilbert, &ldquo;Optimal infinite-horizon feedback laws for a general class of constrained discrete-time systems: Stability and moving-horizon approximations,&rdquo; <em>Journal of Optimization Theory and Applications</em>, vol. 57, no. 2, pp. 265&ndash;293, 1988. doi:<a href="https://doi.org/10.1007/BF00938540">10.1007/BF00938540</a>.</li>
+  <li id="ref-mayne2000">D.Q. Mayne, J.B. Rawlings, C.V. Rao, and P.O.M. Scokaert, &ldquo;Constrained model predictive control: Stability and optimality,&rdquo; <em>Automatica</em>, vol. 36, no. 6, pp. 789&ndash;814, 2000. doi:<a href="https://doi.org/10.1016/S0005-1098(99)00214-9">10.1016/S0005-1098(99)00214-9</a>.</li>
+</ol>
+</section>
+
+<footer class="copyright">&copy; Nove Gianluca Garofalo. All rights reserved.</footer>
+</article>
+<!-- reader-features:body -->
+<script>
+(function () {
+  var root = document.documentElement, store = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
+  var themeBtn = document.querySelector('.theme-toggle');
+  function paintTheme() {
+    var dark = root.getAttribute('data-theme') === 'dark';
+    themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    themeBtn.innerHTML = dark ? '&#9728;' : '&#9790;';
+    themeBtn.title = dark ? 'Light mode' : 'Dark mode';
+  }
+  themeBtn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); store('ra-theme', next); paintTheme();
+  });
+  paintTheme();
+
+  var nav = document.getElementById('toc'), btn = document.querySelector('.toc-toggle'),
+      backdrop = document.querySelector('.toc-backdrop'), narrow = window.matchMedia('(max-width: 800px)');
+  function links() { return nav ? nav.querySelectorAll('a') : []; }
+  function setOpen(open, refocus) {
+    root.classList.toggle('toc-open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (backdrop) backdrop.hidden = !open;
+    if (open) { var l = links(); if (l.length) l[0].focus(); } else if (refocus) btn.focus();
+  }
+  function syncState() {
+    if (narrow.matches) { root.classList.remove('toc-collapsed'); setOpen(false, false); }
+    else { root.classList.remove('toc-open'); if (backdrop) backdrop.hidden = true;
+      btn.setAttribute('aria-expanded', root.classList.contains('toc-collapsed') ? 'false' : 'true'); }
+  }
+  if (nav && btn) {
+    btn.addEventListener('click', function () {
+      if (narrow.matches) { setOpen(!root.classList.contains('toc-open'), true); return; }
+      var collapsed = root.classList.toggle('toc-collapsed');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      store('ra-toc', collapsed ? 'collapsed' : 'open');
+    });
+    if (backdrop) backdrop.addEventListener('click', function () { setOpen(false, true); });
+    nav.addEventListener('click', function (e) { if (e.target.closest('a') && narrow.matches) setOpen(false, false); });
+    document.addEventListener('keydown', function (e) {
+      if (!root.classList.contains('toc-open')) return;
+      if (e.key === 'Escape') { setOpen(false, true); return; }
+      if (e.key !== 'Tab') return;
+      var ring = [btn].concat([].slice.call(links())), i = ring.indexOf(document.activeElement);
+      e.preventDefault();                                   // focus stays in the drawer while it is open
+      ring[(i < 0 ? 0 : i + (e.shiftKey ? ring.length - 1 : 1)) % ring.length].focus();
+    });
+    (narrow.addEventListener ? narrow.addEventListener('change', syncState) : narrow.addListener(syncState));
+    syncState();
+    if ('IntersectionObserver' in window) {
+      var byId = {}; links().forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+      var current = null, io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          var a = byId[en.target.id]; if (!a || a === current) return;
+          if (current) { current.classList.remove('current'); current.removeAttribute('aria-current'); }
+          current = a; a.classList.add('current'); a.setAttribute('aria-current', 'true');
+        });
+      }, { rootMargin: '0px 0px -75% 0px' });
+      Object.keys(byId).forEach(function (id) { var el = document.getElementById(id); if (el) io.observe(el); });
+    }
+  }
+
+  var back = document.querySelector('.eq-back'), jumpY = null;
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    /* remember the reading position in the current history entry: Back restores it exactly */
+    try { var st = history.state && typeof history.state === 'object' ? history.state : {};
+      st.raY = window.scrollY; history.replaceState(st, ''); } catch (err) {}
+    if (a.classList.contains('eqref') && back) setTimeout(function () { jumpY = window.scrollY; back.hidden = false; }, 450);
+  });
+  window.addEventListener('popstate', function (e) {
+    if (e.state && typeof e.state.raY === 'number') {
+      var y = e.state.raY;
+      window.scrollTo({ top: y, behavior: 'instant' });
+      setTimeout(function () { if (Math.abs(window.scrollY - y) > 2) window.scrollTo({ top: y, behavior: 'instant' }); }, 60);
+    }
+  });
+  if (back) {
+    back.addEventListener('click', function () { back.hidden = true; jumpY = null; history.back(); });
+    window.addEventListener('scroll', function () {
+      if (jumpY !== null && Math.abs(window.scrollY - jumpY) > 1.5 * window.innerHeight) { back.hidden = true; jumpY = null; }
+    }, { passive: true });
+    window.addEventListener('popstate', function () { back.hidden = true; jumpY = null; });
+  }
+
+  /* After KaTeX has rendered (deferred scripts run before DOMContentLoaded): numbers in table cells never break
+     across lines, a figure keeps its labels at MIN_LABEL px or more (scrolling sideways if it must), a numbered
+     formula too wide for its number puts the number on the line below, and a table too wide for its column scrolls. */
+  var MIN_LABEL = 9, NUM = /[−+-]?[0-9]+(?:[.,][0-9]+)+(?:[eE][−+-]?[0-9]+)?|[0-9]{4,}/g;
+  function keepNumbers() {
+    [].forEach.call(document.querySelectorAll('td, th'), function (cell) {
+      var tw = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT), found = [], n;
+      while ((n = tw.nextNode())) {
+        if (n.nodeValue.indexOf('$') >= 0 || n.parentElement.closest('.katex, .nb, code, pre')) continue;
+        NUM.lastIndex = 0;
+        if (NUM.test(n.nodeValue)) found.push(n);
+      }
+      found.forEach(function (t) {
+        var s = t.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+        NUM.lastIndex = 0;
+        while ((m = NUM.exec(s))) {
+          if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+          var sp = document.createElement('span'); sp.className = 'nb'; sp.textContent = m[0]; frag.appendChild(sp);
+          last = m.index + m[0].length;
+        }
+        if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+        t.parentNode.replaceChild(frag, t);
+      });
+    });
+  }
+  function fitFigures() {
+    [].forEach.call(document.querySelectorAll('figure svg'), function (svg) {
+      if (svg.parentElement.closest('svg')) return;
+      var fig = svg.closest('figure'), vb = svg.viewBox && svg.viewBox.baseVal, small = Infinity;
+      svg.style.minWidth = ''; fig.classList.remove('fig-scroll');
+      if (!vb || !vb.width) return;
+      [].forEach.call(svg.querySelectorAll('text'), function (t) {
+        var px = parseFloat(getComputedStyle(t).fontSize); if (px > 0 && px < small) small = px; });
+      if (small === Infinity) return;
+      var wa = (svg.getAttribute('width') || '').trim(),
+          natural = /^[0-9]+([.][0-9]+)?(px)?$/.test(wa) ? parseFloat(wa) : vb.width,
+          need = Math.min(natural, Math.ceil(vb.width * MIN_LABEL / small));
+      if (svg.getBoundingClientRect().width < need - 0.5) {
+        svg.style.minWidth = need + 'px'; fig.classList.add('fig-scroll');
+      }
+    });
+  }
+  function fitTags() {                 /* wider screens: a number that would touch its formula goes below it */
+    [].forEach.call(document.querySelectorAll('.katex-display'), function (d) {
+      var tag = d.querySelector('.katex-html > .tag'), right = -Infinity, left;
+      d.classList.remove('tag-below');
+      if (!tag || narrow.matches) return;
+      left = tag.getBoundingClientRect().left + (parseFloat(getComputedStyle(tag).paddingLeft) || 0);
+      [].forEach.call(d.querySelectorAll('.katex-html > .base'), function (b) {
+        right = Math.max(right, b.getBoundingClientRect().right); });
+      if (right > left - 4) d.classList.add('tag-below');
+    });
+  }
+  function fitTables() {
+    [].forEach.call(document.querySelectorAll('table'), function (t) {
+      t.classList.remove('tbl-scroll');
+      if (t.getBoundingClientRect().width > t.parentElement.clientWidth + 1) t.classList.add('tbl-scroll');
+    });
+  }
+  function fitAll() { fitTags(); fitTables(); fitFigures(); }
+  function afterRender() { keepNumbers(); fitAll(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', afterRender); else afterRender();
+  window.addEventListener('load', fitAll);                   /* the math fonts change the widths once they arrive */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
+  var resized = null;
+  window.addEventListener('resize', function () { clearTimeout(resized); resized = setTimeout(fitAll, 150); });
+})();
+</script>
+<!-- /reader-features:body -->
+</body>
+</html>

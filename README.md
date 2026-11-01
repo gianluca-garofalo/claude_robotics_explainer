@@ -124,8 +124,8 @@ through the finding-verifier, and open blockers stop the run. On the layout fixt
 `U(q)` label crossed by the hill curve, the torque-bar header touching the inequality, and the Hilltop legend before
 its fix (a label touching the hill, staggered tags, an unbalanced left panel). The house palette was changed to stay distinguishable for colour-blind viewers (the former
 green and red were nearly identical for deuteranopes). The background is one setting, `palette.background` in
-`config/video.json` (`#0f172a`): the scenes, the thumbnail, the assembly padding and the checks all read it, and a test
-keeps every semantic colour at 4.5:1 or more against it. It is the one place to change it.
+`config/video.json` (`#0f172a`): the scenes, the thumbnail, the assembly padding and the checks all read it, and the
+design check flags any text colour below 4.5:1 against it in every render. It is the one place to change it.
 
 ### The gates
 
@@ -199,7 +199,12 @@ sources/<name> 2`); the report of each session gives the exact command.
    folder stays as it is except `code/logs/`.
 3. Without companion code the source still works: `/plan-series` warns, and every number an episode shows must come
    from a script the episode writes in its run's `code/`, never from the page or from memory.
-4. Commit and push, open a new session, type `/produce-from-source sources/<name>`.
+4. Check it: `python3 tools/check_source.py sources/<name>`. Errors stop `/produce-from-source` and the checks
+   workflow: lint errors, an external `<script src>` other than KaTeX (a page saved from a viewer can carry one;
+   `--strip-external-scripts --write` removes it), a `checks.toml` entry without its script. Warnings are listed: a
+   script the document names that `code/` lacks, scripts outside `checks.toml`, section tags that no longer match the
+   document's numbering (after a renumbering, update `code/checks.toml` and `code/README.md`).
+5. Commit and push, open a new session, type `/produce-from-source sources/<name>`.
 
 Claude never edits `sources/`.
 
@@ -294,6 +299,7 @@ echo 'export PATH="$PATH:/Library/TeX/texbin"' >> ~/.zshrc
 | Reader features | | `python3 tools/html_features.py reinject runs/X/explainer.html` (dry run; `--write` replaces the injected CSS and scripts of a built page with the current ones, content untouched) | updated page |
 | Review | "review runs/X" (skill `explainer-review`), or `/review-fanout runs/X` (workflow) | `python3 tools/merge_reviews.py runs/X` | `review/summary.md` |
 | Video | "make the video for runs/X" (skill `manim-video-producer`) | `tools/render_video.sh runs/X --check`, `python3 tools/video/check_design.py runs/X --stage draft`, `python3 tools/video/check_reading.py runs/X --stage draft`, `python3 tools/video/check_selfcontained.py runs/X --stage draft`, `python3 tools/merge_reviews.py runs/X --set video` | `video/scenes/`, `plan.json`, drafts, `review/design/`, `review/video/` |
+| Check a source | | `python3 tools/check_source.py sources/X` (`--all`; `--render` adds the browser check; `--strip-external-scripts [--write]`) | report: errors, warnings |
 | From a source | `/produce-from-source sources/X [N]` (you type it): plan if needed, one episode, the hand-over | `python3 tools/series.py from-source sources/X` | `series/S/`, `runs/.../deliver/` |
 | Series plan | `/plan-series sources/X` or `/plan-series runs/X` (you type it) | `python3 tools/series.py plan sources/X`, `validate`, `write`; only with `plan_approval` `required`, you approve: `./tools/human/approve_series.py series/S` | `series/S/series.json` |
 | Episode | `/produce-episode series/S N` (you type it) | `python3 tools/series.py start series/S --episode N` (`--fresh` leaves out kept scenes; `--require-approval` refuses an unapproved plan whatever the setting) | `runs/<date>-S-epNN-.../` |
@@ -425,7 +431,8 @@ templates/run/             code README and checks.toml copied into new runs
 tools/                     deterministic scripts; video/ (assembly, thumbnail, metadata, narration, Piper
                            voice model), publish/
                            (YouTube, Pages, LinkedIn; CI only), ci/, hooks/, human/
-tests/                     unit tests, two end-to-end dry runs, fictional fixtures
+tests/                     unit tests, two end-to-end dry runs, fictional fixtures (a source document, a series
+                           plan, a frozen copy of config/ in fixtures/; testenv.py points the tools at them)
 sources/                   source documents of the series: explainer, complete companion code, data
 runs/                      your local runs (git-ignored by default)
 .cache/piper/              the Piper voice model, its MODEL_CARD and SHA-256 (git-ignored; setup.sh downloads it)
@@ -483,8 +490,15 @@ python3 -m unittest discover -s tests
 python3 tests/dry_run.py
 python3 tests/automation_dry_run.py
 python3 tools/lint_project.py
+python3 tools/check_source.py --all
 tools/render_video.sh --template-check
 ```
+
+The tests depend only on fixtures (CONTRIBUTING.md, Testing): the fixture source in `tests/fixtures/sources/`, the
+fixture series and a frozen copy of the preferences in `tests/fixtures/config/` (`tests/testenv.py` points every tool
+there), so a new or changed source, a series plan, a changed preference or a reworded document never breaks a test.
+`tests/test_sources_smoke.py`, the only test that reads `sources/`, checks that each real source passes
+`tools/check_source.py`; `tests/test_hermetic.py` keeps it that way.
 
 - Unit tests: publish guard, rubric bands, math splitting, validators, citations, topic selection, the review wiring
   (five reviewers, `LR-` ids, the reader-flow severity, the symbol ledger, the reading-order text), video plan,
@@ -497,7 +511,9 @@ tools/render_video.sh --template-check
   byte-identical except `code/logs/`), voices (choice, silent drafts, bookmark-safe timings, Piper with a stand-in
   model, a final render without the Piper model stopping before it starts, pacing, recordings, model download refused
   by the network), shell scripts (exec bit, shebang, the same behaviour from `./`, `sh`, `zsh` and `bash`;
-  `setup.sh --with-system-deps` as root without sudo or questions), and hooks that fail closed.
+  `setup.sh --with-system-deps` as root without sudo or questions), hooks that fail closed, the source check
+  (external scripts and their removal, scripts the document names, manifest coverage, stale section tags), and the
+  guard that keeps the tests on fixtures.
 - `tests/dry_run.py`: the local pipeline on fictional fixtures: new run, validate, rank, approval hook, finalize, code
   checks, build, lint, hooks, review merge, render check, template video at -ql, workflow with stub agents, status,
   package.
@@ -516,7 +532,7 @@ tools/render_video.sh --template-check
 - `tools/render_video.sh --template-check`: the scene template renders and passes the design and reading checks.
 
 The dry runs skip the browser or video steps when Node, Playwright or Manim is missing, and say so. `checks.yml` runs
-all of this, plus actionlint, on every push.
+all of this, plus actionlint and the source check, on every push.
 
 ## Limitations
 

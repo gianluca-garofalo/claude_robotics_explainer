@@ -9,6 +9,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 sys.path.insert(0, str(REPO / "templates" / "manim"))
@@ -20,7 +23,7 @@ import search_demand as SD  # noqa: E402
 import series as S  # noqa: E402
 
 FIX = REPO / "tests" / "fixtures"
-SOURCE = REPO / "sources" / "variational-whole-body-control"
+SOURCE = testenv.SOURCE_DIR                    # the fixture source document, never the owner's
 
 
 def sha256(path: Path) -> str:
@@ -57,7 +60,7 @@ class Colour(unittest.TestCase):
         self.assertEqual(kind, "deuteranopia")
 
     def test_house_palette_stays_distinguishable(self):
-        palette = json.loads((REPO / "config" / "video.json").read_text())["palette"]["semantic"]
+        palette = json.loads((testenv.CONFIG / "video.json").read_text())["palette"]["semantic"]
         cols = sorted(palette)
         for i, a in enumerate(cols):
             for b in cols[i + 1:]:
@@ -65,9 +68,9 @@ class Colour(unittest.TestCase):
                     self.assertGreaterEqual(CD.cvd_distance(a, b)[0], 12)
 
     def test_semantic_colours_readable_on_background(self):
-        """config/video.json palette.background is the one background setting: every semantic colour (also used for
-        text labels) keeps the check's warning level, 4.5:1, against it."""
-        pal = json.loads((REPO / "config" / "video.json").read_text())["palette"]
+        """palette.background is the one background setting: every semantic colour of the house palette (the
+        fixture copy; the checks validate whatever the owner picks) keeps the warning level, 4.5:1, against it."""
+        pal = json.loads((testenv.CONFIG / "video.json").read_text())["palette"]
         bg = CD.hex_rgb(pal["background"])
         for c in pal["semantic"]:
             with self.subTest(colour=c):
@@ -132,7 +135,7 @@ class Reading(unittest.TestCase):
         log_all = json.loads((FIX / "design" / "hilltop.timeline.json").read_text())
         findings, stats = [], {}
         cfg = dict(RM.DEFAULTS, **self.cfg)
-        design = json.loads((REPO / "config" / "video.json").read_text())["design"]
+        design = json.loads((testenv.CONFIG / "video.json").read_text())["design"]
         CR.scene_reading("Hilltop", log_all["scenes"]["Hilltop"], cfg, findings, stats, log_all["frame"], design)
         short = [f for f in findings if f["check"] == "display-time"]
         self.assertTrue(any("knife-edge" in f["detail"] and f["severity"] == "error" for f in short), short)
@@ -172,7 +175,7 @@ class Search(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="search-test-"))
         try:
             env = dict(os.environ, SEARCH_BACKEND="fake", SEARCH_FAKE_DATA=str(FIX / "search_fake.json"))
-            r = subprocess.run([sys.executable, "tools/run.py", "new", "--root", str(tmp), "--date", "2026-10-30"],
+            r = subprocess.run([sys.executable, "tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(tmp), "--date", "2026-10-30"],
                                cwd=REPO, capture_output=True, text=True, check=True)
             run = Path(r.stdout.strip())
             for f in ("sources.json", "scores.json"):
@@ -196,8 +199,8 @@ class Search(unittest.TestCase):
 class Series(unittest.TestCase):
     def test_section_ids(self):
         ids = S.section_ids(SOURCE / "explainer.html")
-        self.assertEqual(ids["6"], "sec-hj")
-        self.assertEqual(ids["6.3"], "sec-scalar")
+        self.assertEqual(ids["3"], "sec-hj")
+        self.assertEqual(ids["3.3"], "sec-scalar")
 
     def test_start_copies_the_source_and_scenes_kept_for_an_episode(self):
         """explainer.html, code/ and data/ come from the source; scenes kept in series/<slug>/episodes/epNN/ (an
@@ -220,7 +223,7 @@ class Series(unittest.TestCase):
             ep2 = next((tmp / "runs").glob("*-ep02-*"))
             self.assertEqual(sha256(ep2 / "explainer.html"), sha256(SOURCE / "explainer.html"))
             self.assertTrue((ep2 / "code" / "checks.toml").exists())
-            self.assertTrue((ep2 / "video" / "data" / "arm_B.npz").exists())          # data/ of the source
+            self.assertTrue((ep2 / "video" / "data" / "hilltop_samples.csv").exists())  # data/ of the source
             self.assertTrue((ep2 / "video" / "scenes" / "fixed.py").exists())
             self.assertTrue((ep2 / "video" / "plan.json").exists())
             self.assertEqual(json.loads((ep2 / "episode.json").read_text())["scenes_from_plan"],
@@ -242,9 +245,9 @@ class Series(unittest.TestCase):
         self.assertEqual(S.slugify("***", 10), "episode")
 
     def test_a_plan_from_the_source_validates_and_starts_at_episode_one(self):
-        """A schema-2 plan made from sources/variational-whole-body-control (the test fixture: real plans are made
-        by /plan-series and are not part of the tests) validates against the source, carries no copied assets and
-        starts with episode 1; under the optional setting an unapproved plan needs no approval command."""
+        """A schema-2 plan made from a source (the fixture source and plan: real plans are made by /plan-series and
+        are not part of the tests) validates against the source, carries no copied assets and starts with episode 1;
+        its approval state follows the setting, and require=True always asks for the approval."""
         sys.path.insert(0, str(REPO / "tests"))
         from series_fixture import make_series
         tmp = Path(tempfile.mkdtemp(prefix="series-source-"))
@@ -252,22 +255,21 @@ class Series(unittest.TestCase):
             for approve in (True, False):
                 sp = make_series(tmp / str(approve), approve=approve) / "series.json"
                 s = json.loads(sp.read_text())
-                self.assertEqual(s["source"], "sources/variational-whole-body-control")
+                self.assertEqual(s["source"], testenv.SOURCE)
                 self.assertEqual(s["explainer_sha256"], sha256(SOURCE / "explainer.html"))
                 self.assertEqual(S.validate_v2(s), ([], []))
                 self.assertFalse(any(k in e for e in s["episodes"]
                                      for k in ("assets_from", "scenes", "voiceover_draft")))
                 st = S.approval_state(sp, s)
                 self.assertEqual(st["approved"], approve)
-                self.assertFalse(st["required"])
-                self.assertNotIn("approve_series.py", st["detail"])
+                self.assertEqual(st["required"], S.approval_setting() == "required")
                 req = S.approval_state(sp, s, require=True)
+                self.assertTrue(req["required"])
                 if not approve:
                     self.assertRegex(req["detail"], r"\./tools/human/approve_series\.py \S*series/fixture-series")
-                self.assertEqual(S.pick_next(s, None, sp)["number"], 1)        # the plan's release order
+                self.assertEqual(S.pick_next(s, None, sp, tmp / "runs")["number"], 1)   # the plan's release order
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-        self.assertFalse((REPO / "series" / "variational-wbc").exists())
 
 def _text(i, top, bbox, content="label", axis=False, order=None):
     return {"id": i, "kind": "text", "content": content, "bbox": bbox, "font_size": 28.0, "color": "#e2e8f0",

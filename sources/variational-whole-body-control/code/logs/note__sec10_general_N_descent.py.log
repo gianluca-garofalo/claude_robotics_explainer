@@ -1,5 +1,5 @@
 # note/sec10_general_N_descent.py 
-# exit 0, 0.48 s
+# exit 0, 0.64 s
 c*=1.1055
 c=1.106 N=1: max (dV+Ld)/|q|^2 = -2.81e-04 OK
 c=1.106 N=2: max (dV+Ld)/|q|^2 = -1.39e-03 OK

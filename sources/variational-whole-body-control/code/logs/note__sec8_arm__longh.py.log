@@ -1,5 +1,5 @@
 # note/sec8_arm/longh.py 
-# exit 0, 98.46 s
+# exit 0, 107.01 s
 B N 100 PD-warm-start cost 0.15654805632684027 optimum 0.14301592951176445 W(z_N) 0.015313603057190138 stage part 0.1277023264545743 Optimization terminated successfully 114
 B N 200 PD-warm-start cost 0.13612318570118911 optimum 0.13107699629631553 W(z_N) 0.0006035360852742889 stage part 0.13047346021104125 Optimization terminated successfully 143
 B N 400 PD-warm-start cost 0.13370880007813796 optimum 0.13056869644129837 W(z_N) 1.9891036902613907e-06 stage part 0.1305667073376081 Optimization terminated successfully 188

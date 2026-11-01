@@ -2,9 +2,9 @@
  "schema_version": 2,
  "slug": "fixture-series",
  "title": "Fixture: two episodes of predictive control",
- "source": "sources/variational-whole-body-control",
+ "source": "tests/fixtures/sources/fixture-predictive-control",
  "explainer_sha256": "set-by-tests/series_fixture.py",
- "explainer_slug": "variational-whole-body-control",
+ "explainer_slug": "fixture-predictive-control",
  "created_at": "2026-10-31T12:00:00+00:00",
  "playlist": {
   "title": "Fixture series",
@@ -25,16 +25,11 @@
    "hook": "A predictive controller plans a few steps ahead, takes only the first step, and throws the rest of the plan away. Then it plans again from wherever it landed. Why should that ever settle down? The answer is a number the controller computes anyway: the cost still to pay. And you'll see a controller that converges every time while the textbook proof of its stability fails at every step.",
    "length_min": 11,
    "sections": [
+    "1",
     "1.1",
-    "1.3",
     "2",
-    "3.1",
-    "3.3",
-    "3.4",
-    "4.1",
-    "4.2",
-    "4.3",
-    "15.2"
+    "2.1",
+    "2.2"
    ],
    "story_beat": "Proves in five lines why a receding-window controller with a boundary term and a terminal region is stable; says what the window length does and does not change; explains why a convergent controller can still fail its certificate.",
    "takeaway": {
@@ -87,17 +82,15 @@
    "material": {
     "section_ids": [
      "sec-idea",
-     "sec-dictionary",
+     "sec-idea-window",
      "sec-core",
      "sec-localrule",
-     "sec-exactness",
-     "sec-solvable",
-     "sec-proof-steps",
-     "sec-asymptotic",
-     "sec-numeric",
-     "sec-parallel"
+     "sec-exactness"
     ],
-    "notes": "Simplified: proof shown for N = 1 with 'same idea for any N'; the exact discrete Lagrangian is 'the step's cost computed exactly'; continuous Riccati weight is 'the exact cost of the infinite future of the continuous problem'; comparison-function bounds in one sentence. Left out: KKT with active constraints (moved to episode 5), the 3-D matrix threshold 1.1055, the 3-D general-N test, discrete Legendre transforms, notation tables. 15.2 is used only for the exact-pair split (and one line on the inexact pair)."
+    "notes": "Fixture plan (tests only): the window, the local rule and the exact pair. Left out: the hilltop and the speed limit (episode 2).",
+    "scripts": [
+     "steps/window_steps.py"
+    ]
    },
    "target_viewer": "Control engineers and students who use or have heard of MPC; no optimal control or analytical mechanics assumed. Search entry: MPC stability, terminal cost, Lyapunov."
   },
@@ -109,16 +102,11 @@
    "hook": "Here is a ball on a hill. I want it to stay on top: not held there, but arriving there, rolling, and stopping exactly on the summit. Of all the ways to push it, only one works. By the end of this video you will see what finds that one push: the remaining action, the cost still to be paid from here on.",
    "length_min": 11,
    "sections": [
-    "5.1",
-    "5.2",
-    "5.3",
-    "5.4",
-    "5.5",
-    "6.1",
-    "6.3",
-    "6.4",
-    "6.5",
-    "11.3"
+    "3",
+    "3.1",
+    "3.2",
+    "3.3",
+    "4"
    ],
    "story_beat": "Derives the certificate H(q, -grad W) >= 0 by shrinking the window; sees on a phase portrait why only the zero-energy push arrives; reads the cost still to pay as the generator of that push; sees that a speed limit changes which boundary term is exact.",
    "takeaway": {
@@ -191,18 +179,17 @@
    "teaser": null,
    "material": {
     "section_ids": [
-     "sec-expansion",
+     "sec-hj",
      "sec-momentum",
      "sec-hcondition",
-     "sec-constrained-v",
-     "sec-noL",
-     "sec-which",
      "sec-scalar",
-     "sec-boundary",
-     "sec-speedlimit",
-     "sec-resolution"
+     "sec-speedlimit"
     ],
-    "notes": "Made fresh; it replaces the dropped pilot of former episode 3, and the pilot verdict (PLAN.md, section 8) still applies: no channel card; hook split out; series context and one recap added; finite-window claim about short-horizon MPC replaced (not in the document, and the W = 0 window still converges on the hilltop); HJ uniqueness qualified; 'exact discrete Lagrangian' said as 'the step's cost computed exactly'; outro with takeaway and teaser. Left out: dictionary with signs beyond p = -grad V, viscosity solutions, Figure 2."
+    "notes": "Fixture plan (tests only): the hilltop, the certificate, scaled candidates and the speed limit; recaps episode 1.",
+    "scripts": [
+     "hilltop_values.py",
+     "steps/speed_limit.py"
+    ]
    },
    "target_viewer": "Viewers who want intuition for Hamilton–Jacobi, Legendre and the stable manifold; control engineers meeting them for the first time. Search entry: Hamilton-Jacobi equation, stable manifold, phase portrait."
   }

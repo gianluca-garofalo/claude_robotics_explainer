@@ -11,6 +11,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 
 import rank_topics  # noqa: E402
@@ -29,7 +32,7 @@ class RunFolder(unittest.TestCase):
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="scout-test-"))
-        r = run_tool("tools/run.py", "new", "--root", str(self.tmp), "--date", "2026-10-30")
+        r = run_tool("tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(self.tmp), "--date", "2026-10-30")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.run_dir = Path(r.stdout.strip())
         for f in ("sources.json", "scores.json"):
@@ -43,7 +46,7 @@ class RunFolder(unittest.TestCase):
         (self.run_dir / "sources.json").write_text(json.dumps(sources, indent=1))
 
     def rows(self):
-        rubric = json.loads((REPO / "config" / "rubric.json").read_text())
+        rubric = json.loads((testenv.CONFIG / "rubric.json").read_text())
         scores = json.loads((self.run_dir / "scores.json").read_text())
         rows, _ = rank_topics.compute(self.run_dir, json.loads((self.run_dir / "sources.json").read_text()), scores,
                                       rubric)
@@ -59,10 +62,10 @@ class NewRun(RunFolder):
         self.assertEqual(json.loads((self.run_dir / "published.json").read_text())["runs"], {})
         items = json.loads((self.run_dir / "covered.json").read_text())["items"]
         sources = {i["source"] for i in items}
-        self.assertIn("source document", sources)
-        self.assertLessEqual(sources, {"source document", "series"})      # series only when series/ holds plans
-        self.assertTrue(any("Hamilton" in i["title"] for i in items))
-        self.assertEqual(json.loads((self.run_dir / "run.json").read_text())["window_days"], 14)
+        self.assertEqual(sources, {"source document"})                    # the fixture source; no series plan
+        self.assertTrue(any("Hamilton" in i["title"] for i in items))     # a section of the fixture source
+        window = json.loads((testenv.CONFIG / "scout.json").read_text())["window_days"]
+        self.assertEqual(json.loads((self.run_dir / "run.json").read_text())["window_days"], window)
 
     def test_coverage_lists_series_plans(self):
         import importlib.util
@@ -72,14 +75,14 @@ class NewRun(RunFolder):
         sys.path.insert(0, str(REPO / "tests"))
         from series_fixture import make_series
         make_series(self.tmp)
-        items = coverage.build(self.run_dir, series_root=self.tmp / "series")["items"]
+        items = coverage.build(self.run_dir, series_root=self.tmp / "series", sources_root=testenv.SOURCES)["items"]
         planned = [i for i in items if i["source"] == "series"]
         self.assertEqual(planned[0]["status"], "series")
         self.assertEqual(len(planned), 3)                                  # the series and its two episodes
         self.assertTrue(all(i["where"].endswith("series.json") for i in planned))
 
     def test_window_override_is_recorded(self):
-        r = run_tool("tools/run.py", "new", "--root", str(self.tmp), "--date", "2026-10-30", "--window-days", "30")
+        r = run_tool("tools/run.py", "new", *testenv.COVERAGE_ARGS, "--root", str(self.tmp), "--date", "2026-10-30", "--window-days", "30")
         rj = json.loads((Path(r.stdout.strip()) / "run.json").read_text())
         self.assertEqual((rj["window_days"], rj["window_source"]), (30, "--window-days"))
 

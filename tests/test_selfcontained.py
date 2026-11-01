@@ -10,6 +10,9 @@ import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import testenv  # noqa: E402
+testenv.activate()                  # fixture config and sources, before any tool is imported
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 
@@ -170,11 +173,6 @@ class Links(unittest.TestCase):
             os.environ.pop("INCLUDE_LINKS", None)
             if old is not None:
                 os.environ["INCLUDE_LINKS"] = old
-
-    def test_default_config_has_links_off(self):
-        ch = json.loads((REPO / "config" / "channel.json").read_text())
-        self.assertIs(ch["links"]["include"], False)
-        self.assertNotIn("script you can run", ch["description_footer"])
 
 
 class FreshStart(unittest.TestCase):

@@ -1,37 +1,39 @@
 {
   "schema_version": 1,
-  "ran_at": "2026-11-01T12:49:52+00:00",
+  "ran_at": "2026-11-01T14:34:51+00:00",
   "python": "python",
-  "manifest_sha256": "8a52b55541a921e68dd23d29df4ae03338231323610c8ea1e01013c845874e3a",
+  "manifest_sha256": "2fc252e1b2adc426997c08cefe6e8d419e7532e6d27119923c5e109d39e1ecdf",
   "checks": [
     {
       "script": "note/sec4_3_one_step_example.py",
       "sections": [
-        "4.3"
+        "6.4"
       ],
-      "claims": "tables of Section 4.3: exact pair has equality, rectangle rule fails, W x 1.2 holds",
+      "claims": "tables of Section 6.4: exact pair has equality, rectangle rule fails, W x 1.2 holds",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec4_3_one_step_example.py.log",
       "sha256": "f7e83a8ac82570d81cbdf8633d2856ec039d3f81d6f5ddcd1599cb453717e8a8",
       "rc": 0,
-      "seconds": 0.48,
+      "seconds": 0.55,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec5_6_symbolic_checks.py",
       "sections": [
-        "3.3",
-        "4.3",
+        "4.4",
+        "4.6",
+        "5.2",
         "5.3",
-        "6.3"
+        "6.3",
+        "6.4"
       ],
       "claims": "hilltop: Hamilton-Jacobi residual, eigenvalues, exact discrete Lagrangian, threshold c >= 1.051",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec5_6_symbolic_checks.py.log",
       "sha256": "fc16601677cb0de84893cccca0b4b13f0ff4548e14566a02b2f10affdec60379",
       "rc": 0,
-      "seconds": 1.2,
+      "seconds": 1.66,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -45,29 +47,30 @@
       "log": "sources/variational-whole-body-control/code/logs/note__fig3_phase_portrait.py.log",
       "sha256": "7db485118ea618a582315c58f733949a67143b152a64775de65f9064fc01b486",
       "rc": 0,
-      "seconds": 0.92,
+      "seconds": 1.21,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/window_split.py",
       "sections": [
-        "15.2"
+        "6.5",
+        "16.2"
       ],
       "claims": "window/tail split of the remaining action",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__window_split.py.log",
       "sha256": "031cf809e111dc97c0350b502bb94bb340687599cb4c9bdb880efc3c50691681",
       "rc": 0,
-      "seconds": 0.1,
+      "seconds": 0.13,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/riccati_threshold.py",
       "sections": [
-        "3.3",
-        "18"
+        "6.3",
+        "19"
       ],
       "claims": "matrix threshold c* = 1.1055 of the one-step Riccati map",
       "ok": true,
@@ -81,7 +84,8 @@
     {
       "script": "merged/hilltop_extra.py",
       "sections": [
-        "1.5",
+        "5.2",
+        "6.1",
         "6.3"
       ],
       "claims": "Jacobi field, exact discrete Lagrangian, one step with W = V",
@@ -89,14 +93,14 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__hilltop_extra.py.log",
       "sha256": "f4f991a76e6242d407ca3c9a03b86ec7ae5b3cfc7283a579a173871d9d5a238c",
       "rc": 0,
-      "seconds": 2.3,
+      "seconds": 2.51,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/fig_bases.py",
       "sections": [
-        "12.3",
+        "13.4",
         "Figure 7"
       ],
       "claims": "two bases for one torque: Theta_21 = 2.5, F = (3, 0.4)",
@@ -104,71 +108,79 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__fig_bases.py.log",
       "sha256": "70892531cd40c646166de065c58776fc4f25b9648e323839162c1ff812c533fe",
       "rc": 0,
-      "seconds": 0.15,
+      "seconds": 0.11,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc/wbc_companion_checks.py",
       "sections": [
-        "8.2",
-        "8.3",
-        "9.1",
         "9.2",
-        "12",
+        "10.1",
+        "10.2",
         "13.2",
-        "14.1"
+        "13.3",
+        "13.4",
+        "13.5",
+        "14.2",
+        "15.1"
       ],
       "claims": "Gauss = operational-space control, block LDL^T hierarchy, F = L^T lambda, power invariance",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc__wbc_companion_checks.py.log",
       "sha256": "2753d110f1a3a14bc894eb92a71ece77d7c427ffe81601b3af6c5baf4b712766",
       "rc": 0,
-      "seconds": 0.11,
+      "seconds": 0.13,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/ineq_hilltop.py",
       "sections": [
-        "3.2",
-        "6.5",
-        "18"
+        "7.1",
+        "7.3",
+        "19"
       ],
       "claims": "speed limit on the hilltop: clipped law, one-sided values at q_s, the bounded discrete step (optional for the series)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_hilltop.py.log",
       "sha256": "15d78e5f32d55439c09e843e129d8cb51bca4d2f13fbeea17a7cf1cf4e3c5a8d",
       "rc": 0,
-      "seconds": 0.98,
+      "seconds": 1.05,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec7_numerical_checks.py",
       "sections": [
-        "7"
+        "8.5",
+        "8.6",
+        "8.7",
+        "9.1"
       ],
       "claims": "second-order plants: tau* formula against the numeric optimum, Gauss identity",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec7_numerical_checks.py.log",
       "sha256": "b5d74307df70df6969eecb4affb83b299e82566d52439be55b70cf0da7b12aa4",
       "rc": 0,
-      "seconds": 0.59,
+      "seconds": 0.7,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec7_symbolic_checks.py",
       "sections": [
-        "7"
+        "8.2",
+        "8.3",
+        "8.4",
+        "8.5"
       ],
       "claims": "second-order plants: Euler-Lagrange equations of the augmented Lagrangian = Hamilton's equations, Hamiltonian linear in PQ, Riccati solutions of the double integrator",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec7_symbolic_checks.py.log",
       "sha256": "7083945a94591be150dca8967c381a61c8ddfaf0598fe01a10c476562c997449",
       "rc": 0,
-      "seconds": 1.59,
+      "seconds": 1.82,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -182,357 +194,381 @@
       "log": "sources/variational-whole-body-control/code/logs/note__fig4_double_integrator.py.log",
       "sha256": "7c2a56d273bee9bbc4cebfe5bab53e851c296bf7c5af921b952d9c585e2c4739",
       "rc": 0,
-      "seconds": 0.34,
+      "seconds": 0.38,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/model.py",
       "sections": [
-        "10"
+        "11"
       ],
       "claims": "two-link arm model (imported by the other arm scripts)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__model.py.log",
       "sha256": "7985e348e824a0289a9ec27e04a2ce65a3319e8fe2edd8ed0eb1f6adab9ef65d",
       "rc": 0,
-      "seconds": 0.09,
+      "seconds": 0.13,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/mpc.py",
       "sections": [
-        "10.5"
+        "11.5"
       ],
       "claims": "receding-window solver (imported by closedloop.py and the arm checks)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__mpc.py.log",
       "sha256": "40c93959fc8ecca0a40f726638e6f138bca1369caeff49a37e2355a8ea4e3dc5",
       "rc": 0,
-      "seconds": 0.99,
+      "seconds": 1.2,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/sym_derive.py",
       "sections": [
-        "10.2",
-        "10.3",
-        "10.4"
+        "11.2",
+        "11.3",
+        "11.4"
       ],
       "claims": "SymPy: W-dot, the Slotine-Li identity, u*, D = -H, pi_v = -M s",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__sym_derive.py.log",
       "sha256": "420d4b1258e5fe75236e63e6528965e8f5b26fb150cc1ca26097691b64b8816b",
       "rc": 0,
-      "seconds": 19.12,
+      "seconds": 21.63,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/condcheck.py",
       "sections": [
-        "10.4"
+        "11.4"
       ],
       "claims": "eigenvalues of D and the designs",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__condcheck.py.log",
       "sha256": "560652dab287bee1f868ae6c994088558990a75ab85b4dce2dc61dfe6bc61185",
       "rc": 0,
-      "seconds": 220.15,
+      "seconds": 229.18,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/edge.py",
       "sections": [
-        "10.4"
+        "11.4"
       ],
       "claims": "behaviour of D near the edge of the certified level",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__edge.py.log",
       "sha256": "951cd8a42116b196e34e3d750da810c41e6482ed63a1f038a884eb1b864e0bc7",
       "rc": 0,
-      "seconds": 0.78,
+      "seconds": 0.64,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/quadlimit.py",
       "sections": [
-        "10.5"
+        "11.5"
       ],
       "claims": "quadratic limit of the discrete condition, closed-loop eigenvalues",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__quadlimit.py.log",
       "sha256": "78336442a58fae8d41d23b137f7b05b1a9233aa4b544a449f9d5d3d9dae677df",
       "rc": 0,
-      "seconds": 0.52,
+      "seconds": 0.54,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/feas.py",
       "sections": [
-        "10.5",
-        "10.6"
+        "11.5",
+        "11.6"
       ],
       "claims": "torque-limit level and terminal feasibility",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__feas.py.log",
       "sha256": "f0015be8fc2fe283235caa8595871163ef9130596e661a23f930c305f2e25a44",
       "rc": 0,
-      "seconds": 28.03,
+      "seconds": 32.73,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/omega_check.py",
       "sections": [
-        "10.5"
+        "11.5"
       ],
       "claims": "discrete condition on the certified level sets",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__omega_check.py.log",
       "sha256": "d6c4567bc319400c2ed5deef8115b9d6c8305b26b33c5789a6ec36f1ac27309f",
       "rc": 0,
-      "seconds": 14.46,
+      "seconds": 11.64,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/discrete_check.py",
       "sections": [
-        "10.5"
+        "11.5"
       ],
       "claims": "thresholds on c_W for h = 0.005 and 0.01 s",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__discrete_check.py.log",
       "sha256": "698276f27b1417bf7a062dafbfd3cc8f1cd0b5c58889a15f1951f67882521d42",
       "rc": 0,
-      "seconds": 38.37,
+      "seconds": 35.94,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/closedloop.py",
       "sections": [
-        "10.5",
-        "10.6"
+        "11.5",
+        "11.6"
       ],
       "claims": "closed-loop receding-window run (start B, N = 1, 100 steps); the full 500-step runs (A 10,20,40 and B 1,10,40) take up to about 25 minutes each and are run by hand, with their console output in ../data/",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__closedloop.py.log",
       "sha256": "a378e9be2e391b5a0ec47214f28adeeb6def7f7d1cbe8a52060045404e6f8c1a",
       "rc": 0,
-      "seconds": 1.64,
+      "seconds": 1.81,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec8_arm/longh.py",
       "sections": [
-        "10.6"
+        "11.6"
       ],
       "claims": "long-window reference values",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__longh.py.log",
       "sha256": "ea65ce6da3ee169af6cec709da9b6331e0d9c2c707d2de3cd1fab71e2ad9ec87",
       "rc": 0,
-      "seconds": 98.46,
+      "seconds": 107.01,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/ineq_arm.py",
       "sections": [
-        "7.5",
-        "10.7"
+        "7.2",
+        "8.7",
+        "11.7"
       ],
       "claims": "torque box on the arm: QP = clip for diagonal R, projection vs clip, certificate with the box",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_arm.py.log",
       "sha256": "f8584b2e2580757155220dfc41eececb28e77d49edfa5f7fbc61eaacbe5e425e",
       "rc": 0,
-      "seconds": 160.02,
+      "seconds": 161.94,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/arm_extra_checks.py",
       "sections": [
-        "10.6",
-        "18"
+        "11.5",
+        "11.6",
+        "19"
       ],
       "claims": "adjoint gradients against finite differences, N = 1 torque gap to PD + g and its decrease with h",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__arm_extra_checks.py.log",
       "sha256": "b93996d54adf799fbb41d30e09f01b6a4b798d891e91718f6d26da5acecdc73c",
       "rc": 0,
-      "seconds": 3.46,
+      "seconds": 3.44,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/ineq_gauss.py",
       "sections": [
-        "8.4",
-        "14.2"
+        "9.4",
+        "15.2"
       ],
       "claims": "unilateral constraints in Gauss's principle: Fourier's inequality, powers",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_gauss.py.log",
       "sha256": "6b3c4e2aa9c212f7bedfa41dac149ec54702473a53d6d4c60532305d52185eb4",
       "rc": 0,
-      "seconds": 0.24,
+      "seconds": 0.22,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/duals_check.py",
       "sections": [
-        "8.3"
+        "9.3",
+        "13.1"
       ],
       "claims": "Gauss multiplier = T0 lambda; momenta of W in two coordinate systems (optional for the series)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__duals_check.py.log",
       "sha256": "5be17712b138e131b6da3d39429f7fea8896ba6060dc116b634b1ff53d4b45f9",
       "rc": 0,
-      "seconds": 0.65,
+      "seconds": 0.58,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/redteam_check_ineq_order.py",
       "sections": [
-        "12.3",
-        "13.2",
-        "18"
+        "13.4",
+        "14.2",
+        "19"
       ],
       "claims": "inequality tasks in a hierarchy: order dependence at the switch",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_ineq_order.py.log",
       "sha256": "b83d77c167985017d8408e0edead7071010247c4ddc06ba6419cc2638798750f",
       "rc": 0,
-      "seconds": 0.33,
+      "seconds": 0.36,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/redteam_check_A_B.py",
       "sections": [
-        "12"
+        "13.2",
+        "13.3"
       ],
       "claims": "LDL^T hierarchy against the literature's dynamically consistent extended Jacobians (optional for the series)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_A_B.py.log",
       "sha256": "8cf390869d20c778cf85c8bbb2bf66a50034122f3b4164708ce3e53a3de00ce1",
       "rc": 0,
-      "seconds": 0.33,
+      "seconds": 0.31,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/ineq_hierarchy.py",
       "sections": [
-        "13.2",
-        "13.3",
-        "14.2"
+        "14.2",
+        "14.3",
+        "15.2",
+        "15.3"
       ],
       "claims": "inequality tasks: active interval of lambda_2 and the decoupled force",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_hierarchy.py.log",
       "sha256": "da5d80a7070cc91e6f3dd1c57fb899f5103dc6f93441f89a5d1a72c081876f04",
       "rc": 0,
-      "seconds": 0.63,
+      "seconds": 0.81,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/redteam_check_power.py",
       "sections": [
-        "14.1"
+        "15.1"
       ],
       "claims": "power invariance across task orders (optional for the series)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_power.py.log",
       "sha256": "b07892277e5c028790c43ee3312ceb8f4d8a119a138a995825c371d99b03c5e5",
       "rc": 0,
-      "seconds": 0.29,
+      "seconds": 0.45,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/redteam_check_C_F.py",
       "sections": [
-        "8.1",
-        "15.1"
+        "9.1",
+        "16.1"
       ],
       "claims": "hold dependence of the finite-window law; transcription dependence of tau0 = pi_v",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_C_F.py.log",
       "sha256": "baab262b2ce9a39c60fe8dc2451d13cb8bc5776ef403d5eac9bbaaf4ad92752f",
       "rc": 0,
-      "seconds": 1.26,
+      "seconds": 1.47,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/ineq_soft.py",
       "sections": [
-        "13.4"
+        "14.4"
       ],
       "claims": "strict versus soft priority with an inequality in conflict: the weighted solution approaches the lexicographic one like 0.1218/w",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_soft.py.log",
       "sha256": "b8e9ae244db3f679b3a4c9d4d526436e496938982acd784005d49adbd4065737",
       "rc": 0,
-      "seconds": 0.12,
+      "seconds": 0.17,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "note/sec10_general_N_descent.py",
       "sections": [
-        "2",
-        "3.3",
-        "18"
+        "3.2",
+        "6.3",
+        "19"
       ],
       "claims": "3-D random quadratic Lagrangian: threshold c* = lambda_max(P^-1 P_d) and the N-step descent inequality for N in {1, 2, 3, 5, 8}",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/note__sec10_general_N_descent.py.log",
       "sha256": "8c699b0220c01d9df239df2dc07f168eb4f7d805bcabbdf5ba9c96f97e9e44b8",
       "rc": 0,
-      "seconds": 0.48,
+      "seconds": 0.64,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/brainstorm_check1.py",
       "sections": [
-        "12"
+        "9.2",
+        "13.2",
+        "13.3",
+        "13.4"
       ],
       "claims": "hierarchy as block Gram-Schmidt / LDL^T in the M^-1 metric; Khatib's force as a Gauss multiplier; order dependence of task forces (exploratory)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__brainstorm_check1.py.log",
       "sha256": "3d1dac4cbd26d29febfe06fb7a0c836cec394160c39fbea54fc7c8a9fa4b1e05",
       "rc": 0,
-      "seconds": 0.11,
+      "seconds": 0.19,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "wbc_brainstorm/brainstorm_check2.py",
       "sections": [
-        "8.1"
+        "16.1"
       ],
       "claims": "finite-window (zero-order hold) argmin for a 1-DOF energy-type W, series in delta (exploratory)",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__brainstorm_check2.py.log",
       "sha256": "e19d4f8c452dd2c9497c7dcfcc1c3487d0e8423108718e4ab3048972cc1d9dbc",
       "rc": 0,
-      "seconds": 0.79,
+      "seconds": 0.89,
+      "missing_expect": [],
+      "missing_produces": []
+    },
+    {
+      "script": "checks/torque_momentum_share.py",
+      "sections": [
+        "5.2",
+        "9.1",
+        "16.1"
+      ],
+      "claims": "finite window with W = cV (closed form vs Riccati ODE); discrete torque = momentum shares under zero-order hold and symplectic Euler; 10 ms first-instant stiffness 2.86 vs 1.36 N/m",
+      "ok": true,
+      "log": "sources/variational-whole-body-control/code/logs/checks__torque_momentum_share.py.log",
+      "sha256": "2879a497cbf4134d5245812c44837f14f81b6074255b4e4cf4cf4d2518bf96ca",
+      "rc": 0,
+      "seconds": 0.72,
       "missing_expect": [],
       "missing_produces": []
     }

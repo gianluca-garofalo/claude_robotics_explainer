@@ -93,11 +93,11 @@ jobs:
     outputs:
       run: ${{ steps.start.outputs.run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Published-topics ledger (gh-pages, read only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         continue-on-error: true
         with:
           ref: gh-pages
@@ -151,10 +151,10 @@ jobs:
     outputs:
       sha: ${{ steps.search.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Optional Google Trends client (unofficial; failures are recorded, never fatal)
@@ -194,7 +194,7 @@ jobs:
     outputs:
       run: ${{ steps.select.outputs.run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: ./.github/actions/toolchain
@@ -296,11 +296,11 @@ jobs:
     outputs:
       run: ${{ steps.start.outputs.run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Ledger (gh-pages, read only)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         continue-on-error: true
         with:
           ref: gh-pages
@@ -372,7 +372,7 @@ jobs:
       run: ${{ steps.plan.outputs.run }}
       scenes: ${{ steps.plan.outputs.scenes }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
@@ -433,7 +433,7 @@ jobs:
       AZURE_SUBSCRIPTION_KEY: ${{ secrets.AZURE_SUBSCRIPTION_KEY }}
       AZURE_SERVICE_REGION: ${{ secrets.AZURE_SERVICE_REGION }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
@@ -482,7 +482,7 @@ jobs:
       VOICE_SERVICE: recorded
       MANIM: /opt/venv/bin/manim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
@@ -523,7 +523,7 @@ jobs:
       INCLUDE_LINKS: ${{ inputs.links != 'config' && inputs.links || '' }}
       MANIM: /opt/venv/bin/manim
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
@@ -588,7 +588,7 @@ jobs:
       CLAUDE_SETTINGS: >-
         ${{ vars.CLAUDE_SANDBOX == 'false' && 'ci/claude-ci-settings.nosandbox.json' || 'ci/claude-ci-settings.json' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - uses: actions/download-artifact@v4
@@ -641,8 +641,8 @@ jobs:
       PREVIEW_MODE: ${{ vars.PREVIEW_MODE || 'pages' }}
       YOUTUBE_UPLOAD: ${{ vars.YOUTUBE_UPLOAD || 'api' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip

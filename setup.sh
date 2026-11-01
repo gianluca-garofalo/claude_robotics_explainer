@@ -169,6 +169,8 @@ fi
 echo "== Self-test"
 .venv/bin/manim --version
 .venv/bin/python tools/lint_project.py --config || echo "warning: the configuration lint reported problems (above)" >&2
+.venv/bin/python tools/check_source.py --all \
+  || echo "warning: a source document in sources/ has errors (above): /produce-from-source stops on them" >&2
 page=""
 for f in sources/*/explainer.html; do [ -f "$f" ] && { page="$f"; break; }; done
 if [ $NODE = 1 ] && [ -d node_modules/playwright ] && [ -n "$page" ]; then

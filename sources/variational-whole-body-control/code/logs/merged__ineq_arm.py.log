@@ -1,5 +1,5 @@
 # merged/ineq_arm.py 
-# exit 0, 160.02 s
+# exit 0, 161.94 s
 (1) diagonal R: box-QP minimizer vs componentwise clip, 2000 states (1515 saturated): max diff 3.2e-14
     Gauss weight R = T0 M^-1 (T0 = 0.05 s), same 2000 states: largest |QP - clip| = 40.24 N m; at z = [-0.5  -0.07 -8.39 10.49]: unconstrained tau = [214.1  37.3], QP tau = [ 50.  -10.2], clipped tau = [50. 30.]; cost QP -290.40 < clip 66.50
 (2) ray search, seed  0 (1e5 directions): first failure of D_U <= 0 at W = 6.189
