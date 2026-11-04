@@ -2,8 +2,8 @@
 cannot creep back.
 
 Rules (CONTRIBUTING.md, Testing):
-- no test file reads the real sources/ (by path or by a source's name), the real series/ (by path or by a series
-  slug) or the live config/; tests use tests/fixtures/ (testenv.SOURCES, testenv.CONFIG, the fixture series);
+- no test file reads the real sources/ or series/ (by path, including sources/<name> and series/<slug>) or the live
+  config/ (a source's name or a series slug on its own is not flagged: it may be an ordinary word); tests use tests/fixtures/ (testenv.SOURCES, testenv.CONFIG, the fixture series);
 - every test module and dry run calls testenv.activate() before it imports a tool, so every tool, in the process and
   in its subprocesses, reads tests/fixtures/config;
 - the only exception is tests/test_sources_smoke.py, which runs tools/check_source.py on each real source.
@@ -54,10 +54,10 @@ class Hermetic(unittest.TestCase):
                 for m in rx.finditer(text):
                     line = text.count("\n", 0, m.start()) + 1
                     problems.append(f"{p.name}:{line} reads {what} ({m.group(0)!r}): use tests/fixtures/ (testenv)")
-            for n in sorted(names):
-                for m in re.finditer(rf"(?<![\w-]){re.escape(n)}(?![\w-])", text):
+            for n in sorted(names):         # only as a path: a slug may also be an ordinary word or a site name
+                for m in re.finditer(rf"(?<![\w-])(?:sources|series)/{re.escape(n)}(?![\w-])", text):
                     line = text.count("\n", 0, m.start()) + 1
-                    problems.append(f"{p.name}:{line} names {n!r}, which exists only in the owner's data")
+                    problems.append(f"{p.name}:{line} names {m.group(0)!r}, which exists only in the owner's data")
         for p in sorted((TESTS / "fixtures" / "series").glob("*.json")):
             source = json.loads(p.read_text(encoding="utf-8")).get("source", "")
             if not source.startswith("tests/fixtures/"):
