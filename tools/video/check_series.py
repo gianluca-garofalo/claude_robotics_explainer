@@ -5,8 +5,12 @@ Usage:
   python3 tools/video/check_series.py runs/<run> [--stage draft|final]
 
 House rules (the owner's decisions, 2026-10; thresholds in config/video.json "series"):
-  hook first     narration starts within speech_start_max_s of the start; nothing before the first scene (no
-                 channel card)
+  hook first     a full, moving picture from the first frame (content covering at least first_frame_min_coverage
+                 of the graphics-safe area at t = 0: self.add() it before the first play()); narration starts within
+                 speech_start_max_s (a beat of motion and music may come first); the hook's question (a "?" in its
+                 narration) is spoken by question_by_s; the body (the first scene with role "body") starts by
+                 body_by_s; nothing before the first scene (no channel card); the title beat (role "context")
+                 at most title_beat_max_s long and at least title_beat_min_speech of it spoken
   outro          the last scene (plan.json role "outro") lasts outro_min_s to outro_max_s, shows the channel name and
                  keeps x > endscreen_x_min (the right ~40 % of the frame) empty for YouTube's end-screen elements;
                  a series episode says "In the next episode, ..." there, the finale does not
@@ -19,6 +23,9 @@ House rules (the owner's decisions, 2026-10; thresholds in config/video.json "se
   body mentions  a body scene that names an earlier episode (by short title or number) whose result this video
                  does not show (no recap of it)
   freshness      video/series_context.json made from the current series plan
+  packaging      (every run) the title at most title_max_chars characters, containing plan.json "search_term" and
+                 not the series title; the thumbnail text at most thumbnail_max_words words; the thumbnail frame from
+                 the hook within its first thumbnail_by_s seconds ("click match": the promise is shown early)
 Data: plan.json, the layout logs (video/checks/ or video/renders/), video/series_context.json, and at the final stage
 video/final/assembly.json and the captions. Writes review/design/<stage>/check_series.json and .md; exit status 0
 (the gate shows the warnings; the video design and final-cut reviewers judge them).
@@ -37,7 +44,9 @@ sys.path.insert(0, str(HERE))
 from _common import CONFIG, REPO, load_json, rel, resolve_run, utc_now, write_json  # noqa: E402
 import voice_script as VS  # noqa: E402
 
-DEFAULTS = {"speech_start_max_s": 1.0, "context_min_s": 30, "context_max_s": 90, "builds_on_min_s": 4,
+DEFAULTS = {"speech_start_max_s": 3.0, "question_by_s": 15, "first_frame_min_coverage": 0.02, "body_by_s": 45,
+            "title_max_chars": 60, "thumbnail_max_words": 3, "thumbnail_by_s": 15, "title_beat_max_s": 6.5,
+            "title_beat_min_speech": 0.5, "context_min_s": 30, "context_max_s": 90, "builds_on_min_s": 4,
             "builds_on_max_s": 6, "recap_min_s": 15, "recap_max_s": 75, "outro_min_s": 15, "outro_max_s": 20,
             "endscreen_x_min": 1.4}
 NUMWORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"]
@@ -93,9 +102,101 @@ def visible_span(item: dict) -> float:
     return total + (item["events"][-1][0] - on if on is not None and item.get("events") else 0.0)
 
 
+def first_frame_coverage(log: dict) -> float | None:
+    """Share of the graphics-safe area covered by visible content in the first snapshot (t = 0), as check_design.py
+    measures space use; None without a snapshot at 0."""
+    import check_design as CD
+    snaps = [x for x in log.get("snapshots", []) if x.get("t", 1) <= 0.05]
+    if not snaps:
+        return None
+    d = dict(CD.load_cfg()["design"]) if hasattr(CD, "load_cfg") else \
+        dict(load_json(CONFIG / "video.json").get("design", {}))
+    fw, fh = 14.222, 8.0
+    inset = d.get("graphics_safe_inset", 0.05)
+    gfx = [-fw / 2 * (1 - 2 * inset), -fh / 2 * (1 - 2 * inset), fw / 2 * (1 - 2 * inset), fh / 2 * (1 - 2 * inset)]
+    best = 0.0
+    for snap in snaps:
+        texts, paths, _ = CD.front(snap, {}, d)
+        best = max(best, CD.space_usage(texts, paths, gfx, d).get("coverage", 0.0))
+    return best
+
+
+def hook_checks(scenes: list[dict], logs: dict, starts: dict, narration: dict, cfg: dict, w: "Warnings") -> None:
+    """The opening (owner's rule, 2026-11): a full moving picture from frame 0, a beat before the first word, the
+    question early, the body soon."""
+    first = logs.get(scenes[0]["class"]) or {}
+    if first:
+        cov = first_frame_coverage(first)
+        if cov is not None and cov < cfg["first_frame_min_coverage"]:
+            w.add("hook first", 0.0, f"the first frame is {cov:.0%} covered (at least {cfg['first_frame_min_coverage']:.0%}"
+                  "): open on a full picture (self.add() it before the first play()), not on an empty frame")
+    asked = None
+    for s in scenes:
+        if s.get("role") not in (None, "hook", "context"):
+            break
+        for vo in (logs.get(s["class"]) or {}).get("voiceovers", []):
+            text = vo.get("text", "")
+            if "?" in text:
+                k = text.index("?") / max(len(text), 1)
+                asked = starts.get(s["class"], 0.0) + vo["start"] + k * vo.get("duration", 0.0)
+                break
+        if asked is not None:
+            break
+    if first and asked is None:
+        w.add("hook first", None, "the hook asks no question (no \"?\" in its narration): open with the question the "
+              "video answers")
+    elif asked is not None and asked > cfg["question_by_s"]:
+        w.add("hook first", asked, f"the hook's question comes at {asked:.0f} s (by {cfg['question_by_s']} s)")
+    for s in [s for s in scenes if s.get("role") == "context"][:1]:
+        log = logs.get(s["class"]) or {}
+        dur = log.get("duration", 0.0)
+        said = sum(v.get("duration", 0.0) for v in log.get("voiceovers", []))
+        if log and dur > cfg["title_beat_max_s"]:
+            w.add("title beat", starts.get(s["class"]), f"the title beat lasts {dur:.1f} s (at most "
+                  f"{cfg['title_beat_max_s']:g} s): one spoken sentence over the title, then the body")
+        if log and dur and said / dur < cfg["title_beat_min_speech"]:
+            w.add("title beat", starts.get(s["class"]), f"the title beat is {said / dur:.0%} speech (at least "
+                  f"{cfg['title_beat_min_speech']:.0%}): no long silent hold on the title card")
+    body = next((s for s in scenes if s.get("role") in (None, "body")), None)
+    if body is not None and body["class"] in starts and (logs.get(body["class"]) or starts[body["class"]] > 0):
+        t0 = starts[body["class"]]
+        if t0 > cfg["body_by_s"]:
+            w.add("hook first", t0, f"the body starts at {t0:.0f} s (by {cfg['body_by_s']} s): shorten the hook and "
+                  "the series context")
+
+
+def packaging(plan: dict, cfg: dict, w: "Warnings") -> None:
+    """Title and thumbnail rules (warnings): short, with the search term, without the series name; few words on the
+    thumbnail; its picture shown early in the hook."""
+    title = plan.get("title", "")
+    if len(title) > cfg["title_max_chars"]:
+        w.add("packaging", None, f"the title has {len(title)} characters (at most {cfg['title_max_chars']} show in full)")
+    term = plan.get("search_term")
+    if not term:
+        w.add("packaging", None, "plan.json has no \"search_term\" (the words viewers search for, e.g. \"MPC\")")
+    elif term.lower() not in title.lower():
+        w.add("packaging", None, f"the title does not contain the search term {term!r}")
+    series_title = (plan.get("_series_title") or "")
+    if series_title and series_title.lower() in title.lower():
+        w.add("packaging", None, "the title repeats the series name: the playlist and the description carry it")
+    th = plan.get("thumbnail") or {}
+    words = len(str(th.get("text", "")).split())
+    if words > cfg["thumbnail_max_words"]:
+        w.add("packaging", None, f"the thumbnail text has {words} words (at most {cfg['thumbnail_max_words']}; one "
+              "bold picture carries it)")
+    scenes = plan.get("scenes", [])
+    hook = scenes[0]["class"] if scenes else None
+    if th.get("scene") != hook or float(th.get("time", 1e9)) > cfg["thumbnail_by_s"]:
+        w.add("packaging", None, f"the thumbnail frame is not from the hook's first {cfg['thumbnail_by_s']} s: show "
+              "the thumbnail's picture early (click match)")
+
+
 def check(run: Path, stage: str, cfg: dict) -> tuple[list[dict], dict]:
     w = Warnings()
     plan = json.loads((run / "video" / "plan.json").read_text(encoding="utf-8"))
+    ctx0 = run / "video" / "series_context.json"
+    if ctx0.exists():
+        plan["_series_title"] = json.loads(ctx0.read_text(encoding="utf-8")).get("series_title", "")
     scenes = plan.get("scenes", [])
     logs = scene_logs(run, stage, plan)
     channel = load_json(CONFIG / "channel.json").get("channel_name", "Remaining Action")
@@ -128,6 +229,9 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[list[dict], dict]:
             w.add("hook first", 0.0, f"no narration in the first scene ({scenes[0]['class']}): speech starts at 0 s")
         elif start > cfg["speech_start_max_s"]:
             w.add("hook first", start, f"narration starts at {start:.1f} s (at most {cfg['speech_start_max_s']} s)")
+    if scenes:
+        hook_checks(scenes, logs, starts, narration, cfg, w)
+    packaging(plan, cfg, w)
     # outro
     if scenes:
         last = scenes[-1]

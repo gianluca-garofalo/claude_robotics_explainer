@@ -17,10 +17,16 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
 1. **Storyboard first** (`video/storyboard.md`, template in [storyboard.md](storyboard.md)). A video is not a walk
    through the explainer's sections: choose less, and different, material that tells one story for a viewer, at the
    depth a video can carry (about three new ideas), and say what is left out. Scenes of one idea each, 30 to 120 s;
-   the opening hook (narration from 0 s, no channel card) and the outro (15-20 s, `outro()`: the takeaway card, the
-   channel name, the right of the frame empty for the end screen); the voice-over text with `<bookmark mark='x'/>`
-   cues; what is on screen at each moment and how long it must stay (reading model below); the sources and data each
-   scene uses. A series episode adds its beats from `video/episode.md` (see the `produce-episode` skill).
+   the opening hook (a full, moving picture from the first frame, music from 0 s, narration by 3 s, the question by 15
+   s, then the stakes; no channel card (a title beat of about 4-6 s after the hook, with the "Episode n of N" lower
+   third, is allowed); the body by 45 s; its first frame, first line, question, stakes and the picture the thumbnail
+   uses are storyboard fields), the title beat (`title_beat()`) and the outro (15-20 s; v5: at least 1.5 s of
+   picture and music after the last word, and a question asked aloud there also on the card; `outro()`: the takeaway card,
+   the channel name, the right of the frame empty for the end screen); the music mode of each scene (`bed` in the
+   hook, title beat and outro; `low` or `off` under explanation: background music under a narrated derivation lowers
+   recall); the voice-over text with `<bookmark mark='x'/>` cues; what is on screen at each moment and how long it
+   must stay (reading model below); the sources and data each scene uses. A series episode adds its beats from
+   `video/episode.md` (see the `produce-episode` skill).
 2. **Data.** Export what the scenes show with a script in `code/` (listed in `checks.toml`) that writes
    `video/data/<name>.npz`, or recompute closed forms from the explainer's equations. Nothing on screen is typed by hand.
 3. **Scenes.** Copy `templates/manim/common.py`, `voice.py`, `reading_model.py` and `scene_template.py` into
@@ -31,16 +37,22 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
    clickbait), `summary` (two to four sentences for the description), `tags`, `scenes` in order with the explainer
    `section` id each one draws on (a source, for the review), its `chapter`, the title viewers see (written for the
    video, never the explainer's heading), its `role` (`hook` first, `outro` last; `context` and `recap` with
-   `recap_of` in series episodes), and `thumbnail` (`scene`, `time` in seconds of a frame with nothing where the title
-   goes, the left half; `text` of at most four words). `python3 tools/ci/scene_matrix.py runs/<run>` must accept it.
+   `recap_of` in series episodes), its `music` mode when it differs from the role's default, `search_term` (the words
+   viewers search for; the title, at most 60 characters, contains it and not the series name), and `thumbnail`
+   (`scene` and `time`: a frame of the hook within its first 15 s, so the promise is shown early; `text` of at most
+   three words; `layout` `picture` for a frame-first thumbnail with the title in a top band, keeping the top fifth of
+   that frame empty, or `panel` with nothing where the title goes, the left half). `python3
+   tools/ci/scene_matrix.py runs/<run>` must accept it; `check_series.py` warns about the opening and the packaging.
 5. **Draft check:** `bash tools/render_video.sh runs/<run> --check` (every scene at -ql, silent, with captions and
    layout logs), then
    `python3 tools/video/check_design.py runs/<run> --stage draft`,
    `python3 tools/video/check_reading.py runs/<run> --stage draft`,
    `python3 tools/video/check_numbers.py runs/<run> --stage draft`,
    `python3 tools/video/check_selfcontained.py runs/<run> --stage draft` and
-   `python3 tools/video/check_series.py runs/<run> --stage draft`. Fix every error; read the warnings (spacing, space
-   use, motion, recall load, opening and ending, series beats).
+   `python3 tools/video/check_series.py runs/<run> --stage draft` and
+   `python3 tools/video/check_engagement.py runs/<run> --stage draft`. Fix every error; read the warnings (spacing,
+   space use, motion, recall load, opening and ending, series beats, and the engagement report: frozen frames under
+   narration, transforms, fades to empty, spoken symbols, slide titles, beats, the metaphor).
 6. **Design review:** start the `video-design-reviewer` subagent on the run (it looks at the sampled frames and contact
    sheets in `review/design/draft/`), then one `finding-verifier` per blocker or major `VD-` finding, then
    `python3 tools/merge_reviews.py runs/<run> --set video`. Fix confirmed blockers and majors, record decisions in
@@ -49,6 +61,71 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
 7. **README:** `video/README.md` with scene -> file -> explainer section -> data and script, the colour meanings, and
    the voice: Piper by default (`voice.service` in `config/channel.json`), or `python3 tools/video/voice_script.py
    runs/<run>` lists the blocks to record for the user's own voice.
+
+## Craft: one moving world, not a slide deck (tools/video/check_engagement.py; warnings first)
+
+An independent review of episode 1 against the 3Blue1Brown bar (2026-11-04) measured the habits that make a narrated
+slide deck; the storyboard's craft plan and these helpers in `common.py` avoid them:
+- **Motion budget.** Something draws, moves or changes while the narration talks: a frozen picture under narration
+  warns after 6 s and is an error after 12 s; aim for at least half of the runtime moving. Split long narration
+  blocks with bookmarks and animate what is being said (`run_time=tracker.duration`).
+- **Emphasis is not motion (v4).** `Indicate`, `Circumscribe`, `Flash` and `pulse()` name an object once, when the
+  narration names it; narration over emphasis alone counts as a frozen picture (`layout_probe.py` logs every play),
+  and an emphasis call in a loop, more than four per minute, or emphasis under more than a fifth of the narration
+  are warnings. If nothing in the picture can move while a sentence is said, the sentence needs its own picture.
+  Signal, do not pulse (v5): emphasis is still the right tool once, when a term or object is first named (Mayer's
+  signaling principle); episode 1 v4 dropped it altogether, and new terms arrived with no cue. One short `Indicate`
+  or colour flash per new term is within every limit above. Give the cue the object's own colour (or INK):
+  `Indicate`'s default yellow is off the palette and reads as the amber of a cost (v6).
+- **One world.** The episode's metaphor (`meter()` in this channel) and its objects stay on screen across chapters:
+  end a scene with `carry_over(self, *keep)` and start the next with `self.carry_in()` of the same objects built by
+  the same code (their texts count as read, so no reading hold freezes the first frame) (an episode module such as `epNN_world.py`). `FadeOut(Group(*self.mobjects))` belongs only to the last
+  scene. Declare the metaphor in `plan.json` "metaphor" (`{"name": ..., "label": "left to pay"}`).
+- **Picture first, then the formula grows out of it.** `TransformFromCopy(segment, cost_term)`; derivations with
+  `derive(self, line, next_line)` (TransformMatchingTex plus a highlight beat on what changed) on `ceq(*pieces)`,
+  which colours each quantity by `config/video.json` "quantities"; a `Brace` under "the rest of the sum" that turns
+  into its symbol. Write the pieces that stay the same identically, so they stay put. An equation assembled from its
+  pieces (`TransformFromCopy` into a piece, `FadeIn` of a piece, `LaggedStart` over the pieces) is checked like any
+  text from v6 on: `layout_probe.py` logs it as one equation (before, its pieces were paths, and the design and
+  reading-time checks never saw it: v5's chain of inequalities crossed by the bowls passed).
+- **One picture per inequality.** `budget_bars(before, after, ...)` (blocks coloured by quantity) for every
+  "what is lost covers what is spent" comparison of the episode.
+- **Narration in meanings.** Say "the cost of one step" and let the coloured equation carry `L_d(q,q')`; at most one
+  spoken symbol per 25 words; "you" and "we"; a question every couple of minutes; voice the likely misconception
+  before the right idea. At most two new technical terms per narration block (`engagement.jargon`), each with its
+  own picture: "Lyapunov function, asymptotically stable, terminal cost and terminal set" in one sentence is four.
+- **One name per parameter.** A parameter keeps one name and one convention for the whole video ("the weight 1.2 of
+  the end cost W = 1.2 * q^2/2" makes the textbook choice "weight 1", never "one half").
+- **Faithful pictures.** The picture has the dimension and the units of the mathematics it illustrates: a scalar
+  example is a number line or the graph of its bill V(q) (a bowl the dot slides down), never a 2-D path; numbers
+  on screen sit on a picture drawn to their scale. Schematic pictures carry no numbers: say which a scene's picture
+  is in `plan.json` (`"picture": "faithful"` or `"schematic"`, every scene, v6), and `check_engagement.py` warns at
+  a live readout with digits or a decimal on a schematic one (episode 1 v5: "left to pay = 0.039" over the hook's
+  2-D path in the title beat, because `meter()` shows its value unless told `show_value=False`).
+- **Readouts and replays.** Paired readouts ("this step", "left to pay") update in the same `play()`; never say a
+  conclusion over a rewind or a replay in which the metaphor moves the wrong way (the bill climbing while the
+  narration says "certified").
+- **The meter means one thing (v5).** Along the controller's path the bill only falls. `layout_probe.py` logs the
+  meter's value (`meter()` sets `ra_value`), and `check_engagement.py` warns at every refill that `plan.json` does not
+  declare: a scene lists its intended refills as `"metaphor_resets": [{"says": "<words of the narration block that
+  announces it>", "why": "..."}]`, and the narration must say it ("let's build it", "start again from the same
+  point"). v6: the meter refills while or after those words are said, never seconds before them (v5 refilled at a
+  cut, 3.6 s before "start again"); and the words state the real reason: "start again from the same point" is true
+  of a replay, not of a new example at a new point. A scan over hypothetical points belongs on the bowl or on a ghost meter, not on the meter (episode 1 v4:
+  the meter refilled from 0.119 to 0.586 with no step paid, and climbed just before "the bill only goes down"). A
+  body scene that shows the meter without ever changing it gets a warning too: let it follow the argument or leave it
+  out of that scene.
+- **No empty frame inside a scene (v5).** Transform the last picture into the next, or keep the meter on screen,
+  instead of clearing the frame (v4's outro went blank for 0.3 s between the meter and the card).
+- **Pacing.** After each key reveal, a `beat(self, 2.0)`: no words, the picture holds (or one slow push-in,
+  `push=1.04`) while the music swells; music-off scenes get a "low" swell in pauses of 1.8 s or more
+  (`config/channel.json` music.off_beat_swell_s), so a beat is never digital silence. One pause-and-ponder
+  question; a "so what" sentence after every boxed result. Inside a block, write "..." where a spoken pause belongs
+  (the Piper voice pauses 0.7 s there, 0.45 s after a question, 0.25 s after other sentences).
+- **Text economy.** No persistent slide titles (the chapter list names the chapter); at most about 25 words and terms
+  on screen; on-screen sentences only for the takeaway.
+- **Camera moves** (`MovingCameraScene`) are not supported yet: `layout_probe.py` and `check_design.py` read object
+  coordinates, not the camera frame. Zoom by scaling the world group instead (the checks then stay correct).
 
 ## Self-contained video (house rule; tools/video/check_selfcontained.py fails the gate otherwise)
 
@@ -92,7 +169,7 @@ real minus sign, a space before a unit. Live readouts keep fixed decimals so the
 
 Text needs 0.6 s plus 0.3 s per word (200 words per minute); an equation needs 1 s plus 0.6 s per term, at least 2 s;
 both 1.4 times longer while narration plays; nothing under 1 s; at most 40 words and equation terms on screen at once;
-narration 130 to 150 words per minute. RAScene waits automatically before a FadeOut, Transform or removal takes text
+narration 130 to 150 words per minute; check_reading.py warns above 25 words and terms on screen. RAScene waits automatically before a FadeOut, Transform or removal takes text
 away too early; `self.read(*mobjects)` waits explicitly (before a cut or the end card). Live readouts are exempt.
 
 ## Gotchas
@@ -117,5 +194,10 @@ away too early; `self.read(*mobjects)` waits explicitly (before a cut or the end
   top-level mobjects, and the clutter check then counts every piece; keep labels that leave early in their own group.
 - Long data (500-point curves redrawn each frame) is slow at 1080p60: precompute paths, or reveal a fixed curve with a
   ValueTracker instead of rebuilding it.
-- No footage, logos, images or URLs from the news sources in scenes: the gates reject third-party media.
+- No footage, logos, images, sound files or URLs from the news sources in scenes: the gates reject unlicensed
+  third-party media. Music is never added in a scene: `assemble.py` mixes the generated music by the plan's modes.
+- `meter(value, vmax)` is the channel's signature object (a bar that drains, with a live `readout()`): use it for the
+  quantity the episode is about, from the hook on; the value comes from `code/` or a closed form. While its level is
+  schematic (a picture of the argument, not the worked numbers), show the label alone: `meter(..., show_value=False)`
+  or `m.swap_readout(self, False)`; switch the number back on for the worked example.
 - Setup problems (Pango headers, Debian pip, LaTeX packages, SoX) are covered in [manim-setup.md](manim-setup.md).

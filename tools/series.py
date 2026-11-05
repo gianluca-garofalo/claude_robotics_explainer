@@ -352,7 +352,7 @@ def validate_v2(data: dict, repo: Path = REPO) -> tuple[list[str], list[str]]:
         elif len(st_) > 28 or len(st_.split()) > 4:
             warns.append(f"{w}: short_title {st_!r} is long (at most 4 words, 28 characters read at a glance)")
         if not (isinstance(e.get("hook"), str) and e["hook"].strip()):
-            errs.append(f"{w}: hook is required (the first seconds, spoken from 0 s)")
+            errs.append(f"{w}: hook is required (the first seconds: a full moving picture, spoken by 3 s, its question by 15 s)")
         if not isinstance(e.get("length_min"), (int, float)) or not 1 <= e["length_min"] <= 30:
             errs.append(f"{w}: length_min must be 1-30")
         tk = e.get("takeaway") or {}
@@ -672,7 +672,7 @@ def brief(sp: Path, s: dict, ep: dict, kept: Path | None, fresh: bool, source_co
     lines = [f"# Episode {ep['number']} of {len(s['episodes'])}: {ep['title']}", "",
              f"Series: {s['title']} (`{rel(sp)}`, {state}). Explainer: `explainer.html` (copied unchanged from "
              f"`{s['source']}`). Kind: {ep['kind']}. Target length: {ep.get('length_min', '?')} min.", "",
-             f"- Hook (spoken from 0 s): {ep.get('hook', '')}",
+             f"- Hook (a full moving picture from frame 0, spoken by 3 s, its question by 15 s): {ep.get('hook', '')}",
              f"- Story beat: {ep.get('story_beat', '')}",
              f"- Takeaway: {(ep.get('takeaway') or {}).get('sentence', '')} (card: `takeaway_card()`)",
              f"- Builds on (recap each): {', '.join(map(ref_key, pre.get('must', []))) or 'nothing'}; helpful: "

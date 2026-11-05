@@ -430,6 +430,48 @@ class LiveReadoutPlacement(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+@unittest.skipUnless(_manim() and shutil.which("ffmpeg") and shutil.which("latex"),
+                     "needs Manim with manim-voiceover ($MANIM or .venv), LaTeX and ffmpeg")
+class EquationBuiltFromPieces(unittest.TestCase):
+    """v6: an equation on screen only as its pieces (LaggedStart of FadeIn over the pieces, TransformFromCopy into a
+    piece) is logged as one math text, so a stroke through it is found (the probe used to log the pieces as paths)."""
+
+    def test_render(self):
+        tmp = Path(tempfile.mkdtemp(prefix="pieces-test-"))
+        try:
+            scenes = tmp / "video" / "scenes"
+            scenes.mkdir(parents=True)
+            for f in ("common.py", "voice.py", "reading_model.py"):
+                shutil.copy(REPO / "templates" / "manim" / f, scenes / f)
+            (scenes / "t.py").write_text(
+                "from manim import *\nfrom common import *\n\n"
+                "class T(RAScene):\n    def construct(self):\n"
+                "        chain = MathTex('V_N', r'\\le', 'V_{N-1}', r'\\le', 'V_0', font_size=40).move_to([0, 1, 0])\n"
+                "        self.play(LaggedStart(*[FadeIn(x) for x in chain], lag_ratio=0.2), run_time=1.0)\n"
+                "        src = Square(0.3, color=INK).move_to([-4, -2, 0])\n"
+                "        eq = MathTex('a', '+', 'b', font_size=40).move_to([3, -2, 0])\n"
+                "        self.add(src)\n"
+                "        self.play(TransformFromCopy(src, eq[0]), FadeIn(eq[1]), FadeIn(eq[2]), run_time=0.6)\n"
+                "        self.play(Create(Line([-3, 0.6, 0], [3, 1.4, 0], color=INK, stroke_width=6)), run_time=0.5)\n"
+                "        self.wait(2.0)\n", encoding="utf-8")
+            env = dict(os.environ, MANIM=_manim(), VOICE_SERVICE="silent")
+            r = subprocess.run(["bash", str(REPO / "tools" / "render_video.sh"), str(tmp), "--check", "--voice", "silent",
+                                "--scene", "t.py:T"], capture_output=True, text=True, env=env, cwd=REPO)
+            self.assertEqual(r.returncode, 0, r.stdout[-1500:] + r.stderr[-1500:])
+            layout = tmp / "video" / "checks" / "T.layout.json"
+            log = json.loads(layout.read_text())["scenes"]["T"]
+            last = [x for x in log["snapshots"] if x["settled"]][-1]
+            maths = {x["content"]: x for x in last["texts"] if x["kind"] == "math"}
+            self.assertIn("a + b", maths)
+            chain = next(x for c, x in maths.items() if c.startswith("V_N"))
+            self.assertLess(chain["bbox"][0], -1.0)                       # the whole chain, not one piece
+            findings = design_findings(layout)
+            self.assertTrue([f for f in findings if f["check"] == "overlap" and "crossed" in f["detail"]
+                             and "V_N" in f["detail"]], [f["detail"] for f in findings])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 @unittest.skipUnless(_manim() and shutil.which("ffmpeg"), "needs Manim with manim-voiceover ($MANIM or .venv) and ffmpeg")
 class AttachAndLegendTable(unittest.TestCase):
     """common.py attach() reaches the layout log, and legend_table() aligns its columns by construction."""

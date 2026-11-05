@@ -15,10 +15,11 @@
 # Voice: --voice, else $VOICE_SERVICE, else "voice.service" in config/channel.json (piper). Drafts are silent. A final
 # render whose voice cannot work here (Piper without its model: ./setup.sh downloads it) stops before rendering.
 # Manim: $MANIM, else .venv/bin/manim, else manim on PATH. Python for the checks: $PYTHON, else .venv/bin/python, else
-# python3. Media caches go to video/media/ (git-ignored). Runs under bash (3.2 or later) from any shell.
+# python3. Media caches go to video/media/<Class>/ (git-ignored; one folder per scene, so parallel renders do not race
+# on Manim's text cache). Runs under bash (3.2 or later) from any shell.
 set -euo pipefail
 
-usage() { sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 case "${1:-}" in -h|--help) usage 0 ;; esac
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -143,7 +144,8 @@ OUTS=(); FAILED=0
 for s in "${SCENES[@]}"; do
   file="${s%%:*}"; cls="${s##*:}"
   if [ "$MODE" = check ]; then out="$OUTDIR/${cls}_ql.mp4"; else out="$OUTDIR/${cls}.mp4"; fi
-  if render_one "$RUN/video/scenes/$file" "$cls" "$Q" "$MEDIA" "$out"; then OUTS+=("$out"); else FAILED=1; fi
+  mkdir -p "$MEDIA/$cls"     # one media folder per scene: two renders side by side never share a text cache file
+  if render_one "$RUN/video/scenes/$file" "$cls" "$Q" "$MEDIA/$cls" "$out"; then OUTS+=("$out"); else FAILED=1; fi
 done
 [ ${#OUTS[@]} -gt 0 ] || exit 1
 report="$OUTDIR/check.json"

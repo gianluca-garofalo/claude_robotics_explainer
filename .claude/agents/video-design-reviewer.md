@@ -18,8 +18,8 @@ You review the video design of scenes you did not make, in `runs/<run>/video/`. 
 thresholds in `config/video.json`, `video/storyboard.md` and `video/plan.json`.
 
 Inputs, made by the deterministic tools (rerun them if they are missing or older than the renders):
-`python3 tools/video/check_design.py runs/<run> --stage draft` and `python3 tools/video/check_reading.py runs/<run>
---stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
+`python3 tools/video/check_design.py runs/<run> --stage draft`, `python3 tools/video/check_reading.py runs/<run>
+--stage draft` and `python3 tools/video/check_engagement.py runs/<run> --stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
 of every animation and every few seconds (`frames/<Class>/t<seconds>.png`) and a contact sheet per scene
 (`<Class>-sheet.jpg`). The renders are `video/checks/<Class>_ql.mp4`; extract other frames with
 `ffmpeg -ss <t> -i <file> -frames:v 1 <png>` into `review/video/frames/` when you need them.
@@ -68,10 +68,51 @@ Do this, looking at the images (Read the PNG and JPG files), scene by scene:
    exact values exact, a real minus sign) and one precision per quantity in a scene; space use (`check_design.md`
    "space": lopsided or wasted frames, a small picture) and motion ("motion": overlaps while things move, readouts
    whose width jumps).
-12. Opening and ending (`check_series.md`): the hook first with narration from 0 s and no channel card; the outro
-   15-20 s with the takeaway card, the channel name and, in a series, the spoken teaser, nothing in the right ~40 % of
-   the frame; in a series episode the spoken context at the first natural break over the builds-on frame, and a marked
-   recap with its own chapter for everything it uses.
+12. Opening and ending (`check_series.md`): the hook first (a full, moving picture from the first frame, music from 0
+    s, narration by 3 s, the question by 15 s, then the stakes; no channel card (a title beat of about 4-6 s, mostly spoken, after the
+    hook, with the "Episode n of N" lower third, is allowed); the body by 45 s): an empty or near-empty first frame, a
+    first line that is set-up instead of a claim or question, a question after 15 s, no stakes, or a picture that
+    answers its own question before it is asked is a `major` finding; the thumbnail's picture appears within the first
+    15 s; the hook's objects carry into the title beat (no fade to an empty frame); the packaging (title with the
+    search term, at most 60 characters, no series name; thumbnail of at most three words, one bold image); the outro
+    15-20 s with the takeaway card, the channel name and, in a series, the spoken teaser, nothing in the right ~40 %
+    of the frame; in a series episode the spoken context at the first natural break over the builds-on frame, and a
+    marked recap with its own chapter for everything it uses.
+13. Engagement, against the 3Blue1Brown bar (`review/design/draft/check_engagement.md`, warnings first; confirm or
+    dismiss each with what you see): a picture frozen while the narration talks (more than 6 s: a finding; more than
+    12 s: `major`); derivations written line by line instead of transformed (`derive()`, `TransformMatchingTex`,
+    `TransformFromCopy`, a brace turning into its symbol); chapters that fade to an empty frame and rebuild the same
+    objects instead of carrying them over (`carry_over()`); persistent slide titles; more than about 25 words and
+    terms on screen; notation read aloud ("V N minus one of q plus") instead of meanings; no "you / we", no questions.
+    And the storyboard's craft fields, each checked on the frames: one central visual metaphor (`plan.json`
+    "metaphor", in episode 1 the remaining-action meter) visible and doing work in most body scenes; the picture of
+    each idea before its formula; "which object becomes which" (a path segment flying into the cost term, a bar
+    turning into its symbol); one quantity, one colour, in pictures, bars and equations (`config/video.json`
+    "quantities", `ceq()`); the misconception voiced and refuted; a "so what" sentence after every boxed result; 2-3
+    planned pauses after the reveals (`beat()`) and one pause-and-ponder prompt; an everyday analogy or real-world
+    anchor in the first 90 s. Missing metaphor, formula before picture for the central argument, or a frozen frame
+    over 12 s of narration is `major`. v4: emphasis (`Indicate`, `Circumscribe`, `pulse()`) is not motion: a
+    stretch where only highlights move counts as frozen (`check_engagement.md` reports narration over emphasis
+    alone); a picture whose dimension or scale contradicts the maths or numbers it carries (a 2-D path for a scalar
+    example), or a parameter named two ways, is `major`; more than two new technical terms in one narration block,
+    paired readouts that update apart, a conclusion narrated over a replay where the metaphor moves the wrong way:
+    findings with the fix. Thumbnail: the picture must stay bold at 168 x 94 (thick strokes, the key object large,
+    no readouts in the frame). v5: the metaphor means one thing. `check_engagement.md` lists every refill of the
+    meter that `plan.json` does not declare (`metaphor_resets`) and every body scene where it never changes; a refill
+    with no step paid that the narration does not announce, or one just before "the bill only goes down", is `major`;
+    a declared refill whose reason does not hold is a finding too. Also: an empty frame inside a scene; a stretch of
+    8 s or more in which the content sits in a thin strip (an axis and small dots) while the narration explains;
+    narration about "outside the region" with no outside on screen; a new technical term named with no cue at all
+    (signaling: one short highlight or colour change when it is named is right, pulsing is not). v6: each scene's
+    `plan.json` "picture" (faithful or schematic) must match the frames; a number on a schematic picture is a
+    finding; a declared refill whose sentence is a stock phrase that is not true there ("start again from the same
+    point" at a new point) is a finding; an equation built from its pieces is now in the design and reading-time
+    reports like any text, so judge their warnings on it.
+14. SoME rubric (the Summer of Math Exposition criteria): score the draft 1-5 on **motivation** (why should a viewer
+    care, by when), **clarity** (can a viewer follow each step from the picture), **novelty** (a view the viewer has
+    not seen elsewhere), **memorability** (one image or sentence they will keep), each with evidence (frame file and
+    time). Put them in the report as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` and in the
+    `.md`. A score of 2 or less on motivation or memorability is also a `major` finding with the fix.
 
 Severities for design: `blocker` = a viewer cannot read or follow it (illegible or overlapping text, a meaning carried by
 colour alone, content cut off, a reference to material outside the video or an equation label); `major` = it misleads or strains (wrong emphasis, inconsistent colour meaning, clutter

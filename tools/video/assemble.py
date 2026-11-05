@@ -5,11 +5,25 @@ Usage:
   python3 tools/video/assemble.py runs/<run> [--quality h|m|l] [--fps N]
 
 Inputs:  video/plan.json; video/renders/<Class>.mp4 (+ .srt) for each scene; explainer.html (section headings, only
-         for old plans without chapter titles). Nothing is added: the video opens with the first scene's hook (no
-         channel card) and ends with the plan's outro scene (takeaway card, channel name, teaser).
-Outputs: video/final/<slug>.mp4 (h264 + AAC, loudness-normalised), <slug>.srt (captions shifted to the final
-         timeline), chapters.json (YouTube rules: first at 0:00, each at least 10 s, at least three), assembly.json.
+         for old plans without chapter titles); config/channel.json "video" (quality, loudness_lufs) and "music".
+         No card is added: the video opens with the first scene's hook (no channel card) and ends with the plan's
+         outro scene (takeaway card, channel name, teaser). The only thing added is original music (route A of the
+         music rule): tools/video/music.py generates it, seeded and reproducible, with its provenance stamp.
+Outputs: video/final/<slug>.mp4 (h264 + AAC), <slug>.srt (captions shifted to the final timeline), chapters.json
+         (YouTube rules: first at 0:00, each at least 10 s, at least three), assembly.json (segments, and "audio":
+         the music settings and the loudness and true peak measured on the encoded file), narration.wav (the
+         narration stem, which the final gate measures), music.wav, stings.wav and music.json (when music is on).
 Each segment is re-encoded to one size, frame rate and audio format, so the concatenation is exact.
+
+Audio chain (after the concatenation): the narration stem (high-passed at 70 Hz, 2 dB less at 7 kHz, where the
+synthetic voice has an edge); the music bed set bed_in_gaps_lu below the narration's loudness and ducked by
+bed_in_gaps_lu - bed_under_voice_lu while the narration speaks (a sidechain keyed by the narration advanced by
+lookahead_ms, attack_ms, release_ms), per scene mode (plan.json "music": bed, low or off; music.py); the stings at
+sting_lu; then two passes to the target: the premix is measured
+(EBU R128), a fixed gain brings it to video.loudness_lufs, an oversampled (192 kHz) limiter holds the peaks, and the
+true peak is measured again after AAC encoding; above music.true_peak_dbtp the limiter is lowered and the encode
+repeated, and a gain
+shortfall the limiter caused (more than 0.3 LU) is made up (at most four encodes).
 """
 from __future__ import annotations
 
@@ -23,10 +37,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import CONFIG, load_json, rel, resolve_run, write_json  # noqa: E402
+import music as MU  # noqa: E402
 import plan as P  # noqa: E402
 
 PRESETS = {"l": (854, 480, 15), "m": (1280, 720, 30), "h": (1920, 1080, 60), "k": (3840, 2160, 60)}
 MIN_CHAPTER_S = 10.0
+MAX_GAIN_DB = 24.0          # never raise a near-silent premix (a silent draft voice) by more than this
+VOICE_FILTER = "highpass=f=70,equalizer=f=7000:t=q:w=1.5:g=-2"
 
 
 def run(cmd):
@@ -67,6 +84,97 @@ def normalise(src: Path, dst: Path, w: int, h: int, fps: int) -> float:
     return float(probe(dst)["format"]["duration"])
 
 
+def loudness(path: Path, extra: list[str] | None = None) -> dict:
+    """EBU R128 of a file (music.py's measure): integrated LUFS, LRA, true peak dBTP."""
+    return MU.loudness(path, extra)
+
+
+def master_audio(joined: Path, out: Path, build: Path, final: Path, slug: str, segments: list[dict],
+                 chs: list[dict], total: float, channel: dict) -> dict:
+    """Narration stem, music (when on), ducking, two-pass loudness and the true-peak limit; muxes `out`."""
+    import numpy as np
+    target = float(channel.get("video", {}).get("loudness_lufs", -14))
+    mcfg = MU.settings()
+    tp_max = float(mcfg.get("true_peak_dbtp", -1.0))
+    use_music = bool(mcfg.get("enabled")) and mcfg.get("source", "generated") == "generated"
+    for name in ("music.wav", "stings.wav", "music.json"):       # never leave an old stamp behind
+        if not use_music and (final / name).exists():
+            (final / name).unlink()
+    stem = final / "narration.wav"
+    run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-map", "0:a:0", "-af", VOICE_FILTER, "-ar", str(MU.SR),
+         "-ac", "2", "-c:a", "pcm_s16le", str(stem)])
+    voice, _ = MU.read_wav(stem)
+    n = voice.shape[1]
+    voice_l = loudness(stem)
+    silent_voice = voice_l["integrated_lufs"] <= -60
+    ref = target if silent_voice else voice_l["integrated_lufs"]   # a silent draft voice: place the bed by the target
+    mix = voice.copy()
+    info = {"used": False}
+    if use_music:
+        stamp = MU.build(final, slug, segments, chs, total, voice.mean(axis=0), mcfg)
+        bed, _ = MU.read_wav(final / "music.wav")
+        st, _ = MU.read_wav(final / "stings.wav")
+        bed, st = bed[:, :n], st[:, :n]
+        if bed.shape[1] < n:
+            bed = np.pad(bed, ((0, 0), (0, n - bed.shape[1])))
+            st = np.pad(st, ((0, 0), (0, n - st.shape[1])))
+        g_bed = (ref + float(mcfg["bed_in_gaps_lu"])) - stamp["levels"]["bed_lufs"]
+        duck_db = float(mcfg["bed_in_gaps_lu"]) - float(mcfg["bed_under_voice_lu"])
+        gain = MU.duck_gain(voice.mean(axis=0), MU.SR, duck_db, mcfg["attack_ms"], mcfg["release_ms"],
+                            mcfg["lookahead_ms"]) if not silent_voice else np.ones(n)
+        sl = stamp["levels"].get("sting_lufs")
+        g_st = (ref + float(mcfg["sting_lu"])) - sl if sl is not None and sl > -70 else -120.0
+        st_gain = MU.duck_gain(voice.mean(axis=0), MU.SR, float(mcfg.get("sting_duck_db", 14.0)),
+                               mcfg["attack_ms"], mcfg["release_ms"], mcfg["lookahead_ms"]) \
+            if not silent_voice else np.ones(n)
+        music_mix = bed * gain * 10 ** (g_bed / 20) + st * st_gain * 10 ** (g_st / 20)
+        mix = mix + music_mix
+        under = None
+        if not silent_voice:                      # K-weighted, as the loudness targets: the mixed music alone
+            probe = build / "music_mix_probe.wav"
+            MU.write_wav(probe, music_mix, bits=32)
+            under = MU.under_voice_files(stem, probe)
+            if under is None:
+                under = MU.under_voice(voice.mean(axis=0), music_mix.mean(axis=0), MU.SR)
+        info = {"used": True, "source": "generated", "generator": stamp["generator"], "tool_version":
+                stamp["tool_version"], "preset": stamp["preset"], "seed": stamp["seed"], "sha256": stamp["sha256"],
+                "stamp": rel(final / "music.json"), "bed_gain_db": round(g_bed, 2), "sting_gain_db": round(g_st, 2),
+                "bed_in_gaps_lu": mcfg["bed_in_gaps_lu"], "bed_under_voice_lu": mcfg["bed_under_voice_lu"],
+                "duck_db": round(duck_db, 2), "attack_ms": mcfg["attack_ms"], "release_ms": mcfg["release_ms"],
+                "lookahead_ms": mcfg["lookahead_ms"], "low_under_voice_lu": mcfg["low_under_voice_lu"],
+                "modes": stamp["events"]["modes"], "stings": stamp["events"]["stings"],
+                "sting_duck_db": float(mcfg.get("sting_duck_db", 14.0)),
+                "under_voice_max_db": under,
+                "under_voice_limit_db": float(mcfg.get("music_under_voice_max_lu", -12.0))}
+    premix = build / "premix.wav"
+    headroom = max(1.0, float(np.abs(mix).max()) * 1.05)
+    MU.write_wav(premix, mix / headroom, bits=32)
+    pre = loudness(premix)
+    gain_db = min(MAX_GAIN_DB, target - pre["integrated_lufs"])
+    master = build / "master.wav"
+    limit_db = tp_max - 1.0
+    for attempt in range(4):
+        lim = 10 ** (limit_db / 20)
+        run(["ffmpeg", "-v", "error", "-y", "-i", str(premix), "-af",
+             f"volume={gain_db:.2f}dB,aresample=192000,alimiter=limit={lim:.4f}:attack=3:release=60:level=false:"
+             f"latency=true,aresample=48000", "-c:a", "pcm_s24le", str(master)])
+        run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-i", str(master), "-map", "0:v:0", "-map", "1:a:0",
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-shortest",
+             "-movflags", "+faststart", str(out)])
+        measured = loudness(out)
+        off = target - measured["integrated_lufs"]
+        tp_ok = measured["true_peak_dbtp"] <= tp_max
+        if tp_ok and (abs(off) <= 0.3 or measured["integrated_lufs"] <= -60):
+            break
+        if not tp_ok:
+            limit_db -= measured["true_peak_dbtp"] - tp_max + 0.3
+        gain_db = min(MAX_GAIN_DB, gain_db + off)           # the limiter took some loudness: make it up
+    return {"target_lufs": target, "true_peak_max_dbtp": tp_max, "voice_filter": VOICE_FILTER,
+            "narration_stem": rel(stem), "narration": voice_l, "premix": pre, "gain_db": round(gain_db, 2),
+            "limiter_dbfs": round(limit_db, 2), "passes": attempt + 1, "measured": measured,
+            "music": info}
+
+
 def parse_srt(text: str) -> list[tuple[float, float, str]]:
     def t(s):
         hh, mm, rest = s.strip().split(":")
@@ -101,6 +209,28 @@ def section_titles(explainer: Path) -> dict[str, str]:
         text = re.sub(r"^\d+(\.\d+)*\.?\s+", "", text)
         out[sid] = re.sub(r"\s+", " ", text.replace("$", "").replace("<", "").replace(">", "")).strip()
     return out
+
+
+def music_changes(scene: dict, layout: Path, t0: float) -> list[list]:
+    """(v5) plan.json scenes[].music_from [{"says", "mode"}] as [[video seconds, mode]]: the start of the scene's first
+    narration block (from its layout log) that contains the words; a cue whose words are not found is left out."""
+    cues = scene.get("music_from") or []
+    if not cues or not layout.exists():
+        return []
+    log = load_json(layout)
+    vos = list(log.get("voiceovers") or [])
+    for sc in (log.get("scenes") or {}).values():         # layout_probe.py logs: {"scenes": {name: {"voiceovers"}}}
+        vos += sc.get("voiceovers") or []
+    out = []
+    for c in cues:
+        says = str(c.get("says") or "").strip().lower()
+        hit = next((v for v in vos if says and says in str(v.get("text", "")).lower()), None)
+        if hit is not None and c.get("mode") in MU.MODES:
+            out.append([round(t0 + float(hit["start"]), 3), c["mode"]])
+        else:
+            print(f"warning: {scene.get('class')}: music_from {says!r} matches no narration block; ignored",
+                  file=sys.stderr)
+    return sorted(out)
 
 
 def chapters(segments: list[dict], titles: dict[str, str], total: float) -> list[dict]:
@@ -164,7 +294,10 @@ def main() -> int:
         if scene:
             seg.update({"class": scene["class"], "section": scene.get("section"),     # context and outro may omit it
                         "chapter": scene.get("chapter") or scene.get("section") or scene["class"],
-                        "role": scene.get("role", "body")})
+                        "role": scene.get("role", "body"), "music": MU.scene_mode(scene, MU.settings())})
+            changes = music_changes(scene, src.with_suffix(".layout.json"), t)
+            if changes:
+                seg["music_changes"] = changes
             srt = src.with_suffix(".srt")
             if srt.exists():
                 for a0, b0, text in parse_srt(srt.read_text(encoding="utf-8")):
@@ -175,11 +308,9 @@ def main() -> int:
     joined = build / "joined.mp4"
     run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(build / "concat.txt"), "-c", "copy",
          str(joined)])
-    lufs = channel.get("video", {}).get("loudness_lufs", -16)
     out = final / f"{slug}.mp4"
-    run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-c:v", "copy",
-         "-af", f"loudnorm=I={lufs}:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
-         "-movflags", "+faststart", str(out)])
+    audio = master_audio(joined, out, build, final, slug, segments,
+                         chapters(segments, section_titles(runp / "explainer.html"), t), t, channel)
     total = float(probe(out)["format"]["duration"])
 
     srt_lines = []
@@ -191,11 +322,16 @@ def main() -> int:
     write_json(final / "assembly.json", {"schema_version": 1, "quality": q, "size": [w, h], "fps": fps,
                                           "duration": round(total, 3), "video": rel(out),
                                           "captions": rel(final / f"{slug}.srt"), "cues": len(cues),
-                                          "segments": segments})
+                                          "audio": audio, "segments": segments})
     print(f"wrote {rel(out)}: {total:.1f} s, {len(segments)} segments, {len(cues)} caption cues, "
           f"{len(chs)} chapters{'' if len(chs) >= 3 else ' (fewer than 3: YouTube shows none)'}")
     for ch in chs:
         print(f"  {ch['label']}")
+    m = audio["measured"]
+    print(f"audio: {m['integrated_lufs']} LUFS integrated, true peak {m['true_peak_dbtp']} dBTP, LRA {m['lra_lu']} LU "
+          f"(target {audio['target_lufs']} LUFS, ceiling {audio['true_peak_max_dbtp']} dBTP); music: "
+          + (f"generated, preset {audio['music']['preset']}, seed {audio['music']['seed']}" if audio["music"]["used"]
+             else "off"))
     return 0
 
 

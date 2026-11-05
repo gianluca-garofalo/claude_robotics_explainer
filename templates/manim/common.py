@@ -10,12 +10,20 @@ House rule: the video is self-contained. Nothing on screen or in the narration n
 links or the description; no equation carries a label or tag ((13), (2), (★), "Eq. 3"; config/video.json
 equation_numbers); to use an equation again, show it again or pin() it in a corner. tools/video/check_selfcontained.py
 checks every render, the narration, the captions and the chapters. Numbers go through fmt() (config/video.json
-"numbers", tools/video/check_numbers.py). A video opens with its hook (speech from 0 s, no channel card) and ends with
-outro() (takeaway_card() and the channel name; the right of the frame empty for end screens); a series episode adds
-the spoken context over builds_on() and recap scenes with recap_tag() and recap_card() (tools/video/check_series.py).
+"numbers", tools/video/check_numbers.py). A video opens with its hook: a full, moving picture from the first frame
+(self.add() it before the first play()), a beat of motion and music, the first words by 3 s, the question by 15 s, no
+channel card; then a short title beat (title_beat(), the "Episode n of N" lower third, at most about 6 s) and the
+body by 45 s. It ends with outro() (takeaway_card() and the channel name; the right of the frame empty for end
+screens); a series episode adds recap scenes with recap_tag() and recap_card() (tools/video/check_series.py). meter()
+is the channel's signature object: the remaining action as a bar that drains, with a live readout. Choreography
+(tools/video/check_engagement.py): keep the picture moving while the narration talks; derive equations with
+derive() (TransformMatchingTex plus a highlight beat) on ceq() pieces coloured by quantity (config/video.json
+"quantities"); end scenes with carry_over() instead of a fade to an empty frame; plan beat()s after the reveals;
+show every inequality with the same budget_bars(). No persistent slide titles: the chapter list names the chapter.
 """
 import json
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -113,9 +121,11 @@ def pin(mob, corner=UR, scale=0.75):
 
 
 def swap_caption(scene, old, text, run_time=0.5):
-    """Cross-fade to a new caption (Transform between different strings morphs glyphs illegibly)."""
+    """Swap to a new caption: the old one fades out, then the new one in (Transform between different strings morphs
+    glyphs illegibly; two texts faded on one spot at once overlap)."""
     new = caption(text)
-    scene.play(FadeOut(old, shift=UP * 0.1), FadeIn(new, shift=UP * 0.1), run_time=run_time)
+    scene.play(Succession(FadeOut(old, shift=UP * 0.1, run_time=run_time / 2),
+                          FadeIn(new, shift=UP * 0.1, run_time=run_time / 2)), run_time=run_time)
     return new
 
 
@@ -146,19 +156,23 @@ def always_redraw(func):
     return mob
 
 
-def readout(text_or_label, value=None, decimals=None, unit="", font_size=26, color=INK, sign=False, **kw):
+def readout(text_or_label, value=None, decimals=None, unit="", font_size=26, color=INK, sign=False, zero_exact=False,
+            **kw):
     """A live number that changes every frame, in Pango Text (never a MathTex inside an updater: LaTeX would typeset
     every frame). readout("∫ L dt", lambda: paid, decimals=2) shows "∫ L dt = 1.04": the value goes through fmt() with
     fixed decimals (default numbers.readout_decimals), so the width stays steady and every readout of one quantity has
     the same precision; sign=True shows +0.14 and −1.50 (never −0.00). readout(lambda: "...") with a function returning
     the whole string still works: build its numbers with fmt(..., decimals=k). Position it with an updater after this
-    one (m.move_to(...)), as before."""
+    one (m.move_to(...)), as before. zero_exact=True (the meter's readout, v5): an exact zero reads "0", never
+    "0.000" (episode 1 v4, FC-11: an empty bar labelled "left to pay = 0.000")."""
     if value is None:
         fn = text_or_label
     else:
         k = NUMBERS.get("readout_decimals", 2) if decimals is None else decimals
         def fn():
-            shown = fmt(value(), decimals=k, unit=unit, sign=sign)
+            x = float(value())
+            shown = fmt(x, exact=True, unit=unit) if zero_exact and x == 0.0 else \
+                fmt(x, decimals=k, unit=unit, sign=sign)
             if sign and shown[:1] not in ("+", MINUS):
                 shown = "\u2007\u2009" + shown          # a zero keeps the sign's width (DejaVu Sans): no jump
             return f"{text_or_label} = {shown}"
@@ -250,8 +264,10 @@ def series_context():
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
-def takeaway_card(episode=None, tex=None, font_size=40, color=GREEN):
-    """An episode's takeaway card: its equations stacked in a rounded frame, the first one in `color`. The same
+def takeaway_card(episode=None, tex=None, font_size=40, color=None):
+    """An episode's takeaway card: its equations stacked in a rounded frame (the first one in `color` when given;
+    by default all in ink: colours belong to quantities, config/video.json "quantities", so do not paint a result
+    in a quantity's colour; mark the result with a shape, e.g. a box, if it needs emphasis). The same
     builder makes an episode's own card (outro) and the recap card of a later episode, from the same data
     (series_context.json "takeaways", or the recap's "card"), so the two match. episode: a key such as 2 or
     "mpc-mechanics:2" (default: this episode); tex: the equations themselves (news videos)."""
@@ -261,7 +277,8 @@ def takeaway_card(episode=None, tex=None, font_size=40, color=GREEN):
         tex = ((ctx.get("takeaways") or {}).get(key) or {}).get("tex") or []
         if not tex:
             raise ValueError(f"no takeaway equations for episode {key} in series_context.json")
-    rows = VGroup(*[eq(t, font_size=font_size, color=color if i == 0 else INK) for i, t in enumerate(tex)])
+    rows = VGroup(*[eq(t, font_size=font_size, color=color if (i == 0 and color) else INK)
+                    for i, t in enumerate(tex)])
     rows.arrange(DOWN, buff=0.4)
     frame = RoundedRectangle(width=rows.width + 0.8, height=rows.height + 0.7, corner_radius=0.18, color=GRID,
                              stroke_width=2).move_to(rows)
@@ -304,6 +321,116 @@ def builds_on(ctx=None):
     return g.move_to(ORIGIN)
 
 
+def plan_title():
+    """The video's title from video/plan.json (the title beat shows it), or None."""
+    p = Path(HERE).parent / "plan.json"
+    try:
+        return json.loads(p.read_text(encoding="utf-8")).get("title")
+    except (OSError, ValueError):
+        return None
+
+
+def title_beat(title=None, ctx=None, size=40):
+    """The short title beat right after the hook (about 4-6 s, over the picture the hook built, which stays): the
+    video's title at the top of the safe area and a lower third with "Episode n of N", the series title and, when the
+    episode builds on others, their short titles. Returns VGroup(head, lower); fade the hook's question out and head
+    in, then FadeIn(lower). For a news video (no series context) the lower third is empty. Say the series sentence
+    ("This is episode three of five ...") over it; there is no channel card and no separate series frame."""
+    ctx = ctx if ctx is not None else series_context()
+    head = Text(title or plan_title() or "", font_size=size, weight=BOLD)
+    if head.width > 2 * SAFE_X:
+        head.scale_to_fit_width(2 * SAFE_X)
+    head.move_to([0, SAFE_Y - head.height / 2 - 0.05, 0])
+    lines = []
+    if ctx:
+        lines += [Text(f"Episode {ctx['episode']} of {ctx['episodes_total']}", font_size=30, weight=BOLD),
+                  Text(ctx["series_title"], font_size=24, color=MUTED)]
+        must = (ctx.get("prerequisites") or {}).get("must", [])
+        if must:
+            lines += [Text("Builds on", font_size=24, color=MUTED)]
+            lines += [Text(ctx["short_titles"].get(k, k), font_size=24, color=INK) for k in must]
+    lower = VGroup(*lines).arrange(DOWN, aligned_edge=LEFT, buff=0.16) if lines else VGroup()
+    if lines:
+        if lower.width > 2 * SAFE_X - 0.6:
+            lower.scale_to_fit_width(2 * SAFE_X - 0.6)
+        bar = Line(ORIGIN, UP * lower.height, color=GREEN, stroke_width=4)
+        lower.next_to(bar, RIGHT, buff=0.25)
+        lower = VGroup(bar, lower)
+        lower.move_to([-SAFE_X + lower.width / 2, -SAFE_Y + lower.height / 2 + 0.05, 0])
+    return VGroup(head, lower)
+
+
+class Meter(VGroup):
+    """meter()'s result: the frame, the live fill and the live readout. level(v) is the y of the fill's top at value v
+    (to place a bracket or a cost segment beside the bar)."""
+
+    def level(self, v):
+        return self.frame.get_bottom()[1] + self.bar_height * max(0.0, min(v, self.vmax)) / self.vmax
+
+    def _make_readout(self, show_value=True):
+        label, value, decimals, font_size, buff = self._ro_args
+        if show_value:
+            ro = readout(label, value, decimals=decimals, font_size=font_size, zero_exact=True)
+        else:                                   # a schematic picture: the meaning without a number
+            ro = Text(label, font_size=font_size, color=INK)
+        ro.next_to(self.frame, DOWN, buff=buff)
+        ro.add_updater(lambda m: m.next_to(self.frame, DOWN, buff=buff))
+        return ro
+
+    def swap_readout(self, scene, show_value, run_time=0.5, *others):
+        """Swap the readout (the old one fades out, then the new one fades in) between the live number (show_value=True: its value comes from code/ or a closed
+        form) and the label alone (False: while the bar's level is schematic, no number is shown with it); `others`
+        are animations played with the cross-fade."""
+        new = self._make_readout(show_value)
+        old = self.readout
+        old.clear_updaters()
+        self.remove(old)
+        (scene.carry_in if hasattr(scene, "carry_in") else scene.add)(old)   # a live readout needs no reading hold
+        # v4: the old text leaves before the new one arrives (a cross-fade on one spot reads "left toto pay": the
+        # final-cut review of episode 1 v3, FC-6); `others` run over the whole run_time
+        scene.play(Succession(FadeOut(old, run_time=run_time / 2), FadeIn(new, run_time=run_time / 2)), *others,
+                   run_time=run_time)
+        scene.remove(new)                         # FadeIn left it at the top level: keep one copy, inside the meter
+        self.readout = new
+        self.add(new)
+        return self
+
+    def freeze(self):
+        """Stop the live fill and readout (call before FadeOut: a redrawn part would stay visible) and return self."""
+        for part in (self.fill, self.readout):
+            part.clear_updaters()
+        return self
+
+
+def meter(value, vmax, label="left to pay", height=4.0, width=0.6, decimals=3, color=BLUE, font_size=26,
+          readout_buff=0.3, show_value=True):
+    """The remaining-action meter, the channel's signature object (the series is named after it): a bar whose fill
+    drains as the value falls, and under it a live readout("left to pay", value) through fmt(). value: a function
+    (a ValueTracker's get_value) whose numbers come from code/ or a closed form, never typed by hand; vmax: the value
+    of a full bar. Move the whole meter with move_to(); the fill and the readout follow its frame. Use it in the hook,
+    the body where the argument is about what is left, the thumbnail frame and the outro. Marked ra_role="metaphor"
+    for the checks, with ra_value() (the number the bar shows, readout or not) and ra_vmax, which layout_probe.py logs
+    (v5): along the controller's path the bill only falls, so a refill (a new start, a shorter window, a scan of
+    hypothetical points) is declared in plan.json (scenes[].metaphor_resets) and said in the narration, or shown
+    on the bowl or a ghost meter instead. Call freeze() before fading it out."""
+    frame = Rectangle(width=width, height=height, color=MUTED, stroke_width=2)
+
+    def make_fill():
+        v = max(0.0, min(float(value()), vmax))
+        h = max(height * v / vmax, 0.002)
+        r = Rectangle(width=width - 0.1, height=h, stroke_width=0, fill_color=color, fill_opacity=0.9)
+        return r.move_to(frame.get_bottom() + UP * (h / 2 + 0.0))
+    fill = always_redraw(make_fill)
+    m = Meter(frame, fill)
+    m.frame, m.fill, m.bar_height, m.vmax = frame, fill, height, vmax
+    m._ro_args = (label, value, decimals, font_size, readout_buff)
+    m.readout = m._make_readout(show_value)
+    m.add(m.readout)
+    m.ra_role = "metaphor"
+    m.ra_value, m.ra_vmax = (lambda: float(value())), vmax      # v5: logged by layout_probe.py, checked for refills
+    return m
+
+
 def outro(card, next_title=None):
     """The outro layout (15-20 s): the takeaway card and the channel name on the left, an optional "Next: ..." line,
     and the right of the frame (x > END_SCREEN_X) empty for YouTube's end-screen elements. Say the teaser ("In the
@@ -321,6 +448,177 @@ def outro(card, next_title=None):
     g = VGroup(*parts)
     for m in parts[1:-1]:
         m.align_to(card, LEFT)
+    return g
+
+
+# Choreography (the review against the 3Blue1Brown bar, 2026-11-04: transform, do not retype; colour bound to the
+# quantity; carry objects across cuts; planned beats; one picture reused for every inequality)
+_COLOR_NAMES = {"blue": BLUE, "amber": AMBER, "green": GREEN, "red": RED, "ink": INK, "muted": MUTED}
+QUANTITIES = {k: v for k, v in (_VIDEO.get("quantities") or {}).items() if isinstance(v, dict)}
+QCOLOR = {k: _COLOR_NAMES.get(str(v.get("color", "ink")).lower(), v.get("color", INK)) for k, v in QUANTITIES.items()}
+
+
+def qcolor(name):
+    """The fixed colour of a quantity (config/video.json "quantities", e.g. qcolor("V")), INK when unmapped."""
+    return QCOLOR.get(name, INK)
+
+
+def _piece_color(tex):
+    t = tex.strip()
+    for _ in range(3):                                   # leading relations and operators do not decide the colour
+        t = re.sub(r"^(?:=|\\leq|\\geq|\\le|\\ge|<|>|\+|-|\\,|\\;|\\quad|\\qquad|\\ |\\!|\s)+", "", t)
+    best = None
+    for name, q in QUANTITIES.items():
+        for pre in q.get("tex", []):
+            if t.startswith(pre) and (best is None or len(pre) > best[1]):
+                best = (name, len(pre))
+    return QCOLOR[best[0]] if best else None
+
+
+def ceq(*pieces, font_size=36, color_map=True, **kw):
+    """An equation built from pieces (MathTex(*pieces)): every piece that starts with a quantity's symbol
+    (config/video.json "quantities": V, L_d, W ...) takes that quantity's colour, everywhere in the video, so a
+    quantity keeps one colour in pictures, bars and equations. Pieces are also the units TransformMatchingTex
+    matches: write the pieces that stay the same in two lines identically, and derive() morphs only what changes.
+    Without LaTeX, a plain Text fallback."""
+    if not HAS_LATEX:
+        return Text("".join(pieces), font_size=int(font_size * 0.75), **kw)
+    m = MathTex(*pieces, font_size=font_size, **kw)
+    if color_map:
+        for sub, tex in zip(m.submobjects, pieces):
+            c = _piece_color(tex)
+            if c is not None:
+                sub.set_color(c)
+    return m
+
+
+def derive(scene, src, dst, key_map=None, run_time=1.6, highlight=None, beat_s=0.8, from_copy=False):
+    """One step of a derivation as a transform, in the manner of TransformMatchingTex: the pieces src and dst share
+    (the same tex) glide to their new places, the pieces paired by key_map={"old piece": "new piece"} morph into
+    each other (several old pieces may map to one new piece, and their glyph counts may differ), the rest fade out
+    and in; then a highlight beat on what is new (or on the pieces given by index in `highlight`), so the eye lands
+    where the change is. from_copy=True keeps src on screen. Position dst before calling. Returns dst."""
+    key_map = key_map or {}
+    sp, dp = list(src.submobjects), list(dst.submobjects)
+
+    def tex(m):
+        return getattr(m, "tex_string", None)
+    used, pairs, new = set(), [], []
+    for d in dp:
+        i = next((i for i, x in enumerate(sp) if i not in used and tex(x) == tex(d)), None)
+        if i is not None:
+            used.add(i)
+            pairs.append(([sp[i]], d))
+        else:
+            new.append(d)
+    unmatched = []
+    for d in new:
+        ss = [i for i, x in enumerate(sp) if i not in used and key_map.get(tex(x)) == tex(d)]
+        used.update(ss)
+        if ss:
+            pairs.append(([sp[i] for i in ss], d))
+        else:
+            unmatched.append(d)
+    if hasattr(scene, "read") and not from_copy:
+        scene.read(src)
+    gone = [sp[i].copy() for i in range(len(sp)) if i not in used]
+    anims = [ReplacementTransform(VGroup(*[x.copy() for x in ss]), d) for ss, d in pairs]
+    anims += [FadeOut(x) for x in gone] + [FadeIn(d) for d in unmatched]
+    if not from_copy:
+        scene.remove(src, *sp)                    # its pieces may sit in the scene one by one (TransformFromCopy)
+    scene.play(*anims, run_time=run_time)
+    scene.remove(*dp, *gone)
+    scene.add(dst)
+    if highlight is None:
+        old = {tex(x) for x in sp}
+        targets = [x for x in dp if tex(x) not in old]
+    else:
+        targets = [dp[i] for i in highlight]
+    if targets and beat_s > 0:
+        scene.play(*[Indicate(x, color=x.get_color(), scale_factor=1.12) for x in targets], run_time=beat_s)
+    return dst
+
+
+def until(tracker, mark, minimum=0.6):
+    """Seconds from now to a bookmark of the voiceover (at least `minimum`): give the animation before
+    wait_until_bookmark() this run_time, so the picture keeps moving up to the word instead of waiting still."""
+    try:
+        return max(float(tracker.time_until_bookmark(mark)), minimum)
+    except Exception:                              # no such bookmark, or a service without word timings
+        return minimum
+
+
+def pulse(scene, mob, seconds, period=1.6, scale=1.08, color=None, max_cycles=2):
+    """Signal the object the narration is naming: at most `max_cycles` gentle Indicate cycles of about `period` each,
+    then hold still for the rest of `seconds`. Emphasis is not motion: check_engagement.py counts narration over
+    emphasis alone as a frozen picture (layout_probe.py logs every play), so do not pulse to fill time; animate what
+    the narration says (move the dot, grow the bar, transform the equation) instead."""
+    n = max(1, min(int(round(seconds / period)), max_cycles))
+    each = min(period, seconds / n)
+    for _ in range(n):
+        scene.play(Indicate(mob, color=color or mob.get_color(), scale_factor=scale), run_time=each)
+    if seconds - n * each > 0.05:
+        scene.wait(seconds - n * each)
+
+
+def carry_over(scene, *keep, run_time=0.6):
+    """End a scene in the layout the next one starts from: fade out everything except `keep` (the dot, the region,
+    the meter ...), which the next scene adds again at frame 0 with the same code. Replaces
+    FadeOut(Group(*self.mobjects)), the fade to an empty frame (check_engagement.py warns about it)."""
+    keep_ids = {id(x) for k in keep for x in k.get_family()}
+    gone = [m for m in scene.mobjects if id(m) not in keep_ids]
+    for m in gone:
+        for x in m.get_family():
+            x.clear_updaters()
+    if gone:
+        scene.play(*[FadeOut(m) for m in gone], run_time=run_time)
+    return list(keep)
+
+
+def beat(scene, seconds=2.0, *mobs, push=1.0):
+    """A planned pause right after a reveal: `seconds` without words, so the result can sink in. The music swells in
+    it (give the scene "low" music: in a scene whose music is "off" a beat is digital silence, which
+    check_engagement.py reports). With `push` > 1, the first of `mobs` grows slowly by that factor and settles back
+    (a calm push-in, one smooth move); by default the picture holds still: a beat needs no flashing."""
+    if mobs and push and push != 1.0:
+        scene.play(mobs[0].animate.scale(push), rate_func=there_and_back, run_time=seconds)
+    else:
+        scene.wait(seconds)
+
+
+class BudgetBars(VGroup):
+    """budget_bars()'s result. before, after: VGroups of the stacked blocks (bottom first); guide: the dashed line at
+    the top of the before stack, across to the after stack; level(v): the y of value v on the shared scale."""
+
+    def level(self, v):
+        return self.base_y + v * self.scale
+
+
+def budget_bars(before, after, x_before, x_after, base_y=-1.9, scale=1.0, width=0.6, opacity=0.85, guide=True):
+    """The budget picture of an inequality: a stack of blocks before a step against the stack after it, on one
+    scale, so 'what is lost covers what is spent' is a comparison of heights. before, after: lists of (value,
+    colour) pairs, bottom first (use qcolor() so each block has its quantity's colour); values from code/ or a
+    closed form, or schematic heights when no number is shown. Reuse one picture for every inequality of an episode
+    (the one-step test, the descent, the worked numbers)."""
+    def stack(items, x):
+        g, y = VGroup(), base_y
+        for v, c in items:
+            h = max(v * scale, 0.002)
+            g.add(Rectangle(width=width, height=h, stroke_width=2, stroke_color=c, fill_color=c,
+                            fill_opacity=opacity).move_to([x, y + h / 2, 0]))
+            y += h
+        return g
+    b, a = stack(before, x_before), stack(after, x_after)
+    parts = [b, a]
+    line = None
+    if guide and before:
+        top = base_y + sum(v for v, _ in before) * scale
+        x0, x1 = sorted([x_before, x_after])
+        line = DashedLine([x0 - width / 2, top, 0], [x1 + width / 2, top, 0], color=MUTED, stroke_width=2,
+                          dash_length=0.1)
+        parts.append(line)
+    g = BudgetBars(*parts)
+    g.before, g.after, g.guide, g.base_y, g.scale = b, a, line, base_y, scale
     return g
 
 
@@ -418,6 +716,17 @@ class RAScene(VoiceoverScene):
         super().add(*mobs)
         if not self._in_play:
             self._stamp()
+        return self
+
+    def carry_in(self, *mobs):
+        """Add the objects carried over from the previous scene's last frame (carry_over() there): the first frame
+        is the previous scene's last, and their texts count as already read, so nothing holds the picture still
+        before the first animation."""
+        self.add(*mobs)
+        for m in mobs:
+            for x in text_items(m):
+                if id(x) in self._shown:
+                    self._shown[id(x)] = (x, -1e9)
         return self
 
     def remove(self, *mobs):

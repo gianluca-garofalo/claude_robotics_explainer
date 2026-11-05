@@ -7,7 +7,8 @@ Usage:
 Writes video/final/youtube.json: snippet (title, description, tags, category, languages), status (review privacy,
 made-for-kids and synthetic-media declarations, licence) and the run's links decision. The description carries the
 plan's summary, the primary sources (third-party attribution), the chapters (from chapters.json), the disclosure
-line, the Remaining Action footer and a "Run:" marker that makes uploads idempotent. A series episode's description
+line, a "Music:" credit when the mix carries music (from video/final/music.json: "original, generated"), the
+Remaining Action footer and a "Run:" marker that makes uploads idempotent. A series episode's description
 starts "Episode n of N · <series>", with links to the channel's own published episodes it builds on and to the series
 playlist (our own YouTube videos: included even with links off; from video/series_context.json). Links to the
 explainer and its
@@ -64,6 +65,20 @@ def synthetic_flag(channel: dict, run: Path | None = None) -> bool:
     """status.containsSyntheticMedia: true/false from config, or "auto" = true whenever the voice is synthetic."""
     v = channel["youtube"].get("contains_synthetic_media", "auto")
     return synthetic_voice(channel, run) if v == "auto" else bool(v)
+
+
+def music_line(run: Path) -> str:
+    """The description's music credit, from the provenance stamp assemble.py left (empty without music)."""
+    asm_p, st_p = run / "video" / "final" / "assembly.json", run / "video" / "final" / "music.json"
+    if not asm_p.exists() or not st_p.exists():
+        return ""
+    used = ((load_json(asm_p).get("audio") or {}).get("music") or {}).get("used")
+    st = load_json(st_p)
+    if not used:
+        return ""
+    if st.get("source") == "generated":
+        return "Music: original, generated for this video."
+    return ""
 
 
 def links_included(channel: dict, override: str | None = None) -> bool:
@@ -131,7 +146,10 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
         if chs:
             parts += ["Chapters:"] + [c["label"] for c in chs] + [""]
         note = channel["voice"].get("synthetic_voice_note", "") if synthetic_voice(channel, run) else ""
-        parts += [" ".join(x for x in (note, channel["voice"]["disclosure"]) if x), "",
+        parts += [" ".join(x for x in (note, channel["voice"]["disclosure"]) if x)]
+        if music_line(run):
+            parts.append(music_line(run))
+        parts += ["",
                   f"{channel['channel_name']}: {channel['tagline']}",
                   channel["description_footer"]]
         if explainer_url and channel.get("links", {}).get("footer"):
@@ -156,6 +174,7 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
     return {
         "schema_version": 1, "run": run.name, "marker": f"Run: {run.name}", "slug": slug,
         "links": {"included": bool(explainer_url), "explainer_url": explainer_url, "code_url": code_url},
+        "music": music_line(run),
         "explainer_url": explainer_url, "code_url": code_url,
         "files": {"video": f"video/final/{slug}.mp4", "captions": f"video/final/{slug}.srt",
                   "thumbnail": "video/final/thumbnail.jpg"},

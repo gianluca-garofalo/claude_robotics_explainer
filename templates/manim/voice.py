@@ -18,6 +18,10 @@ The voice source is ONE setting, "voice.service" in config/channel.json. A run m
 Pacing: a Piper block faster than reading.narration_wpm_target of config/video.json (150 words per minute, words
 counted as the reading-time check counts them) is synthesized again, slower, so the synthetic voice keeps the house
 pacing rule that tools/video/check_reading.py enforces on the final renders.
+Pauses (v4): the silence after a sentence depends on how it ends, so the delivery is less uniform: after "." and
+"!" voice.piper.sentence_pause_s (0.25 s), after "?" question_pause_s (default 1.8 times that: the listener gets a
+moment to think), after an ellipsis ("..." or "\u2026", a deliberate beat in the script) ellipsis_pause_s (default 2.8
+times that). Write the ellipsis in the narration where a spoken pause belongs.
 
 Draft renders use resolve(draft=True): always silent. Final renders use the setting as it is and fail fast, with
 the fix, when it cannot work.
@@ -189,16 +193,27 @@ def linear_word_boundaries(text, duration):
 
 
 def sentence_spans(raw):
-    """(start, end) character spans of the sentences of raw: a sentence ends at . ! or ? (and closing quotes or
-    brackets) followed by whitespace or the end, so decimals such as 0.42 stay whole."""
+    """(start, end) character spans of the sentences of raw: a sentence ends at . ! ? or an ellipsis (and closing
+    quotes or brackets) followed by whitespace or the end, so decimals such as 0.42 stay whole."""
     spans, start = [], 0
-    for m in re.finditer(r"[.!?]+[\"')\]]*(?=\s|$)", raw):
+    for m in re.finditer(r"[.!?\u2026]+[\"')\]]*(?=\s|$)", raw):
         if raw[start:m.end()].strip():
             spans.append((start, m.end()))
         start = m.end()
     if raw[start:].strip():
         spans.append((start, len(raw)))
     return spans
+
+
+def pause_after(sentence, base, question=None, ellipsis=None):
+    """Seconds of silence after a sentence, by how it ends: an ellipsis ("..." or the single character) a deliberate
+    beat (ellipsis, default 2.8 x base), a question (question, default 1.8 x base), anything else base."""
+    end = sentence.rstrip().rstrip("\"')]")
+    if end.endswith("...") or end.endswith("\u2026"):
+        return float(ellipsis) if ellipsis is not None else 2.8 * base
+    if end.endswith("?"):
+        return float(question) if question is not None else 1.8 * base
+    return base
 
 
 def sentence_word_boundaries(text, spans, duration):
@@ -266,12 +281,15 @@ class PiperService(SpeechService):
     timings estimated within each measured sentence (see the module docstring)."""
 
     def __init__(self, model, voice=DEFAULT_PIPER_VOICE, length_scale=None, noise_scale=None, noise_w_scale=None,
-                 speaker=None, sentence_pause_s=0.25, max_wpm=None, **kwargs):
+                 speaker=None, sentence_pause_s=0.25, max_wpm=None, question_pause_s=None, ellipsis_pause_s=None,
+                 **kwargs):
         self.model = Path(model)
         self.voice_name = voice
         self.synthesis = {"length_scale": length_scale, "noise_scale": noise_scale, "noise_w_scale": noise_w_scale,
                           "speaker_id": speaker}
         self.sentence_pause_s = float(sentence_pause_s)
+        self.question_pause_s = None if question_pause_s is None else float(question_pause_s)
+        self.ellipsis_pause_s = None if ellipsis_pause_s is None else float(ellipsis_pause_s)
         self.max_wpm = max_wpm     # pacing: a block faster than this is synthesized again, slower (house rule)
         self._voice = None
         super().__init__(**kwargs)
@@ -289,7 +307,10 @@ class PiperService(SpeechService):
         raw = remove_bookmarks(text)
         settings = {k: v for k, v in self.synthesis.items() if v is not None}
         data = {"input_text": " ".join(raw.split()), "service": "piper", "voice": self.voice_name,
-                "model_bytes": self.model.stat().st_size, "pause_s": self.sentence_pause_s, **settings}
+                "model_bytes": self.model.stat().st_size, "pause_s": self.sentence_pause_s,
+                "pauses_by_ending": [pause_after("?", self.sentence_pause_s, self.question_pause_s),
+                                     pause_after("...", self.sentence_pause_s, ellipsis=self.ellipsis_pause_s)],
+                **settings}
         if self.max_wpm:
             data["max_wpm"] = self.max_wpm
         cached = self.get_cached_result(data, cache_dir)
@@ -297,11 +318,10 @@ class PiperService(SpeechService):
             return cached
         voice = self._load()
         rate = int(voice.config.sample_rate)
-        gap = np.zeros(int(round(self.sentence_pause_s * rate)), dtype=np.int16)
 
         def synth(settings):
             syn = SynthesisConfig(**settings)
-            parts, spans, t = [], [], 0.0
+            parts, spans, t, pause = [], [], 0.0, self.sentence_pause_s
             for a, b in sentence_spans(raw):
                 chunks = []
                 for c in voice.synthesize(" ".join(raw[a:b].split()), syn_config=syn):
@@ -309,11 +329,13 @@ class PiperService(SpeechService):
                     chunks.append(np.asarray(pcm() if callable(pcm) else pcm, dtype=np.int16).reshape(-1))
                 pcm = np.concatenate(chunks) if chunks else np.zeros(0, dtype=np.int16)
                 if parts:
+                    gap = np.zeros(int(round(pause * rate)), dtype=np.int16)    # by how the last sentence ended
                     parts.append(gap)
                     t += len(gap) / rate
                 spans.append((a, b, t, t + len(pcm) / rate))
                 parts.append(pcm)
                 t += len(pcm) / rate
+                pause = pause_after(raw[a:b], self.sentence_pause_s, self.question_pause_s, self.ellipsis_pause_s)
             return (np.concatenate(parts) if parts else np.zeros(rate // 2, dtype=np.int16)), spans
 
         audio, spans = synth(settings)
@@ -430,6 +452,7 @@ def speech_service(scene_dir=None, name=None, cache_dir=None):
         return PiperService(piper_model(cfg, scene_dir)[0], voice=p["voice"], length_scale=p.get("length_scale"),
                             noise_scale=p.get("noise_scale"), noise_w_scale=p.get("noise_w_scale"),
                             speaker=p.get("speaker"), sentence_pause_s=p.get("sentence_pause_s", 0.25),
+                            question_pause_s=p.get("question_pause_s"), ellipsis_pause_s=p.get("ellipsis_pause_s"),
                             max_wpm=pacing_limit(scene_dir), **kw)
     if name == "azure":
         _need(*KEYS["azure"])

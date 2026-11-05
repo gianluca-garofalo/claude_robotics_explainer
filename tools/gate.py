@@ -37,7 +37,8 @@ import voice_script as VS  # noqa: E402
 REVIEWERS = ("technical-correctness-reviewer", "reference-verifier", "presentation-reviewer", "claims-red-team",
              "linear-reader")
 PRESETS = {"l": (854, 480, 15), "m": (1280, 720, 30), "h": (1920, 1080, 60), "k": (3840, 2160, 60)}
-MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".webm", ".mp3", ".wav", ".m4a", ".svg"}
+MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".webm", ".svg"}
+AUDIO_SUFFIXES = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus"}
 
 
 class Gates:
@@ -127,6 +128,26 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
                                                     if items else "") + (" ..." if len(items) > 2 else "")
                       + " (check_series.py; warnings only)")
     g.guard(f"opening, ending and series beats ({stage})", structure)
+
+    def engagement():
+        p = run / "review" / "design" / stage / "check_engagement.json"
+        block = bool(_json_or_empty(CONFIG / "video.json").get("engagement", {}).get("errors_block_gate", False))
+        if not p.exists():
+            return not block, (f"not run (tools/video/check_engagement.py {rel(run)} --stage {stage}; warnings "
+                               "only)")
+        r = _json(p)
+        stale = [n for n in names if (r.get("layout_sha256") or {}).get(n) != (
+            sha256_file(folder / f"{n}.layout.json") if (folder / f"{n}.layout.json").exists() else None)]
+        st = r.get("stats", {})
+        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
+        detail = (f"{errs} error(s), {warns} warning(s); moving {st.get('moving_share', '-')}, longest frozen "
+                  f"narration {st.get('longest_frozen_narrated_s', '-')} s, FadeIn/transforms {st.get('fade_in')}/"
+                  f"{st.get('transforms')} (review/design/{stage}/check_engagement.md"
+                  + ("" if block else "; reported, not blocking: engagement.errors_block_gate") + ")")
+        if stale:
+            detail = f"not run on the current {stage} renders of {stale[:3]}; " + detail
+        return (not block) or (not errs and not stale), detail
+    g.guard(f"engagement: motion, transforms, narration, text ({stage})", engagement)
 
 
 def pre_render(run: Path, g: Gates, cfg: dict):
@@ -244,12 +265,21 @@ def pre_render(run: Path, g: Gates, cfg: dict):
         g.guard("attribution", attribution)
 
     def media():
+        """Images and footage in scenes and data are rejected; audio there needs the music generator's stamp (a
+        <file>.json beside it from tools/video/music.py). The final mix's own music is checked at the final stage."""
+        import music as MU
         bad = []
-        for sub in ("scenes", "data", "voice"):
+        for sub in ("scenes", "data"):
             d = run / "video" / sub
             for p in (d.rglob("*") if d.exists() else []):
-                if p.is_file() and p.suffix.lower() in MEDIA_SUFFIXES and sub != "voice":
+                if not p.is_file():
+                    continue
+                if p.suffix.lower() in MEDIA_SUFFIXES:
                     bad.append(rel(p))
+                elif p.suffix.lower() in AUDIO_SUFFIXES:
+                    st = _json_or_empty(p.with_name(p.name + ".json")) or _json_or_empty(p.with_suffix(".json"))
+                    if st.get("generator") != MU.GENERATOR or st.get("sha256") != sha256_file(p):
+                        bad.append(f"{rel(p)} (audio without a generator stamp)")
         for p in (run / "video" / "scenes").glob("*.py"):
             src = p.read_text(encoding="utf-8")
             if re.search(r"https?://", src):
@@ -257,8 +287,9 @@ def pre_render(run: Path, g: Gates, cfg: dict):
             for m in re.finditer(r"(ImageMobject|SVGMobject)\(\s*['\"]([^'\"]+)", src):
                 if not re.match(r"^(\.\./)*(code/figures|data)/", m.group(2)):
                     bad.append(f"{p.name}: {m.group(1)} loads {m.group(2)}")
-        return not bad, "only our renders, data and recordings" if not bad else f"third-party media risk: {bad[:5]}"
-    g.guard("no third-party media in the video", media)
+        return not bad, ("only our renders, data, recordings and generated sound" if not bad else
+                         f"unlicensed third-party media risk: {bad[:5]}")
+    g.guard("no unlicensed third-party media in the video", media)
 
     def video_plan():
         issues = P.problems(run)
@@ -329,15 +360,80 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("final video (size, frame rate, length, no channel card)", video)
 
     def narration():
-        path = P.final_video(run)
-        p = subprocess.run(["ffmpeg", "-v", "info", "-i", str(path), "-map", "0:a:0", "-af", "volumedetect", "-f", "null",
+        """Measured on the narration stem (video/final/narration.wav, written by assemble.py), not on the mix: with a
+        music bed under it, a silent narration would otherwise pass."""
+        stem = run / "video" / "final" / "narration.wav"
+        asm = _json(asm_p)
+        music = ((asm.get("audio") or {}).get("music") or {}).get("used", False)
+        src = stem if stem.exists() else (None if music else P.final_video(run))
+        if src is None:
+            return False, "music in the mix but no narration stem (video/final/narration.wav): assemble again"
+        p = subprocess.run(["ffmpeg", "-v", "info", "-i", str(src), "-map", "0:a:0", "-af", "volumedetect", "-f", "null",
                             "-"], capture_output=True, text=True)
         m = re.search(r"max_volume:\s*(-?[\d.]+|-inf) dB", p.stderr)
         level = float(m.group(1)) if m and m.group(1) != "-inf" else -200.0
         ok = level > -50 or allow_silent
-        return ok, f"audio peak {level:.1f} dB" + ("" if level > -50 else " (silent: a draft voice reached the final"
-                                                   + (", allowed for this test)" if allow_silent else ")"))
+        what = "narration stem" if src == stem else "audio (no stem: an older assembly without music)"
+        return ok, f"{what} peak {level:.1f} dB" + ("" if level > -50 else " (silent: a draft voice reached the final"
+                                                    + (", allowed for this test)" if allow_silent else ")"))
     g.guard("narration present", narration)
+
+    def music_provenance():
+        """Every sound in the mix besides the narration must be ours: generated music carries the stamp of
+        tools/video/music.py (generator, tool version, preset, seed) and its files match their sha256."""
+        import music as MU
+        asm = _json(asm_p)
+        info = (asm.get("audio") or {}).get("music") or {"used": False}
+        final_dir = run / "video" / "final"
+        if not info.get("used"):
+            stray = [n for n in ("music.wav", "stings.wav", "music.json") if (final_dir / n).exists()]
+            return not stray, ("no music in the mix (narration only)" if not stray else
+                               f"no music recorded in assembly.json, yet {stray} exist: assemble again")
+        if info.get("source") != "generated":
+            return False, f"music source {info.get('source')!r}: only original, generated music is allowed (route A)"
+        errs = MU.verify(final_dir)
+        stamp = _json_or_empty(final_dir / "music.json")
+        if stamp.get("sha256") != info.get("sha256"):
+            errs.append("assembly.json mixed another music.wav than the stamped one")
+        return not errs, ("original, generated: " + f"{stamp.get('generator')} {stamp.get('tool_version')}, preset "
+                          f"{stamp.get('preset')}, seed {stamp.get('seed')}, sha256 {str(stamp.get('sha256'))[:12]}..."
+                          if not errs else "; ".join(errs))
+    g.guard("music provenance (original sound only)", music_provenance)
+
+    def music_under_voice():
+        """No music element (bed, swells or stings) rises above music_under_voice_max_lu relative to the narration
+        while the narration speaks (assemble.py measures the mixed music against the narration stem; the v2
+        final-cut review found undocked stings on the first words)."""
+        asm = _json(asm_p)
+        info = (asm.get("audio") or {}).get("music") or {"used": False}
+        if not info.get("used"):
+            return True, "no music in the mix"
+        limit = float(info.get("under_voice_limit_db", (channel.get("music") or {}).get("music_under_voice_max_lu",
+                                                                                         -12.0)))
+        v = info.get("under_voice_max_db")
+        if v is None:
+            return allow_silent, ("not measured (an assembly older than the measurement, or a silent voice): "
+                                  "assemble again" + ("; not enforced (--allow-silent, tests only)" if allow_silent
+                                                      else ""))
+        return v <= limit, (f"loudest music while the voice speaks: {v:+.1f} dB relative to the voice (at most "
+                            f"{limit:+g}); stings at {[s['t'] for s in info.get('stings', [])]} s")
+    g.guard("music under the narration", music_under_voice)
+
+    def loudness():
+        """The integrated loudness and true peak of the encoded final video, as assemble.py measured them; a quick
+        re-measure of the file confirms them."""
+        import assemble as AS
+        asm = _json(asm_p)
+        a = asm.get("audio") or {}
+        target = float(channel.get("video", {}).get("loudness_lufs", -14))
+        ceiling = float((channel.get("music") or {}).get("true_peak_dbtp", -1.0))
+        m = AS.loudness(P.final_video(run))
+        ok = (abs(m["integrated_lufs"] - target) <= 1.0 and m["true_peak_dbtp"] <= ceiling + 0.05) or allow_silent
+        return ok, (f"{m['integrated_lufs']:.1f} LUFS integrated (target {target:g} ± 1), true peak "
+                    f"{m['true_peak_dbtp']:.1f} dBTP (ceiling {ceiling:g}, after AAC encoding), LRA {m['lra_lu']:.1f} LU"
+                    + ("" if a else "; assembly.json has no audio record (an older assembly)")
+                    + ("; not enforced (--allow-silent, tests only)" if allow_silent else ""))
+    g.guard("loudness and true peak", loudness)
 
     def voice_source():
         man = run / "video" / "voice" / "manifest.json"

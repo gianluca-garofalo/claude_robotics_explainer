@@ -23,10 +23,14 @@ Studio. The steps are the same as the workflow's render, final and final-cut job
    `bash tools/render_video.sh runs/<run> --quality h --voice recorded --scene <file>:<class>` (1080p60 from the
    prepared narration). A scene takes minutes: run the renders in the background, one or two at a time, and read each
    log; a failed render is fixed in the scene (manim-video-producer skill), then rendered again.
-4. **Checks of the renders.** `python3 tools/video/check_design.py runs/<run> --stage final --no-frames` and
-   `python3 tools/video/check_reading.py runs/<run> --stage final`.
+4. **Checks of the renders.** `python3 tools/video/check_design.py runs/<run> --stage final --no-frames`,
+   `python3 tools/video/check_reading.py runs/<run> --stage final` and
+   `python3 tools/video/check_engagement.py runs/<run> --stage final` (motion, transforms, narration, text; the gate
+   reports it, warnings first).
 5. **Assemble.** `python3 tools/video/assemble.py runs/<run>` (scenes in plan order, captions, chapters; no channel
-   card), `python3 tools/video/thumbnail.py runs/<run>`, `python3 tools/video/metadata.py runs/<run>` (links as
+   card; the narration stem; original music from `tools/video/music.py` by the plan's per-scene modes, ducked under
+   the voice; -14 LUFS with the true peak at most -1 dBTP measured after encoding; stings in pauses of the narration and ducked,
+   no music element above -12 dB relative to the voice while it speaks: read the "audio:" line it prints), `python3 tools/video/thumbnail.py runs/<run>`, `python3 tools/video/metadata.py runs/<run>` (links as
    `config/channel.json` sets them; off by default), then `check_design.py --stage final --no-frames` again (the
    thumbnail at 168 x 94), `check_selfcontained.py`, `check_numbers.py` and, for an episode, `check_series.py`, each
    with `runs/<run> --stage final`.

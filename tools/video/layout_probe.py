@@ -14,6 +14,18 @@ The JSON written to --probe-out holds, in scene seconds:
   timeline    every text item's visibility and position changes, sampled at up to --fps-max frames per second;
               for live items (readouts with updaters) also "values": [t, text shown] whenever the text changes
   voiceovers  start, duration and words of each manim-voiceover block; sections from next_section()
+  plays       every play() call: start, end and the class names of its leaf animations (AnimationGroup, Succession
+              and LaggedStart unpacked; ".animate" builders as "animate"), so tools/video/check_engagement.py can
+              tell motion that changes the picture's content from emphasis alone (Indicate, Circumscribe, ...)
+  metaphor    (v5) every object marked ra_role="metaphor" (common.py meter()): its value (ra_value(), the number the
+              bar shows, with or without a readout) and vmax, as "values": [t, value] whenever it changes by more
+              than 1e-4 and "visible": [t, 0|1], sampled like the timeline, so the checks can tell a meter that
+              drains along the path from one that refills with no step paid or never moves
+An equation on screen only as its pieces (v6: TransformFromCopy into a piece, FadeIn of a piece, LaggedStart over
+the pieces, the way common.py ceq()/derive() choreography builds formulas out of pictures) is logged as one math text
+item, the whole equation's content over the union of the visible pieces: before v6 such pieces were logged as paths,
+so the design, reading-time and words-on-screen checks did not see the equation at all (episode 1 v5: the Bill's
+formula never, a chain of inequalities crossed by curves unreported).
 Coordinates are Manim units (frame 14.22 x 8, origin at the centre). tools/video/check_design.py and
 tools/video/check_reading.py read this file; the gate never trusts a log it did not produce on a clean checkout.
 """
@@ -27,6 +39,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 STATE: dict = {"scenes": {}, "frame": {}}
+PIECES: dict = {}                       # (scene id, equation id) -> the proxy logged for its loose pieces
+_EQ_IDS = iter(range(1, 10 ** 12))
 OUT: Path | None = None
 INTERVAL, FPS_MAX = 1.0, 15.0
 MAX_POINTS = 40
@@ -43,6 +57,8 @@ class SceneLog:
         self.timeline: dict[int, dict] = {}
         self.voiceovers: list[dict] = []
         self.sections: list[dict] = []
+        self.plays: list[dict] = []
+        self.metaphor: dict[int, dict] = {}       # v5: value track of each ra_role="metaphor" object
         self.ids: dict[int, int] = {}
         self.keep: list = []                      # keep logged objects alive so id() stays unique
         self.last_sample = -1e9
@@ -58,7 +74,58 @@ class SceneLog:
 
     def to_json(self) -> dict:
         return {"snapshots": self.snapshots, "timeline": list(self.timeline.values()), "voiceovers": self.voiceovers,
-                "sections": self.sections, "duration": _r(self.end)}
+                "sections": self.sections, "plays": self.plays, "metaphor": list(self.metaphor.values()),
+                "duration": _r(self.end)}
+
+
+def anim_names(args) -> list[str]:
+    """Class names of the leaf animations of a play() call: groups (AnimationGroup, Succession, LaggedStart) are
+    unpacked, an ".animate" builder is "animate", a Wait is left out."""
+    out: list[str] = []
+
+    def go(a):
+        name = type(a).__name__
+        if name == "_AnimationBuilder":
+            out.append("animate")
+        elif hasattr(a, "animations") and isinstance(getattr(a, "animations"), (list, tuple)):
+            for b in a.animations:
+                go(b)
+        elif name != "Wait":
+            out.append(name)
+    for a in args:
+        go(a)
+    return out
+
+
+def equations_in(args) -> tuple[set, set]:
+    """(v6) The equations (MathTex, tagged by the probe) whose pieces a play() call animates, and the animated pieces
+    themselves (Python ids), so loose pieces are logged once they have arrived, not while they fly, fade or morph."""
+    out: set = set()
+    moving: set = set()
+
+    def go(a):
+        if hasattr(a, "animations") and isinstance(getattr(a, "animations"), (list, tuple)):
+            for b in a.animations:
+                go(b)
+            return
+        for name in ("mobject", "target_mobject", "starting_mobject"):
+            mob = getattr(a, name, None)
+            if mob is None or not hasattr(mob, "get_family"):
+                continue
+            for f in mob.get_family():
+                tag = getattr(f, "ra_tex", None)
+                if isinstance(tag, tuple) and tag:
+                    out.add(tag[0])
+                    moving.add(id(f))
+                eid = getattr(f, "ra_eq_id", None)
+                if eid:
+                    out.add(eid)
+    for a in args:
+        try:
+            go(a)
+        except Exception:
+            pass
+    return out, moving
 
 
 def install() -> None:
@@ -67,7 +134,7 @@ def install() -> None:
     from manim.mobject.graphing.coordinate_systems import CoordinateSystem
     from manim.mobject.graphing.number_line import NumberLine
     from manim.mobject.text.numbers import DecimalNumber
-    from manim.mobject.text.tex_mobject import SingleStringMathTex
+    from manim.mobject.text.tex_mobject import MathTex, SingleStringMathTex
     from manim.mobject.text.text_mobject import MarkupText, Paragraph, Text
     from manim.mobject.types.vectorized_mobject import VMobject
     from manim.renderer.cairo_renderer import CairoRenderer
@@ -75,6 +142,47 @@ def install() -> None:
 
     TEXT = (Text, MarkupText, Paragraph)
     MATH = (SingleStringMathTex, DecimalNumber)
+
+    orig_mathtex_init = MathTex.__init__
+
+    def mathtex_init(self, *a, **kw):
+        """Tag every piece of an equation with (equation id, index, piece, font size, whole equation): plain values,
+        so copies of a piece (TransformFromCopy, .copy()) keep them."""
+        orig_mathtex_init(self, *a, **kw)
+        try:
+            eid = next(_EQ_IDS)
+            strings = [str(x) for x in (getattr(self, "tex_strings", None) or [])]
+            whole = str(getattr(self, "tex_string", "") or " ".join(strings))
+            fs = float(getattr(self, "font_size", 0) or 0)
+            self.ra_eq_id = eid
+            for i, sm in enumerate(self.submobjects):
+                sm.ra_tex = (eid, i, strings[i] if i < len(strings) else "", fs, whole)
+        except Exception:                        # never break a render for the log
+            pass
+
+    MathTex.__init__ = mathtex_init
+
+    class Pieces:
+        """An equation on screen only as loose pieces: one text item for the checks (content: the whole equation;
+        box: the visible pieces; drawn at the order of its last piece)."""
+        ra_math = True
+
+        def __init__(self, whole: str, font_size: float):
+            self.tex_string, self.font_size, self.pieces = whole, font_size, []
+
+        def get_family(self):
+            out = []
+            for pc in self.pieces:
+                out.extend(pc.get_family())
+            return out
+
+        def get_corner(self, d):
+            pts = [pc.get_corner(d) for pc in self.pieces]
+            xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+            return np.array([min(xs) if d[0] < 0 else max(xs), min(ys) if d[1] < 0 else max(ys), 0.0])
+
+        def get_updaters(self):
+            return []
     logs: dict[int, SceneLog] = {}
 
     def log_for(scene) -> SceneLog:
@@ -129,9 +237,12 @@ def install() -> None:
 
     def walk(scene):
         """Visible text items and paths in drawing order, with their top-level element index and live flag, and the
-        attachment of each text (common.py attach(): a label that belongs next to an object; inherited from groups)."""
+        attachment of each text (common.py attach(): a label that belongs next to an object; inherited from groups).
+        Loose pieces of an equation (v6) become one Pieces item, unless the whole equation is on screen too."""
         order = {id(f): i for i, f in enumerate(extract_mobject_family_members(scene.mobjects, use_z_index=True))}
         texts, paths, attached = [], [], {}
+        loose: dict[int, list] = {}
+        whole_ids = set()
 
         def go(m, top, live, axis, att):
             live = live or bool(m.get_updaters())
@@ -139,8 +250,13 @@ def install() -> None:
             att = getattr(m, "ra_attached_to", None) or att
             if isinstance(m, TEXT + MATH):
                 texts.append((m, top, live, axis))
+                whole_ids.add(getattr(m, "ra_eq_id", None))
                 if att is not None:
                     attached[id(m)] = att
+                return
+            tag = getattr(m, "ra_tex", None)
+            if isinstance(tag, tuple) and len(tag) == 5:
+                loose.setdefault(tag[0], []).append((m, top, live, tag))
                 return
             if isinstance(m, VMobject) and m.has_points():
                 paths.append((m, top, live, axis))
@@ -149,6 +265,32 @@ def install() -> None:
 
         for top, m in enumerate(scene.mobjects):
             go(m, top, False, False, None)
+        busy = getattr(scene, "_probe_busy", None) or set()
+        moving = getattr(scene, "_probe_moving", None) or set()
+        shown_before = getattr(scene, "_probe_shown_eqs", None) or set()
+        shown_now = set()
+        for eid, items in loose.items():
+            if eid in whole_ids:
+                continue                         # the whole equation is on screen: its loose copies duplicate it
+            if eid in busy and eid not in shown_before:
+                continue                         # it first appears in the running play() (pieces fading or flying in,
+                                                 # the target of a morph): logged once it has arrived; an equation
+                                                 # already on screen stays visible while more pieces join it
+            settled = [it for it in items if id(it[0]) not in moving]
+            items = settled or items             # pieces in flight join the box when they land; a whole equation
+            shown_now.add(eid)                   # that moves together is checked as it moves
+            tag = items[0][3]
+            key = (id(scene), eid)
+            px = PIECES.get(key)
+            if px is None:
+                px = PIECES[key] = Pieces(tag[4], tag[3])
+            px.pieces = [it[0] for it in sorted(items, key=lambda it: it[3][1])]
+            order[id(px)] = max([order.get(id(f), 0) for f in px.get_family()] or [0])
+            texts.append((px, min(it[1] for it in items), any(it[2] for it in items), False))
+        try:
+            scene._probe_shown_eqs = shown_now
+        except Exception:
+            pass
         return order, texts, paths, attached
 
     def attachment(lg, att) -> dict:
@@ -168,7 +310,8 @@ def install() -> None:
             return None
         c = content(m)
         lines = len(getattr(m, "lines_text", [])) if isinstance(m, Paragraph) else c.count("\n") + 1
-        return {"id": lg.sid(m), "kind": "math" if isinstance(m, MATH) else "text", "content": c[:300],
+        return {"id": lg.sid(m), "kind": "math" if isinstance(m, MATH) or getattr(m, "ra_math", False) else "text",
+                "content": c[:300],
                 "bbox": bbox(m), "font_size": _r(getattr(m, "font_size", 0) or 0, 1), "color": colour(m),
                 "opacity": _r(a, 2), "order": order.get(id(m), 0), "top": top, "live": live, "axis": axis,
                 "lines": max(lines, 1), **attachment(lg, att)}
@@ -206,6 +349,43 @@ def install() -> None:
         lg.last_snapshot = t
         lg.end = max(lg.end, t)
 
+    def metaphor_value(m):
+        """The number a metaphor object shows: ra_value() (common.py meter() from v5), else the value function of an
+        older meter() (its readout arguments), else None."""
+        fn = getattr(m, "ra_value", None)
+        if not callable(fn):
+            ro = getattr(m, "_ro_args", None)
+            fn = ro[1] if isinstance(ro, (list, tuple)) and len(ro) > 1 and callable(ro[1]) else None
+        if fn is None:
+            return None
+        try:
+            return float(fn())
+        except Exception:
+            return None
+
+    def sample_metaphor(lg, scene, t) -> None:
+        seen = set()
+        for top in scene.mobjects:
+            for m in top.get_family():
+                if getattr(m, "ra_role", None) != "metaphor" or id(m) in seen:
+                    continue
+                seen.add(id(m))
+                k = lg.sid(m)
+                ent = lg.metaphor.get(k)
+                if ent is None:
+                    vmax = getattr(m, "ra_vmax", None) or getattr(m, "vmax", None)
+                    ent = lg.metaphor[k] = {"id": k, "vmax": None if vmax is None else _r(vmax, 4), "values": [],
+                                            "visible": []}
+                v = metaphor_value(m)
+                if v is not None and (not ent["values"] or abs(ent["values"][-1][1] - v) > 1e-4):
+                    ent["values"].append([_r(t), _r(v, 4)])
+                vis = 1 if alpha(m) >= 0.2 else 0
+                if not ent["visible"] or ent["visible"][-1][1] != vis:
+                    ent["visible"].append([_r(t), vis])
+        for k, ent in lg.metaphor.items():              # removed from the scene: invisible from now on
+            if ent["visible"] and ent["visible"][-1][1] == 1 and all(lg.ids.get(i) != k for i in seen):
+                ent["visible"].append([_r(t), 0])
+
     def sample(scene, force: bool = False) -> None:
         lg = log_for(scene)
         t = now(scene)
@@ -214,6 +394,7 @@ def install() -> None:
         lg.last_sample = t
         lg.end = max(lg.end, t)
         order, texts, _, _ = walk(scene)
+        sample_metaphor(lg, scene, t)
         seen = set()
         for m, top, live, axis in texts:
             a = alpha(m)
@@ -224,7 +405,8 @@ def install() -> None:
             ent = lg.timeline.get(k)
             if ent is None:
                 lines = len(getattr(m, "lines_text", [])) if isinstance(m, Paragraph) else content(m).count("\n") + 1
-                ent = lg.timeline[k] = {"id": k, "kind": "math" if isinstance(m, MATH) else "text",
+                ent = lg.timeline[k] = {"id": k, "kind": "math" if isinstance(m, MATH) or getattr(m, "ra_math", False)
+                                        else "text",
                                         "content": content(m)[:300], "font_size": _r(getattr(m, "font_size", 0) or 0, 1),
                                         "lines": max(lines, 1), "live": live, "axis": axis, "events": []}
             ent["live"] = ent["live"] or live
@@ -262,9 +444,17 @@ def install() -> None:
     def play(self, *args, **kwargs):
         self.renderer._probe_scene = self
         label = "wait" if args and all(type(a).__name__ == "Wait" for a in args) else "play"
+        names = anim_names(args)
         sample(self, force=True)
-        result = orig_play(self, *args, **kwargs)
+        t0 = now(self)
+        self._probe_busy, self._probe_moving = equations_in(args)
+        try:
+            result = orig_play(self, *args, **kwargs)
+        finally:
+            self._probe_busy, self._probe_moving = set(), set()
         sample(self, force=True)
+        if names:
+            log_for(self).plays.append({"start": _r(t0), "end": _r(now(self)), "anims": names[:40]})
         snapshot(self, True, label)
         return result
 

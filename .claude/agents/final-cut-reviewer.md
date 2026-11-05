@@ -26,7 +26,7 @@ and the caption on screen; the captions with their times; the segments), the con
 Extract any other moment with `ffmpeg -ss <t> -i <video> -frames:v 1 runs/<run>/review/final_cut/extra/t<t>.jpg`
 (several frames a few tenths of a second apart show motion). The deterministic reports are in
 `review/design/final/` (`check_design.md`, `check_reading.md`, `check_numbers.md`, `check_selfcontained.md`,
-`check_series.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
+`check_series.md`, `check_engagement.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
 
 Go through every contact sheet in order (Read the JPG files), then open single frames wherever something looks off.
 For each item, report findings with the time:
@@ -53,13 +53,40 @@ For each item, report findings with the time:
 7. Self-contained: nothing refers to the explainer, code, files, links, the description or a document's numbering; no
    equation labels; other episodes named only by title or meaning and only when their result is shown in this video;
    never "you must have watched".
-8. Opening and ending: speech from 0 s with the hook, no channel card; a series episode places itself at the first
-   natural break (about 30-90 s) over the builds-on frame ("Episode n of N" and the titles it builds on); every result
-   used from an earlier episode is recapped, marked "Recap", with its own chapter and at most a soft pointer by title;
-   the outro (15-20 s) shows the takeaway card and the channel name, says "In the next episode, ..." (not in a
-   finale) and leaves the right of the frame empty for the end screen.
+8. Opening and ending: the hook (a full, moving picture from the first frame, music from 0 s, narration by 3 s, the
+   question by 15 s, then the stakes; no channel card (a title beat of about 4-6 s after the hook, with the "Episode n
+   of N" lower third, is allowed); the body by 45 s), with the thumbnail's picture on screen within 15 s; music under
+   the opening, the title beat and the outro, and low or off under explanation (`assembly.json` "audio": the modes,
+   the measured loudness); a series episode places itself in the title beat or at the first natural break with
+   "Episode n of N" and the titles it builds on; every result used from an earlier episode is recapped, marked
+   "Recap", with its own chapter and at most a soft pointer by title; the outro (15-20 s) shows the takeaway card and
+   the channel name, says "In the next episode, ..." (not in a finale) and leaves the right of the frame empty for the
+   end screen.
 9. Packaging: the thumbnail at full size (`video/final/thumbnail.jpg`) and at 168 x 94
    (`review/design/final/thumbnail_168x94.png`); chapter titles and times (`chapters.json`) match what is on screen.
+10. Engagement in motion (`review/design/final/check_engagement.md`: the measured moving share, frozen stretches
+    under narration, cuts through an empty frame, beats): watch the stretches the tool flags and the cuts. A picture
+    frozen for more than 12 s while the narration talks is `major`; a chapter that fades to an empty frame and
+    rebuilds the same objects, a persistent slide title, notation read aloud instead of meanings, a reveal with no
+    pause after it, a boxed result with no "so what", the central metaphor (`plan.json` "metaphor") missing from most
+    of the body or the outro's callback: findings with the fix. Music: nothing over the first words of a sentence
+    (`assembly.json` audio.music `under_voice_max_db` at most `under_voice_limit_db`; stings in a pause).
+    v4: emphasis is not motion. The tool counts narration over emphasis alone (looping borders, repeated Indicate,
+    `pulse()`) as frozen when the layout log has plays; where it cannot, judge it yourself: a stretch of more than
+    12 s in which only highlights move while the narration introduces ideas is `major`, as a frozen picture is. Also
+    check: a picture whose dimension or scale contradicts the numbers it carries (a 2-D path for a scalar example) is
+    `major`; a parameter named two ways ("weight 1.2" then "one half") is `major`; paired readouts that disagree
+    while they update, a conclusion said over a replay in which the metaphor moves the wrong way, more than two new
+    technical terms in one sentence without pictures, digital silence in a pause: findings with the fix.
+    v5: watch the meter's direction (`check_engagement.md` lists its undeclared refills, scenes where it never
+    changes, empty frames inside scenes and the outro's tail): a refill with no step paid that the narration does not
+    announce is `major`; an empty frame inside a scene, an outro whose last word ends less than 1.5 s before the end,
+    and a closing question that is only spoken: findings with the fix. v6: a refill that comes before the sentence
+    that announces it (the report says by how many seconds), a number on a picture the plan calls schematic, and a
+    closing question whose on-screen words differ from the spoken ones: findings with the fix.
+11. SoME rubric: score the cut 1-5 on **motivation**, **clarity**, **novelty** and **memorability**, each with
+    evidence (time and frame), as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` in the report and a
+    table in the `.md`. A score of 2 or less on motivation or memorability is also a `major` finding.
 
 Severities for a final cut: `blocker` = a viewer cannot read or follow it (text hidden by an overlap, narration about
 something not on screen, a number in an unreadable format such as 0.500000, a reference outside the video, an equation

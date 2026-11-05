@@ -47,10 +47,49 @@
     "quality": "h",
     "min_duration_s": 45,
     "max_duration_s": 1200,
-    "loudness_lufs": -16
+    "loudness_lufs": -14,
+    "loudness_note": "Integrated loudness of the final mix (EBU R128), set by a fixed gain after a measurement pass; YouTube normalises to about -14 LUFS and turns quieter videos up never. The true-peak ceiling is music.true_peak_dbtp, measured after AAC encoding. Owner decision 2026-11-04 (was -16)."
   },
   "linkedin": {
     "commentary_template": "New on Remaining Action: {title}. {summary} Explainer with equations, code and sources: {explainer_url} Video: {video_url}",
     "commentary_template_video": "New on Remaining Action: {title}. {summary} Video: {video_url}"
+  },
+  "music": {
+    "enabled": true,
+    "source": "generated",
+    "preset": "calm-pad",
+    "seed": null,
+    "bed_in_gaps_lu": -9,
+    "bed_under_voice_lu": -18,
+    "attack_ms": 60,
+    "release_ms": 900,
+    "lookahead_ms": 150,
+    "stings": [
+      "hook_title",
+      "outro"
+    ],
+    "sting_lu": -4,
+    "intro_swell_s": 2.5,
+    "pause_swell_s": 1.2,
+    "swell_db": 3,
+    "outro_lift_db": 3,
+    "fade_out_s": 3,
+    "true_peak_dbtp": -1.0,
+    "low_under_voice_lu": -24,
+    "transition_swell_s": 1.2,
+    "mode_ramp_s": 1.5,
+    "modes_by_role": {
+      "hook": "bed",
+      "context": "bed",
+      "outro": "bed",
+      "recap": "low",
+      "body": "low"
+    },
+    "note": "Owner decision 2026-11-04, route A: original music only. tools/video/music.py synthesises it (seeded by the run slug unless seed is set; preset calm-pad), tools/video/assemble.py mixes it: the bed sits bed_in_gaps_lu below the narration's loudness in pauses and bed_under_voice_lu below it while the narration speaks (a sidechain duck with look-ahead), the motif sting on the title beat after the hook ('hook_title') and on the outro ('outro') at sting_lu. Per scene (plan.json scenes \"music\": bed | low | off, default modes_by_role) after the coherence principle (Moreno and Mayer 2000: background music under narrated explanation lowers recall and transfer): the bed in the hook, title beat and outro, 'low' (low_under_voice_lu, at least 20 LU under the voice) or 'off' under explanation; a swell of transition_swell_s at every cut. tools/gate.py requires the provenance stamp video/final/music.json for any music in the mix. Licensed or commissioned tracks (route B) are not supported yet: source must stay 'generated'; enabled false gives a voice-only mix. Stings (2026-11-04, after the v2 final-cut review FC-1): placed in a pause of the narration so that they end sting_margin_s before the next word (music.py sting_slot()), and ducked under the voice by sting_duck_db as a safety net; the final gate requires every music element to stay at least music_under_voice_max_lu under the narration while it speaks (EBU R128 momentary loudness of the mixed music against the narration's integrated loudness, over whole spoken words). bed_under_voice_lu -16 -> -18 (2026-11-04): with -16 the bed's own swells and bells reached -11.5 LU over words in episode 1 v2.",
+    "sting_s": 3.2,
+    "sting_margin_s": 0.2,
+    "sting_duck_db": 14,
+    "music_under_voice_max_lu": -12,
+    "off_beat_swell_s": 1.8
   }
 }

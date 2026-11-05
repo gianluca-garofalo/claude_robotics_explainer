@@ -115,6 +115,16 @@ class Sentences(unittest.TestCase):
         self.assertEqual([raw[a:b].strip() for a, b in spans],
                          ["The gain is 0.42 at the top.", "Does it fall?", "Yes!", "(It does.)", "and then"])
 
+    def test_pauses_follow_the_ending(self):
+        """v4: a question and a deliberate ellipsis get longer pauses than a statement (less uniform delivery)."""
+        raw = "Does it fall? It does... Then it stops\u2026 Next one. A 0.42 value."
+        spans = voice.sentence_spans(raw)
+        self.assertEqual(len(spans), 5)                                   # the ellipsis character ends a sentence
+        pauses = [voice.pause_after(raw[a:b], 0.25) for a, b in spans]
+        self.assertEqual(pauses, [0.45, 0.7, 0.7, 0.25, 0.25])
+        self.assertEqual(voice.pause_after("Why?", 0.25, question=0.6), 0.6)
+        self.assertEqual(voice.pause_after("(Really...)", 0.25, ellipsis=1.0), 1.0)
+
     def test_sentence_starts_are_kept(self):
         text = "First sentence here. Second one."
         raw = voice.remove_bookmarks(text)

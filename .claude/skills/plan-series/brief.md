@@ -9,8 +9,8 @@ videos that each work alone and together tell a story.
 - The story spine: the question the series answers, in one sentence (the `plan_sentence`, said in episode 1), and how
   each episode moves it forward (`story_beat`).
 - The episodes: how many (each about 8-12 minutes; fewer, deeper episodes beat many thin ones), in what order, each
-  with a `short_title` (at most four words: it appears on the builds-on frame), a `hook` (the first 15-60 s, spoken
-  from 0 s, paying off the title), an `outline`, a `takeaway` (one sentence of at most about 30 words and at most three
+  with a `short_title` (at most four words: it appears on the builds-on frame), a `hook` (the first 15-45 s, over a
+  full moving picture, spoken by 3 s, its question by 15 s, paying off the title), an `outline`, a `takeaway` (one sentence of at most about 30 words and at most three
   equations: the card that ends the episode and recaps it later), a `teaser` ("In the next episode, ..."; none in the
   finale), `length_min`, a `target_viewer`, a `difficulty` (1-5) and whether it is a good `entry_point` from search.
 - What is left out, and why (`material.notes`, PLAN.md): the explainer holds more than a series can show; choose.

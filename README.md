@@ -86,9 +86,9 @@ Rounded boxes are triggers and you, hexagons deterministic scripts, rectangles C
 | Unattended trigger | GitHub Actions schedule plus manual dispatch, `claude-code-action` in automation mode, kill switch, one run at a time. Alternative: a Claude Code routine (scheduled task on claude.ai) for the Claude part, pushing the run to a branch that triggers the rest; not used because its secrets and network live in a shared cloud environment, and rendering needs this toolchain | `.github/workflows/pipeline.yml` |
 | Rendering in CI | Container image (Manim, TeX Live, dvisvgm, Pango/Cairo, ffmpeg, Node, Playwright, KaTeX) built once and cached in GHCR; one render job per scene at 1080p60, in parallel | `docker/Dockerfile`, `ci-image.yml` |
 | Narration and captions | manim-voiceover; one setting `voice.service`: `piper` (default, the voice of final renders; offline neural voice, no key; a final render without its model stops and says how to get it), `azure`, `recorded` (your voice), `silent` (draft renders); no fallback voice; one SRT caption file per scene, merged; bookmarks synced with word timings (Piper's estimated sentence by sentence) | `templates/manim/voice.py`, `tools/video/synthesize_voice.py`, `tools/video/piper_model.py` |
-| Assembly | The scenes in plan order, nothing added: the video opens with the hook (speech from 0 s, no channel card) and ends with the plan's outro scene (takeaway card, channel name, teaser, the end-screen area empty); normalized segments, loudness, chapters from the plan's own chapter titles (YouTube rules: start 0:00, three or more, 10 s each), thumbnail from an original frame on a calm dark panel, title, description, tags | `tools/video/` |
+| Assembly | The scenes in plan order, no card added: the video opens with the hook (a full moving picture from frame 0, music, narration by 3 s, the question by 15 s, no channel card) and ends with the plan's outro scene (takeaway card, channel name, teaser, the end-screen area empty); normalized segments; a narration stem; original music from `tools/video/music.py` (seeded, stamped, per scene `bed`/`low`/`off`, ducked under the voice with look-ahead); two-pass loudness to -14 LUFS with the true peak at most -1 dBTP measured after encoding; chapters from the plan's own chapter titles (YouTube rules: start 0:00, three or more, 10 s each), thumbnail from an original frame (on a calm dark panel, or picture first with a title band), title, description with the music credit, tags | `tools/video/` |
 | Series planning | `/plan-series` (or the first step of `/produce-from-source`): curator and red-team subagents, schema-2 plans validated by `tools/series.py validate`; the owner's plan approval only when `series.plan_approval` is `required` (it is `optional`) | `.claude/skills/plan-series/`, `tools/series.py`, `tools/human/approve_series.py` |
-| Opening, ending, series beats | Hook first, outro 15-20 s with the channel name and the end-screen area empty; in series episodes the spoken context over the builds-on frame, marked recaps of every must prerequisite, the teaser; helpers `builds_on()`, `recap_tag()`, `recap_card()`, `takeaway_card()`, `outro()`; warnings from `check_series.py` | `templates/manim/common.py`, `tools/video/check_series.py` |
+| Opening, ending, series beats | Hook first (full picture at frame 0, narration by 3 s, question by 15 s, body by 45 s, the thumbnail's picture within 15 s), a short title beat (`title_beat()`), the signature `meter()`, outro 15-20 s with the channel name and the end-screen area empty; in series episodes the spoken context over the builds-on frame, marked recaps of every must prerequisite, the teaser; helpers `builds_on()`, `recap_tag()`, `recap_card()`, `takeaway_card()`, `outro()`; warnings from `check_series.py` | `templates/manim/common.py`, `tools/video/check_series.py` |
 | Number format | `fmt()`: 2-3 significant digits for readouts, no trailing zeros, exact values exact, a real minus sign, never a signed zero (`sign=True` for +0.14); live readouts with fixed decimals; one precision per quantity in a scene; a check of the layout logs (readouts sampled over time), narration, captions, chapters and thumbnail (errors fail the gate) | `templates/manim/reading_model.py`, `tools/video/check_numbers.py` |
 | Space and motion | Warnings for lopsided or wasted frames and small pictures (settled frames), overlaps while things move and readouts whose width jumps (the probe's 15 fps timeline) | `tools/video/check_design.py` |
 | Final-cut review | Someone watches the assembled video: frames every 2 s, at scene changes, chapter starts and after scenes, with captions; the `final-cut-reviewer` subagent reports with timestamps, a verifier checks blockers and majors, and the release gate (`tools/gate.py --stage release`) stops the private upload on an open blocker; a session without subagents says so and the review is marked not independent | `.claude/skills/final-cut-review/`, `tools/video/final_frames.py` |
@@ -133,10 +133,18 @@ Before rendering (gate job, clean checkout): topic approved (selection or approv
 render check of the exact explainer bytes, companion code re-run from scratch (the explainer must be reproducible
 from `code/`), every figure produced by a listed script, all five reviews merged against the final explainer, no open
 blocker or confirmed major finding and no serious finding left unverified, references verified or marked
-secondary-only, attribution, no third-party media in the video, a valid video plan, literal narration text, draft
-renders of every scene, the design and reading-time checks of the drafts, and the video design review without open
-blockers. After the final renders, before assembly: the design and reading-time checks again. After assembly: resolution, frame rate, duration, the hook first with no channel card, audible narration,
-captions inside the video, chapters, thumbnail size and format, metadata limits (title, 5,000-byte description,
+secondary-only, attribution, no unlicensed third-party media in the video (audio only with the music generator's
+stamp), a valid video plan, literal narration text, draft
+renders of every scene, the design and reading-time checks of the drafts, the engagement report of the drafts
+(motion budget with emphasis not counted as motion, transforms, narration, new terms per block, text, beats and
+digital silence, the central metaphor and its direction (undeclared refills of the meter, a meter that never moves),
+empty frames inside scenes, the outro's tail and closing question, numbers on schematic pictures, the thumbnail's
+picture at 168 x 94; reported, not
+blocking until
+`engagement.errors_block_gate` is set), and the video design review without open blockers. After the final renders, before assembly: the design and reading-time checks again. After assembly: resolution, frame rate, duration, the hook first with no channel card, audible narration (measured on
+the narration stem, so a music bed cannot hide a silent voice), music provenance (original, generated, the stamp
+matching the file), no music element within 12 LU of the narration while it speaks (stings in pauses, ducked),
+loudness -14 ± 1 LUFS with the true peak at most -1 dBTP after encoding, captions inside the video, chapters, thumbnail size and format, metadata limits (title, 5,000-byte description,
 500-character tags, no angle brackets, private status, links, run marker). Results go to the job summary and the
 review issue.
 
@@ -159,9 +167,9 @@ in `runs/` (or published, with the workflow's ledger) and waits for prerequisite
 An episode copies the explainer, its code and data unchanged (a source without code gets an empty `code/` for the
 episode's own scripts), writes `video/series_context.json` (episode n of N, what it builds on, the takeaway and recap
 cards, the teaser) and the brief, and goes through the same gates, narration, rendering, assembly and final-cut
-review as any run. Every episode opens with its hook (speech from 0 s, no channel card), places itself at the first
-natural break (about 30-90 s) with the spoken series context over the builds-on frame ("Episode n of N" and the
-titles it builds on), recaps everything it uses from earlier episodes in marked "Recap" scenes with their own
+review as any run. Every episode opens with its hook (a full moving picture from frame 0, narration by 3 s, the
+question by 15 s, no channel card), places itself in a short title beat right after it (about 30-45 s) with the
+spoken series sentence over the "Episode n of N" lower third and the titles it builds on, recaps everything it uses from earlier episodes in marked "Recap" scenes with their own
 chapters, and ends with a 15-20 s outro: the takeaway card, the channel name, "In the next episode, ..." (none in the
 finale), the right of the frame empty for the end screen. The description starts "Episode n of N · <series>" and
 carries the chapters. Scenes are kept only for an episode made again after a fix

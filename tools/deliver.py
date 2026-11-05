@@ -8,7 +8,7 @@ Precondition: `tools/gate.py runs/<run> --stage release` passed for the current 
 stage release, passed, the sha256 of video/final/<slug>.mp4). Writes runs/<run>/deliver/ (or --out):
 
   <slug>.mp4, <slug>.srt, thumbnail.jpg   copies of video/final/
-  upload_sheet.md       title, description, tags, chapters, the settings to choose and the YouTube Studio checklist
+  upload_sheet.md       title, description, tags, chapters, the music and its provenance, the settings to choose and the YouTube Studio checklist
   final_cut_review.md   the final-cut review summary (review/final_cut/summary.md)
   youtube.json          the metadata tools/video/metadata.py composed
   series/<slug>/        an episode's series plan (series.json, PLAN.md): to commit when it was made in this session
@@ -92,6 +92,35 @@ def voice_text(run: Path) -> tuple[str, str]:
     return str(m.get("service") or ""), str(m.get("voice_model") or "")
 
 
+def music_section(run: Path) -> list[str]:
+    """The upload sheet's "Music" section: what is in the mix, its licence, and what to do about a claim."""
+    final = run / "video" / "final"
+    asm = json.loads((final / "assembly.json").read_text(encoding="utf-8"))
+    info = (asm.get("audio") or {}).get("music") or {}
+    meas = (asm.get("audio") or {}).get("measured") or {}
+    out = ["## Music", ""]
+    if not info.get("used"):
+        out += ["None: the narration only.", ""]
+    else:
+        st = json.loads((final / "music.json").read_text(encoding="utf-8")) if (final / "music.json").exists() else {}
+        out += [f"- Original, generated for this video by `{st.get('generator', info.get('generator'))}` "
+                f"{st.get('tool_version', '')} (preset `{st.get('preset')}`, seed {st.get('seed')}); no samples, no "
+                "third-party recording, nothing to attribute or license. Provenance: `video/final/music.json` "
+                f"(sha256 `{str(st.get('sha256', ''))[:16]}...`).",
+                "- Content ID: no claim is expected (nothing in the mix is registered). If one appears anyway, "
+                "dispute it as original content and cite the generator stamp above; for a licensed track (not used "
+                "here) you would attach its saved licence instead.",
+                f"- Mix: the bed {abs(info.get('bed_in_gaps_lu', 0))} LU under the narration in pauses and "
+                f"{abs(info.get('bed_under_voice_lu', 0))} LU under it while it speaks; "
+                f"{len(info.get('stings', []))} motif sting(s) "
+                f"({', '.join(s['kind'] + ' at ' + str(round(s['t'], 1)) + ' s' for s in info.get('stings', []))}).",
+                ""]
+    if meas:
+        out += [f"Loudness of the final file: {meas.get('integrated_lufs')} LUFS integrated, true peak "
+                f"{meas.get('true_peak_dbtp')} dBTP (measured after AAC encoding).", ""]
+    return out
+
+
 def sheet(run: Path, meta: dict, files: dict[str, Path], gates: dict, plan: tuple[str, bool | None] | None) -> str:
     channel = load_json(CONFIG / "channel.json")
     topic = P.topic(run)
@@ -135,6 +164,7 @@ def sheet(run: Path, meta: dict, files: dict[str, Path], gates: dict, plan: tupl
                 "these were checked):", "", "```text", *[c["label"] for c in chapters["chapters"]], "```", ""]
     else:
         out += ["None: the video has fewer than three chapters, so YouTube shows none.", ""]
+    out += music_section(run)
     out += ["## Settings", "",
             f"- Audience: {kids}",
             f"- Altered or synthetic content: **{'Yes' if synthetic else 'No'}** (the narration voice: {voice}"

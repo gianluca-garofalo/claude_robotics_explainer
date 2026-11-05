@@ -5,17 +5,42 @@
   "title": "YouTube title, at most 90 characters, no angle brackets",
   "summary": "Two to four sentences for the description (at most 900 characters)",
   "tags": ["model predictive control", "..."],
+  "search_term": "MPC",
   "scenes": [{"file": "hilltop.py", "class": "Hilltop", "section": "sec-hj", "chapter": "Only one push arrives",
-              "role": "body"}],
-  "thumbnail": {"scene": "Hilltop", "time": 12.5, "text": "Only H = 0 arrives"}
+              "role": "body", "music": "low"}],
+  "thumbnail": {"scene": "Hook", "time": 9.5, "text": "Only H = 0 arrives", "layout": "picture"},
+  "metaphor": {"name": "the remaining-action meter", "label": "left to pay"}
 }
 Scenes play in this order; nothing is added before the first (no channel card) and the last is the outro. "section"
 is the explainer section the scene draws on (a source, for the review and, only when links are on, the description;
 any heading id of the explainer), "chapter" the chapter title viewers see, written for the video (never the
 explainer's heading; consecutive scenes with the same chapter form one chapter). "role" (optional, checked by
-tools/video/check_series.py): "hook" (first, speech from 0 s), "context" (the spoken series context over the
-builds-on frame), "recap" (with "recap_of": the earlier episode it restates, a number or "series:episode"), "body",
-"outro" (last: takeaway card, channel name, the teaser).
+tools/video/check_series.py): "hook" (first: a full moving picture from frame 0, narration by 3 s, the question by
+15 s), "context" (the spoken series context: a short title beat right after the hook, title_beat()), "recap" (with "recap_of": the earlier episode it restates, a number or "series:episode"), "body",
+"outro" (last: takeaway card, channel name, the teaser). "music" (optional): the scene's music mode, "bed" (the bed
+under the narration, music.bed_under_voice_lu below it), "low" (music.low_under_voice_lu, at least 20 LU below:
+under explanation, after the coherence principle) or "off"; the default comes from config/channel.json
+music.modes_by_role (hook, context, outro: bed; body and recap: low). Cuts between scenes always get a short swell.
+"music_from" (optional, v5): a change of mode inside the scene, [{"says": "<words of the narration block where it
+starts>", "mode": "low"}]: from the start of that block to the scene's end (or the next change) the bed plays in that
+mode (an outro's closing question under "low" music, after the bed of the card); assemble.py finds the block in the
+scene's layout log.
+"search_term" (optional): the words viewers search for, which the title should contain (check_series.py warns).
+"thumbnail": the frame (scene class, seconds into it; for "click match" a frame of the hook within its first 15 s),
+at most 40 characters of text (three words or fewer reads best), and "layout": "panel" (default: the title on a dark
+panel over the left half) or "picture" (the frame fills the thumbnail; the title sits in a band at the top: keep the
+top fifth of the frame empty).
+"metaphor" (optional, checked by tools/video/check_engagement.py): the episode's one central picture, carried through
+the video: "name" says what it is, "label" is the start of the text it shows (the meter's readout), by which the
+check finds it in the layout logs of the hook, the body scenes and the outro; "direction" (v5): "down" (the default:
+along the path the bill only falls, so the check warns when the meter refills) or "any".
+"metaphor_resets" (v5, optional, per scene): the refills of the meter the scene means, each {"says": words of the
+narration block during which it refills (the narration must announce it), "why": the reason, for the reviewers},
+e.g. {"says": "let's build it", "why": "the bill is built from one plan's step costs"}. The meter refills while or after
+those words are said (v6), never seconds before them.
+"picture" (v6, optional, per scene; once one scene has it, all should): "faithful" (drawn to the scale of the numbers
+it carries: a graph, a number line, bars to scale) or "schematic" (an illustration: the hook's 2-D path, a title beat),
+which shows no numbers (check_engagement.py warns at a live readout with digits or a decimal on it).
 """
 from __future__ import annotations
 
@@ -27,6 +52,9 @@ CLASS_RE = re.compile(r"^class ([A-Za-z_][A-Za-z0-9_]*)\([A-Za-z0-9_.]*Scene\):"
 FILE_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}\.py$")
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ROLES = ("hook", "context", "recap", "body", "outro")
+MUSIC_MODES = ("bed", "low", "off")
+PICTURES = ("faithful", "schematic")             # v6: what a scene's picture claims (check_engagement.py "picture")
+THUMB_LAYOUTS = ("panel", "picture")
 
 
 def load(run: Path) -> dict:
@@ -129,6 +157,23 @@ def problems(run: Path, plan: dict | None = None) -> list[str]:
             out.append(f"plan.json: scenes[{i}] role {role!r} is not one of {', '.join(ROLES)}")
         if role == "recap" and not s.get("recap_of"):
             out.append(f"plan.json: scenes[{i}] is a recap: give recap_of, the earlier episode it restates")
+        if s.get("music") is not None and s.get("music") not in MUSIC_MODES:
+            out.append(f"plan.json: scenes[{i}] music {s.get('music')!r} is not one of {', '.join(MUSIC_MODES)}")
+        cues = s.get("music_from")
+        if cues is not None and not (isinstance(cues, list) and all(
+                isinstance(c, dict) and isinstance(c.get("says"), str) and 0 < len(c["says"].strip()) <= 120
+                and c.get("mode") in MUSIC_MODES for c in cues)):
+            out.append(f"plan.json: scenes[{i}] music_from must be a list of {{\"says\": words of the narration block "
+                       f"where the mode changes (1-120 characters), \"mode\": one of {', '.join(MUSIC_MODES)}}}")
+        if s.get("picture") is not None and s.get("picture") not in PICTURES:
+            out.append(f"plan.json: scenes[{i}] picture {s.get('picture')!r} is not one of {', '.join(PICTURES)} "
+                       "(faithful: drawn to the scale of its numbers; schematic: no numbers on it)")
+        resets = s.get("metaphor_resets")
+        if resets is not None and not (isinstance(resets, list) and all(
+                isinstance(r, dict) and isinstance(r.get("says"), str) and 0 < len(r["says"].strip()) <= 120
+                and isinstance(r.get("why"), str) and r["why"].strip() for r in resets)):
+            out.append(f"plan.json: scenes[{i}] metaphor_resets must be a list of {{\"says\": words of the narration "
+                       "block that announces the refill (1-120 characters), \"why\": the reason}")
     try:
         import check_selfcontained as SC                  # chapter titles and the thumbnail text face the viewer
         st = SC.settings()
@@ -140,9 +185,19 @@ def problems(run: Path, plan: dict | None = None) -> list[str]:
                     out.append(f"plan.json: {where} {text!r}: {f['rule']} '{f['match']}' (the video is self-contained)")
     except ImportError:
         pass
+    meta = plan.get("metaphor")
+    if meta is not None and not (isinstance(meta, dict) and isinstance(meta.get("label"), str) and meta["label"].strip()
+                                 and len(meta["label"]) <= 40):
+        out.append("plan.json: metaphor must be an object with a \"label\" of 1-40 characters (the text the central "
+                   "picture shows, e.g. the meter's readout)")
+    elif meta is not None and meta.get("direction", "down") not in ("down", "any"):
+        out.append("plan.json: metaphor direction must be \"down\" (the default: the meter only falls along the path) "
+                   "or \"any\"")
     th = plan.get("thumbnail", {})
     if not isinstance(th, dict) or th.get("scene") not in seen or not isinstance(th.get("time"), (int, float)):
         out.append("plan.json: thumbnail needs a listed scene class and a time in seconds")
     elif not isinstance(th.get("text"), str) or not th["text"].strip() or len(th["text"]) > 40:
         out.append("plan.json: thumbnail text must be 1-40 characters (four words or fewer reads best)")
+    elif th.get("layout", "panel") not in THUMB_LAYOUTS:
+        out.append(f"plan.json: thumbnail layout must be one of {', '.join(THUMB_LAYOUTS)}")
     return out

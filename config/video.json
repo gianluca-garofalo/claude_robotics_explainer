@@ -83,7 +83,8 @@
     "panel_header_band": 0.9,
     "panel_bottom_diff_warn": 1.0,
     "panel_centre_diff_warn": 0.6,
-    "panel_empty_warn": 0.35
+    "panel_empty_warn": 0.35,
+    "thumbnail_min_ink": 0.12
   },
   "reading": {
     "text_wpm": 200,
@@ -95,7 +96,7 @@
     "narration_overlap": 0.5,
     "min_display_s": 1.0,
     "error_fraction": 0.75,
-    "max_words_on_screen_warn": 40,
+    "max_words_on_screen_warn": 25,
     "max_words_on_screen_error": 60,
     "narration_wpm_target": 150,
     "narration_wpm_warn": 165,
@@ -122,9 +123,14 @@
     "numbers": "House rule (2026-10, the channel owner): numbers read the way a person writes them: 2-3 significant digits for readouts, no trailing zeros (0.500000 becomes 0.5), exact values shown exactly ('0', 'exactly 0', '½'), one quantity at one precision within a scene, a real minus sign, a space before a unit. templates/manim/common.py fmt() formats them; tools/video/check_numbers.py checks the layout logs (live readouts sampled over time), narration, captions, chapters and thumbnail. Digit counts and the comparison tolerance are tunable defaults.",
     "space_*": "Tunable defaults for the space-usage warnings (check_design.py, settled frames): coverage of the graphics-safe area by content boxes on a 48 x 27 grid, the centre of mass of that content (0 = centred, 1 = at the edge), the largest empty rectangle while content crowds the rest, and the extent of the content's bounding box. Composition guidance, not a standard: warnings only.",
     "motion_*": "Tunable defaults for the checks during animations (check_design.py, from the probe's 15 fps timeline): two opaque texts overlapping while something moves (warning from 0.25 s, error from 1.5 s), and a live readout whose width changes by more than readout_width_jitter_warn units (about 16 px at 1080p) while it updates.",
-    "series": "The owner's decisions (2026-10), after the 3Blue1Brown pattern: speech from 0 s with the hook, no channel card; the spoken series context at the first natural break (about 30-90 s) over a 4-6 s builds-on frame; recaps of what the episode uses, marked and with their own chapter; a 15-20 s outro with the takeaway card, the channel name and the teaser, the right ~40 % of the frame (x > 1.4 Manim units) empty for YouTube's end-screen elements (which show in the last 5-20 s of a video). tools/video/check_series.py warns; the reviewers judge.",
+    "series": "The owner's decisions (2026-10, the opening revised 2026-11-04 after an independent review against the 3Blue1Brown bar): the hook opens on a full, moving picture from the first frame (at least first_frame_min_coverage of the graphics-safe area covered at t = 0) with music, the first words within speech_start_max_s (was 1.0 s: a beat of motion and music may come first), the hook's question spoken by question_by_s, the stakes after it, then a short title beat (the video's title and an 'Episode n of N' lower third over the spoken series sentence, builds_on_min_s-builds_on_max_s) and the body by body_by_s; no channel card. Recaps of what the episode uses, marked and with their own chapter; a 15-20 s outro with the takeaway card, the channel name and the teaser, the right ~40 % of the frame (x > 1.4 Manim units) empty for YouTube's end-screen elements (which show in the last 5-20 s of a video). Packaging: a title of at most title_max_chars characters with plan.json search_term and without the series name, a thumbnail of at most thumbnail_max_words words whose picture is a frame of the hook's first thumbnail_by_s seconds (click match). tools/video/check_series.py warns; the reviewers judge. Tunable defaults.",
     "align_*": "Tunable defaults for the alignment warnings (check_design.py, settled frames), added 2026-10-31 after a legend whose tags were staggered by 0.51 units passed every check: three or more texts of one kind and size stacked within align_stack_gap of each other (a column), or side by side with heights within align_row_height_ratio (a row), warn when their left edges, centres or right edges (rows: centres or bottoms) are all within align_max but none within align_tol (about 4 px at 1080p), or when all but one align and the odd one is off by less than align_outlier_max. A larger offset reads as a deliberate indent. Warnings only; legend_table() in common.py aligns by construction.",
-    "panel_*": "Tunable defaults for the panel-balance warnings (check_design.py, settled frames), added 2026-10-31: content split by an empty vertical gutter of at least panel_gutter_min units (titles in the top panel_header_band are ignored) forms side-by-side panels of at least panel_min_width of the safe width. A warning when their content bottoms differ by more than panel_bottom_diff_warn while their centres differ by more than panel_centre_diff_warn (one side ends much higher; a short column centred beside a tall picture is fine), or when a panel's largest empty block is more than panel_empty_warn of its area. The outro is exempt (it keeps the end-screen area empty). Warnings only."
+    "panel_*": "Tunable defaults for the panel-balance warnings (check_design.py, settled frames), added 2026-10-31: content split by an empty vertical gutter of at least panel_gutter_min units (titles in the top panel_header_band are ignored) forms side-by-side panels of at least panel_min_width of the safe width. A warning when their content bottoms differ by more than panel_bottom_diff_warn while their centres differ by more than panel_centre_diff_warn (one side ends much higher; a short column centred beside a tall picture is fine), or when a panel's largest empty block is more than panel_empty_warn of its area. The outro is exempt (it keeps the end-screen area empty). Warnings only.",
+    "engagement": "Owner request (2026-11-04) after an independent review of episode 1 against the 3Blue1Brown bar and its companion research (INSPIRATION.md, rules 2, 3, 6, 7, 8, 10, 11): tools/video/check_engagement.py measures motion on the renders (grayscale 320 x 180 at 4 fps, an interval moves when more than 30 pixels change by more than 6 levels: the review's method; episode 1 v1 measured 20 % moving, longest frozen stretch under narration 18 s), cuts through an empty frame, transforms against fades and fades of everything in the scene code, spoken notation, 'you / we' and questions in the narration, persistent slide titles, planned beats and dead air, and the central metaphor. Starting values, warnings first: errors_block_gate false until calibrated on later episodes (a frozen stretch under narration longer than frozen_narration_error_s is reported as an error but does not block the gate). Moreno and Mayer 2000 (coherence), Mayer's personalization and signaling principles, Muller's misconception research: see the review. v4 (2026-11-04, the review of v1/v2/v3): emphasis is not motion. With the layout log's plays (tools/video/layout_probe.py), narration over emphasis alone (Indicate, Circumscribe, Flash ...) counts as a frozen picture (emphasis_counts_as_motion false): episode 1 v3 measured 69 % moving on pixels but 47 % with emphasis separated, and a 14 s stretch of looping borders under the Lyapunov sentence passed as motion (the final-cut review's FC-3). emphasis_share_warn and emphasis_per_min_warn bound pulsing; silence_off_max_s flags digital silence in music-off scenes (tools/video/music.py off_beat_swell_s fills planned beats); jargon_new_per_block_warn bounds new technical terms per narration block (v3 introduced four in one sentence); thumbnail_picture_bold_min is the share of the thumbnail's picture, outside its text, whose luminance differs from the background by more than thumbnail_bold_delta at 168 x 94 (v3: 3 %, judged unreadable by the final-cut review). Starting values, warnings. v5 (2026-11-04, the review of v4): the meter means one thing. tools/video/layout_probe.py logs the value of every ra_role \"metaphor\" object (common.py meter(): ra_value(), readout or not); with plan.json metaphor direction \"down\" (the default) a refill of more than metaphor_rise_tol of the bar is a warning unless the scene declares it in plan.json scenes[].metaphor_resets with words of the narration block that announces it (metaphor_reset_margin_s of slack): episode 1 v4 refilled the meter during a scan of hypothetical points (0.119 to 0.586 with no step paid) and before 'the bill only goes down', both majors of the final-cut review, and showed an empty meter for all 99 s of one scene (metaphor_static_min_share). blank_end_grace_s: an empty frame inside a scene (v4: 0.3 s inside the outro) is a warning except in the last second of the video; outro_tail_min_s: picture and music after the last word (v4: 0.3 s). Starting values, warnings. v6 (2026-11-05, the review of v5): a declared refill counts only when the meter refills while or after its words are said (metaphor_reset_margin_s of slack; v5 refilled at a cut 3.6 s before them), and plan.json scenes[].picture (faithful or schematic) lets the check flag numbers on a schematic picture (v5: 'left to pay = 0.039' over the hook's 2-D path in the title beat). tools/video/layout_probe.py logs an equation assembled from its pieces as one text, so the design and reading-time checks see it (v5: a chain of inequalities crossed by the bowls was not reported).",
+    "quantities": "Owner request (2026-11-04, the review's difference 5): colour bound to quantities, not roles. Tunable; keep the colours colour-blind-safe (the semantic palette).",
+    "max_words_on_screen_warn": "Lowered from 40 to 25 on 2026-11-04 (text economy, the review's difference 7: episode 1 peaked at 37-39 words and terms); the error stays at 60 until calibrated.",
+    "title_beat": "title_beat_max_s and title_beat_min_speech (2026-11-04, after the v2 final-cut review: an 8.4 s title beat with 4.1 s of silent hold): one spoken sentence over the title, then the body. Warnings (check_series.py).",
+    "thumbnail_min_ink": "2026-11-04, after the v2 final-cut review: the picture of a picture-layout thumbnail is cropped to its content and fitted under the title band; at 168 x 94 its ink should cover at least this share (warning)."
   },
   "equation_numbers": false,
   "self_contained": {
@@ -195,7 +201,7 @@
     ]
   },
   "series": {
-    "speech_start_max_s": 1.0,
+    "speech_start_max_s": 3.0,
     "context_min_s": 25,
     "context_max_s": 90,
     "builds_on_min_s": 4,
@@ -204,6 +210,121 @@
     "recap_max_s": 75,
     "outro_min_s": 15,
     "outro_max_s": 20,
-    "endscreen_x_min": 1.4
+    "endscreen_x_min": 1.4,
+    "question_by_s": 15,
+    "first_frame_min_coverage": 0.02,
+    "body_by_s": 45,
+    "title_max_chars": 60,
+    "thumbnail_max_words": 3,
+    "thumbnail_by_s": 15,
+    "title_beat_max_s": 6.5,
+    "title_beat_min_speech": 0.5
+  },
+  "engagement": {
+    "motion_fps": 4,
+    "motion_size": [
+      320,
+      180
+    ],
+    "motion_pixel_delta": 6,
+    "motion_min_pixels": 30,
+    "frozen_narration_warn_s": 6.0,
+    "frozen_narration_error_s": 12.0,
+    "moving_share_warn": 0.5,
+    "empty_cut_ink": 0.005,
+    "ink_delta": 12,
+    "empty_cut_share_warn": 0.25,
+    "fade_ratio_warn": 5.0,
+    "derivation_min_equations": 2,
+    "notation_words_per_token": 25,
+    "address_per_100_words": 1.0,
+    "question_every_s": 120,
+    "title_band_top": 2.9,
+    "title_min_size": 30,
+    "title_centre_max_x": 2.5,
+    "title_max_s": 4.0,
+    "beat_min_s": 1.5,
+    "beats_min": 2,
+    "dead_air_s": 1.2,
+    "beat_min_moving": 0.5,
+    "dead_air_max_moving": 0.25,
+    "metaphor_body_share_min": 0.5,
+    "errors_block_gate": false,
+    "emphasis_counts_as_motion": false,
+    "emphasis_share_warn": 0.2,
+    "emphasis_per_min_warn": 4.0,
+    "silence_off_max_s": 2.0,
+    "jargon_new_per_block_warn": 2,
+    "jargon": [
+      "lyapunov",
+      "asymptotically stable",
+      "asymptotic stability",
+      "terminal cost",
+      "terminal set",
+      "terminal region",
+      "value function",
+      "cost-to-go",
+      "bellman",
+      "principle of optimality",
+      "recursive feasibility",
+      "hamilton-jacobi",
+      "lagrangian",
+      "stage cost",
+      "operator",
+      "monotone",
+      "riccati",
+      "legendre",
+      "momentum",
+      "multiplier",
+      "certificate",
+      "invariant set",
+      "receding horizon",
+      "optimal control",
+      "discretization",
+      "convex",
+      "gradient",
+      "jacobian",
+      "hessian",
+      "eigenvalue"
+    ],
+    "thumbnail_picture_bold_min": 0.08,
+    "thumbnail_bold_delta": 40,
+    "metaphor_rise_tol": 0.02,
+    "metaphor_reset_margin_s": 2.0,
+    "metaphor_static_min_share": 0.5,
+    "blank_end_grace_s": 1.0,
+    "outro_tail_min_s": 1.5
+  },
+  "quantities": {
+    "note": "One colour per quantity across the series (pictures, bars and equations): common.py ceq() colours every equation piece that starts with one of the 'tex' prefixes; the colour names are the palette's semantic colours. Outcomes (holds, fails) are shown by shapes and words, not by these colours.",
+    "V": {
+      "color": "blue",
+      "meaning": "the remaining action (the meter)",
+      "tex": [
+        "V_",
+        "V(",
+        "V\\big",
+        "V"
+      ]
+    },
+    "L_d": {
+      "color": "amber",
+      "meaning": "the cost of a step (discrete Lagrangian)",
+      "tex": [
+        "L_d",
+        "\\sum",
+        "L("
+      ]
+    },
+    "W": {
+      "color": "green",
+      "meaning": "the boundary term (terminal cost) and its region",
+      "tex": [
+        "W(",
+        "W\\big",
+        "W_",
+        "W"
+      ]
+    }
   }
 }

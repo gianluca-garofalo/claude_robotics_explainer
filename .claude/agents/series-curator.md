@@ -34,8 +34,9 @@ Rules that make an episode work (the red team will check them):
   episode will show is printed by a script in `code/` (name it in `material.scripts`) or is a closed form of the
   explainer. Mark scripts the series source lacks.
 - Prerequisites point backward only (an earlier episode, or `{"series", "episode"}` of a series released earlier).
-- The hook is spoken from 0 s and pays off the title; the series context comes at the first natural break (about
-  30-90 s); the teaser names the next episode's question (none in the finale).
+- The hook opens on a full, moving picture, is spoken by 3 s, asks its question by 15 s and pays off the title; the
+  series context follows as a short title beat (about 30-45 s); the teaser names the next episode's question (none
+  in the finale).
 - Self-contained wording everywhere a viewer will see or hear it: no explainer, code, file, link or section/equation
   numbers.
 

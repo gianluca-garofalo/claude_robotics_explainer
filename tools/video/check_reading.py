@@ -17,6 +17,8 @@ templates/manim/reading_model.py (the repository's copy; constants in config/vid
 Live readouts (numbers redrawn every frame) and axis numbers are exempt from display time. Drafts use the silent voice
 sized at the configured pace, so draft results approximate the final ones. Writes <out>/check_reading.json and .md
 (default review/design/<stage>/); exit status 1 when there is an error.
+A text carried across a cut (visible at the end of one scene and from the start of the next, in plan order:
+common.py carry_over() and RAScene.carry_in()) is credited with its time in both scenes.
 """
 from __future__ import annotations
 
@@ -54,8 +56,29 @@ def overlap(a: tuple[float, float], spans: list[tuple[float, float]]) -> float:
     return sum(max(0.0, min(a[1], b) - max(a[0], s)) for s, b in spans)
 
 
+def edge_items(log: dict) -> tuple[dict, dict]:
+    """({content: seconds} of the texts visible from the very start of a scene, {content: seconds} of those visible
+    up to its very end): a text carried across a cut (common.py carry_over() / RAScene.carry_in()) is read over both
+    scenes."""
+    end = float(log.get("duration", 0.0))
+    first, last = {}, {}
+    for item in log.get("timeline", []):
+        if item.get("live") or item.get("axis"):
+            continue
+        spans = intervals(item.get("events", []), end)
+        c = item.get("content", "")
+        if spans and spans[0][0] <= 0.05:
+            first[c] = max(first.get(c, 0.0), spans[0][1] - spans[0][0])
+        if spans and spans[-1][1] >= end - 0.05:
+            last[c] = max(last.get(c, 0.0), spans[-1][1] - spans[-1][0])
+    return first, last
+
+
 def scene_reading(name: str, log: dict, cfg: dict, findings: list, stats: dict, frame: dict | None = None,
-                  design: dict | None = None) -> None:
+                  design: dict | None = None, before: dict | None = None, after: dict | None = None) -> None:
+    """before / after: {content: seconds} the same text was already visible at the end of the previous scene, or
+    stays visible at the start of the next one (carried across the cut), credited to an appearance at the scene's
+    start or end."""
     end = float(log.get("duration", 0.0))
     narr = [(v["start"], v["start"] + v["duration"]) for v in log.get("voiceovers", [])]
     checked = short = 0
@@ -66,6 +89,11 @@ def scene_reading(name: str, log: dict, cfg: dict, findings: list, stats: dict, 
             shown = b - a
             if shown <= 0.05:
                 continue
+            c = item.get("content", "")
+            if a <= 0.05:
+                shown += (before or {}).get(c, 0.0)
+            if b >= end - 0.05:
+                shown += (after or {}).get(c, 0.0)
             checked += 1
             narrated = shown > 0 and overlap((a, b), narr) / shown >= cfg["narration_overlap"]
             need = RM.required_seconds(item["kind"], item.get("content", ""), narrated, cfg)
@@ -190,15 +218,23 @@ def main() -> int:
         out = Path(a.out) if a.out else run / "review" / "design" / a.stage
     else:
         ap.error("give a run or --layout")
-    sha, loaded = {}, []
+    sha, loaded, parsed = {}, [], []
     for name, lp in logs:
         if not lp.exists():
             findings.append({"check": "layout", "severity": "error", "scene": name, "t": 0.0,
                              "detail": f"no layout log {lp.name} (render with tools/render_video.sh)"})
+            parsed.append(None)
             continue
         data = json.loads(lp.read_text(encoding="utf-8"))
-        log = data["scenes"].get(name) or next(iter(data["scenes"].values()))
-        scene_reading(name, log, cfg, findings, stats, data.get("frame", {}), video_cfg["design"])
+        parsed.append((data, data["scenes"].get(name) or next(iter(data["scenes"].values()))))
+    edges = [edge_items(x[1]) if x else ({}, {}) for x in parsed]
+    for i, ((name, lp), x) in enumerate(zip(logs, parsed)):
+        if x is None:
+            continue
+        data, log = x
+        before = edges[i - 1][1] if i > 0 and parsed[i - 1] else {}
+        after = edges[i + 1][0] if i + 1 < len(parsed) and parsed[i + 1] else {}
+        scene_reading(name, log, cfg, findings, stats, data.get("frame", {}), video_cfg["design"], before, after)
         sha[name] = sha256_file(lp)
         loaded.append((name, log))
     findings += recall_load(loaded, video_cfg.get("recall", {}))

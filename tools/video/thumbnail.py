@@ -11,6 +11,10 @@ channel name. Original graphics only: nothing but our own frame and text. JPEG u
 requires. Also writes thumbnail.json (text boxes, sizes, colours, the frame's scene and time, the panel) for the
 checks in check_design.py: legibility at 168 x 94, and nothing busy behind the title (frame text under it, edges).
 Choose plan.json "thumbnail" so that the frame has no text where the title goes (the left half).
+Layout "picture" (plan.json thumbnail.layout, picture first): the title (three words or fewer, one line) sits in a
+dark band across the top (about the top fifth, the channel name under the title beside a green accent) and the
+frame's content, cropped to what is drawn, is fitted whole under the band, as large as it fits (nothing hidden
+behind the title; the key object stays legible at 168 x 94). The default layout "panel" is the one described above.
 """
 from __future__ import annotations
 
@@ -68,6 +72,74 @@ def font(size: int, bold: bool = True):
     return ImageFont.load_default(size=size)
 
 
+def save(img, out: Path, meta: dict) -> None:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    for q in (90, 80, 70, 60):
+        img.save(out, "JPEG", quality=q, optimize=True)
+        if out.stat().st_size < 2_000_000:
+            break
+    (out.parent / "thumbnail.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
+
+
+def content_box(img, pad: float = 0.04, delta: int = 28) -> tuple[int, int, int, int]:
+    """Bounding box of what differs from the background in a frame (the picture's content), padded by `pad` of the
+    frame size; the whole frame when nothing is found."""
+    from PIL import ImageChops, Image
+    diff = ImageChops.difference(img, Image.new("RGB", img.size, BG)).convert("L").point(lambda v: 255 if v > delta
+                                                                                          else 0)
+    box = diff.getbbox()
+    if not box:
+        return (0, 0, img.size[0], img.size[1])
+    px, py = int(pad * img.size[0]), int(pad * img.size[1])
+    return (max(0, box[0] - px), max(0, box[1] - py), min(img.size[0], box[2] + px), min(img.size[1], box[3] + py))
+
+
+def picture_layout(run: Path, a, img, th: dict, t: float, channel: str) -> int:
+    """Picture first: the title in a dark band across the top, a short green accent under it with the channel name
+    beside it, and the frame's content (cropped to what is drawn, so the key object is as large as it can be at
+    168 x 94) fitted whole under the band: nothing of the picture is hidden behind the title (v2 final-cut review)."""
+    from PIL import Image, ImageDraw
+    size = 84
+    f_big = font(size)
+    probe = ImageDraw.Draw(Image.new("RGB", (W, H)))
+    text = th["text"].strip()
+    while probe.textlength(text, font=f_big) > W - 2 * 64 and size > 56:
+        size -= 4
+        f_big = font(size)
+    x0, y0 = 64, 24
+    tb = probe.textbbox((x0, y0), text, font=f_big)
+    band = tb[3] + 26
+    crop = content_box(img)
+    pic = img.crop(crop)
+    room_w, room_h = W - 2 * 24, H - band - 16
+    k = min(room_w / pic.size[0], room_h / pic.size[1])
+    pw, ph = max(1, int(pic.size[0] * k)), max(1, int(pic.size[1] * k))
+    pic = pic.resize((pw, ph), Image.LANCZOS)
+    canvas = Image.new("RGB", (W, H), BG)
+    px, py = (W - pw) // 2, band + 8 + (room_h - ph) // 2
+    canvas.paste(pic, (px, py))
+    img = canvas
+    alpha = float(load_json(CONFIG / "video.json").get("design", {}).get("thumbnail_title_shade", 0.82))
+    d = ImageDraw.Draw(img)
+    d.text((x0, y0), text, font=f_big, fill=INK)
+    d.rectangle((x0, tb[3] + 8, x0 + 180, tb[3] + 14), fill=GREEN)
+    f_ch = font(22)
+    cb = d.textbbox((0, 0), channel.upper(), font=f_ch)
+    cx, cy = x0 + 200, tb[3] + 11 - (cb[3] + cb[1]) // 2
+    d.text((cx, cy), channel.upper(), font=f_ch, fill=MUTED)
+    elements = [{"role": "title", "text": text, "font_px": size, "bbox": list(tb), "color": "#%02x%02x%02x" % INK},
+                {"role": "channel", "text": channel.upper(), "font_px": 22, "decorative": True,
+                 "bbox": list(d.textbbox((cx, cy), channel.upper(), font=f_ch)), "color": "#%02x%02x%02x" % MUTED}]
+    out = Path(a.out) if a.out else run / "video" / "final" / "thumbnail.jpg"
+    save(img, out, {"size": [W, H], "layout": "picture", "elements": elements,
+                    "frame": {"scene": th["scene"], "scene_time": float(th["time"]), "video_time": round(t, 3)},
+                    "picture": {"crop": list(crop), "box": [px, py, px + pw, py + ph], "scale": round(k, 3)},
+                    "panel": {"band": band, "fade": 0, "shade": alpha}})
+    print(f"wrote {rel(out)} ({out.stat().st_size / 1e3:.0f} kB, picture layout, frame at {t:.1f} s of the final "
+          f"video, content {crop} scaled {k:.2f} under the title band)")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
@@ -86,6 +158,8 @@ def main() -> int:
                     str(frame)], check=True)
     img = Image.open(frame).convert("RGB").resize((W, H))
     channel = load_json(CONFIG / "channel.json")["channel_name"]
+    if th.get("layout") == "picture":
+        return picture_layout(run, a, img, th, t, channel)
     lines = textwrap.wrap(th["text"], width=16)[:2]
     f_big = font(92)
     probe = ImageDraw.Draw(Image.new("RGB", (W, H)))

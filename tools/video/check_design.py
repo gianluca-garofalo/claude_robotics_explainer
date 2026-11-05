@@ -34,8 +34,8 @@ Checks, at the end of every animation ("settled" snapshots of tools/video/layout
   motion        during animations, from the probe's 15 fps timeline: two opaque texts overlapping while something
                 moves (warning, error when it lasts), and live readouts whose width changes as they update
   margins       non-background pixels in the action-safe margin of sampled frames (needs Pillow; warning)
-  thumbnail     (final stage) the thumbnail text at 168 x 94 px: cap height, contrast, word count; nothing busy
-                behind the title: no frame text under it, edge density and luminance spread (needs Pillow)
+  thumbnail     (final stage) the thumbnail text at 168 x 94 px: cap height, contrast, word count; the picture's
+                ink at that size (thumbnail_min_ink, warning); nothing busy behind the title: no frame text under it, edge density and luminance spread (needs Pillow)
 Frames at every settled time and every sample_interval_s are saved with a contact sheet for the video-design-reviewer.
 Thresholds: config/video.json "design" and "palette". Writes <out>/check_design.json and .md (default
 review/design/<stage>/); exit status 1 when there is an error. Pure Python except frames, margins and thumbnail.
@@ -52,7 +52,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _common import CONFIG, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 
 CAP_PER_FONT = {"text": 0.010125, "math": 0.0070875}     # cap height (Manim units) per font-size unit, measured
 MACHADO = {  # Machado, Oliveira and Fernandes (2009), severity 1.0, applied to linear RGB
@@ -837,6 +837,14 @@ def thumbnail_check(run: Path, d: dict, rep: Report, out: Path) -> dict | None:
     out.mkdir(parents=True, exist_ok=True)
     small.save(out / f"thumbnail_{sw}x{sh}.png")
     result = {"small": [sw, sh], "elements": []}
+    bg = hex_rgb(load_json(CONFIG / "video.json").get("palette", {}).get("background", "#0f172a"))
+    px = pixels(small)
+    ink_share = sum(1 for p in px if max(abs(c / 255 - b) for c, b in zip(p, bg)) > 0.11) / max(1, len(px))
+    result["ink_small"] = round(ink_share, 3)
+    if ink_share < d.get("thumbnail_min_ink", 0.12):
+        rep.add("thumbnail", "warning", "thumbnail", 0.0, f"the picture covers {ink_share:.0%} of the thumbnail at "
+                f"{sw}x{sh} (at least {d.get('thumbnail_min_ink', 0.12):.0%}): crop to the key object, enlarge it",
+                ("ink",))
     for el in meta.get("elements", []):
         if el.get("decorative"):
             continue
