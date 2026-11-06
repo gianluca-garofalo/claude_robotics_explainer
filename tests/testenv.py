@@ -51,9 +51,18 @@ def env(config: Path = CONFIG, **extra) -> dict:
     return dict(os.environ, **environ(config), **extra)
 
 
+# Credentials and per-machine choices the tools read from the environment. A test that needs one sets it itself;
+# otherwise a developer's or a cloud session's own keys would change what the tests see.
+MACHINE_ENV = ("VOICE_SERVICE", "AZURE_SUBSCRIPTION_KEY", "AZURE_SERVICE_REGION", "ANTHROPIC_API_KEY",
+               "CLAUDE_CODE_OAUTH_TOKEN", "YOUTUBE_API_KEY", "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
+               "YOUTUBE_REFRESH_TOKEN", "LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR_URN")
+
+
 def activate() -> None:
     """Point this process and its subprocesses at the fixtures (idempotent). Called first in every test module and
     dry run, before any tool is imported; tool modules imported earlier are pointed at the fixture as well."""
+    for k in MACHINE_ENV:               # credentials and choices of this machine never reach a test
+        os.environ.pop(k, None)
     os.environ.update(environ())
     for m in list(sys.modules.values()):
         if getattr(m, "CONFIG", None) == REPO / "config":

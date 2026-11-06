@@ -1,3 +1,5 @@
+# checks/torque_momentum_share.py 
+# exit 0, 0.72 s
 c=0.0: max |numerical - closed form| = 4.6e-12; monotone up in theta; P(0)=0.0000 -> P(4)=0.9993
 c=0.5: max |numerical - closed form| = 2.0e-13; monotone up in theta; P(0)=0.5000 -> P(4)=0.9998
 c=1.0: max |numerical - closed form| = 0.0e+00; monotone flat in theta; P(0)=1.0000 -> P(4)=1.0000

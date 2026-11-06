@@ -2,14 +2,14 @@
 
 [[check]]
 script = "note/sec4_3_one_step_example.py"
-sections = ["4.3"]
-claims = "tables of Section 4.3: exact pair has equality, rectangle rule fails, W x 1.2 holds"
+sections = ["6.4"]
+claims = "tables of Section 6.4: exact pair has equality, rectangle rule fails, W x 1.2 holds"
 timeout = 120
 expect = ["exact 1.0", "rect 1.2"]
 
 [[check]]
 script = "note/sec5_6_symbolic_checks.py"
-sections = ["3.3", "4.3", "5.3", "6.3"]
+sections = ["4.4", "4.6", "5.2", "5.3", "6.3", "6.4"]
 claims = "hilltop: Hamilton-Jacobi residual, eigenvalues, exact discrete Lagrangian, threshold c >= 1.051"
 timeout = 300
 expect = ["HJ: 0", "P_DARE(rect)=1.051249"]
@@ -23,28 +23,28 @@ produces = ["note/fig3_phase_portrait.svg"]
 
 [[check]]
 script = "merged/window_split.py"
-sections = ["15.2"]
+sections = ["6.5", "16.2"]
 claims = "window/tail split of the remaining action"
 timeout = 60
 expect = ["P_d/2 = 0.5256"]
 
 [[check]]
 script = "merged/riccati_threshold.py"
-sections = ["3.3", "18"]
+sections = ["6.3", "19"]
 claims = "matrix threshold c* = 1.1055 of the one-step Riccati map"
 timeout = 60
 expect = ["c* = lambda_max(P^-1 P_d) = 1.105546"]
 
 [[check]]
 script = "merged/hilltop_extra.py"
-sections = ["1.5", "6.3"]
+sections = ["5.2", "6.1", "6.3"]
 claims = "Jacobi field, exact discrete Lagrangian, one step with W = V"
 timeout = 300
 expect = ["V_1 - W(q) = 0"]
 
 [[check]]
 script = "merged/fig_bases.py"
-sections = ["12.3", "Figure 7"]
+sections = ["13.4", "Figure 7"]
 claims = "two bases for one torque: Theta_21 = 2.5, F = (3, 0.4)"
 timeout = 60
 expect = ["Theta_21 = 2.500000", "F = (3.000, 0.400)"]
@@ -52,7 +52,7 @@ produces = ["merged/fig_bases.svg"]
 
 [[check]]
 script = "wbc/wbc_companion_checks.py"
-sections = ["8.2", "8.3", "9.1", "9.2", "12", "13.2", "14.1"]
+sections = ["9.2", "10.1", "10.2", "13.2", "13.3", "13.4", "13.5", "14.2", "15.1"]
 claims = "Gauss = operational-space control, block LDL^T hierarchy, F = L^T lambda, power invariance"
 timeout = 120
 expect = ["Gauss's principle with a task constraint"]
@@ -61,14 +61,14 @@ expect = ["Gauss's principle with a task constraint"]
 
 [[check]]
 script = "merged/ineq_hilltop.py"
-sections = ["3.2", "6.5", "18"]
+sections = ["7.1", "7.3", "19"]
 claims = "speed limit on the hilltop: clipped law, one-sided values at q_s, the bounded discrete step (optional for the series)"
 timeout = 120
 expect = ["int_0^60 L dt = 0.541667", "mu = 0.450000"]
 
 [[check]]
 script = "note/sec7_numerical_checks.py"
-sections = ["7"]
+sections = ["8.5", "8.6", "8.7", "9.1"]
 claims = "second-order plants: tau* formula against the numeric optimum, Gauss identity"
 timeout = 300
 expect = ["Gauss identity residual"]
@@ -76,7 +76,7 @@ produces = ["note/num_results.json"]
 
 [[check]]
 script = "note/sec7_symbolic_checks.py"
-sections = ["7"]
+sections = ["8.2", "8.3", "8.4", "8.5"]
 claims = "second-order plants: Euler-Lagrange equations of the augmented Lagrangian = Hamilton's equations, Hamiltonian linear in PQ, Riccati solutions of the double integrator"
 timeout = 300
 expect = ["diff EL_q - (pq' + H_q): 0", "diff EL_v - (pv' + H_v): 0", "diff EL_u - H_u: 0", "H is linear in PQ: True"]
@@ -90,68 +90,68 @@ produces = ["note/fig4_double_integrator.svg"]
 
 [[check]]
 script = "note/sec8_arm/model.py"
-sections = ["10"]
+sections = ["11"]
 claims = "two-link arm model (imported by the other arm scripts)"
 timeout = 60
 
 [[check]]
 script = "note/sec8_arm/mpc.py"
-sections = ["10.5"]
+sections = ["11.5"]
 claims = "receding-window solver (imported by closedloop.py and the arm checks)"
 timeout = 60
 
 [[check]]
 script = "note/sec8_arm/sym_derive.py"
-sections = ["10.2", "10.3", "10.4"]
+sections = ["11.2", "11.3", "11.4"]
 claims = "SymPy: W-dot, the Slotine-Li identity, u*, D = -H, pi_v = -M s"
 timeout = 900
 expect = ["H(z,-grad W) = -D : True", "pi_v = -M s : True"]
 
 [[check]]
 script = "note/sec8_arm/condcheck.py"
-sections = ["10.4"]
+sections = ["11.4"]
 claims = "eigenvalues of D and the designs"
 timeout = 600
 expect = ["eig of Hessian of D at 0"]
 
 [[check]]
 script = "note/sec8_arm/edge.py"
-sections = ["10.4"]
+sections = ["11.4"]
 claims = "behaviour of D near the edge of the certified level"
 timeout = 300
 expect = ["r 0.1 D(+)"]
 
 [[check]]
 script = "note/sec8_arm/quadlimit.py"
-sections = ["10.5"]
+sections = ["11.5"]
 claims = "quadratic limit of the discrete condition, closed-loop eigenvalues"
 timeout = 300
 expect = ["continuous closed-loop eigenvalues"]
 
 [[check]]
 script = "note/sec8_arm/feas.py"
-sections = ["10.5", "10.6"]
+sections = ["11.5", "11.6"]
 claims = "torque-limit level and terminal feasibility"
 timeout = 600
 expect = ["N 10 min W(z_N)"]
 
 [[check]]
 script = "note/sec8_arm/omega_check.py"
-sections = ["10.5"]
+sections = ["11.5"]
 claims = "discrete condition on the certified level sets"
 timeout = 900
 expect = ["sup ratio (sampled + refined) on Omega_0.3"]
 
 [[check]]
 script = "note/sec8_arm/discrete_check.py"
-sections = ["10.5"]
+sections = ["11.5"]
 claims = "thresholds on c_W for h = 0.005 and 0.01 s"
 timeout = 900
 expect = ["h=0.01 c=1.0000: W decreases everywhere? True"]
 
 [[check]]
 script = "note/sec8_arm/closedloop.py"
-sections = ["10.5", "10.6"]
+sections = ["11.5", "11.6"]
 claims = "closed-loop receding-window run (start B, N = 1, 100 steps); the full 500-step runs (A 10,20,40 and B 1,10,40) take up to about 25 minutes each and are run by hand, with their console output in ../data/"
 timeout = 600
 args = ["B", "1", "100"]
@@ -159,98 +159,98 @@ expect = ["experiment B"]
 
 [[check]]
 script = "note/sec8_arm/longh.py"
-sections = ["10.6"]
+sections = ["11.6"]
 claims = "long-window reference values"
 timeout = 1800
 expect = ["N 100 PD-warm-start cost"]
 
 [[check]]
 script = "merged/ineq_arm.py"
-sections = ["7.5", "10.7"]
+sections = ["7.2", "8.7", "11.7"]
 claims = "torque box on the arm: QP = clip for diagonal R, projection vs clip, certificate with the box"
 timeout = 1800
 expect = ["(1) diagonal R: box-QP minimizer vs componentwise clip"]
 
 [[check]]
 script = "merged/arm_extra_checks.py"
-sections = ["10.6", "18"]
+sections = ["11.5", "11.6", "19"]
 claims = "adjoint gradients against finite differences, N = 1 torque gap to PD + g and its decrease with h"
 timeout = 600
 expect = ["with h/8: joint-2 gap = 0.187"]
 
 [[check]]
 script = "merged/ineq_gauss.py"
-sections = ["8.4", "14.2"]
+sections = ["9.4", "15.2"]
 claims = "unilateral constraints in Gauss's principle: Fourier's inequality, powers"
 timeout = 120
 expect = ["total unilateral power 0.8047"]
 
 [[check]]
 script = "merged/duals_check.py"
-sections = ["8.3"]
+sections = ["9.3", "13.1"]
 claims = "Gauss multiplier = T0 lambda; momenta of W in two coordinate systems (optional for the series)"
 timeout = 120
 expect = ["max |pi . zdot + Wdot| in both coordinate systems"]
 
 [[check]]
 script = "wbc_brainstorm/redteam_check_ineq_order.py"
-sections = ["12.3", "13.2", "18"]
+sections = ["13.4", "14.2", "19"]
 claims = "inequality tasks in a hierarchy: order dependence at the switch"
 timeout = 120
 expect = ["acc-level feasible"]
 
 [[check]]
 script = "wbc_brainstorm/redteam_check_A_B.py"
-sections = ["12"]
+sections = ["13.2", "13.3"]
 claims = "LDL^T hierarchy against the literature's dynamically consistent extended Jacobians (optional for the series)"
 timeout = 120
 expect = ["A2 |decoupled - lexi(W=I)|"]
 
 [[check]]
 script = "merged/ineq_hierarchy.py"
-sections = ["13.2", "13.3", "14.2"]
+sections = ["14.2", "14.3", "15.2", "15.3"]
 claims = "inequality tasks: active interval of lambda_2 and the decoupled force"
 timeout = 120
 expect = ["active interval: lambda_2 in [0.0094, 31.0625]"]
 
 [[check]]
 script = "wbc_brainstorm/redteam_check_power.py"
-sections = ["14.1"]
+sections = ["15.1"]
 claims = "power invariance across task orders (optional for the series)"
 timeout = 120
 expect = ["total power F.v - lam.xdot"]
 
 [[check]]
 script = "wbc_brainstorm/redteam_check_C_F.py"
-sections = ["8.1", "15.1"]
+sections = ["9.1", "16.1"]
 claims = "hold dependence of the finite-window law; transcription dependence of tau0 = pi_v"
 timeout = 120
 expect = ["F symp: tau0=-5.15299"]
 
 [[check]]
 script = "merged/ineq_soft.py"
-sections = ["13.4"]
+sections = ["14.4"]
 claims = "strict versus soft priority with an inequality in conflict: the weighted solution approaches the lexicographic one like 0.1218/w"
 timeout = 120
 expect = ["lexicographic: J_1 qdd - a_1", "1e+05   1.217840e-06        0.1218"]
 
 [[check]]
 script = "note/sec10_general_N_descent.py"
-sections = ["2", "3.3", "18"]
+sections = ["3.2", "6.3", "19"]
 claims = "3-D random quadratic Lagrangian: threshold c* = lambda_max(P^-1 P_d) and the N-step descent inequality for N in {1, 2, 3, 5, 8}"
 timeout = 120
 expect = ["c*=1.1055", "c=3.000 N=8"]
 
 [[check]]
 script = "wbc_brainstorm/brainstorm_check1.py"
-sections = ["12"]
+sections = ["9.2", "13.2", "13.3", "13.4"]
 claims = "hierarchy as block Gram-Schmidt / LDL^T in the M^-1 metric; Khatib's force as a Gauss multiplier; order dependence of task forces (exploratory)"
 timeout = 120
 expect = ["reversed-order qdd equal", "--- order dependence of 'task forces' ---"]
 
 [[check]]
 script = "wbc_brainstorm/brainstorm_check2.py"
-sections = ["8.1"]
+sections = ["16.1"]
 claims = "finite-window (zero-order hold) argmin for a 1-DOF energy-type W, series in delta (exploratory)"
 timeout = 120
 expect = ["2nd-order-expansion argmin"]
@@ -258,6 +258,6 @@ expect = ["2nd-order-expansion argmin"]
 [[check]]
 script = "checks/torque_momentum_share.py"
 sections = ["5.2", "9.1", "16.1"]
-claims = "finite window W = c V closed form; discrete torque = momentum shares (zoh 110/35.5/5.5 %, symplectic Euler 53.7/10.5 %); first-instant stiffness 2.86 vs 1.36 N/m"
+claims = "finite window with W = cV (closed form vs Riccati ODE); discrete torque = momentum shares under zero-order hold and symplectic Euler; 10 ms first-instant stiffness 2.86 vs 1.36 N/m"
 timeout = 120
-expect = ["worst agreement", "(claim 2.86)", "(claim 1.36)"]
+expect = ["position-momentum share = 110.0%", "position-momentum share =  35.5%", "position-momentum share =   5.5%", "position-momentum share =  53.7%", "position-momentum share =  10.5%", "stiffness P12(d)/T0 = 2.8635 N/m", "stiffness = 1.3636 N/m"]

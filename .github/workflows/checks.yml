@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: pip install pyyaml actionlint-py shellcheck-py
+      - run: pip install pyyaml numpy pillow actionlint-py shellcheck-py
       - name: zsh, for the zsh checks of the scripts and of the documents' command blocks
         run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends zsh
       - run: python3 tools/lint_project.py
