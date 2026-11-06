@@ -82,7 +82,6 @@ class CheckSource(unittest.TestCase):
         rep = json.loads((self.tmp / "out.json").read_text())["sources"][0]
         self.assertEqual(rep["scripts_missing"], ["checks/missing_check.py", "gone.py"])
         self.assertIn("names checks/missing_check.py (section 5.1)", r.stdout)
-        self.assertIn("never write it from memory", r.stdout)
 
     def test_basenames_after_a_path_resolve_in_its_folder(self):
         code = self.src / "code"

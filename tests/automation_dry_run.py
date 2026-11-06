@@ -182,9 +182,8 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
         run_ = Path(r.stdout.strip())
         ctx = json.loads((run_ / "video/series_context.json").read_text())
         ep = json.loads((run_ / "episode.json").read_text())
-        scenes = sorted(f.name for f in (run_ / "video/scenes").glob("*.py"))
         return (ctx["episode"] == 2 and ctx["context"]["frame"]["heading"] == "Episode 2 of 2" and
-                scenes == ["common.py", "reading_model.py", "voice.py"] and ep["scenes_from_plan"] == [] and
+                series_fixture.scenes_beyond_helpers(run_) == [] and ep["scenes_from_plan"] == [] and
                 (run_ / "video/data/hilltop_samples.csv").exists() and (run_ / "code/checks.toml").exists(),
                 "series context (episode 2 of 2), the source's code and data, no scenes")
     r = step("series: start episode 2 of the approved plan (fresh)",

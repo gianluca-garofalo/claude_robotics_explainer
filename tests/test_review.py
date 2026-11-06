@@ -1,5 +1,5 @@
-"""Unit tests for the explainer review wiring: the five reviewers (the linear-reader with LR- ids), the reader-flow
-severity row, the symbol ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py).
+"""Unit tests for the explainer review wiring: the reviewers the gate requires (the linear-reader with LR- ids), the
+symbol ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py).
 The prompts themselves are judged by hand: tests/fixtures/review/reader_flow_eval.md."""
 import json
 import re
@@ -9,6 +9,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+import yaml
 
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -44,51 +46,32 @@ P_SWITCH = {"symbol": "p", "finding": "PRES-1", "uses": [
 
 
 class FiveReviewers(unittest.TestCase):
-    """The linear-reader is an agent, a reviewer the gate requires, part of the skill and the workflow, with LR- ids."""
+    """Every reviewer the gate requires is an agent, part of the skill and the workflow, with its own finding ids; the
+    linear-reader writes only under review/. Structure only: the prompts' wording is judged by hand
+    (tests/fixtures/review/reader_flow_eval.md)."""
 
     def test_agent_definition(self):
         text = (REPO / ".claude" / "agents" / "linear-reader.md").read_text(encoding="utf-8")
-        fm = text.split("---")[1]
-        self.assertIn("name: linear-reader", fm)
-        self.assertIn("reviewer_write_guard.py", fm)              # writes only under review/
-        self.assertNotRegex(fm, r"tools:.*\bEdit\b")
-        self.assertNotIn("model:", fm)
-        for phrase in ("front to back", "never fill a gap", "LR-", "linear-reader.json", "explainer_text.py"):
-            self.assertIn(phrase, text)
+        fm = yaml.safe_load(text.split("---")[1])
+        self.assertEqual(fm["name"], "linear-reader")
+        self.assertIn("reviewer_write_guard.py", json.dumps(fm.get("hooks")))   # writes only under review/
+        self.assertNotRegex(str(fm.get("tools", "")), r"\bEdit\b")
+        self.assertNotIn("model", fm)
+        for name in ("linear-reader.json", "explainer_text.py"):              # its report, the tool it reads with
+            self.assertIn(name, text)
 
     def test_wired_everywhere(self):
         self.assertIn("linear-reader", gate.REVIEWERS)
-        self.assertEqual(len(gate.REVIEWERS), 5)
-        self.assertEqual(validate.ID_PREFIX["linear-reader"], "LR")
         skill = (REPO / ".claude" / "skills" / "explainer-review" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("`linear-reader` (`LR-`", skill)
+        for r in gate.REVIEWERS:
+            with self.subTest(reviewer=r):
+                self.assertTrue((REPO / ".claude" / "agents" / f"{r}.md").is_file())
+                self.assertIn(r, validate.ID_PREFIX)
+                self.assertIn(r, skill)
         workflow = (REPO / ".claude" / "workflows" / "review-fanout.js").read_text(encoding="utf-8")
         listed = re.search(r"const REVIEWERS = \[(.*?)\]", workflow, re.S).group(1)
         self.assertEqual(re.findall(r"'([\w-]+)'", listed), list(gate.REVIEWERS))
-        self.assertIn("`LR-`", (REPO / ".claude" / "agents" / "finding-verifier.md").read_text(encoding="utf-8"))
-        self.assertTrue((FIX / "linear-reader.json").exists())    # the dry runs pass the gate with it
-
-    def test_reader_flow_agents_state_the_major_cases(self):
-        """Run 1 of the manual eval under-rated an example without its claim and grouped four places in one minor
-        finding: both reader-flow agents now say so explicitly."""
-        for name in ("presentation-reviewer", "linear-reader"):
-            text = " ".join((REPO / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8").split())
-            self.assertRegex(text, r"does not say which earlier claim it checks.{0,40}`major`|`major`.{0,200}does "
-                                   r"not say which earlier claim it checks", name)
-            self.assertIn("without an announcement", text, name)
-            self.assertIn("never fold several such places into one `minor` finding", text.replace("Never", "never"),
-                          name)
-        lr = " ".join((REPO / ".claude" / "agents" / "linear-reader.md").read_text(encoding="utf-8").split())
-        self.assertIn("switches from one function to another in the same role", lr)
-
-    def test_contract_ids_and_reader_flow_severity(self):
-        text = CONTRACT.read_text(encoding="utf-8")
-        self.assertIn("`LR-n` linear", text)
-        major = re.findall(r"^\| `major` \| (.*) \|$", text, re.M)
-        self.assertTrue(any("cannot follow a derivation or argument" in r and "unannounced change of meaning" in r
-                            and "missing link" in r for r in major), major)
-        minor = re.search(r"^\| `minor` \| (.*) \|$", text, re.M).group(1)
-        self.assertIn("plain wording", minor)
+        self.assertIn("LR-", (REPO / ".claude" / "agents" / "finding-verifier.md").read_text(encoding="utf-8"))
 
 
 class Ids(unittest.TestCase):
@@ -185,16 +168,15 @@ class WorkingFiles(unittest.TestCase):
             (run / "review" / "features_check.json").write_text(json.dumps(tool), encoding="utf-8")   # a stray
             errs = [e for r in validate.validate_run(run) for e in r.errors]
             self.assertTrue(any("not a reviewer report" in e and "review/checks/" in e for e in errs), errs)
-            self.assertNotIn("presentation_check.json", validate.NOT_REVIEWS)
         finally:
             shutil.rmtree(run.parent)
 
     def test_every_reviewer_is_told_where_its_files_go(self):
-        for name, prefix in (("technical-correctness-reviewer", "tc_"), ("reference-verifier", "ref_"),
-                             ("presentation-reviewer", "pres_"), ("claims-red-team", "rt_"),
-                             ("linear-reader", "lr_"), ("finding-verifier", "verify_")):
+        """review/checks/ is the folder validate and merge skip: every reviewer must know it, or its tool outputs fail
+        the run's validation."""
+        for name in (*gate.REVIEWERS, "finding-verifier"):
             text = (REPO / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8")
-            self.assertIn(f"review/checks/{prefix}", text, name)
+            self.assertIn("review/checks/", text, name)
         self.assertIn("review/checks/", CONTRACT.read_text(encoding="utf-8"))
 
 
@@ -289,15 +271,6 @@ class ReadingOrder(unittest.TestCase):
         self.assertEqual(self.text("--until", "2", "--grep", r"nabla V").strip(), "")
         self.assertIn("[2.1] Uses $p=-\\nabla V$.", self.text("--grep", r"nabla V"))
         self.assertIn("More", self.text("--from", "2.1"))
-
-
-class EvalNote(unittest.TestCase):
-    def test_note_lists_the_three_findings(self):
-        text = (REPO / "tests" / "fixtures" / "review" / "reader_flow_eval.md").read_text(encoding="utf-8")
-        self.assertIn("0860176d796b62ad8115567b619f7c4fe09771cffad725acd060b75cb4dd6183", text)
-        for case, where in (("(a)", "Section 5.2"), ("(b)", "Section 6.3"), ("(c)", "Section 6.2")):
-            self.assertIn(f"**{case}", text)
-            self.assertIn(where, text)
 
 
 if __name__ == "__main__":

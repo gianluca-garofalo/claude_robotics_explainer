@@ -213,20 +213,11 @@ class Start(unittest.TestCase):
         ep = json.loads((run / "episode.json").read_text())
         self.assertEqual((ep["schema_version"], ep["episodes_total"], ep["plan_approval"]["approved"]), (2, 2, True))
         self.assertTrue(ep["section_ids"])
+        plan_ep = json.loads((self.d / "series.json").read_text())["episodes"][1]
         brief = (run / "video" / "episode.md").read_text()
-        for needle in ("Hook first", "builds_on()", "recap_tag()", "never \"you must have watched\"", "15-20 s"):
-            self.assertIn(needle, brief)
-        self.assertIn("Existing scenes: none: write them", brief)                   # a fresh start: no kept scenes
+        for value in (plan_ep["title"], plan_ep["hook"], plan_ep["recap"][0]["title"]):   # the brief is the plan's
+            self.assertIn(value, brief)
         self.assertTrue((run / "video" / "data" / "hilltop_samples.csv").exists())   # data/ of the source
-
-    def test_fresh_copies_no_scenes(self):
-        r = series_cli("start", str(self.d), "--episode", "2", "--root", str(self.tmp / "runs"), "--date", "2026-11-14",
-                       "--fresh")
-        self.assertEqual(r.returncode, 0, r.stderr)
-        run = Path(r.stdout.strip())
-        self.assertEqual(sorted(p.name for p in (run / "video" / "scenes").glob("*.py")),
-                         ["common.py", "reading_model.py", "voice.py"])
-        self.assertIn("Existing scenes: none: write them", (run / "video" / "episode.md").read_text())
 
 
 class Write(unittest.TestCase):

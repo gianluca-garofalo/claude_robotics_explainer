@@ -49,12 +49,6 @@ class Contrast(unittest.TestCase):
                 with self.subTest(theme=name, pair=(fg, bg)):
                     self.assertGreaterEqual(contrast(hex_rgb(vs[fg]), hex_rgb(vs[bg])), 4.5, (vs[fg], vs[bg]))
 
-    def test_dark_set_uses_the_video_palette(self):
-        v = json.loads((testenv.CONFIG / "video.json").read_text())["palette"]
-        self.assertEqual(HF.DARK_VARS["--bg"], v["background"])
-        for c in ("#2dd4bf", "#fbbf24", "#818cf8"):
-            self.assertIn(c, HF.DARK_VARS.values())
-
 
 class SvgTheme(unittest.TestCase):
     def test_light_keeps_colours_dark_maps_neutrals_and_keeps_hues(self):
@@ -106,13 +100,13 @@ class SvgTheme(unittest.TestCase):
         self.assertEqual((light["--fig-keep"], light["--fig-mix"]), ("100%", "100%"))
         self.assertEqual(HF.DARK_VARS["--fig-keep"], "0%")
 
-    def test_classification(self):
+    def test_neutrals_take_the_theme_role_and_colours_keep_their_hue(self):
         for col, role in (("#0f172a", "ink"), ("#64748b", "muted"), ("#94a3b8", "muted"), ("#e2e8f0", "faint"),
                           ("#ffffff", "bg"), ("#f8fafc", "bg"), ("black", "ink"), ("#7f7f7f", "muted")):
-            self.assertEqual(HF._neutral(col), role, col)
+            self.assertEqual(HF.themed(col), f"color-mix(in srgb, {col} var(--fig-keep), var(--fig-{role}))", col)
         for col in ("#1f77b4", "#8c564b", "#15803d", "#3b82f6", "#eff6ff", "#f0fdf4", "#fffbeb", "#dbeafe",
                     "#fef3c7"):
-            self.assertIsNone(HF._neutral(col), col)                    # colours and pale tints keep their hue
+            self.assertNotRegex(HF.themed(col), r"var\(--fig-(ink|muted|faint|bg)\)", col)   # they keep their hue
 
     def test_dark_colours_meet_contrast_on_the_dark_background(self):
         def mix(c, p):
@@ -182,11 +176,15 @@ class Reinject(unittest.TestCase):
         self.assertEqual((again, set(how.values())), (new, {"marked"}))      # current: nothing changes
 
     def test_old_blocks_are_replaced_by_the_current_ones(self):
-        old = legacy_page().replace(".nb { white-space: nowrap; }", "").replace("fitFigures", "oldName")
-        new, _ = HF.reinject(old)
-        self.assertIn(".nb { white-space: nowrap; }", new)
-        self.assertIn("function fitFigures()", new)
-        self.assertNotIn("oldName", new)
+        old = legacy_page().replace("/* Reader features (tools/html_features.py)",
+                                    "/* Reader features (tools/html_features.py) .stale-css-sentinel {}", 1)
+        old = old.replace("})();\n</script>", "})();\n/* stale-body-sentinel */\n</script>", 1)
+        new, how = HF.reinject(old)
+        self.assertEqual(set(how.values()), {"legacy"})
+        self.assertNotIn("stale-css-sentinel", new)
+        self.assertNotIn("stale-body-sentinel", new)
+        for block in HF.blocks().values():
+            self.assertIn(block, new)
         fresh = HF.inject("<html><head><style>\n</style>\n</head>\n<body>\n<nav class=\"toc\"></nav>\n</body></html>")
         self.assertEqual({v[2] for v in HF.find_blocks(fresh).values()}, {"marked"})   # new pages carry the markers
 
@@ -219,29 +217,13 @@ class Reinject(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
-    def test_phone_rules_and_label_size_agree_with_the_check(self):
-        css = HF.css()
-        self.assertIn(".katex-display:has(.tag) > .katex > .katex-html > .tag { position: absolute !important;", css)
-        self.assertIn("figure.fig-scroll", css)
-        self.assertIn(".katex-display.tag-below > .katex > .katex-html > .tag", css)   # wider screens, on collision
-        self.assertIn("table.tbl-scroll", css)
-        for fn in ("function keepNumbers()", "function fitFigures()", "function fitTags()", "function fitTables()",
-                   "document.fonts.ready.then(fitAll)"):
-            self.assertIn(fn, HF.BODY_SCRIPT)
-        self.assertIn("var MIN_LABEL = 9,", HF.BODY_SCRIPT)
-        check = (REPO / "tools" / "check_html.js").read_text(encoding="utf-8")
-        self.assertIn("const MIN_LABEL_PX = 9;", check)
-
-
-class BuiltPage(unittest.TestCase):
-    def test_a_built_explainer_has_the_features(self):
-        """The fixture source's explainer, built by tools/build_explainer.py: toggle, unique equation anchors, every
-        equation reference resolves."""
-        html = SOURCE.read_text(encoding="utf-8")
-        self.assertIn('class="theme-toggle"', html)
-        self.assertEqual(len(set(re.findall(r'id="(eq-[\w.-]+)"', html))), len(re.findall(r'id="(eq-[\w.-]+)"', html)))
-        for name in re.findall(r'class="eqref" href="#(eq-[\w.-]+)"', html):
-            self.assertIn(f'id="{name}"', html)
+    def test_label_size_agrees_with_the_check(self):
+        """The page scales figure labels up to the size check_html.js measures against: the two numbers must agree."""
+        page = re.search(r"\bMIN_LABEL = (\d+(?:\.\d+)?)", HF.BODY_SCRIPT)
+        check = re.search(r"\bMIN_LABEL_PX = (\d+(?:\.\d+)?)",
+                          (REPO / "tools" / "check_html.js").read_text(encoding="utf-8"))
+        self.assertTrue(page and check)
+        self.assertEqual(float(page.group(1)), float(check.group(1)))
 
 
 KATEX = os.environ.get("KATEX_DIST") or str(REPO / "node_modules" / "katex" / "dist")

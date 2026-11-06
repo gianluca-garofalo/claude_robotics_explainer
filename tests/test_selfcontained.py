@@ -178,7 +178,7 @@ class Links(unittest.TestCase):
 class FreshStart(unittest.TestCase):
     def test_fresh_copies_no_kept_scenes(self):
         sys.path.insert(0, str(REPO / "tests"))
-        from series_fixture import make_series
+        from series_fixture import make_series, scenes_beyond_helpers
         tmp = Path(tempfile.mkdtemp(prefix="series-fresh-"))
         try:
             d = make_series(tmp)
@@ -191,11 +191,11 @@ class FreshStart(unittest.TestCase):
                                capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
             run = Path(r.stdout.strip())
-            scenes = sorted(p.name for p in (run / "video" / "scenes").glob("*.py"))
-            self.assertEqual(scenes, ["common.py", "reading_model.py", "voice.py"])
+            self.assertEqual(scenes_beyond_helpers(run), [])                   # the helpers only, never kept.py
+            self.assertTrue((run / "video" / "scenes" / "common.py").is_file())
             self.assertFalse((run / "video" / "plan.json").exists())
             self.assertFalse(list((run / "video").glob("voiceover_*.md")))
-            self.assertIn("Existing scenes: none: write them", (run / "video" / "episode.md").read_text())
+            self.assertNotIn("kept.py", (run / "video" / "episode.md").read_text())   # the brief offers no kept scene
             ep = json.loads((run / "episode.json").read_text())
             self.assertTrue(ep["fresh"])
             self.assertEqual(ep["scenes_from_plan"], [])

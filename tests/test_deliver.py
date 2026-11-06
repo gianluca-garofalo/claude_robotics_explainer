@@ -93,27 +93,23 @@ class Deliver(unittest.TestCase):
                                  "final_cut_review.md", "youtube.json", "SHA256SUMS"]))
         self.assertEqual((d / f"{SLUG}.mp4").read_bytes(), (run / "video/final" / f"{SLUG}.mp4").read_bytes())
         sheet = (d / "upload_sheet.md").read_text()
-        for needle in ("# Upload sheet: The hilltop: only one push arrives", "Episode 2 of 2 · Fixture series",
-                       "Chapters:", "0:30 The cost still to pay", "stable manifold, Remaining Action",
+        # what the sheet carries from the metadata, the manifest, the assembly and the series context
+        for needle in ("The hilltop: only one push arrives", "Episode 2 of 2 · Fixture series",
+                       "0:30 The cost still to pay", "stable manifold, Remaining Action",
                        "Altered or synthetic content: **Yes**", "piper (fixture-voice)", "Science & Technology",
-                       "No, it is not made for kids", "Playlists: add it to \"Fixture series\"",
-                       "Two episodes, one idea.", f"Upload file > With timing > `{SLUG}.srt`",
-                       "Thumbnail: upload `thumbnail.jpg`", "End screen from 1:18 to 1:35",
-                       "Optional card at 0:30", "official series", "\"One step\"", "Private first",
-                       "temporary"):
+                       "No, it is not made for kids", '"Fixture series"', "Two episodes, one idea.", f"`{SLUG}.srt`",
+                       "`thumbnail.jpg`", "End screen from 1:18 to 1:35", "card at 0:30", '"One step"'):
             self.assertIn(needle, sheet)
         self.assertNotIn(f"Run: {RUN_NAME}", sheet)          # the upload marker only serves automated uploads
         sums = dict(reversed(line.split("  ")) for line in (d / "SHA256SUMS").read_text().splitlines())
         self.assertEqual(sums[f"{SLUG}.mp4"], hashlib.sha256((d / f"{SLUG}.mp4").read_bytes()).hexdigest())
         self.assertIn("0 blocker", (d / "final_cut_review.md").read_text())
-        self.assertIn("nothing was uploaded", r.stdout)
 
     def test_own_voice_is_not_declared_synthetic(self):
         run = fake_run(self.tmp, synthetic=False)
         self.assertEqual(deliver(run).returncode, 0)
         sheet = (run / "deliver" / "upload_sheet.md").read_text()
         self.assertIn("Altered or synthetic content: **No**", sheet)
-        self.assertIn("your own recorded voice", sheet)
 
     def test_the_series_plan_travels_with_the_episode(self):
         import importlib.util
@@ -133,7 +129,6 @@ class Deliver(unittest.TestCase):
         self.assertIn("series/fixture-series/series.json", (d / "SHA256SUMS").read_text())
         sheet = (d / "upload_sheet.md").read_text()
         self.assertIn("## Series plan", sheet)
-        self.assertIn("commit and push it", sheet)
 
     def test_delivered_episode_counts_for_next(self):
         sys.path.insert(0, str(REPO / "tools"))

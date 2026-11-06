@@ -41,6 +41,9 @@ plans in `series/`, the preferences in `config/` and the wording of the document
   names a real source or series, and checks that every test module activates the fixtures first.
 - The lint rules on the documents (zsh-safe command blocks, no absolute paths, no model names) are deliberate; no test
   checks other wording of README.md, CLAUDE.md or the other documents.
+- Tests check behaviour, not the wording of prompts, skills or generated text, nor a copy of a design constant (a
+  threshold, a colour, a list of names). An agent or skill file is checked only for what a machine relies on: its
+  frontmatter, its hooks, and the tools, files and ids it names.
 - To change a fixture, change the tests that depend on it in the same commit.
 
 ## Skills

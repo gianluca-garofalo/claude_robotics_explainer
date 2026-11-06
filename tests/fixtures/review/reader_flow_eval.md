@@ -2,7 +2,7 @@
 
 A regression check for the two review prompts that judge reader flow: the presentation-reviewer (bridge test, symbol
 ledger) and the linear-reader. Prompts cannot be judged by a unit test, so this one is run by hand, with independent
-subagents. `tests/test_review.py` checks only that the agents and the severity rule are wired.
+subagents. `tests/test_review.py` checks only that the agents are wired.
 
 ## Material
 

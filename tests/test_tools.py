@@ -171,10 +171,10 @@ class SetupOnMacOS(unittest.TestCase):
             env = dict(os.environ, PATH=shim + os.pathsep + os.environ.get("PATH", ""))
             r = subprocess.run(["./setup.sh", "--check"], cwd=REPO, env=env, capture_output=True, text=True)
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
-        self.assertIn("cairo + pango headers              MISSING", r.stdout)
-        self.assertIn("brew install python@3.13 pkg-config cairo pango fontconfig ffmpeg sox node", r.stdout)
-        self.assertIn("brew install --cask mactex-no-gui font-dejavu", r.stdout)
-        self.assertIn("Then: ./setup.sh", r.stdout)
+        self.assertRegex(r.stdout, r"cairo[^\n]*MISSING")
+        self.assertRegex(r.stdout, r"brew install [^\n]*\bcairo\b[^\n]*\bpango\b")      # the fix, for this system
+        self.assertIn("brew install --cask", r.stdout)
+        self.assertNotIn("apt-get", r.stdout)
 
 
 class SetupAsRoot(unittest.TestCase):
@@ -202,11 +202,15 @@ class SetupAsRoot(unittest.TestCase):
     def test_root_needs_no_sudo_and_no_answers(self):
         r, calls = self.run_setup("0", node=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("System packages installed.", r.stdout)
         self.assertNotIn("sudo", calls)
-        self.assertIn("DEBIAN_FRONTEND=noninteractive update", calls)
-        self.assertIn("DEBIAN_FRONTEND=noninteractive install -y -o Dpkg::Options::=--force-confdef "
-                      "-o Dpkg::Options::=--force-confold build-essential", calls)   # no conffile prompt either
+        lines = calls.splitlines()
+        self.assertTrue(any(" update" in ln for ln in lines), calls)
+        self.assertTrue(all(ln.startswith("DEBIAN_FRONTEND=noninteractive ") for ln in lines), calls)
+        install = [ln for ln in lines if " install " in ln]
+        self.assertTrue(install, calls)
+        for ln in install:                                              # no question, no conffile prompt either
+            self.assertIn(" -y ", ln)
+            self.assertIn("--force-confold", ln)
         self.assertNotIn(" nodejs npm ", calls)                         # the image's own Node.js stays
 
     def test_a_user_goes_through_sudo(self):

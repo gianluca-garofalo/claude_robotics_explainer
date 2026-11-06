@@ -120,8 +120,11 @@ class Sentences(unittest.TestCase):
         raw = "Does it fall? It does... Then it stops\u2026 Next one. A 0.42 value."
         spans = voice.sentence_spans(raw)
         self.assertEqual(len(spans), 5)                                   # the ellipsis character ends a sentence
-        pauses = [voice.pause_after(raw[a:b], 0.25) for a, b in spans]
-        self.assertEqual(pauses, [0.45, 0.7, 0.7, 0.25, 0.25])
+        question, dots, char, statement, number = [voice.pause_after(raw[a:b], 0.25) for a, b in spans]
+        self.assertEqual((statement, number), (0.25, 0.25))                # a statement: the base pause
+        self.assertGreater(question, 0.25)
+        self.assertGreater(dots, 0.25)
+        self.assertEqual(char, dots)                                      # "..." and the ellipsis character alike
         self.assertEqual(voice.pause_after("Why?", 0.25, question=0.6), 0.6)
         self.assertEqual(voice.pause_after("(Really...)", 0.25, ellipsis=1.0), 1.0)
 
@@ -210,8 +213,7 @@ class Choice(unittest.TestCase):
         self.assertEqual(voice.piper_model()[0].parent.name, "piper")
 
     def test_piper_without_package(self):
-        if importlib_has("piper"):
-            self.skipTest("piper-tts is installed in this interpreter")
+        sys.modules["piper"] = None                     # not importable here, whatever this machine has installed
         self.model()
         ok, why = voice.available("piper")
         self.assertFalse(ok)
@@ -225,8 +227,7 @@ class Choice(unittest.TestCase):
             with self.assertRaises(ValueError):
                 voice.resolve("nope", draft=draft)
 
-    def test_only_the_four_voices_exist(self):
-        self.assertEqual(voice.SERVICES, ("piper", "azure", "recorded", "silent"))
+    def test_removed_voices_are_refused(self):
         for gone in ("espeak", "gtts", "openai", "elevenlabs"):
             ok, why = voice.available(gone)
             self.assertFalse(ok, gone)
@@ -277,14 +278,6 @@ class FinalRenderNeedsItsVoice(unittest.TestCase):
                 self.assertIn("unknown voice service 'espeak'", r.stderr)
         finally:
             shutil.rmtree(tmp)
-
-
-def importlib_has(name):
-    import importlib.util
-    try:
-        return importlib.util.find_spec(name) is not None
-    except ValueError:
-        return False
 
 
 class PiperModelTool(unittest.TestCase):

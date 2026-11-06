@@ -27,3 +27,11 @@ def make_series(root: Path, approve: bool = True, edit=None) -> Path:
     d.mkdir(parents=True, exist_ok=True)
     (d / "series.json").write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     return d
+
+
+def scenes_beyond_helpers(run: Path) -> list[str]:
+    """The files in <run>/video/scenes/ other than unchanged copies of the templates/manim helpers (the scene template
+    is a scene, not a helper): an episode started without kept scenes has none."""
+    tpl = REPO / "templates" / "manim"
+    helpers = {p.name: p.read_bytes() for p in tpl.glob("*.py") if p.name != "scene_template.py"}
+    return sorted(p.name for p in (run / "video" / "scenes").glob("*.py") if helpers.get(p.name) != p.read_bytes())

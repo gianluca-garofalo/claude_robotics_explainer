@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,8 @@ import testenv  # noqa: E402
 testenv.activate()                  # fixture config and sources, before any tool is imported
 FIX = REPO / "tests" / "fixtures" / "run"
 PY = sys.executable
+sys.path.insert(0, str(REPO / "tools"))
+from gate import REVIEWERS  # noqa: E402
 RESULTS: list[tuple[str, str, str]] = []
 
 
@@ -162,14 +165,15 @@ def main() -> int:
             run("workflow review-fanout with stub agents", ["node", "-e", WORKFLOW_HARNESS,
                                                             str(REPO / ".claude" / "workflows" / "review-fanout.js")],
                 check=lambda r: (lambda o: (o["run"] == "runs/fixture" and o["verdicts"] == ["TC-1: refuted (stub)"]
-                                            and len(o["reviewers"]) == 5 and o["failedReviewers"] == [],
-                                            f"5 reviewers, {len(o['verdicts'])} verification, merge step called"))(
+                                            and len(o["reviewers"]) == len(REVIEWERS) and o["failedReviewers"] == [],
+                                            f"{len(o['reviewers'])} reviewers, {len(o['verdicts'])} verification, "
+                                            "merge step called"))(
                     json.loads(r.stdout.strip().splitlines()[-1])))
         else:
             skip("workflow review-fanout with stub agents", "node not found")
 
         run("run.py status", [PY, "tools/run.py", "status", str(rundir)],
-            check=lambda r: ("approval      done" in r.stdout and "write         done" in r.stdout,
+            check=lambda r: (bool(re.search(r"approval\s+done", r.stdout) and re.search(r"write\s+done", r.stdout)),
                              r.stdout.strip().splitlines()[-1][:110]))
         run("run.py package", [PY, "tools/run.py", "package", str(rundir)])
         return report(tmp, a.keep)

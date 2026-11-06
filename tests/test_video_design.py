@@ -206,7 +206,7 @@ class Series(unittest.TestCase):
         """explainer.html, code/ and data/ come from the source; scenes kept in series/<slug>/episodes/epNN/ (an
         episode made again after a fix) are copied with their plan; an episode without kept scenes gets none."""
         sys.path.insert(0, str(REPO / "tests"))
-        from series_fixture import make_series
+        from series_fixture import make_series, scenes_beyond_helpers
         tmp = Path(tempfile.mkdtemp(prefix="series-start-"))
         try:
             d = make_series(tmp)
@@ -230,9 +230,8 @@ class Series(unittest.TestCase):
                              [{"file": "fixed.py", "class": "Fixed"}])
             self.assertIn("episodes/ep02", (ep2 / "video" / "episode.md").read_text())
             ep1 = next((tmp / "runs").glob("*-ep01-*"))
-            self.assertEqual(sorted(p.name for p in (ep1 / "video" / "scenes").glob("*.py")),
-                             ["common.py", "reading_model.py", "voice.py"])
-            self.assertIn("Existing scenes: none: write them", (ep1 / "video" / "episode.md").read_text())
+            self.assertEqual(scenes_beyond_helpers(ep1), [])                   # episode 1 kept no scenes
+            self.assertNotIn("fixed.py", (ep1 / "video" / "episode.md").read_text())
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
