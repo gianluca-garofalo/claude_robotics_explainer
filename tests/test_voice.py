@@ -500,8 +500,33 @@ print(json.dumps(res))
 '''
 
 
+SILENT_CACHE_SCRIPT = r'''
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import voice
+svc = voice.SilentService(cache_dir=sys.argv[2])
+first = svc._wrap_generate_from_text("One two three. <bookmark mark='b'/>Four five six.")
+moved = "One two <bookmark mark='b'/>three. Four five six."
+again = svc._wrap_generate_from_text(moved)        # same words: a cache hit, the bookmark has moved
+print(json.dumps({"hit": again["original_audio"] == first["original_audio"], "text": again["input_text"],
+                  "moved": moved}))
+'''
+
+
 @unittest.skipUnless(VPY and HAVE_FFMPEG, "needs manim-voiceover (.venv or $MANIM) and ffmpeg")
 class Services(unittest.TestCase):
+    def test_a_cache_hit_keeps_the_new_bookmarks(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            r = subprocess.run([VPY, "-c", SILENT_CACHE_SCRIPT, str(REPO / "templates" / "manim"), str(tmp)],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            res = json.loads(r.stdout.strip().splitlines()[-1])
+            self.assertTrue(res["hit"])
+            self.assertEqual(res["text"], res["moved"])         # not the cached entry's old bookmark positions
+        finally:
+            shutil.rmtree(tmp)
+
     def test_piper_sentences_pauses_cache_and_bookmarks(self):
         tmp = Path(tempfile.mkdtemp())
         try:

@@ -169,6 +169,12 @@ def pause_plan(text, ellipsis_s=0.0, pace_break_s=0.0):
     return plan
 
 
+def with_text(cached, text):
+    """A cache hit with this call's text: the cache key leaves bookmarks out, but manim-voiceover places them from
+    "input_text", so the cached entry's old text would put a moved bookmark where it was (or miss it)."""
+    return dict(cached, input_text=text)
+
+
 def slow_block(text):
     return bool(_SLOW_TAG.search(remove_bookmarks(str(text))))
 
@@ -447,7 +453,7 @@ class SilentService(SpeechService):
             data["slow_factor"] = round(slow, 4)
         cached = self.get_cached_result(data, cache_dir)
         if cached is not None:
-            return cached
+            return with_text(cached, text)
         speech = max(1.0, 60.0 * spoken_words(clean) / self.words_per_minute * slow)
         duration = speech + sum(plan.values())
         name = str(path) if path else self.get_audio_basename(data) + ".mp3"
@@ -520,7 +526,7 @@ class PiperService(SpeechService):
             data["max_wpm"] = self.max_wpm
         cached = self.get_cached_result(data, cache_dir)
         if cached is not None:
-            return cached
+            return with_text(cached, text)
         voice = self._load()
         rate = int(voice.config.sample_rate)
 
@@ -701,7 +707,7 @@ class AzureSpeechService(SpeechService):
             data["max_wpm"] = self.max_wpm
         cached = self.get_cached_result(data, cache_dir)
         if cached is not None:
-            return cached
+            return with_text(cached, text)
         name = str(path) if path else self.get_audio_basename(data) + ".mp3"
         out = Path(cache_dir) / name
         planned = pause_plan(raw, self.ellipsis_pause_s)              # planned pauses do not count in the pace

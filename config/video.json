@@ -124,7 +124,7 @@
     "title_beat": "title_beat_max_s and title_beat_min_speech: one spoken sentence over the title, then the body (check_series.py warnings).",
     "thumbnail_min_ink": "The share of a picture-layout thumbnail's picture that carries ink at 168 x 94 (warning).",
     "script": "The spoken-script standard of tools/video/check_script.py (pause marks, contractions, connectives, rhythm, stock phrases, pace): report only until calibrated.",
-    "pacing": "Rules P1-P20 of tools/video/check_pacing.py and the idea budget (plan) of tools/video/idea_budget.py: warnings, except three errors that block only with errors_block_gate."
+    "pacing": "Rules P1-P20 of tools/video/check_pacing.py and the idea budget (plan) of tools/video/idea_budget.py: warnings, except three errors, which block the gate."
   },
   "equation_numbers": false,
   "self_contained": {
@@ -395,7 +395,7 @@
   },
   "pacing": {
     "_note": "glossary: the channel's own terms, counted as concepts and terms at their first mention.",
-    "errors_block_gate": false,
+    "errors_block_gate": true,
     "stars_max": 2,
     "examples_max": 1,
     "side_max": 1,
