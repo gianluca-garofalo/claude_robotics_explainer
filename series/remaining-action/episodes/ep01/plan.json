@@ -1,0 +1,364 @@
+{
+  "schema_version": 1,
+  "title": "Why Does MPC Converge? A One-Step Proof",
+  "summary": "Model predictive control plans a whole path, takes one step and plans again. Why should that ever reach the target? This episode follows one number, the remaining action: the bill still left to pay. The old plan, shifted by one step and capped with a reference step, shows that the bill falls by at least each step's cost, for every window length, once one test on one step passes; a worked example checks it with numbers.",
+  "tags": [
+    "model predictive control",
+    "MPC stability",
+    "receding horizon control",
+    "Lyapunov function",
+    "terminal cost",
+    "terminal set",
+    "optimal control",
+    "stability proof"
+  ],
+  "search_term": "MPC",
+  "scenes": [
+    {
+      "file": "s01_hook.py",
+      "class": "Hook",
+      "section": "sec-idea",
+      "chapter": "Plan, step, throw away, repeat",
+      "role": "hook",
+      "picture": "schematic"
+    },
+    {
+      "file": "s02_context.py",
+      "class": "SeriesContext",
+      "chapter": "Plan, step, throw away, repeat",
+      "role": "context",
+      "picture": "schematic"
+    },
+    {
+      "file": "s03_bill.py",
+      "class": "Bill",
+      "section": "sec-window",
+      "chapter": "What is left to pay",
+      "role": "body",
+      "music": "low",
+      "picture": "schematic",
+      "metaphor_resets": [
+        {
+          "says": "look at the meter",
+          "why": "the bill is built from the cheapest plan's blocks and poured into the empty meter as these words are said: its first fill"
+        }
+      ]
+    },
+    {
+      "file": "s04_shifted.py",
+      "class": "ShiftedPlan",
+      "section": "sec-descent",
+      "chapter": "Why the bill falls",
+      "role": "body",
+      "music": "off",
+      "picture": "schematic"
+    },
+    {
+      "file": "s05_buys.py",
+      "class": "WhatItBuys",
+      "section": "sec-asymptotic",
+      "chapter": "What the fall buys",
+      "role": "body",
+      "music": "low",
+      "picture": "schematic"
+    },
+    {
+      "file": "s06_onestep.py",
+      "class": "OneStepTest",
+      "section": "sec-terminal",
+      "chapter": "One test, on one step",
+      "role": "body",
+      "music": "low",
+      "picture": "schematic"
+    },
+    {
+      "file": "s07_example.py",
+      "class": "Example",
+      "section": "sec-numeric",
+      "chapter": "One example, step by step",
+      "role": "body",
+      "music": "low",
+      "picture": "faithful",
+      "metaphor_resets": [
+        {
+          "says": "put the controller at one",
+          "why": "the worked example puts the controller at q = 1, a new start on the example's axis; the meter fills with that start's one-step bill, after the words"
+        }
+      ]
+    },
+    {
+      "file": "s08_recap.py",
+      "class": "Recap",
+      "section": "sec-descent",
+      "chapter": "Recap",
+      "role": "body",
+      "music": "low",
+      "picture": "schematic"
+    },
+    {
+      "file": "s09_outro.py",
+      "class": "Outro",
+      "chapter": "Takeaway",
+      "role": "outro",
+      "picture": "schematic",
+      "music_from": [
+        {
+          "says": "In the next episode",
+          "mode": "low"
+        }
+      ]
+    }
+  ],
+  "thumbnail": {
+    "scene": "Hook",
+    "time": 5.0,
+    "text": "Why MPC converges",
+    "layout": "picture"
+  },
+  "metaphor": {
+    "name": "the remaining-action meter",
+    "label": "left to pay",
+    "direction": "down"
+  },
+  "glossary": [
+    "remaining action",
+    "stage cost",
+    "end cost",
+    "end region",
+    "reference step",
+    "one-step bill"
+  ],
+  "ideas": [
+    {
+      "kind": "roadmap",
+      "scene": "Bill",
+      "bookmark": "road",
+      "shows": "the bill"
+    },
+    {
+      "id": "receding-window",
+      "kind": "concept",
+      "pretraining": true,
+      "scene": "Bill",
+      "bookmark": "win",
+      "shows": "window"
+    },
+    {
+      "id": "stage-cost",
+      "kind": "concept",
+      "pretraining": true,
+      "scene": "Bill",
+      "bookmark": "stage",
+      "shows": "stage cost"
+    },
+    {
+      "id": "end-region",
+      "kind": "concept",
+      "pretraining": true,
+      "scene": "Bill",
+      "bookmark": "reg",
+      "shows": "end region"
+    },
+    {
+      "id": "end-cost",
+      "kind": "concept",
+      "pretraining": true,
+      "scene": "Bill",
+      "bookmark": "end",
+      "shows": "end cost"
+    },
+    {
+      "id": "remaining-action",
+      "kind": "concept",
+      "pretraining": true,
+      "scene": "Bill",
+      "bookmark": "ra",
+      "shows": "remaining action"
+    },
+    {
+      "kind": "summary",
+      "scene": "Bill",
+      "bookmark": "sum",
+      "text": "the end of the pretraining segment"
+    },
+    {
+      "kind": "summary",
+      "scene": "Bill",
+      "bookmark": "eq",
+      "shows": "V_N(q)",
+      "text": "the chapter in symbols"
+    },
+    {
+      "kind": "prompt",
+      "main": true,
+      "scene": "ShiftedPlan",
+      "bookmark": "ask"
+    },
+    {
+      "id": "reference-step",
+      "kind": "concept",
+      "scene": "ShiftedPlan",
+      "bookmark": "ref",
+      "shows": "reference step"
+    },
+    {
+      "id": "end-test",
+      "kind": "claim",
+      "of": "one-step-test",
+      "scene": "ShiftedPlan",
+      "bookmark": "t",
+      "shows": "the test",
+      "text": "the condition, first said: along the reference step the end cost falls by at least that step's cost"
+    },
+    {
+      "kind": "summary",
+      "scene": "ShiftedPlan",
+      "bookmark": "a",
+      "shows": "V_N(q)",
+      "text": "the bars read as one line"
+    },
+    {
+      "id": "descent",
+      "kind": "star",
+      "scene": "ShiftedPlan",
+      "bookmark": "desc",
+      "shows": "V_N(q^+)"
+    },
+    {
+      "kind": "restatement",
+      "of": "descent",
+      "scene": "ShiftedPlan",
+      "bookmark": "rs"
+    },
+    {
+      "kind": "summary",
+      "scene": "ShiftedPlan",
+      "bookmark": "sum2"
+    },
+    {
+      "id": "feasibility",
+      "kind": "claim",
+      "follows": "descent",
+      "scene": "WhatItBuys",
+      "bookmark": "feas"
+    },
+    {
+      "id": "lyapunov-name",
+      "kind": "concept",
+      "scene": "WhatItBuys",
+      "bookmark": "ly",
+      "shows": "Lyapunov function"
+    },
+    {
+      "id": "stability",
+      "kind": "claim",
+      "follows": "descent",
+      "scene": "WhatItBuys",
+      "bookmark": "stab"
+    },
+    {
+      "id": "asymptotic-stability",
+      "kind": "concept",
+      "scene": "WhatItBuys",
+      "bookmark": "as",
+      "shows": "asymptotic stability"
+    },
+    {
+      "kind": "prompt",
+      "scene": "OneStepTest",
+      "bookmark": "ask2"
+    },
+    {
+      "id": "one-step-bill",
+      "kind": "concept",
+      "scene": "OneStepTest",
+      "bookmark": "osb",
+      "shows": "one step left"
+    },
+    {
+      "id": "one-step-test",
+      "kind": "star",
+      "scene": "OneStepTest",
+      "bookmark": "t",
+      "shows": "V_1"
+    },
+    {
+      "kind": "restatement",
+      "of": "one-step-test",
+      "scene": "OneStepTest",
+      "bookmark": "rs2"
+    },
+    {
+      "id": "one-step-converse",
+      "kind": "claim",
+      "of": "one-step-test",
+      "scene": "OneStepTest",
+      "bookmark": "cv",
+      "text": "the converse, said once: when the best one-step bill is no higher than the end cost, its best step is a reference step that passes the test (V_1 <= V_0 is the same test)"
+    },
+    {
+      "kind": "prompt",
+      "scene": "OneStepTest",
+      "bookmark": "ask3"
+    },
+    {
+      "id": "window-free",
+      "kind": "claim",
+      "follows": "one-step-test",
+      "scene": "OneStepTest",
+      "bookmark": "wf"
+    },
+    {
+      "id": "terminal-names",
+      "kind": "concept",
+      "scene": "OneStepTest",
+      "bookmark": "tn",
+      "shows": "terminal cost"
+    },
+    {
+      "kind": "summary",
+      "scene": "OneStepTest",
+      "bookmark": "sum4"
+    },
+    {
+      "kind": "prompt",
+      "scene": "Example",
+      "bookmark": "ask4"
+    },
+    {
+      "id": "one-step-example",
+      "kind": "claim",
+      "example": true,
+      "scene": "Example",
+      "bookmark": "ex",
+      "shows": "end cost"
+    },
+    {
+      "id": "ratio",
+      "kind": "claim",
+      "follows": "one-step-example",
+      "scene": "Example",
+      "bookmark": "ra"
+    },
+    {
+      "id": "textbook-weight",
+      "kind": "claim",
+      "side": true,
+      "follows": "one-step-example",
+      "scene": "Example",
+      "bookmark": "tb",
+      "shows": "fails"
+    },
+    {
+      "kind": "summary",
+      "scene": "Example",
+      "bookmark": "sum5"
+    },
+    {
+      "kind": "recap",
+      "scene": "Recap",
+      "bookmark": "rc",
+      "shows": "What made the bill fall?"
+    }
+  ]
+}
