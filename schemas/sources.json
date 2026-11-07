@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sources.json: the scout's candidate topics and the sources read for each",
+  "type": "object",
+  "required": ["schema_version", "run_date", "window_days", "queries", "candidates"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_date": {"$ref": "defs.json#/$defs/date"},
+    "window_days": {"type": "integer", "minimum": 1},
+    "queries": {"type": "array", "minItems": 1, "items": {"$ref": "defs.json#/$defs/text"},
+                "description": "every search query actually run"},
+    "unreadable": {"type": "array", "items": {"$ref": "#/$defs/unreadable"}},
+    "candidates": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/candidate"}}
+  },
+  "$defs": {
+    "unreadable": {
+      "type": "object",
+      "required": ["url", "reason"],
+      "properties": {
+        "url": {"$ref": "defs.json#/$defs/text"},
+        "reason": {"$ref": "defs.json#/$defs/text"},
+        "cause": {"enum": ["network_policy", "paywall", "login", "http_error", "timeout", "not_found", "other", null]}
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["id", "title", "slug", "summary", "central_claims", "sources"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^T\\d+$", "description": "T1, T2, ..."},
+        "title": {"$ref": "defs.json#/$defs/text", "maxLength": 160},
+        "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 60, "description": "kebab-case"},
+        "summary": {"$ref": "defs.json#/$defs/text", "maxLength": 900,
+                    "description": "two or three sentences in our own words, under 700 characters"},
+        "coverage": {"type": ["object", "null"], "required": ["status"],
+                     "properties": {"status": {"enum": ["new", "partly_covered", "covered"]}}},
+        "central_claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"},
+                           "description": "the claims the topic rests on"},
+        "visual_hooks": {"type": "array", "items": {"$ref": "defs.json#/$defs/text"}},
+        "search_queries": {"type": "array", "maxItems": 4, "description": "phrases a viewer would type",
+                           "items": {"type": "string", "pattern": "^\\s*\\S[\\s\\S]{0,78}\\S\\s*$", "description": "2-80 characters"}},
+        "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "required": ["claim", "status"],
+      "properties": {
+        "claim": {"$ref": "defs.json#/$defs/text"},
+        "status": {"enum": ["verified", "provisional", "unverified", "disputed"]},
+        "role": {"enum": ["central", "limitation", "context", null]},
+        "support": {"type": "array", "description": "ids of this candidate's sources"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "url", "title", "publisher", "kind", "primary", "read", "accessed"],
+      "if": {"required": ["primary"], "properties": {"primary": {"const": true}}},
+      "then": {
+        "required": ["relation"],
+        "properties": {
+          "kind": {"enum": ["paper", "preprint", "official_post", "code", "dataset"],
+                   "description": "news, press_release, video, social and other cannot be a primary source"},
+          "relation": {"enum": ["subject", "prior_work", "context"],
+                       "description": "a primary source needs one: subject (presents this candidate's work), prior_work (earlier work, e.g. for novelty) or context"}
+        }
+      },
+      "properties": {
+        "id": {"type": "string", "pattern": "^S\\d+$", "description": "S1, S2, ..., unique across the file"},
+        "url": {"$ref": "defs.json#/$defs/url"},
+        "title": {"$ref": "defs.json#/$defs/text"},
+        "publisher": {"$ref": "defs.json#/$defs/text"},
+        "kind": {"enum": ["paper", "preprint", "official_post", "code", "dataset",
+                          "news", "press_release", "video", "social", "other"]},
+        "primary": {"type": "boolean"},
+        "relation": {"enum": ["subject", "prior_work", "context", null]},
+        "read": {"enum": ["full", "abstract", "search_abstract", "snippet", "unreadable"],
+                 "description": "what was actually read"},
+        "via": {"type": ["string", "null"], "pattern": "^https?://\\S+$",
+                "description": "where the text was actually read, when not at url"},
+        "published": {"type": ["string", "null"], "format": "date"},
+        "accessed": {"$ref": "defs.json#/$defs/date"}
+      }
+    }
+  }
+}

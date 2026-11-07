@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "review/verify/<finding-id>.json: the finding-verifier's verdict on one finding",
+  "type": "object",
+  "required": ["schema_version", "finding", "verdict", "reason"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "finding": {"$ref": "defs.json#/$defs/finding_id"},
+    "verdict": {"enum": ["confirmed", "refuted", "uncertain"]},
+    "reason": {"$ref": "defs.json#/$defs/text", "description": "what was re-checked and what it showed"},
+    "checks_run": {"$ref": "defs.json#/$defs/checks_run"}
+  }
+}

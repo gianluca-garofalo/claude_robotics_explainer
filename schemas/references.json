@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "references.json: the explainer's bibliography and how each entry was verified",
+  "type": "object",
+  "required": ["schema_version", "references"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "references": {"type": "array", "items": {"$ref": "#/$defs/reference"}}
+  },
+  "$defs": {
+    "reference": {
+      "type": "object",
+      "required": ["key", "type", "authors", "title", "year", "verification"],
+      "properties": {
+        "key": {"type": "string", "pattern": "^[a-z][a-z0-9]*$", "description": "lowercase letters and digits, e.g. keerthi1988"},
+        "type": {"enum": ["article", "inproceedings", "book", "chapter", "thesis", "preprint", "web", "press", "video",
+                          "software", "dataset", "report"]},
+        "authors": {"type": "array", "minItems": 1, "items": {"$ref": "defs.json#/$defs/text"},
+                    "description": "an organisation is fine for web pages"},
+        "title": {"$ref": "defs.json#/$defs/text"},
+        "year": {"anyOf": [{"type": "integer", "minimum": 1600, "maximum": 2100}, {"const": "n.d."}],
+                 "description": "an integer year or 'n.d.'"},
+        "verification": {"$ref": "#/$defs/verification"},
+        "doi": {"type": ["string", "null"], "pattern": "^10\\.\\d{4,9}/\\S+$"},
+        "arxiv": {"type": ["string", "null"], "pattern": "^(\\d{4}\\.\\d{4,5}|[a-z\\-]+(\\.[A-Z]{2})?/\\d{7})(v\\d+)?$"},
+        "url": {"type": ["string", "null"], "pattern": "^https?://\\S+$"},
+        "accessed": {"type": ["string", "null"], "format": "date"}
+      },
+      "allOf": [
+        {"if": {"required": ["doi"], "properties": {"doi": {"not": {"type": "null"}}}},
+         "then": {"properties": {"verification": {"required": ["doi_seen_in"], "properties": {"doi_seen_in": {
+           "$ref": "defs.json#/$defs/text", "description": "the record the DOI was seen in: never invent or infer a DOI"}}}}}},
+        {"if": {"required": ["type"], "properties": {"type": {"enum": ["web", "press", "video", "software", "dataset"]}}},
+         "then": {"required": ["url"], "properties": {"url": {"type": "string", "description": "this type of reference needs a url"}}}},
+        {"if": {"required": ["type", "url"],
+                "properties": {"type": {"enum": ["web", "press", "video"]}, "url": {"type": "string", "minLength": 1}}},
+         "then": {"required": ["accessed"], "properties": {"accessed": {"type": "string", "description": "web sources need an accessed date"}}}}
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {"status": {"enum": ["verified", "secondary_only", "unverified"]}},
+      "if": {"required": ["status"], "properties": {"status": {"enum": ["verified", "secondary_only"]}}},
+      "then": {"required": ["checked_against"], "properties": {"checked_against": {
+        "type": "array", "minItems": 1, "description": "the records actually seen"}}}
+    }
+  }
+}

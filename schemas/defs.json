@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Definitions shared by the schemas of a run's files",
+  "$defs": {
+    "text": {"type": "string", "pattern": "\\S"},
+    "url": {"type": "string", "pattern": "^https?://\\S+$"},
+    "date": {"type": "string", "format": "date"},
+    "finding_id": {"type": "string", "pattern": "^[A-Z]{2,4}-\\d+$", "description": "e.g. TC-1, REF-2, PRES-3, RT-4, LR-5"},
+    "checks_run": {
+      "type": "array",
+      "description": "evidence, not assertions: one {command, result} per check",
+      "items": {
+        "type": "object",
+        "required": ["command", "result"],
+        "properties": {"command": {"$ref": "#/$defs/text"}, "result": {"$ref": "#/$defs/text"}}
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter of .claude/agents/<name>.md (fields of the Claude Code subagents reference)",
+  "type": "object",
+  "required": ["name", "description"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^(?!-)[^:]*$",
+             "description": "Claude Code skips the file without one; no ':', not starting with '-'"},
+    "description": {"type": "string", "minLength": 1, "description": "Claude Code skips the file without one"},
+    "maxTurns": {"type": "integer", "minimum": 1},
+    "color": {"enum": ["red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"]},
+    "hooks": {"$ref": "hooks.json"},
+    "model": {"not": {}, "description": "project policy: no model field, the defaults apply"},
+    "tools": {}, "disallowedTools": {}, "permissionMode": {}, "autoCompactWindow": {}, "skills": {}, "mcpServers": {},
+    "memory": {}, "background": {}, "effort": {}, "isolation": {}, "initialPrompt": {}, "omitClaudeMd": {},
+    "experimental": {}
+  },
+  "additionalProperties": {"not": {}, "description": "unknown field: Claude Code ignores it silently"}
+}

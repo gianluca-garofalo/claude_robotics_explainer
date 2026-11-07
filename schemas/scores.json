@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "scores.json: the ranker's judged scores per candidate (criteria in config/rubric.json)",
+  "type": "object",
+  "required": ["schema_version", "topics"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "topics": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/topic"}}
+  },
+  "$defs": {
+    "topic": {
+      "type": "object",
+      "required": ["id", "scores", "proposed_angle", "animation_idea"],
+      "properties": {
+        "id": {"type": "string", "description": "a candidate id of sources.json"},
+        "scores": {"type": "object", "additionalProperties": {"$ref": "#/$defs/score"}},
+        "proposed_angle": {"$ref": "defs.json#/$defs/text", "description": "one or two sentences"},
+        "animation_idea": {"$ref": "defs.json#/$defs/text", "description": "one or two sentences"}
+      }
+    },
+    "score": {
+      "type": "object",
+      "required": ["score", "why"],
+      "properties": {
+        "score": {"type": "integer", "minimum": 0, "maximum": 5},
+        "why": {"$ref": "defs.json#/$defs/text", "minLength": 20, "description": "at least one sentence of justification"},
+        "sources": {"type": "array", "description": "ids of this candidate's sources"}
+      }
+    }
+  }
+}

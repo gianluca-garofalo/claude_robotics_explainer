@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ci/*.json: the Claude Code settings the GitHub workflow installs as user settings",
+  "type": "object",
+  "required": ["permissions"],
+  "properties": {
+    "$schema": {},
+    "env": {},
+    "permissions": {
+      "type": "object",
+      "required": ["defaultMode"],
+      "properties": {
+        "defaultMode": {"const": "dontAsk", "description": "nobody answers prompts in CI"},
+        "allow": {"type": "array", "items": {"type": "string"}},
+        "ask": {"type": "array", "items": {"type": "string"}},
+        "deny": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "sandbox": {
+      "type": ["object", "null"],
+      "required": ["enabled", "allowUnsandboxedCommands"],
+      "properties": {"enabled": {"const": true}, "allowUnsandboxedCommands": {"const": false}}
+    }
+  },
+  "additionalProperties": {"not": {}, "description": "unexpected top-level key"}
+}

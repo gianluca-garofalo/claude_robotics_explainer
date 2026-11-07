@@ -1,64 +1,49 @@
 #!/usr/bin/env python3
-"""Validate the JSON artifacts of a run against the project's schemas and source policy.
+"""Validate a run's JSON files against schemas/*.json, then the uniqueness, cross-file, date and policy rules.
 
 Usage:
-  python3 tools/validate.py runs/<run>                 # every artifact that exists in the run
-  python3 tools/validate.py --kind sources FILE         # one file: sources | scores | references | review | verdict |
-                                                        #   approval | symbol_ledger
-
-Exit status: 0 = no errors (warnings allowed), 1 = errors. Standard library only.
-The schemas are documented in .claude/skills/*/SKILL.md and README.md; this file is the executable version.
+  python3 tools/validate.py runs/<run>         # every file that exists in the run
+  python3 tools/validate.py --kind KIND FILE   # KIND: sources scores references review verdict approval symbol_ledger
+Exit status 1 on errors (warnings allowed).
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import functools
 import json
 import re
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import CONFIG, SLUG_RE, load_json, parse_date, rel  # noqa: E402
+from _common import CONFIG, REPO, load_json, parse_date, rel  # noqa: E402
 
-SOURCE_KINDS_PRIMARY = {"paper", "preprint", "official_post", "code", "dataset"}
-SOURCE_KINDS_SECONDARY = {"news", "press_release", "video", "social", "other"}
-READ_LEVELS = {"full", "abstract", "search_abstract", "snippet", "unreadable"}   # defined in source-policy.md
-CLAIM_STATUS = {"verified", "provisional", "unverified", "disputed"}
-CLAIM_ROLES = {"central", "limitation", "context"}
-SOURCE_RELATIONS = {"subject", "prior_work", "context"}
-UNREADABLE_CAUSES = {"network_policy", "paywall", "login", "http_error", "timeout", "not_found", "other"}
-COVERAGE = {"new", "partly_covered", "covered"}
-STOP = set("a an and the of for in on to with by from at as is are be via its it this that new using how why what "
-           "robot robots robotics control learning".split())
+try:
+    from jsonschema import Draft202012Validator, validators
+    from referencing import Registry, Resource
+except ImportError:                  # hooks import this module under any python3: schema_errors says what is missing
+    Draft202012Validator = None
 
-
-def _words(text: str) -> set[str]:
-    return {w for w in re.findall(r"[a-z][a-z0-9-]{2,}", (text or "").lower()) if w not in STOP}
-REF_TYPES = {"article", "inproceedings", "book", "chapter", "thesis", "preprint", "web", "press", "video",
-             "software", "dataset", "report"}
-REF_STATUS = {"verified", "secondary_only", "unverified"}
-SEVERITIES = {"blocker", "major", "minor", "nit"}
-CONFIDENCE = {"high", "medium", "low"}
-VERDICTS = {"confirmed", "refuted", "uncertain"}
+KINDS = ("sources", "scores", "references", "review", "verdict", "approval", "symbol_ledger")
 NOT_REVIEWS = {"summary.json", "check_html.json", "resolutions.json", "lint_html.json", "frames.json", "gates.json",
-               "symbol_ledger.json"}           # pipeline records at the top of review/, not reviewer reports; the
-                                               # reviewers' own scripts and tool outputs live in review/checks/
+               "symbol_ledger.json"}           # pipeline records at the top of review/; tool outputs go in review/checks/
 REVIEW_SETS = ("video", "final_cut", "series_plan")         # review/<set>/ hold reports in the same format
 ID_PREFIX = {"technical-correctness-reviewer": "TC", "reference-verifier": "REF", "presentation-reviewer": "PRES",
              "claims-red-team": "RT", "linear-reader": "LR", "video-design-reviewer": "VD",
              "final-cut-reviewer": "FC", "series-red-team": "SRT"}   # each reviewer's finding ids: PREFIX-n
-LEDGER_CHANGES = {"none", "announced", "unannounced"}         # how a later use of a symbol relates to the first
-DOI_RE = re.compile(r"^10\.\d{4,9}/\S+$")
-ARXIV_RE = re.compile(r"^(\d{4}\.\d{4,5}|[a-z\-]+(\.[A-Z]{2})?/\d{7})(v\d+)?$")
-REF_KEY_RE = re.compile(r"^[a-z][a-z0-9]*$")
+STOP = set("a an and the of for in on to with by from at as is are be via its it this that new using how why what "
+           "robot robots robotics control learning".split())
+NOUNS = {"object": "an object", "array": "a list", "string": "a string", "integer": "an integer", "number": "a number",
+         "boolean": "true or false", "null": "null"}
 
 
+@dataclass
 class Report:
-    def __init__(self, label: str):
-        self.label = label
-        self.errors: list[str] = []
-        self.warnings: list[str] = []
+    label: str
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def err(self, msg: str) -> None:
         self.errors.append(msg)
@@ -67,498 +52,253 @@ class Report:
         self.warnings.append(msg)
 
     def print(self) -> None:
-        status = "FAIL" if self.errors else "ok"
-        print(f"[{status}] {self.label}: {len(self.errors)} error(s), {len(self.warnings)} warning(s)")
-        for e in self.errors:
-            print(f"  ERROR   {e}")
-        for w in self.warnings:
-            print(f"  warning {w}")
+        print(f"[{'FAIL' if self.errors else 'ok'}] {self.label}: {len(self.errors)} error(s), "
+              f"{len(self.warnings)} warning(s)")
+        for line in [f"  ERROR   {e}" for e in self.errors] + [f"  warning {w}" for w in self.warnings]:
+            print(line)
 
 
-def _str(x, maxlen: int | None = None) -> bool:
-    return isinstance(x, str) and x.strip() != "" and (maxlen is None or len(x) <= maxlen)
+@functools.cache
+def schema(name: str) -> dict:
+    return json.loads((REPO / "schemas" / f"{name}.json").read_text(encoding="utf-8"))
 
 
-def _date(rep: Report, where: str, value, allow_null: bool = False):
-    if value is None and allow_null:
-        return None
+@functools.cache
+def _validator(name: str):
+    registry = Registry().with_resources((p.name, Resource.from_contents(schema(p.stem)))
+                                         for p in (REPO / "schemas").glob("*.json"))
+    # JSON Schema counts 1.0 as an integer; the project's files never did (nor true)
+    types = Draft202012Validator.TYPE_CHECKER.redefine("integer", lambda _, x: type(x) is int)
+    return validators.extend(Draft202012Validator, type_checker=types)(
+        schema(name), registry=registry, format_checker=Draft202012Validator.FORMAT_CHECKER)
+
+
+def schema_errors(name: str, data) -> list[str]:
+    """data checked against schemas/<name>.json: '<JSON path> <problem> (<description>)' per error."""
+    if Draft202012Validator is None:
+        return ["jsonschema is not installed: pip install -r requirements-tools.txt"]
+    errors = _validator(name).iter_errors(data)
+    return [_message(e) for e in sorted(errors, key=lambda e: [(type(p) is str, p) for p in e.absolute_path])]
+
+
+def _message(e) -> str:
+    rule, want, path, sch = e.validator, e.validator_value, e.json_path, e.schema
+    if rule == "required":
+        name = next(p for p in want if e.message.startswith(f"{p!r} "))
+        path, sch, problem = f"{path}.{name}", sch.get("properties", {}).get(name, {}), "is required"
+    elif rule == "type":
+        problem = "must be " + " or ".join(NOUNS[t] for t in ([want] if isinstance(want, str) else want))
+    elif rule == "enum":
+        problem = f"must be one of {sorted(v for v in want if v is not None)}"
+    elif rule == "const":
+        problem = f"must be {want!r}" if isinstance(want, str) else f"must be {json.dumps(want)}"
+    elif rule == "pattern":
+        problem = "must not be blank" if want == r"\S" else f"must match {want}"
+    elif rule == "format":
+        problem = "must be an ISO date (YYYY-MM-DD)" if want == "date" else f"must be a valid {want}"
+    elif rule in ("minItems", "minLength", "maxItems", "maxLength"):
+        low, unit = rule.startswith("min"), "items" if rule.endswith("Items") else "characters"
+        problem = ("must not be empty" if low and want == 1 else
+                   f"has {len(e.instance)} {unit}; {'at least' if low else 'at most'} {want}")
+    elif rule in ("minimum", "maximum"):
+        problem = f"must be {'at least' if rule == 'minimum' else 'at most'} {want}"
+    else:
+        problem = "is not allowed" if rule == "not" else "is not valid"
+    note = sch.get("description") if isinstance(sch, dict) else None
+    return f"{path} {problem}" + (f" ({note})" if note else "")
+
+
+def _day(value) -> dt.date | None:
     try:
         return parse_date(value)
-    except (ValueError, TypeError) as exc:
-        rep.err(f"{where}: {exc}")
+    except (TypeError, ValueError):
         return None
 
 
-# --------------------------------------------------------------------------- sources.json
+def _items(seq) -> list[tuple[int, dict]]:
+    return [(i, x) for i, x in enumerate(seq) if isinstance(x, dict)] if isinstance(seq, list) else []
+
+
+def _at(*parts) -> str:
+    return "$" + "".join(f"[{p}]" if isinstance(p, int) else f".{p}" for p in parts)
+
+
+def _unique(rep: Report, seen: set, value, where: str, what: str, note: str = "") -> None:
+    if isinstance(value, str):
+        if value in seen:
+            rep.err(f"{where}: duplicate {what} {value}{note}")
+        seen.add(value)
+
+
+# --------------------------------------------------------------------------- rules beyond the schemas
 def validate_sources(data, rep: Report, scout_cfg: dict | None = None, run_dir: Path | None = None) -> None:
-    scout_cfg = scout_cfg or {}
+    rep.errors += schema_errors("sources", data)
     if not isinstance(data, dict):
-        rep.err("top level must be an object")
         return
-    if data.get("schema_version") != 1:
-        rep.err("schema_version must be 1")
-    run_date = _date(rep, "run_date", data.get("run_date"))
-    window = data.get("window_days")
-    if not isinstance(window, int) or window <= 0:
-        rep.err("window_days must be a positive integer")
-        window = None
-    run_json = (run_dir / "run.json") if run_dir else None
-    if run_json is not None and run_json.exists() and window is not None:
-        want = json.loads(run_json.read_text(encoding="utf-8")).get("window_days")
-        if want and want != window:
-            rep.err(f"window_days {window} differs from the run's window ({want} days in run.json, set by "
-                    "tools/run.py new --window-days); the run's window is the one that counts")
-    queries = data.get("queries")
-    if not isinstance(queries, list) or not queries or not all(_str(q) for q in queries):
-        rep.err("queries must list every search query actually run (non-empty strings)")
-    unreadable = data.get("unreadable", [])
-    if not isinstance(unreadable, list):
-        rep.err("unreadable must be a list of {url, reason}")
-    else:
-        for i, u in enumerate(unreadable):
-            if not (isinstance(u, dict) and _str(u.get("url")) and _str(u.get("reason"))):
-                rep.err(f"unreadable[{i}] needs url and reason")
-            elif u.get("cause") is None:
-                rep.warn(f"unreadable[{i}]: add a cause ({', '.join(sorted(UNREADABLE_CAUSES))}) so the ranking can "
-                         "tell a blocked network from a problem with the topic")
-            elif u["cause"] not in UNREADABLE_CAUSES:
-                rep.err(f"unreadable[{i}].cause must be one of {sorted(UNREADABLE_CAUSES)}")
-    covered = []
-    cov_p = (run_dir / "covered.json") if run_dir else None
-    if cov_p is not None and cov_p.exists():
-        covered = json.loads(cov_p.read_text(encoding="utf-8")).get("items", [])
-    cands = data.get("candidates")
+    scout_cfg, run_date, window = scout_cfg or {}, _day(data.get("run_date")), data.get("window_days")
+    window = window if type(window) is int and window > 0 else None
+    want = _load(run_dir / "run.json").get("window_days") if run_dir and (run_dir / "run.json").exists() else None
+    if window and want and want != window:
+        rep.err(f"$.window_days {window} differs from the run's window ({want} days in run.json, set by "
+                "tools/run.py new --window-days); the run's window is the one that counts")
+    causes = ", ".join(c for c in schema("sources")["$defs"]["unreadable"]["properties"]["cause"]["enum"] if c)
+    for i, u in _items(data.get("unreadable")):
+        if u.get("cause") is None:
+            rep.warn(f"{_at('unreadable', i)}: add a cause ({causes}) so the ranking can tell a blocked network from "
+                     "a problem with the topic")
+    covered = (_load(run_dir / "covered.json").get("items", []) if run_dir and (run_dir / "covered.json").exists()
+               else [])
+    cands, most, least = data.get("candidates"), scout_cfg.get("max_candidates", 12), scout_cfg.get("min_candidates", 1)
     if not isinstance(cands, list) or not cands:
-        rep.err("candidates must be a non-empty list")
         return
-    max_c = scout_cfg.get("max_candidates", 12)
-    min_c = scout_cfg.get("min_candidates", 1)
-    if len(cands) > max_c:
-        rep.err(f"{len(cands)} candidates; config/scout.json allows at most {max_c}")
-    if len(cands) < min_c:
-        rep.warn(f"only {len(cands)} candidate(s); config/scout.json asks for at least {min_c}")
-
-    seen_tid, seen_slug, seen_sid, url_owner = set(), set(), set(), {}
-    for ci, c in enumerate(cands):
-        where = f"candidates[{ci}]"
-        if not isinstance(c, dict):
-            rep.err(f"{where} must be an object")
-            continue
-        tid = c.get("id")
-        if not (isinstance(tid, str) and re.match(r"^T\d+$", tid)):
-            rep.err(f"{where}.id must look like T1, T2, ...")
-        elif tid in seen_tid:
-            rep.err(f"duplicate candidate id {tid}")
-        seen_tid.add(tid)
-        where = f"{tid or where}"
-        if not _str(c.get("title"), 160):
-            rep.err(f"{where}.title must be a non-empty string of at most 160 characters")
-        slug = c.get("slug")
-        if not (isinstance(slug, str) and SLUG_RE.match(slug) and len(slug) <= 60):
-            rep.err(f"{where}.slug must be kebab-case, at most 60 characters")
-        elif slug in seen_slug:
-            rep.err(f"duplicate slug {slug}")
-        seen_slug.add(slug)
-        summary = c.get("summary", "")
-        if not _str(summary):
-            rep.err(f"{where}.summary is required (two or three sentences in our own words)")
-        elif len(summary) > 900:
-            rep.err(f"{where}.summary has {len(summary)} characters; keep it under 700 and in our own words")
-        elif len(summary) > 700:
-            rep.warn(f"{where}.summary has {len(summary)} characters; aim for under 700")
-        queries = c.get("search_queries", [])
-        if not (isinstance(queries, list) and len(queries) <= 4 and
-                all(isinstance(q, str) and 2 <= len(q.strip()) <= 80 for q in queries)):
-            rep.err(f"{where}.search_queries must be a list of at most 4 phrases (2-80 characters) a viewer would type")
-        hooks = c.get("visual_hooks", [])
-        if not isinstance(hooks, list) or not all(_str(h) for h in hooks):
-            rep.err(f"{where}.visual_hooks must be a list of strings")
-
-        sources = c.get("sources")
-        if not isinstance(sources, list) or not sources:
-            rep.err(f"{where}.sources must be a non-empty list")
-            sources = []
-        sid_info = {}
-        newest_subject = None
-        for si, s in enumerate(sources):
-            sw = f"{where}.sources[{si}]"
-            if not isinstance(s, dict):
-                rep.err(f"{sw} must be an object")
-                continue
-            sid = s.get("id")
-            if not (isinstance(sid, str) and re.match(r"^S\d+$", sid)):
-                rep.err(f"{sw}.id must look like S1, S2, ...")
-            elif sid in seen_sid:
-                rep.err(f"duplicate source id {sid} (source ids are unique across the file)")
-            seen_sid.add(sid)
-            sw = f"{where}/{sid or si}"
-            url = s.get("url")
-            if not (isinstance(url, str) and re.match(r"^https?://[^\s]+$", url)):
-                rep.err(f"{sw}.url must be an http(s) URL")
-            else:
-                if url.startswith("http://"):
-                    rep.warn(f"{sw}.url uses http; prefer https")
-                if url in url_owner and url_owner[url] != tid:
-                    rep.warn(f"{sw}: URL also used by {url_owner[url]}")
-                url_owner.setdefault(url, tid)
-            for f in ("title", "publisher"):
-                if not _str(s.get(f)):
-                    rep.err(f"{sw}.{f} is required")
-            kind = s.get("kind")
-            if kind not in SOURCE_KINDS_PRIMARY | SOURCE_KINDS_SECONDARY:
-                rep.err(f"{sw}.kind must be one of {sorted(SOURCE_KINDS_PRIMARY | SOURCE_KINDS_SECONDARY)}")
-            primary = s.get("primary")
-            if not isinstance(primary, bool):
-                rep.err(f"{sw}.primary must be true or false")
-            elif primary and kind in SOURCE_KINDS_SECONDARY:
-                rep.err(f"{sw}: kind '{kind}' cannot be a primary source (primary = paper, preprint, official_post, code, dataset)")
-            read = s.get("read")
-            if read not in READ_LEVELS:
-                rep.err(f"{sw}.read must be one of {sorted(READ_LEVELS)} (what was actually read)")
-            relation = s.get("relation")
-            if relation is None and primary is True:
-                rep.err(f"{sw}.relation is required for a primary source: 'subject' (the source presents this "
-                        "candidate's work), 'prior_work' (earlier work, e.g. for novelty) or 'context'")
-            elif relation is not None and relation not in SOURCE_RELATIONS:
-                rep.err(f"{sw}.relation must be one of {sorted(SOURCE_RELATIONS)}")
-            via = s.get("via")
-            if via is not None and not (isinstance(via, str) and re.match(r"^https?://\S+$", via)):
-                rep.err(f"{sw}.via must be the http(s) URL where the text was actually read (a metadata endpoint, "
-                        "index or the authors' page) when it was not the source's own URL")
-            pub = _date(rep, f"{sw}.published", s.get("published"), allow_null=True)
-            acc = _date(rep, f"{sw}.accessed", s.get("accessed"))
+    if len(cands) > most:
+        rep.err(f"$.candidates: {len(cands)} candidates; config/scout.json allows at most {most}")
+    if len(cands) < least:
+        rep.warn(f"$.candidates: only {len(cands)} candidate(s); config/scout.json asks for at least {least}")
+    tids, slugs, sids, url_owner = set(), set(), set(), {}
+    for ci, c in _items(cands):
+        at, tid, slug, summary = _at("candidates", ci), c.get("id"), c.get("slug"), c.get("summary")
+        _unique(rep, tids, tid, f"{at}.id", "candidate id")
+        _unique(rep, slugs, slug, f"{at}.slug", "slug")
+        if isinstance(summary, str) and 700 < len(summary) <= 900:
+            rep.warn(f"{at}.summary has {len(summary)} characters; aim for under 700")
+        info, newest = {}, None                  # source id -> (primary, read, subject)
+        for si, s in _items(c.get("sources")):
+            sw, sid, url = f"{at}.sources[{si}]", s.get("id"), s.get("url")
+            pub, acc, primary = _day(s.get("published")), _day(s.get("accessed")), s.get("primary") is True
+            _unique(rep, sids, sid, f"{sw}.id", "source id", " (source ids are unique across the file)")
+            if isinstance(url, str) and url.startswith("http://"):
+                rep.warn(f"{sw}.url uses http; prefer https")
+            if isinstance(url, str) and url_owner.setdefault(url, tid) != tid:
+                rep.warn(f"{sw}: URL also used by {url_owner[url]}")
             if run_date and pub and pub > run_date:
                 rep.err(f"{sw}.published {pub} is after the run date {run_date}")
-            if run_date and acc and not (run_date <= acc <= run_date + dt.timedelta(days=7)):
+            if run_date and acc and not run_date <= acc <= run_date + dt.timedelta(days=7):
                 rep.warn(f"{sw}.accessed {acc} is not within a week after the run date")
-            subject = primary is True and (relation or "subject") == "subject"
-            sid_info[sid] = (primary is True, read, subject)
-            if subject and pub and (newest_subject is None or pub > newest_subject):
-                newest_subject = pub
-        if not any(info[2] for info in sid_info.values()):
-            rep.warn(f"{where}: no primary source about the candidate itself (relation 'subject'); prior work does not "
+            subject = primary and (s.get("relation") or "subject") == "subject"
+            info[sid if isinstance(sid, str) else si] = (primary, str(s.get("read")), subject)
+            if subject and pub and (newest is None or pub > newest):
+                newest = pub
+        if not any(v[2] for v in info.values()):
+            rep.warn(f"{at}: no primary source about the candidate itself (relation 'subject'); prior work does not "
                      "count, so the ranking gate will exclude it from recommendation")
-        elif newest_subject is None:
-            rep.warn(f"{where}: no subject primary source has a publication date (recency will be unknown)")
-        elif run_date and window and (run_date - newest_subject).days > window:
-            rep.err(f"{where}: its newest subject primary source ({newest_subject}) is older than the run's "
-                    f"{window}-day window; drop the candidate, or start the run with a wider window "
-                    "(tools/run.py new --window-days N)")
+        elif newest is None:
+            rep.warn(f"{at}: no subject primary source has a publication date (recency will be unknown)")
+        elif run_date and window and (run_date - newest).days > window:
+            rep.err(f"{at}: its newest subject primary source ({newest}) is older than the run's {window}-day window; "
+                    "drop the candidate, or start the run with a wider window (tools/run.py new --window-days N)")
         cov = c.get("coverage")
-        if covered:
-            if not isinstance(cov, dict) or cov.get("status") not in COVERAGE:
-                rep.err(f"{where}.coverage must say whether the channel already covers it: "
-                        f'{{"status": "new"|"partly_covered"|"covered", "by": [...], "note": "..."}} (covered.json)')
-            else:
-                mine = _words(f"{c.get('title', '')} {slug or ''}")
-                close = [it["title"] for it in covered if len(mine & set(it.get("keywords", []))) >= 3]
-                if close and cov["status"] == "new":
-                    rep.warn(f"{where}: shares keywords with already covered '{close[0][:70]}'; check coverage")
-        elif cov is not None and (not isinstance(cov, dict) or cov.get("status") not in COVERAGE):
-            rep.err(f"{where}.coverage.status must be one of {sorted(COVERAGE)}")
-
-        claims = c.get("central_claims")
-        if not isinstance(claims, list) or not claims:
-            rep.err(f"{where}.central_claims must list the claims the topic rests on")
-            claims = []
-        for k, cl in enumerate(claims):
-            cw = f"{where}.central_claims[{k}]"
-            if not isinstance(cl, dict) or not _str(cl.get("claim")):
-                rep.err(f"{cw} needs a claim")
-                continue
-            st = cl.get("status")
-            if st not in CLAIM_STATUS:
-                rep.err(f"{cw}.status must be one of {sorted(CLAIM_STATUS)}")
-            role = cl.get("role")
+        if covered and not isinstance(cov, dict):
+            rep.err(f"{at}.coverage must say whether the channel already covers it: "
+                    f'{{"status": "new"|"partly_covered"|"covered", "by": [...], "note": "..."}} (covered.json)')
+        elif covered and cov.get("status") == "new":
+            mine = set(re.findall(r"[a-z][a-z0-9-]{2,}", f"{c.get('title', '')} {slug or ''}".lower())) - STOP
+            close = [it["title"] for it in covered if len(mine & set(it.get("keywords", []))) >= 3]
+            if close:
+                rep.warn(f"{at}: shares keywords with already covered '{close[0][:70]}'; check coverage")
+        for k, cl in _items(c.get("central_claims")):
+            cw, st, role, sup = f"{at}.central_claims[{k}]", cl.get("status"), cl.get("role"), cl.get("support")
+            sup = sup if isinstance(sup, list) else []
             if role is None:
                 rep.warn(f"{cw}: add a role (central, limitation or context); without one it counts as central")
-            elif role not in CLAIM_ROLES:
-                rep.err(f"{cw}.role must be one of {sorted(CLAIM_ROLES)}")
-            sup = cl.get("support", [])
-            if not isinstance(sup, list):
-                rep.err(f"{cw}.support must be a list of source ids")
-                sup = []
             for x in sup:
-                if x not in sid_info:
-                    rep.err(f"{cw}.support cites {x}, which is not a source of {where}")
-            levels = {sid_info[x][1] for x in sup if x in sid_info and sid_info[x][0]}
+                if not (isinstance(x, str) and x in info):
+                    rep.err(f"{cw}.support cites {x}, which is not a source of {tid or at}")
+            levels = {info[x][1] for x in sup if isinstance(x, str) and x in info and info[x][0]}
             if st == "verified" and not levels & {"full", "abstract"}:
                 rep.err(f"{cw} is 'verified' but no supporting source is primary and read in full or abstract")
-            if st == "provisional":
-                if not levels & {"search_abstract", "full", "abstract"}:
-                    rep.err(f"{cw} is 'provisional' but no supporting primary source was read even at "
-                            "search_abstract level (a snippet is not enough)")
-                elif levels & {"full", "abstract"}:
-                    rep.warn(f"{cw} is 'provisional' although a supporting primary source was read in full or "
-                             "abstract: mark it verified if the source states it")
+            if st == "provisional" and not levels & {"search_abstract", "full", "abstract"}:
+                rep.err(f"{cw} is 'provisional' but no supporting primary source was read even at search_abstract "
+                        "level (a snippet is not enough)")
+            elif st == "provisional" and levels & {"full", "abstract"}:
+                rep.warn(f"{cw} is 'provisional' although a supporting primary source was read in full or abstract: "
+                         "mark it verified if the source states it")
             if st in ("unverified", "disputed") and (role or "central") == "central":
-                rep.warn(f"{cw} is {st} and central: {cl.get('claim')[:90]}")
+                rep.warn(f"{cw} is {st} and central: {str(cl.get('claim'))[:90]}")
 
 
-# --------------------------------------------------------------------------- scores.json
 def validate_scores(data, rep: Report, sources: dict | None, rubric: dict) -> None:
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        rep.err("scores.json must be an object with schema_version 1")
-        return
-    topics = data.get("topics")
-    if not isinstance(topics, list) or not topics:
-        rep.err("topics must be a non-empty list")
-        return
-    judged = [k for k, v in rubric["criteria"].items() if not v.get("computed")]
-    computed = [k for k, v in rubric["criteria"].items() if v.get("computed")]
-    penalties = list(rubric.get("penalty", {}))
-    must_cite = {"novelty", "hype_risk"}
-    cand_sources = {}
-    if sources:
-        for c in sources.get("candidates", []):
-            cand_sources[c.get("id")] = {s.get("id") for s in c.get("sources", []) if isinstance(s, dict)}
+    rep.errors += schema_errors("scores", data)
+    crit = rubric["criteria"]
+    judged = [k for k, v in crit.items() if not v.get("computed")] + list(rubric.get("penalty", {}))
+    computed = [k for k, v in crit.items() if v.get("computed")]
+    cand = {c["id"]: [s.get("id") for _, s in _items(c.get("sources"))]
+            for _, c in _items(sources.get("candidates") if isinstance(sources, dict) else None)
+            if isinstance(c.get("id"), str)}
     seen = set()
-    for i, t in enumerate(topics):
-        tid = t.get("id") if isinstance(t, dict) else None
-        where = tid or f"topics[{i}]"
-        if not isinstance(t, dict) or not isinstance(tid, str):
-            rep.err(f"{where} must be an object with an id")
+    for i, t in _items(data.get("topics") if isinstance(data, dict) else None):
+        at, tid, sc = _at("topics", i), t.get("id"), t.get("scores")
+        if not isinstance(tid, str):
             continue
-        if tid in seen:
-            rep.err(f"duplicate topic {tid}")
-        seen.add(tid)
-        if sources is not None and tid not in cand_sources:
-            rep.err(f"{tid} is not a candidate in sources.json")
-        sc = t.get("scores")
+        _unique(rep, seen, tid, f"{at}.id", "topic")
+        if sources is not None and tid not in cand:
+            rep.err(f"{at}.id: {tid} is not a candidate in sources.json")
         if not isinstance(sc, dict):
-            rep.err(f"{where}.scores must be an object")
             continue
-        for k in computed:
-            if k in sc:
-                rep.err(f"{where}.scores.{k} must not be judged: it is computed from "
-                        f"{'search data (tools/search_demand.py)' if rubric['criteria'][k].get('source') == 'search' else 'source dates'}")
-        for k in judged + penalties:
-            v = sc.get(k)
-            if not isinstance(v, dict):
-                rep.err(f"{where}.scores.{k} is missing")
-                continue
-            s = v.get("score")
-            if not (isinstance(s, int) and not isinstance(s, bool) and 0 <= s <= 5):
-                rep.err(f"{where}.scores.{k}.score must be an integer 0-5")
-            if not (_str(v.get("why")) and len(v["why"]) >= 20):
-                rep.err(f"{where}.scores.{k}.why must justify the score (at least one sentence)")
-            cites = v.get("sources", [])
-            if not isinstance(cites, list):
-                rep.err(f"{where}.scores.{k}.sources must be a list of source ids")
-                cites = []
-            if k in must_cite and not cites:
-                rep.err(f"{where}.scores.{k} must cite at least one source id")
-            for x in cites:
-                if tid in cand_sources and x not in cand_sources[tid]:
-                    rep.err(f"{where}.scores.{k} cites {x}, which is not a source of {tid}")
-        unknown = set(sc) - set(judged) - set(penalties) - set(computed)
-        if unknown:
-            rep.err(f"{where}.scores has unknown criteria {sorted(unknown)} (see config/rubric.json)")
-        for f in ("proposed_angle", "animation_idea"):
-            if not _str(t.get(f)):
-                rep.err(f"{where}.{f} is required (one or two sentences)")
-    missing = set(cand_sources) - seen
-    if missing:
-        rep.err(f"candidates without scores: {sorted(missing)}")
+        for k in (k for k in computed if k in sc):
+            rep.err(f"{at}.scores.{k} must not be judged: it is computed from " + (
+                "search data (tools/search_demand.py)" if crit[k].get("source") == "search" else "source dates"))
+        if set(sc) - set(judged) - set(computed):
+            rep.err(f"{at}.scores has unknown criteria {sorted(set(sc) - set(judged) - set(computed))} "
+                    "(see config/rubric.json)")
+        for k in judged:
+            cites = sc[k].get("sources", []) if isinstance(sc.get(k), dict) else []
+            cites = cites if isinstance(cites, list) else []
+            if k not in sc:
+                rep.err(f"{at}.scores.{k} is missing")
+            elif k in ("novelty", "hype_risk") and isinstance(sc[k], dict) and not cites:
+                rep.err(f"{at}.scores.{k} must cite at least one source id")
+            for x in (x for x in cites if tid in cand and x not in cand[tid]):
+                rep.err(f"{at}.scores.{k} cites {x}, which is not a source of {tid}")
+    if set(cand) - seen:
+        rep.err(f"$.topics: candidates without scores: {sorted(set(cand) - seen)}")
 
 
-# --------------------------------------------------------------------------- references.json
 def validate_references(data, rep: Report) -> None:
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        rep.err("references.json must be an object with schema_version 1")
-        return
-    refs = data.get("references")
-    if not isinstance(refs, list):
-        rep.err("references must be a list")
-        return
+    rep.errors += schema_errors("references", data)
     keys = set()
-    for i, r in enumerate(refs):
-        key = r.get("key") if isinstance(r, dict) else None
-        where = key or f"references[{i}]"
-        if not isinstance(r, dict):
-            rep.err(f"{where} must be an object")
-            continue
-        if not (isinstance(key, str) and REF_KEY_RE.match(key)):
-            rep.err(f"{where}.key must be lowercase letters and digits, e.g. keerthi1988")
-        elif key in keys:
-            rep.err(f"duplicate reference key {key}")
-        keys.add(key)
-        if r.get("type") not in REF_TYPES:
-            rep.err(f"{where}.type must be one of {sorted(REF_TYPES)}")
-        authors = r.get("authors")
-        if not (isinstance(authors, list) and authors and all(_str(a) for a in authors)):
-            rep.err(f"{where}.authors must be a non-empty list (an organisation is fine for web pages)")
-        if not _str(r.get("title")):
-            rep.err(f"{where}.title is required")
-        year = r.get("year")
-        if not ((isinstance(year, int) and 1600 <= year <= 2100) or year == "n.d."):
-            rep.err(f"{where}.year must be an integer year or 'n.d.'")
-        ver = r.get("verification")
-        if not isinstance(ver, dict) or ver.get("status") not in REF_STATUS:
-            rep.err(f"{where}.verification.status must be one of {sorted(REF_STATUS)}")
-            ver = {}
-        status = ver.get("status")
-        checked = ver.get("checked_against", [])
-        if status in ("verified", "secondary_only") and not (isinstance(checked, list) and checked):
-            rep.err(f"{where}.verification.checked_against must list the records actually seen")
-        if status == "unverified":
-            rep.warn(f"{where} is unverified (the strict build and lint refuse it)")
-        doi = r.get("doi")
-        if doi is not None:
-            if not (isinstance(doi, str) and DOI_RE.match(doi)):
-                rep.err(f"{where}.doi is malformed: {doi!r}")
-            if not _str(ver.get("doi_seen_in")):
-                rep.err(f"{where}.doi given without verification.doi_seen_in: never invent or infer a DOI")
-        arx = r.get("arxiv")
-        if arx is not None and not (isinstance(arx, str) and ARXIV_RE.match(arx)):
-            rep.err(f"{where}.arxiv is malformed: {arx!r}")
-        url = r.get("url")
-        if url is not None and not (isinstance(url, str) and re.match(r"^https?://\S+$", url)):
-            rep.err(f"{where}.url must be an http(s) URL")
-        if r.get("type") in ("web", "press", "video", "software", "dataset") and not url:
-            rep.err(f"{where}: a {r.get('type')} reference needs a url")
-        if url and r.get("type") in ("web", "press", "video") and not r.get("accessed"):
-            rep.err(f"{where}: web sources need an accessed date")
-        if r.get("accessed") is not None:
-            _date(rep, f"{where}.accessed", r.get("accessed"))
+    for i, r in _items(data.get("references") if isinstance(data, dict) else None):
+        _unique(rep, keys, r.get("key"), f"{_at('references', i)}.key", "reference key")
+        if isinstance(r.get("verification"), dict) and r["verification"].get("status") == "unverified":
+            rep.warn(f"{_at('references', i)} is unverified (the strict build and lint refuse it)")
 
 
-# --------------------------------------------------------------------------- review/*.json
 def validate_review(data, rep: Report) -> None:
     if not isinstance(data, dict) or ("reviewer" not in data and "findings" not in data):
         rep.err("not a reviewer report: only reports and the pipeline's records sit at the top of review/; "
                 "tool outputs and a reviewer's own files go in review/checks/ (named tc_*, ref_*, pres_*, rt_*, lr_*)")
         return
-    if data.get("schema_version") != 1:
-        rep.err("review file must be an object with schema_version 1")
-        return
-    if not _str(data.get("reviewer")):
-        rep.err("reviewer is required")
-    if not _str(data.get("summary")):
-        rep.err("summary is required (two or three sentences)")
-    checks = data.get("checks_run", [])
-    if not isinstance(checks, list) or not all(isinstance(c, dict) and _str(c.get("command")) and _str(c.get("result"))
-                                               for c in checks):
-        rep.err("checks_run must be a list of {command, result} (evidence, not assertions)")
-    findings = data.get("findings")
-    if not isinstance(findings, list):
-        rep.err("findings must be a list (empty if nothing was found)")
-        return
-    ids = set()
-    for i, f in enumerate(findings):
-        fid = f.get("id") if isinstance(f, dict) else None
-        where = fid or f"findings[{i}]"
-        if not isinstance(f, dict) or not (isinstance(fid, str) and re.match(r"^[A-Z]{2,4}-\d+$", fid)):
-            rep.err(f"{where}: id must look like TC-1, REF-2, PRES-3, RT-4, LR-5")
-            continue
-        want = ID_PREFIX.get(data.get("reviewer"))
-        if want and fid.split("-")[0] != want:
-            rep.err(f"{where}: {data['reviewer']} findings use {want}-n ids")
-        if fid in ids:
-            rep.err(f"duplicate finding id {fid}")
-        ids.add(fid)
-        if f.get("severity") not in SEVERITIES:
-            rep.err(f"{where}.severity must be one of {sorted(SEVERITIES)}")
-        if f.get("confidence") not in CONFIDENCE:
-            rep.err(f"{where}.confidence must be one of {sorted(CONFIDENCE)}")
-        for k in ("location", "issue", "evidence", "suggested_fix"):
-            if not _str(f.get(k)):
-                rep.err(f"{where}.{k} is required")
-        if fid.startswith("FC-") and not (isinstance(f.get("time_s"), (int, float)) and f["time_s"] >= 0):
-            rep.err(f"{where}: a final-cut finding needs time_s, the time in the final video in seconds")
+    rep.errors += schema_errors("review", data)
+    reviewer, ids = data.get("reviewer"), set()
+    want = ID_PREFIX.get(reviewer) if isinstance(reviewer, str) else None
+    for i, f in _items(data.get("findings")):
+        fid = f.get("id")
+        if want and isinstance(fid, str) and fid.split("-")[0] != want:
+            rep.err(f"{_at('findings', i)}.id: {reviewer} findings use {want}-n ids")
+        _unique(rep, ids, fid, f"{_at('findings', i)}.id", "finding id")
 
 
 def validate_symbol_ledger(data, rep: Report) -> None:
-    """review/symbol_ledger.json, written by the presentation-reviewer: every symbol's meaning per section, and how
-    each later use relates to the first (format in .claude/skills/explainer-review/reviewer-contract.md)."""
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        rep.err("symbol_ledger.json must be an object with schema_version 1")
-        return
-    if not _str(data.get("reviewer")):
-        rep.err("reviewer is required")
-    symbols = data.get("symbols")
-    if not isinstance(symbols, list) or not symbols:
-        rep.err("symbols must be a non-empty list (every symbol and named object of the explainer)")
-        return
-    for i, sym in enumerate(symbols):
-        name = sym.get("symbol") if isinstance(sym, dict) else None
-        where = f"symbols[{i}]" + (f" ({name})" if _str(name) else "")
-        if not isinstance(sym, dict) or not _str(name):
-            rep.err(f"{where}: symbol is required")
-            continue
-        uses = sym.get("uses")
-        if not isinstance(uses, list) or not uses:
-            rep.err(f"{where}: uses must be a non-empty list, in document order")
-            continue
-        for j, u in enumerate(uses):
-            uw = f"{where}.uses[{j}]"
-            if not isinstance(u, dict):
-                rep.err(f"{uw} must be an object")
-                continue
-            for k in ("section", "location", "meaning"):
-                if not _str(u.get(k)):
-                    rep.err(f"{uw}.{k} is required")
-            if u.get("defined_from") is not None and not _str(u.get("defined_from")):
-                rep.err(f"{uw}.defined_from must be a non-empty string when given")
-            change = u.get("change")
-            if j == 0 and change != "first":
-                rep.err(f"{uw}.change must be 'first' (the first use defines the symbol)")
-            elif j > 0 and change not in LEDGER_CHANGES:
-                rep.err(f"{uw}.change must be one of {sorted(LEDGER_CHANGES)}")
-        silent = [u for u in uses[1:] if isinstance(u, dict) and u.get("change") == "unannounced"]
-        finding = sym.get("finding")
-        if silent and not (_str(finding) and re.match(r"^(PRES|LR)-\d+$", finding)):
-            rep.err(f"{where}: an unannounced change of meaning must name its finding (finding: PRES-n or LR-n)")
-        elif finding is not None and not (_str(finding) and re.match(r"^[A-Z]{2,4}-\d+$", finding)):
-            rep.err(f"{where}: finding must be a finding id such as PRES-3")
+    rep.errors += schema_errors("symbol_ledger", data)
 
 
 def ledger_findings(run: Path, rep: Report) -> None:
     """Every finding the ledger names must exist in the presentation-reviewer's or the linear-reader's report."""
-    lp = run / "review" / "symbol_ledger.json"
     try:
-        ledger = _load(lp)
+        ledger = _load(run / "review" / "symbol_ledger.json")
     except (FileNotFoundError, json.JSONDecodeError):
         return
     ids = set()
     for name in ("presentation-reviewer", "linear-reader"):
         try:
-            ids |= {f.get("id") for f in _load(run / "review" / f"{name}.json").get("findings", [])
-                    if isinstance(f, dict)}
+            ids |= {f.get("id") for _, f in _items(_load(run / "review" / f"{name}.json").get("findings"))}
         except (FileNotFoundError, json.JSONDecodeError, AttributeError):
             continue
-    for sym in ledger.get("symbols", []) if isinstance(ledger, dict) else []:
-        fid = sym.get("finding") if isinstance(sym, dict) else None
-        if _str(fid) and fid not in ids:
-            rep.err(f"symbol {sym.get('symbol')!r}: finding {fid} is not in presentation-reviewer.json or "
-                    "linear-reader.json")
-
-
-def validate_verdict(data, rep: Report) -> None:
-    """review/verify/<finding-id>.json, written by the finding-verifier subagent."""
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        rep.err("verdict file must be an object with schema_version 1")
-        return
-    if not (_str(data.get("finding")) and re.match(r"^[A-Z]{2,4}-\d+$", data["finding"])):
-        rep.err("finding must be the id of the finding checked, e.g. TC-3")
-    if data.get("verdict") not in VERDICTS:
-        rep.err(f"verdict must be one of {sorted(VERDICTS)}")
-    if not _str(data.get("reason")):
-        rep.err("reason is required (what was re-checked and what it showed)")
-    checks = data.get("checks_run", [])
-    if not isinstance(checks, list) or not all(isinstance(c, dict) and _str(c.get("command")) and _str(c.get("result"))
-                                               for c in checks):
-        rep.err("checks_run must be a list of {command, result}")
-
-
-def validate_approval(data, rep: Report) -> None:
-    need = ("topic_id", "title", "slug", "approved_at", "via", "ranking_sha256")
-    if not isinstance(data, dict) or data.get("schema_version") != 1:
-        rep.err("approval.json must be an object with schema_version 1")
-        return
-    for k in need:
-        if not _str(data.get(k)):
-            rep.err(f"approval.json: {k} is missing")
+    for i, sym in _items(ledger.get("symbols") if isinstance(ledger, dict) else None):
+        fid = sym.get("finding")
+        if isinstance(fid, str) and fid.strip() and fid not in ids:
+            rep.err(f"{_at('symbols', i, 'finding')} ({sym.get('symbol')}): {fid} is not in presentation-reviewer.json "
+                    "or linear-reader.json")
 
 
 # --------------------------------------------------------------------------- driver
@@ -568,100 +308,78 @@ def _load(path: Path):
 
 
 def validate_file(kind: str, path: Path, run_dir: Path | None = None) -> Report:
-    rep = Report(f"{kind}: {rel(path)}")
+    rep, run_dir = Report(f"{kind}: {rel(path)}"), run_dir or path.parent
     try:
         data = _load(path)
-    except FileNotFoundError:
-        rep.err("file not found")
-        return rep
-    except json.JSONDecodeError as exc:
-        rep.err(f"invalid JSON: {exc}")
+    except (FileNotFoundError, json.JSONDecodeError) as exc:
+        rep.err("file not found" if isinstance(exc, FileNotFoundError) else f"invalid JSON: {exc}")
         return rep
     if kind == "sources":
-        scout = load_json(CONFIG / "scout.json")
-        validate_sources(data, rep, scout, run_dir or path.parent)
+        validate_sources(data, rep, load_json(CONFIG / "scout.json"), run_dir)
     elif kind == "scores":
-        rubric = load_json(CONFIG / "rubric.json")
-        src = None
-        sp = (run_dir or path.parent) / "sources.json"
-        if sp.exists():
-            try:
-                src = _load(sp)
-            except json.JSONDecodeError:
-                rep.err("sources.json next to scores.json is not valid JSON")
-        validate_scores(data, rep, src, rubric)
-    elif kind == "references":
-        validate_references(data, rep)
-    elif kind == "review":
-        validate_review(data, rep)
-    elif kind == "verdict":
-        validate_verdict(data, rep)
-    elif kind == "approval":
-        validate_approval(data, rep)
-    elif kind == "symbol_ledger":
-        validate_symbol_ledger(data, rep)
+        try:
+            src = _load(run_dir / "sources.json") if (run_dir / "sources.json").exists() else None
+        except json.JSONDecodeError:
+            src = None
+            rep.err("sources.json next to scores.json is not valid JSON")
+        validate_scores(data, rep, src, load_json(CONFIG / "rubric.json"))
+    elif kind in ("references", "review", "symbol_ledger"):
+        {"references": validate_references, "review": validate_review,
+         "symbol_ledger": validate_symbol_ledger}[kind](data, rep)
+    elif kind in KINDS:
+        rep.errors += schema_errors(kind, data)
     else:
         rep.err(f"unknown kind {kind}")
     return rep
 
 
 def kind_for(path: Path) -> str | None:
-    name = path.name
+    name, parent = path.name, path.parent
     if name in ("sources.json", "scores.json", "references.json", "approval.json"):
         return name.split(".")[0]
-    if name == "symbol_ledger.json" and path.parent.name == "review":
+    if name == "symbol_ledger.json" and parent.name == "review":
         return "symbol_ledger"
-    if path.parent.name == "verify" and name.endswith(".json") and (
-            path.parent.parent.name == "review" or path.parent.parent.parent.name == "review"):
+    if parent.name == "verify" and name.endswith(".json") and "review" in (parent.parent.name, parent.parent.parent.name):
         return "verdict"
     if name.endswith(".json") and name not in NOT_REVIEWS and (
-            path.parent.name == "review" or (path.parent.name in REVIEW_SETS and path.parent.parent.name == "review")):
+            parent.name == "review" or (parent.name in REVIEW_SETS and parent.parent.name == "review")):
         return "review"
     return None
 
 
 def validate_run(run: Path) -> list[Report]:
-    reports = []
-    for name in ("sources.json", "scores.json", "references.json", "approval.json"):
-        p = run / name
-        if p.exists():
-            reports.append(validate_file(name.split(".")[0], p, run))
+    reports = [validate_file(n.split(".")[0], run / n, run) for n in ("sources.json", "scores.json",
+                                                                      "references.json", "approval.json")
+               if (run / n).exists()]
     rv = run / "review"
     if rv.is_dir():
-        files = sorted(rv.glob("*.json")) + sorted((rv / "verify").glob("*.json"))
-        for sub in REVIEW_SETS:
-            files += sorted((rv / sub).glob("*.json")) + sorted((rv / sub / "verify").glob("*.json"))
-        for p in files:
-            k = kind_for(p)
-            if k:
-                reports.append(validate_file(k, p, run))
-        if (rv / "symbol_ledger.json").exists():            # across files: the ledger's findings exist
+        files = []
+        for d in (rv, *(rv / sub for sub in REVIEW_SETS)):
+            files += sorted(d.glob("*.json")) + sorted((d / "verify").glob("*.json"))
+        reports += [validate_file(k, p, run) for p in files if (k := kind_for(p))]
+        if (rv / "symbol_ledger.json").exists():
             xr = Report(f"symbol ledger findings: {rel(rv / 'symbol_ledger.json')}")
             ledger_findings(run, xr)
-            if xr.errors:
-                reports.append(xr)
+            reports += [xr] if xr.errors else []
     return reports
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("target", help="run directory, or a file with --kind")
-    ap.add_argument("--kind", choices=["sources", "scores", "references", "review", "verdict", "approval",
-                                       "symbol_ledger"])
+    ap.add_argument("--kind", choices=KINDS)
     args = ap.parse_args()
     target = Path(args.target)
-    if args.kind:
-        reports = [validate_file(args.kind, target)]
-    elif target.is_dir():
+    if args.kind or not target.is_dir():
+        kind = args.kind or kind_for(target)
+        if not kind:
+            print("error: pass --kind for this file", file=sys.stderr)
+            return 1
+        reports = [validate_file(kind, target)]
+    else:
         reports = validate_run(target)
         if not reports:
             print(f"nothing to validate in {rel(target)}")
-    else:
-        k = kind_for(target)
-        if not k:
-            print("error: pass --kind for this file", file=sys.stderr)
-            return 1
-        reports = [validate_file(k, target)]
     for r in reports:
         r.print()
     return 1 if any(r.errors for r in reports) else 0

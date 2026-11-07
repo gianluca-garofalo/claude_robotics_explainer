@@ -181,7 +181,7 @@ class Validation(RunFolder):
         r = subprocess.run([PY, "tools/hooks/after_edit.py"], cwd=REPO, input=json.dumps(event), text=True,
                            capture_output=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(REPO)))
         self.assertEqual(r.returncode, 2)
-        self.assertIn("candidates must be a non-empty list", r.stderr)
+        self.assertIn("$.candidates is required", r.stderr)
 
 
 class Report(RunFolder):

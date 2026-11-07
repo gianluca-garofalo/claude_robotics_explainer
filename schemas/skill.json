@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter of .agents/skills/<name>/SKILL.md (fields of the Claude Code skills reference)",
+  "type": "object",
+  "required": ["description"],
+  "properties": {
+    "name": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "lowercase words joined by hyphens"},
+    "description": {"type": "string", "minLength": 1, "description": "how an agent decides when to use the skill"},
+    "hooks": {"$ref": "hooks.json"},
+    "model": {"not": {}, "description": "project policy: no model field, the defaults apply"},
+    "when_to_use": {}, "argument-hint": {}, "arguments": {}, "disable-model-invocation": {}, "user-invocable": {},
+    "allowed-tools": {}, "disallowed-tools": {}, "effort": {}, "context": {}, "agent": {}, "background": {},
+    "paths": {}, "shell": {}, "metadata": {}, "license": {}, "compatibility": {}
+  },
+  "additionalProperties": {"not": {}, "description": "unknown field: Claude Code ignores it silently"}
+}

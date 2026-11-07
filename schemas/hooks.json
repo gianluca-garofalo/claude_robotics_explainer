@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Claude Code hooks: event name to matcher groups (settings.json, skill and agent frontmatter)",
+  "type": "object",
+  "properties": {
+    "SessionStart": {"$ref": "#/$defs/groups"}, "Setup": {"$ref": "#/$defs/groups"},
+    "InstructionsLoaded": {"$ref": "#/$defs/groups"}, "UserPromptSubmit": {"$ref": "#/$defs/groups"},
+    "UserPromptExpansion": {"$ref": "#/$defs/groups"}, "MessageDisplay": {"$ref": "#/$defs/groups"},
+    "PreToolUse": {"$ref": "#/$defs/groups"}, "PermissionRequest": {"$ref": "#/$defs/groups"},
+    "PostToolUse": {"$ref": "#/$defs/groups"}, "PostToolUseFailure": {"$ref": "#/$defs/groups"},
+    "PostToolBatch": {"$ref": "#/$defs/groups"}, "PermissionDenied": {"$ref": "#/$defs/groups"},
+    "Notification": {"$ref": "#/$defs/groups"}, "SubagentStart": {"$ref": "#/$defs/groups"},
+    "SubagentStop": {"$ref": "#/$defs/groups"}, "TaskCreated": {"$ref": "#/$defs/groups"},
+    "TaskCompleted": {"$ref": "#/$defs/groups"}, "Stop": {"$ref": "#/$defs/groups"},
+    "StopFailure": {"$ref": "#/$defs/groups"}, "TeammateIdle": {"$ref": "#/$defs/groups"},
+    "ConfigChange": {"$ref": "#/$defs/groups"}, "CwdChanged": {"$ref": "#/$defs/groups"},
+    "DirectoryAdded": {"$ref": "#/$defs/groups"}, "FileChanged": {"$ref": "#/$defs/groups"},
+    "WorktreeCreate": {"$ref": "#/$defs/groups"}, "WorktreeRemove": {"$ref": "#/$defs/groups"},
+    "PreCompact": {"$ref": "#/$defs/groups"}, "PostCompact": {"$ref": "#/$defs/groups"},
+    "SessionEnd": {"$ref": "#/$defs/groups"}, "Elicitation": {"$ref": "#/$defs/groups"},
+    "ElicitationResult": {"$ref": "#/$defs/groups"}, "PreModelSwitch": {"$ref": "#/$defs/groups"},
+    "PostModelSwitch": {"$ref": "#/$defs/groups"}
+  },
+  "additionalProperties": {"not": {}, "description": "not a hook event"},
+  "$defs": {
+    "groups": {
+      "type": "array",
+      "items": {"type": "object", "required": ["hooks"], "properties": {"hooks": {"type": "array", "items": {"$ref": "#/$defs/handler"}}}}
+    },
+    "handler": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["command", "http", "mcp_tool", "prompt", "agent"]},
+        "command": {}, "args": {}, "timeout": {}, "if": {}, "statusMessage": {}, "async": {}, "asyncRewake": {},
+        "shell": {}, "onFailure": {}, "once": {}, "url": {}, "headers": {}, "allowedEnvVars": {}, "prompt": {},
+        "model": {}, "server": {}, "tool": {}, "input": {}
+      },
+      "additionalProperties": {"not": {}, "description": "not a handler field"}
+    }
+  }
+}

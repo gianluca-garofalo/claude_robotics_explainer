@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "approval.json: the topic approval, written only by the approval hook",
+  "type": "object",
+  "required": ["schema_version", "topic_id", "title", "slug", "approved_at", "via", "ranking_sha256"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "topic_id": {"$ref": "defs.json#/$defs/text"},
+    "title": {"$ref": "defs.json#/$defs/text"},
+    "slug": {"$ref": "defs.json#/$defs/text"},
+    "approved_at": {"$ref": "defs.json#/$defs/text"},
+    "via": {"$ref": "defs.json#/$defs/text"},
+    "ranking_sha256": {"$ref": "defs.json#/$defs/text"}
+  }
+}

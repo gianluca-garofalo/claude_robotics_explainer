@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": ".claude/settings.json: the project's permissions and hooks",
+  "type": "object",
+  "properties": {
+    "permissions": {
+      "type": "object",
+      "properties": {"allow": {"$ref": "#/$defs/rules"}, "ask": {"$ref": "#/$defs/rules"}, "deny": {"$ref": "#/$defs/rules"}}
+    },
+    "hooks": {"$ref": "hooks.json"}
+  },
+  "$defs": {
+    "rules": {"type": "array", "items": {"type": "string", "pattern": "^(\\*|[A-Za-z][A-Za-z0-9_*]*)(\\(.+\\))?$",
+                                         "description": "Tool or Tool(specifier)"}}
+  }
+}

@@ -1,37 +1,19 @@
 #!/usr/bin/env python3
-"""Lint the Claude Code configuration against the documented formats, and the repository for publish hygiene.
+"""Lint the agent configuration, the automation's publishing boundary and the repository's hygiene.
 
 Usage:
-  python3 tools/lint_project.py            # config + automation + hygiene
-  python3 tools/lint_project.py --config   # only .claude/ (skills, agents, rules, workflows, settings.json)
-  python3 tools/lint_project.py --automation   # only ci/*.json and .github/ (the publishing boundary)
-  python3 tools/lint_project.py --hygiene  # only the repository scan
-
-Config: frontmatter keys must be ones the Claude Code docs list (unknown keys are silently ignored by Claude Code,
-so a typo would go unnoticed), required keys present, names valid, description within the 1,536-character listing
-cap, SKILL.md under 500 lines, linked files present, hook scripts present, workflow meta a plain literal, settings
-strict JSON with known hook events. Project policy: no `model` field anywhere (defaults apply), side-effect skills
-set `disable-model-invocation: true`.
-Automation: the CI settings Claude runs with (ci/*.json) deny publishing, approval and edits to tools, config and
-workflows, use only relative path rules (they are installed as user settings), and keep the sandbox strict; in the
-GitHub workflows, jobs that run Claude hold no publishing secret, no write permission and no environment, carry turn
-and budget caps, scrub credentials from subprocesses and do not persist the checkout token; jobs that use YouTube or
-LinkedIn secrets run in an environment; steps that execute code written during the run (code checks, renders) hold
-no secret; no `${{ }}` expression is pasted into a shell script; scheduled workflows that run Claude have the
-PIPELINE_ENABLED kill switch.
-Hygiene: no absolute local paths, e-mail addresses, secrets or model identifiers in tracked text files; files over
-5 MB reported; shell scripts executable, with the bash shebang and the run-under-bash guard; shell code blocks in
-the Markdown documents safe to paste into zsh as well as bash (no comment lines or trailing comments, which
-interactive zsh runs as words; no <placeholders>, which are redirections; no unquoted [ ] * ? that match no file,
-which zsh refuses; zsh -n and bash -n clean where the shells are installed). Requires PyYAML (in requirements.txt).
+  python3 tools/lint_project.py                      # all of it
+  python3 tools/lint_project.py --config             # schemas/, .agents/skills and .claude/
+  python3 tools/lint_project.py --automation         # ci/*.json and .github/
+  python3 tools/lint_project.py --hygiene            # the files git does not ignore, and the documents' shell blocks
+  python3 tools/lint_project.py --docs FILE.md ...   # only the shell-block check, on these files
 Exit status 1 on errors.
-
-  python3 tools/lint_project.py --docs FILE.md ...   # only the shell-block check, on any Markdown files
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -39,41 +21,28 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _common import REPO  # noqa: E402  (moves python3 into the .venv when there is one)
+
 try:
+    import jsonschema
     import yaml
-except ImportError:  # pragma: no cover
-    print("error: PyYAML is required (pip install pyyaml, or use .venv/bin/python)", file=sys.stderr)
+except ImportError as exc:  # pragma: no cover
+    print(f"error: {exc.name} is required: pip install -r requirements-tools.txt, or use .venv/bin/python",
+          file=sys.stderr)
     sys.exit(3)
+from validate import schema_errors  # noqa: E402
 
-REPO = Path(__file__).resolve().parent.parent
 CLAUDE = REPO / ".claude"
-
-# Field lists from code.claude.com/docs/en/skills (frontmatter reference) and /sub-agents (frontmatter reference).
-SKILL_KEYS = {"name", "description", "when_to_use", "argument-hint", "arguments", "disable-model-invocation",
-              "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent",
-              "background", "hooks", "paths", "shell", "metadata", "license", "compatibility"}
-AGENT_KEYS = {"name", "description", "tools", "disallowedTools", "model", "permissionMode", "maxTurns",
-              "autoCompactWindow", "skills", "mcpServers", "hooks", "memory", "background", "effort", "isolation",
-              "color", "initialPrompt", "omitClaudeMd", "experimental"}
-RULE_KEYS = {"paths"}
-AGENT_COLORS = {"red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"}
+SKILLS = REPO / ".agents" / "skills"           # .claude/skills links here
 TOOLS = {"Read", "Grep", "Glob", "Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "TodoWrite",
          "Skill", "Agent", "LSP", "PowerShell", "Monitor", "TaskStop", "SendMessage", "ToolSearch", "EnterWorktree",
          "ExitWorktree", "Artifact"}
-HOOK_EVENTS = {"SessionStart", "Setup", "InstructionsLoaded", "UserPromptSubmit", "UserPromptExpansion",
-               "MessageDisplay", "PreToolUse", "PermissionRequest", "PostToolUse", "PostToolUseFailure",
-               "PostToolBatch", "PermissionDenied", "Notification", "SubagentStart", "SubagentStop", "TaskCreated",
-               "TaskCompleted", "Stop", "StopFailure", "TeammateIdle", "ConfigChange", "CwdChanged",
-               "DirectoryAdded", "FileChanged", "WorktreeCreate", "WorktreeRemove", "PreCompact", "PostCompact",
-               "SessionEnd", "Elicitation", "ElicitationResult", "PreModelSwitch", "PostModelSwitch"}
-HANDLER_KEYS = {"type", "command", "args", "timeout", "if", "statusMessage", "async", "asyncRewake", "shell",
-                "onFailure", "once", "url", "headers", "allowedEnvVars", "prompt", "model", "server", "tool", "input"}
-HANDLER_TYPES = {"command", "http", "mcp_tool", "prompt", "agent"}
 SETTINGS_KEYS_USED = {"$schema", "permissions", "hooks", "env"}
 SIDE_EFFECT_SKILLS = {"produce-explainer", "approve-topic", "produce-episode", "produce-from-source", "plan-series"}
 
 TEXT_SUFFIXES = {".md", ".py", ".js", ".json", ".toml", ".txt", ".sh", ".html", ".css", ".yml", ".yaml", ".cfg", ""}
-SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", "media", "runs"}
+SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", "media", "runs", ".cache"}   # without git only
 HYGIENE = [
     ("absolute-path", re.compile(r"(/home/[a-z_][\w-]*/|/Users/[A-Za-z][\w.-]*/|/root/|/private/var/folders/|[A-Z]:\\\\Users\\\\)")),
     ("email", re.compile(r"\b[A-Za-z0-9._%+-]+@(?:[A-Za-z0-9-]+\.)+(?:com|org|net|edu|gov|mil|int|io|ai|dev|app|"
@@ -95,19 +64,35 @@ class Out:
     def warn(self, where, msg):
         self.warnings.append(f"{where}: {msg}")
 
+    def schema(self, where, name, data):
+        for msg in schema_errors(name, data):
+            self.err(where, msg)
+
 
 def rel(p: Path) -> str:
     return p.relative_to(REPO).as_posix()
 
 
+def repo_files() -> list[Path]:
+    """The files git does not ignore, tracked or not; without git, a walk that skips SKIP_DIRS."""
+    try:
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=REPO,
+                             capture_output=True, check=True).stdout.decode()
+        files = [REPO / f for f in out.split("\0") if f]
+    except (OSError, subprocess.CalledProcessError):
+        files = []
+        for d, dirs, names in os.walk(REPO):
+            dirs[:] = [x for x in dirs if x not in SKIP_DIRS]
+            files += [Path(d) / n for n in names]
+    return sorted({p for p in files if p.is_file()})
+
+
 def frontmatter(path: Path, out: Out):
     text = path.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        out.err(rel(path), "frontmatter must start on the first line with ---")
-        return None, text
     end = text.find("\n---", 4)
-    if end == -1:
-        out.err(rel(path), "frontmatter is not closed with ---")
+    if not text.startswith("---\n") or end == -1:
+        out.err(rel(path), "frontmatter is not closed with ---" if text.startswith("---\n") else
+                "frontmatter must start on the first line with ---")
         return None, text
     try:
         data = yaml.safe_load(text[4:end]) or {}
@@ -120,38 +105,26 @@ def frontmatter(path: Path, out: Out):
     return data, text[end + 4:]
 
 
-def check_hooks(where: str, hooks, out: Out):
-    if not isinstance(hooks, dict):
-        out.err(where, "hooks must map event names to matcher groups")
-        return
-    for event, groups in hooks.items():
-        if event not in HOOK_EVENTS:
-            out.err(where, f"unknown hook event {event!r}")
-        if not isinstance(groups, list):
-            out.err(where, f"hooks.{event} must be a list of matcher groups")
-            continue
-        for g in groups:
-            if not isinstance(g, dict) or not isinstance(g.get("hooks"), list):
-                out.err(where, f"hooks.{event}: each group needs a 'hooks' list")
-                continue
-            for h in g["hooks"]:
-                if not isinstance(h, dict) or h.get("type") not in HANDLER_TYPES:
-                    out.err(where, f"hooks.{event}: handler type must be one of {sorted(HANDLER_TYPES)}")
-                    continue
-                unknown = set(h) - HANDLER_KEYS
-                if unknown:
-                    out.err(where, f"hooks.{event}: unknown handler field(s) {sorted(unknown)}")
-                if h["type"] == "command":
-                    for token in [h.get("command", "")] + list(h.get("args", [])):
-                        m = re.search(r"\$\{CLAUDE_PROJECT_DIR\}/([^\s\"']+)", str(token))
-                        if m and not (REPO / m.group(1)).exists():
-                            out.err(where, f"hook script {m.group(1)} does not exist")
+def _strings(node):
+    if isinstance(node, dict):
+        for v in node.values():
+            yield from _strings(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _strings(v)
+    elif isinstance(node, str):
+        yield node
 
 
-def lint_skills(out: Out, names: set):
-    for d in sorted((CLAUDE / "skills").iterdir()):
-        if not d.is_dir():
-            continue
+def hook_scripts(where: str, hooks, out: Out):
+    for s in _strings(hooks):
+        for m in re.finditer(r"\$\{CLAUDE_PROJECT_DIR\}/([^\s\"']+)", s):
+            if not (REPO / m.group(1)).exists():
+                out.err(where, f"hook script {m.group(1)} does not exist")
+
+
+def lint_skills(out: Out, agents: set):
+    for d in sorted(p for p in SKILLS.iterdir() if p.is_dir()):
         p = d / "SKILL.md"
         if not p.exists():
             out.err(rel(d), "skill folder without SKILL.md")
@@ -160,37 +133,28 @@ def lint_skills(out: Out, names: set):
         if fm is None:
             continue
         where = rel(p)
-        for k in sorted(set(fm) - SKILL_KEYS):
-            out.err(where, f"unknown frontmatter field {k!r} (Claude Code would ignore it silently)")
-        if "model" in fm:
-            out.err(where, "project policy: no model field (let Claude Code defaults apply)")
-        desc = str(fm.get("description", ""))
-        if not desc:
-            out.err(where, "description is required here (it is how Claude decides when to use the skill)")
-        if len(desc) + len(str(fm.get("when_to_use", ""))) > 1536:
+        out.schema(where, "skill", {"name": d.name, **fm})
+        if len(str(fm.get("description", ""))) + len(str(fm.get("when_to_use", ""))) > 1536:
             out.err(where, "description + when_to_use exceed 1,536 characters (truncated in the skill listing)")
-        if "<" in desc or ">" in desc:
+        if re.search(r"[<>]", str(fm.get("description", ""))):
             out.warn(where, "angle brackets in description are shown as &lt; &gt;")
-        name = fm.get("name", d.name)
-        if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", str(name)):
-            out.err(where, f"name {name!r} should be lowercase words joined by hyphens")
         if fm.get("name") and fm["name"] != d.name:
             out.warn(where, f"name {fm['name']!r} differs from the folder name {d.name!r}")
-        if d.name.lower() in ("synced",) or d.name.startswith("anthropic-skills"):
+        if d.name.lower() == "synced" or d.name.startswith("anthropic-skills"):
             out.err(where, "reserved skill folder name")
         if d.name in SIDE_EFFECT_SKILLS and fm.get("disable-model-invocation") is not True:
             out.err(where, "side-effect or human-only skill must set disable-model-invocation: true")
-        if fm.get("context") == "fork" and fm.get("agent") and fm["agent"] not in names | {"Explore", "Plan", "general-purpose"}:
+        if fm.get("context") == "fork" and fm.get("agent") and fm["agent"] not in agents | {"Explore", "Plan",
+                                                                                            "general-purpose"}:
             out.err(where, f"agent {fm['agent']!r} is not defined")
-        if "hooks" in fm:
-            check_hooks(where, fm["hooks"], out)
+        hook_scripts(where, fm.get("hooks"), out)
         lines = p.read_text(encoding="utf-8").count("\n")
         if lines > 500:
             out.err(where, f"{lines} lines; keep SKILL.md under 500 and move detail to supporting files")
         for link in re.findall(r"\]\(([^)#\s]+)\)", body):
             if not re.match(r"^[a-z]+://", link) and not (d / link).exists():
                 out.err(where, f"linked file {link} does not exist")
-        for path in re.findall(r"`((?:tools|templates|config|sources|series|\.claude)/[\w./-]+)`", body):
+        for path in re.findall(r"`((?:tools|templates|config|sources|series|\.claude|\.agents)/[\w./-]+)`", body):
             if "<" not in path and not (REPO / path).exists():
                 out.err(where, f"mentions {path}, which does not exist")
 
@@ -202,32 +166,17 @@ def lint_agents(out: Out) -> set:
         if fm is None:
             continue
         where = rel(p)
-        for k in sorted(set(fm) - AGENT_KEYS):
-            out.err(where, f"unknown frontmatter field {k!r} (Claude Code would ignore it silently)")
-        for k in ("name", "description"):
-            if not fm.get(k):
-                out.err(where, f"{k} is required (without it Claude Code skips the file)")
+        out.schema(where, "agent", fm)
         name = str(fm.get("name", ""))
-        if ":" in name or name.startswith("-") or len(name) > 256:
-            out.err(where, "name must not contain ':' or start with '-' and must be at most 256 characters")
         if name in names:
             out.err(where, f"duplicate agent name {name}")
         names.add(name)
-        if "model" in fm:
-            out.err(where, "project policy: no model field (let Claude Code defaults apply)")
-        if fm.get("color") and fm["color"] not in AGENT_COLORS:
-            out.err(where, f"color must be one of {sorted(AGENT_COLORS)}")
         tools = fm.get("tools")
-        if tools is not None:
-            items = tools if isinstance(tools, list) else [t.strip() for t in str(tools).split(",")]
-            for t in items:
-                base = re.sub(r"\(.*\)$", "", t)
-                if base not in TOOLS and not base.startswith("mcp__"):
-                    out.err(where, f"unknown tool {t!r}")
-        if "maxTurns" in fm and not (isinstance(fm["maxTurns"], int) and fm["maxTurns"] > 0):
-            out.err(where, "maxTurns must be a positive integer")
-        if "hooks" in fm:
-            check_hooks(where, fm["hooks"], out)
+        for t in [] if tools is None else tools if isinstance(tools, list) else [x.strip() for x in str(tools).split(",")]:
+            base = re.sub(r"\(.*\)$", "", str(t))
+            if base not in TOOLS and not base.startswith("mcp__"):
+                out.err(where, f"unknown tool {t!r}")
+        hook_scripts(where, fm.get("hooks"), out)
         if not body.strip():
             out.err(where, "empty system prompt")
     return names
@@ -236,19 +185,14 @@ def lint_agents(out: Out) -> set:
 def lint_rules(out: Out):
     for p in sorted((CLAUDE / "rules").rglob("*.md")):
         fm, _ = frontmatter(p, out)
-        if fm is None:
-            continue
-        for k in sorted(set(fm) - RULE_KEYS):
-            out.err(rel(p), f"unknown rule field {k!r} (only 'paths' is read)")
-        paths = fm.get("paths")
-        if paths is not None and not (isinstance(paths, list) and all(isinstance(x, str) for x in paths)):
-            out.err(rel(p), "paths must be a list of glob strings")
+        if fm is not None:
+            out.schema(rel(p), "rule", fm)
 
 
 def lint_workflows(out: Out):
+    node = shutil.which("node")
     for p in sorted((CLAUDE / "workflows").glob("*.js")):
-        src = p.read_text(encoding="utf-8")
-        where = rel(p)
+        src, where = p.read_text(encoding="utf-8"), rel(p)
         if not src.lstrip().startswith("export const meta = {"):
             out.err(where, "the first statement must be `export const meta = {...}`")
         m = re.search(r"export const meta = (\{.*?\n\})", src, re.S)
@@ -262,26 +206,40 @@ def lint_workflows(out: Out):
             if re.search(r"\$\{|\.\.\.|\w\(", meta):
                 out.err(where, "meta must be a plain literal (no interpolation, spreads or calls)")
             titles = re.findall(r"title:\s*'([^']+)'", meta)
-            for t in re.findall(r"phase\s*:\s*'([^']+)'|phase\('([^']+)'\)", src):
-                t = t[0] or t[1]
-                if titles and t not in titles:
-                    out.warn(where, f"phase {t!r} is not listed in meta.phases")
+            for a, b in re.findall(r"phase\s*:\s*'([^']+)'|phase\('([^']+)'\)", src):
+                if titles and (a or b) not in titles:
+                    out.warn(where, f"phase {a or b!r} is not listed in meta.phases")
         for bad in (r"Date\.now\(", r"Math\.random\(", r"new Date\(\)", r"\bimport\("):
             if re.search(bad, src):
                 out.err(where, f"{bad} is not allowed in workflow scripts (breaks resume)")
         if re.search(r"\bmodel\s*:", src):
             out.err(where, "project policy: no model overrides in workflow agents")
-        node = shutil.which("node")
-        if node:
-            with tempfile.TemporaryDirectory() as td:
-                body = "export {};\n(async () => {\n" + src.replace("export const meta", "const meta", 1) + "\n})\n"
-                f = Path(td) / "wf.mjs"
-                f.write_text(body, encoding="utf-8")
-                r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
-                if r.returncode != 0:
-                    out.err(where, "JavaScript syntax error: " + (r.stderr.strip().splitlines() or ["?"])[-1])
-        else:
+        if not node:
             out.warn(where, "node not found: workflow syntax not checked")
+            continue
+        with tempfile.TemporaryDirectory() as td:          # the body runs inside an async function at load time
+            f = Path(td) / "wf.mjs"
+            f.write_text("export {};\n(async () => {\n" + src.replace("export const meta", "const meta", 1) + "\n})\n",
+                         encoding="utf-8")
+            r = subprocess.run([node, "--check", str(f)], capture_output=True, text=True)
+            if r.returncode != 0:
+                out.err(where, "JavaScript syntax error: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+
+
+def lint_schemas(out: Out):
+    for p in sorted((REPO / "schemas").glob("*.json")):
+        try:
+            jsonschema.Draft202012Validator.check_schema(json.loads(p.read_text(encoding="utf-8")))
+        except (json.JSONDecodeError, jsonschema.SchemaError) as exc:
+            out.err(rel(p), f"not a draft 2020-12 schema: {str(exc).splitlines()[0]}")
+
+
+def check_rules(where: str, perms: dict, out: Out, known: set = TOOLS):
+    for kind in ("allow", "ask", "deny"):
+        for rule in perms.get(kind, []) if isinstance(perms.get(kind), list) else []:
+            tool = str(rule).split("(")[0]
+            if tool not in known and not tool.startswith("mcp__"):
+                out.err(where, f"permissions.{kind}: unknown tool in {rule!r}")
 
 
 def lint_settings(out: Out):
@@ -292,27 +250,21 @@ def lint_settings(out: Out):
     except json.JSONDecodeError as exc:
         out.err(where, f"not strict JSON: {exc}")
         return
-    for k in set(data) - SETTINGS_KEYS_USED:
+    out.schema(where, "settings", data)
+    for k in sorted(set(data) - SETTINGS_KEYS_USED):
         out.warn(where, f"top-level key {k!r} is not one this project uses; check it against the settings reference")
-    perms = data.get("permissions", {})
-    for kind in ("allow", "ask", "deny"):
-        for rule in perms.get(kind, []):
-            if not re.match(r"^(\*|[A-Za-z][A-Za-z0-9_*]*)(\(.+\))?$", rule):
-                out.err(where, f"permissions.{kind}: malformed rule {rule!r}")
-                continue
-            tool = rule.split("(")[0]
-            if tool not in TOOLS and not tool.startswith("mcp__") and tool != "*":
-                out.err(where, f"permissions.{kind}: unknown tool in {rule!r}")
-            if re.match(r"^(Write|NotebookEdit|Glob)\(", rule):
-                out.err(where, f"{rule!r} never matches: use Edit(...) or Read(...) path rules")
-    check_hooks(where, data.get("hooks", {}), out)
-    deny = " ".join(perms.get("deny", []))
+    perms = data.get("permissions") if isinstance(data.get("permissions"), dict) else {}
+    check_rules(where, perms, out, TOOLS | {"*"})
+    for rule in (r for k in ("allow", "ask", "deny") for r in perms.get(k, []) if isinstance(r, str)):
+        if re.match(r"^(Write|NotebookEdit|Glob)\(", rule):
+            out.err(where, f"{rule!r} never matches: use Edit(...) or Read(...) path rules")
+    hook_scripts(where, data.get("hooks"), out)
+    deny = " ".join(map(str, perms.get("deny", [])))
     for must in ("git push", "gh release", "approval.json"):
         if must not in deny:
             out.err(where, f"project policy: deny rules must cover {must!r}")
 
 
-CI_KEYS = {"$schema", "permissions", "env", "sandbox"}
 CI_MUST_DENY = ("git push", "Bash(gh *)", "Bash(curl *)", "tools/publish", "auto_select", "approval.json",
                 "selection.json", "episode.json", "Edit(tools/**)", "Edit(config/**)", "Edit(series/**)", ".github/**")
 CLAUDE_ACTION = "anthropics/claude-code-action"
@@ -332,79 +284,46 @@ def lint_ci_settings(out: Out):
         except json.JSONDecodeError as exc:
             out.err(where, f"not strict JSON: {exc}")
             continue
-        for k in sorted(set(data) - CI_KEYS):
-            out.err(where, f"unexpected top-level key {k!r}")
-        perms = data.get("permissions", {})
-        if perms.get("defaultMode") != "dontAsk":
-            out.err(where, "permissions.defaultMode must be dontAsk (nobody answers prompts in CI)")
-        for kind in ("allow", "ask", "deny"):
-            for rule in perms.get(kind, []):
-                tool = rule.split("(")[0]
-                if tool not in TOOLS and not tool.startswith("mcp__"):
-                    out.err(where, f"permissions.{kind}: unknown tool in {rule!r}")
-                if re.match(r"^(Edit|Read)\(/[^/]", rule):
-                    out.err(where, f"{rule!r}: these settings are installed as user settings, where /path means "
-                                   "~/.claude/path; use a relative pattern")
-        deny = " ".join(perms.get("deny", []))
+        out.schema(where, "ci_settings", data)
+        perms = data.get("permissions") if isinstance(data.get("permissions"), dict) else {}
+        check_rules(where, perms, out)
+        for rule in (r for k in ("allow", "ask", "deny") for r in perms.get(k, []) if isinstance(r, str)):
+            if re.match(r"^(Edit|Read)\(/[^/]", rule):
+                out.err(where, f"{rule!r}: these settings are installed as user settings, where /path means "
+                               "~/.claude/path; use a relative pattern")
+        deny = " ".join(map(str, perms.get("deny", [])))
         for must in CI_MUST_DENY:
             if must not in deny:
                 out.err(where, f"deny rules must cover {must!r}")
-        if any(r.startswith("Bash(gh") or r.startswith("Bash(git push") or r.startswith("Bash(curl")
-               for r in perms.get("allow", [])):
+        if any(str(r).startswith(("Bash(gh", "Bash(git push", "Bash(curl")) for r in perms.get("allow", [])):
             out.err(where, "allow rules must not open gh, git push or curl")
-        sb = data.get("sandbox")
+        sb = data.get("sandbox") if isinstance(data.get("sandbox"), dict) else None
         if sb is not None:
-            if sb.get("enabled") is not True or sb.get("allowUnsandboxedCommands") is not False:
-                out.err(where, "sandbox: enabled must be true and allowUnsandboxedCommands false")
-            if sb.get("network", {}).get("allowedDomains"):
+            if (sb.get("network") or {}).get("allowedDomains"):
                 out.warn(where, "sandbox: Bash may reach " + ", ".join(sb["network"]["allowedDomains"]))
-            denied = {v.get("name") for v in sb.get("credentials", {}).get("envVars", []) if v.get("mode") == "deny"}
-            if "GITHUB_TOKEN" not in denied:
+            if not any(v.get("name") == "GITHUB_TOKEN" and v.get("mode") == "deny"
+                       for v in (sb.get("credentials") or {}).get("envVars", []) if isinstance(v, dict)):
                 out.err(where, "sandbox.credentials must deny GITHUB_TOKEN")
 
 
-def _strings(node):
-    if isinstance(node, dict):
-        for v in node.values():
-            yield from _strings(v)
-    elif isinstance(node, list):
-        for v in node:
-            yield from _strings(v)
-    elif isinstance(node, str):
-        yield node
-
-
-def _step_lists(wf: dict):
-    for job in (wf.get("jobs") or {}).values():
-        if isinstance(job, dict):
-            yield job.get("steps") or []
-    runs = wf.get("runs")
-    if isinstance(runs, dict):
-        yield runs.get("steps") or []
-
-
 def _run_blocks(wf: dict):
-    for steps in _step_lists(wf):
-        for st in steps:
-            if isinstance(st, dict) and isinstance(st.get("run"), str):
-                yield st["run"]
+    jobs = [j for j in (wf.get("jobs") or {}).values() if isinstance(j, dict)]
+    runs = wf.get("runs") if isinstance(wf.get("runs"), dict) else {}
+    for steps in [j.get("steps") or [] for j in jobs] + [runs.get("steps") or []]:
+        yield from (st["run"] for st in steps if isinstance(st, dict) and isinstance(st.get("run"), str))
 
 
 def lint_actions(out: Out):
     gh = REPO / ".github"
-    files = sorted(gh.glob("workflows/*.yml")) + sorted(gh.glob("actions/*/action.yml"))
-    for p in files:
-        where = rel(p)
-        text = p.read_text(encoding="utf-8")
+    for p in sorted(gh.glob("workflows/*.yml")) + sorted(gh.glob("actions/*/action.yml")):
+        where, text = rel(p), p.read_text(encoding="utf-8")
         try:
             wf = yaml.safe_load(text)
         except yaml.YAMLError as exc:
             out.err(where, f"YAML does not parse: {exc}")
             continue
-        for block in _run_blocks(wf):
-            if "${{" in block:
-                out.err(where, "a run script contains ${{ ... }}: pass the value through env instead "
-                               "(expression injection)")
+        if any("${{" in block for block in _run_blocks(wf)):
+            out.err(where, "a run script contains ${{ ... }}: pass the value through env instead (expression injection)")
         if p.name == "action.yml":
             continue
         on = wf.get("on", wf.get(True, {}))
@@ -413,8 +332,7 @@ def lint_actions(out: Out):
         if isinstance(on, dict) and "schedule" in on and CLAUDE_ACTION in text and "PIPELINE_ENABLED" not in text:
             out.err(where, "scheduled workflow that runs Claude without the PIPELINE_ENABLED kill switch")
         for name, job in (wf.get("jobs") or {}).items():
-            jw = f"{where} jobs.{name}"
-            strings = list(_strings(job))
+            jw, strings = f"{where} jobs.{name}", list(_strings(job))
             steps = job.get("steps", []) if isinstance(job, dict) else []
             claude = [st for st in steps if str(st.get("uses", "")).startswith(CLAUDE_ACTION)]
             if any(PUBLISH_SECRET.search(x) for x in strings) and "environment" not in job:
@@ -460,7 +378,7 @@ SHELL_LANGS = {"bash", "sh", "shell", "zsh", "console"}
 
 
 def shell_blocks(path: Path):
-    """The fenced shell code blocks of a Markdown file: [(line number of the first command, [lines])]."""
+    """[(line number of the first command, [lines])] for the fenced shell blocks of a Markdown file."""
     blocks, lines, i = [], path.read_text(encoding="utf-8").splitlines(), 0
     while i < len(lines):
         m = re.match(r"^\s*(`{3,}|~{3,})\s*([\w+-]*)", lines[i])
@@ -479,7 +397,7 @@ def shell_blocks(path: Path):
 
 
 def _words(line: str):
-    """Shell words of one line with their unquoted characters: [(word, unquoted part)]."""
+    """[(shell word, its unquoted characters)] of one line."""
     out, word, bare, q, k = [], "", "", None, 0
     while k < len(line):
         c = line[k]
@@ -508,22 +426,19 @@ def _words(line: str):
 
 
 def lint_doc_blocks(out: Out, files=None):
-    """Shell code blocks in the documents must paste into zsh (macOS's default shell) as well as into bash."""
-    if files is None:
-        files = [p for p in sorted(REPO.rglob("*.md"))
-                 if not any(part in SKIP_DIRS for part in p.relative_to(REPO).parts)]
+    """The documents' shell blocks paste into zsh (macOS's default shell) as well as into bash."""
+    files = files if files is not None else [p for p in repo_files() if p.suffix == ".md"]
     shells = [sh for sh in ("zsh", "bash") if shutil.which(sh)]
     for path in files:
         path = Path(path).resolve()
         r = rel(path) if path.is_relative_to(REPO) else path.name
         for first, lines in shell_blocks(path):
             for n, line in enumerate(lines, first):
-                ws = _words(line)
                 if line.lstrip().startswith("#"):
                     out.err(f"{r}:{n}", "comment line in a shell block: interactive zsh runs it as a command; "
                                         "explain the command in the text instead")
                     continue
-                for w, bare in ws:
+                for w, bare in _words(line):
                     if bare.startswith("#"):
                         out.err(f"{r}:{n}", "trailing comment in a shell block: interactive zsh passes it to the "
                                             "command as arguments; move it to the text")
@@ -532,8 +447,7 @@ def lint_doc_blocks(out: Out, files=None):
                         out.err(f"{r}:{n}", f"placeholder {w!r}: the shell reads <...> as a redirection; "
                                             "write a real value")
                     elif re.search(r"[][*?]", bare) and w not in ("[", "]", "[[", "]]"):
-                        roots = {REPO, path.parent}                 # the commands run in the project folder
-                        if not any(any(root.glob(w.strip("'\""))) for root in roots):
+                        if not any(any(root.glob(w.strip("'\""))) for root in (REPO, path.parent)):
                             out.err(f"{r}:{n}", f"unquoted {w!r}: zsh stops with 'no matches found'; quote it")
             for sh in shells:
                 res = subprocess.run([sh, "-n"], input="\n".join(lines) + "\n", capture_output=True, text=True)
@@ -542,11 +456,8 @@ def lint_doc_blocks(out: Out, files=None):
 
 
 def lint_hygiene(out: Out):
-    for p in sorted(REPO.rglob("*")):
-        if not p.is_file() or any(part in SKIP_DIRS for part in p.relative_to(REPO).parts):
-            continue
-        r = rel(p)
-        size = p.stat().st_size
+    for p in repo_files():
+        r, size = rel(p), p.stat().st_size
         if size > 5e6:
             out.warn(r, f"{size / 1e6:.1f} MB: consider Git LFS or a release asset")
         if p.suffix.lower() not in TEXT_SUFFIXES or size > 3e6 and p.suffix != ".html":
@@ -583,20 +494,20 @@ def main() -> int:
     ap.add_argument("--docs", nargs="+", metavar="FILE.md", help="only the shell-block check, on these files")
     a = ap.parse_args()
     out = Out()
+    every = not (a.config or a.automation or a.hygiene or a.docs)
     if a.docs:
         lint_doc_blocks(out, a.docs)
         a.config = a.automation = a.hygiene = False
-    both = not (a.config or a.hygiene or a.automation or a.docs)
-    if a.config or both:
-        names = lint_agents(out)
-        lint_skills(out, names)
+    if a.config or every:
+        lint_schemas(out)
+        lint_skills(out, lint_agents(out))
         lint_rules(out)
         lint_workflows(out)
         lint_settings(out)
-    if a.automation or both:
+    if a.automation or every:
         lint_ci_settings(out)
         lint_actions(out)
-    if a.hygiene or both:
+    if a.hygiene or every:
         lint_hygiene(out)
         lint_doc_blocks(out)
     for e in out.errors:

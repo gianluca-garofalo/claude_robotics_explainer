@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frontmatter of .claude/rules/*.md",
+  "type": "object",
+  "properties": {
+    "paths": {"type": ["array", "null"], "items": {"type": "string"}, "description": "glob patterns"}
+  },
+  "additionalProperties": {"not": {}, "description": "unknown rule field: only paths is read"}
+}

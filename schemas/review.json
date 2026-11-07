@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "review/<reviewer>.json: a reviewer's report",
+  "type": "object",
+  "required": ["schema_version", "reviewer", "summary", "findings"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "reviewer": {"$ref": "defs.json#/$defs/text"},
+    "summary": {"$ref": "defs.json#/$defs/text", "description": "two or three sentences"},
+    "checks_run": {"$ref": "defs.json#/$defs/checks_run"},
+    "findings": {"type": "array", "items": {"$ref": "#/$defs/finding"}, "description": "empty if nothing was found"}
+  },
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["id", "severity", "confidence", "location", "issue", "evidence", "suggested_fix"],
+      "if": {"required": ["id"], "properties": {"id": {"type": "string", "pattern": "^FC-"}}},
+      "then": {"required": ["time_s"], "properties": {"time_s": {
+        "type": "number", "minimum": 0, "description": "a final-cut finding's time in the final video, in seconds"}}},
+      "properties": {
+        "id": {"$ref": "defs.json#/$defs/finding_id"},
+        "severity": {"enum": ["blocker", "major", "minor", "nit"]},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "location": {"$ref": "defs.json#/$defs/text"},
+        "issue": {"$ref": "defs.json#/$defs/text"},
+        "evidence": {"$ref": "defs.json#/$defs/text"},
+        "suggested_fix": {"$ref": "defs.json#/$defs/text"}
+      }
+    }
+  }
+}
