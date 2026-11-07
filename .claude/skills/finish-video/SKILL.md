@@ -26,7 +26,8 @@ Studio. The steps are the same as the workflow's render, final and final-cut job
 4. **Checks of the renders.** `python3 tools/video/check_design.py runs/<run> --stage final --no-frames`,
    `python3 tools/video/check_reading.py runs/<run> --stage final` and
    `python3 tools/video/check_engagement.py runs/<run> --stage final` (motion, transforms, narration, text; the gate
-   reports it, warnings first).
+   reports it, warnings first) and `python3 tools/video/check_script.py runs/<run> --stage final` (the spoken-script
+   standard: the narration's pace and its pauses inside sentences, from the word timings; reported, not blocking).
 5. **Assemble.** `python3 tools/video/assemble.py runs/<run>` (scenes in plan order, captions, chapters; no channel
    card; the narration stem; original music from `tools/video/music.py` by the plan's per-scene modes, ducked under
    the voice; -14 LUFS with the true peak at most -1 dBTP measured after encoding; stings in pauses of the narration and ducked,

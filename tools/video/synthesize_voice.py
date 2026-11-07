@@ -83,6 +83,8 @@ def main() -> int:
                 "timings": voice.ESTIMATED.get(service, "from the recordings (estimated, linear)"), "blocks": {}}
     if service == "piper":
         manifest["voice_model"] = voice.piper_settings(channel.get("voice", {}))["voice"]
+    elif service == "azure":
+        manifest["voice_model"] = voice.azure_settings(channel.get("voice", {}))["voice"]
     with tempfile.TemporaryDirectory() as td:
         try:
             svc = voice.speech_service(str(REPO / "templates" / "manim"), name=service, cache_dir=td) if todo else None
@@ -112,6 +114,13 @@ def main() -> int:
                 dst, origin = kept, made_earlier(key, kept) or "kept"
             manifest["blocks"][key] = {"text": text, "file": dst.name, "source": origin, "sha256": sha256_file(dst),
                                        "seconds": round(voice.audio_duration(dst), 3)}
+            if key in todo:                    # how the service made it: the prosody rate applied, the takes
+                made = data.get("input_data") or {}
+                manifest["blocks"][key].update({k: made[k] for k in ("applied_rate_pct", "takes", "fault")
+                                                if k in made})
+            elif made_earlier(key, dst):
+                manifest["blocks"][key].update({k: old_blocks[key][k] for k in ("applied_rate_pct", "takes", "fault")
+                                                if k in old_blocks[key]})
     sources = [b["source"] for b in manifest["blocks"].values()]
     manifest["sources"] = {x: sources.count(x) for x in sorted(set(sources))}
     write_json(out / "manifest.json", manifest)

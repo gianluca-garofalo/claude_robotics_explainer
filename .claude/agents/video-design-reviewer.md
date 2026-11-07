@@ -19,7 +19,8 @@ thresholds in `config/video.json`, `video/storyboard.md` and `video/plan.json`.
 
 Inputs, made by the deterministic tools (rerun them if they are missing or older than the renders):
 `python3 tools/video/check_design.py runs/<run> --stage draft`, `python3 tools/video/check_reading.py runs/<run>
---stage draft` and `python3 tools/video/check_engagement.py runs/<run> --stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
+--stage draft` and `python3 tools/video/check_engagement.py runs/<run> --stage draft` and `python3 tools/video/check_script.py runs/<run>
+--stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
 of every animation and every few seconds (`frames/<Class>/t<seconds>.png`) and a contact sheet per scene
 (`<Class>-sheet.jpg`). The renders are `video/checks/<Class>_ql.mp4`; extract other frames with
 `ffmpeg -ss <t> -i <file> -frames:v 1 <png>` into `review/video/frames/` when you need them.
@@ -113,6 +114,16 @@ Do this, looking at the images (Read the PNG and JPG files), scene by scene:
     not seen elsewhere), **memorability** (one image or sentence they will keep), each with evidence (frame file and
     time). Put them in the report as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` and in the
     `.md`. A score of 2 or less on motivation or memorability is also a `major` finding with the fix.
+15. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`, and
+    `review/design/draft/check_script.md` from `python3 tools/video/check_script.py runs/<run> --stage draft`): read
+    the narration aloud, scene by scene, in order (the voiceover strings of `video/scenes/*.py`;
+    `python3 tools/video/voice_script.py runs/<run>` lists them), and score the ten criteria 1-5 with evidence (a
+    quote and its scene, and its time when you have one): ear, rhythm, one idea per sentence, misconception, analogy,
+    questions, signposts, required phrases, read-aloud, register. Put them in the report as `"spoken_script":
+    {"ear": {"score": n, "evidence": "..."}, ...}` (the keys in spoken-script.md) and as a table in the `.md`.
+    Confirm or dismiss each `check_script.md` warning. A score of 2 or less is a finding with the rewritten sentence:
+    `major` for ear, rhythm, required phrases and read-aloud, `minor` otherwise. A required phrase that is not true
+    where it is said ("start again from the same point" where nothing has started) is `major`.
 
 Severities for design: `blocker` = a viewer cannot read or follow it (illegible or overlapping text, a meaning carried by
 colour alone, content cut off, a reference to material outside the video or an equation label); `major` = it misleads or strains (wrong emphasis, inconsistent colour meaning, clutter

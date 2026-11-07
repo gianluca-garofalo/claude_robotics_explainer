@@ -581,6 +581,29 @@ Copyright (c) 2026 Gianluca Garofalo. All rights reserved, for both the code and
 figures, videos); see `LICENSE`. Videos are uploaded with the Standard YouTube License (`config/channel.json`).
 Third-party packages, KaTeX and the Piper voice model keep their own licenses.
 
+## Voice policy
+
+The narrator is a synthetic voice, and the channel says so. Owner decision 2026-11-06.
+
+- **The narrator**: Microsoft Azure AI Speech, `en-US-Steffan:DragonHDLatestNeural` ("Steffan"), prosody rate -8 %
+  (about 150 words per minute), from 2026-11-06 (`voice.narrator` in `config/channel.json`). "DragonHDLatest" follows
+  Microsoft's latest model and cannot be pinned: the same name may sound different after a vendor update, which is
+  why the reference paragraph below exists.
+- **One canonical narrator per series.** The voice changes only at a series boundary, and the change is announced.
+- **Never present an AI voice as a real person, or several AI voices as different people.** A second voice appears
+  only as a named, disclosed character.
+- **AI narration is always disclosed**: the description says "Narration: AI voice (Microsoft Azure, Steffan). Script
+  and animation by ..." (`tools/video/metadata.py`), and the upload sheet has the checklist item to tick YouTube's
+  "altered or synthetic content" box (`tools/deliver.py`).
+- **On a voice change, re-voice the back catalogue** of the series, so one series keeps one narrator.
+- **Archive the rendered narration**: the narration WAVs of every released episode are kept with the run archive.
+- **Reference paragraph**: `python3 tools/video/voice_reference.py` renders a fixed paragraph to `voice-reference/`
+  (git-ignored) at each voice change, and whenever the model may have moved; keep it for regression checks and listen
+  against the previous one before a new episode ships.
+- **Pauses come from the speech service only**: punctuation, `<break>` (an ellipsis in the script), the prosody rate.
+  The audio is never cut or spliced; a faulty take (an HD voice now and then stretches a pause by seconds) is
+  synthesized again, whole.
+
 ## Open decisions
 
 - **Synthetic-media declaration**: `"auto"` declares synthetic media whenever the narration voice is synthetic.
@@ -591,10 +614,10 @@ Third-party packages, KaTeX and the Piper voice model keep their own licenses.
   video's own numbering included). True allows the video's own numbering, (1), (2), ... in order, never the explainer's.
 - **Links**: `links.include` in `config/channel.json` is false: no explainer, code or site link in the description.
   Turn it on for every run there, or per run with the pipeline's `links` input; the video itself never links.
-- **Voice**: Piper `en_US-ljspeech-medium` for final renders (offline, no key; its model comes from
-  `huggingface.co`, `rhasspy/piper-voices`; read the saved `MODEL_CARD` for the licence before publishing). The other
-  options are your own recording (`recorded`) and Azure `en-US-AndrewNeural` (a key); draft renders are silent.
-  Piper's word timings are estimated (sentence starts measured).
+- **Voice**: Azure `en-US-Steffan:DragonHDLatestNeural` (owner decision 2026-11-06; see the voice policy). Piper
+  `en_US-ljspeech-medium` stays as the keyless voice (`--voice piper`; offline; its model comes from
+  `huggingface.co`, `rhasspy/piper-voices`; read the saved `MODEL_CARD` for the licence before publishing), and your
+  own recording (`recorded`); draft renders are silent. Azure reports word timings; Piper's are estimated.
 - **Schedule and publishing**: Mondays 06:17 UTC; `publish_mode` public on approval, or scheduled with a delay.
 - **Videos in git**: none are kept; published runs live on the Pages branch and as artifacts.
 - **Palette**: teal-green, amber, indigo and red replace the former green, amber, blue and red so that the four

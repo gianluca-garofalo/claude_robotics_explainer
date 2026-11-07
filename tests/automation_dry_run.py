@@ -403,7 +403,7 @@ def main() -> int:
             return ("Run: " in m["snippet"]["description"] and CHANNEL["youtube"]["default_tags"][0] in m["snippet"]["tags"]
                     and m["status"]["containsSyntheticMedia"] is True
                     and m["status"]["privacyStatus"] == CHANNEL["youtube"]["review_privacy"]
-                    and CHANNEL["voice"]["synthetic_voice_note"] in m["snippet"]["description"], r.stdout.strip()[:110])
+                    and "Narration: AI voice (" in m["snippet"]["description"], r.stdout.strip()[:110])
         silent = ["--allow-silent"] if voice == "silent" else []
         nolinks = {k: v for k, v in env.items() if k != "SITE_BASE_URL"}     # links off: no site URL needed at all
         step("metadata (links off by default: no site URL needed; synthetic voice declared from the manifest)",

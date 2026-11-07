@@ -29,7 +29,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, REPO, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 import lint_html  # noqa: E402
 import plan as P  # noqa: E402
 import voice_script as VS  # noqa: E402
@@ -148,6 +148,50 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
             detail = f"not run on the current {stage} renders of {stale[:3]}; " + detail
         return (not block) or (not errs and not stale), detail
     g.guard(f"engagement: motion, transforms, narration, text ({stage})", engagement)
+
+    def script():
+        p = run / "review" / "design" / stage / "check_script.json"
+        block = bool(_json_or_empty(CONFIG / "video.json").get("script", {}).get("errors_block_gate", False))
+        if not p.exists():
+            return not block, f"not run (tools/video/check_script.py {rel(run)} --stage {stage}; report only)"
+        r = _json(p)
+        scenes_dir = run / "video" / "scenes"
+        now = {f.name: sha256_file(f) for f in sorted(scenes_dir.glob("*.py"))
+               if f.name not in ("common.py", "voice.py", "reading_model.py")}
+        stale = sorted(n for n in set(now) | set(r.get("scene_sha256") or {})
+                       if (r.get("scene_sha256") or {}).get(n) != now.get(n))
+        st = (r.get("stats") or {}).get("whole", {})
+        au = (r.get("stats") or {}).get("audio") or {}
+        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
+        detail = (f"{errs} error(s), {warns} warning(s); pause marks {st.get('pause_punct_per_100', '-')}, "
+                  f"contractions {st.get('contractions_per_100', '-')}, connectives "
+                  f"{st.get('connectives_per_100', '-')} per 100 words"
+                  + (f"; {au.get('wpm')} wpm, {au.get('mid_pauses')} mid-sentence pause(s)" if au else "")
+                  + f" (review/design/{stage}/check_script.md"
+                  + ("" if block else "; reported, not blocking: script.errors_block_gate") + ")")
+        if stale:
+            detail = f"not run on the current scene files {stale[:3]}; " + detail
+        return (not block) or (not errs and not stale), detail
+    g.guard(f"spoken script: pauses, rhythm, contractions, stock phrases ({stage})", script)
+
+
+def scene_urls(run: Path) -> list[str]:
+    """Scene files of the run that hold a URL (a fetched asset is third-party media) or load an image from anywhere
+    but code/figures/ or data/. A helper module identical to
+    the repository's own copy in templates/manim/ is skipped: voice.py holds the SSML namespaces, URIs that fetch
+    nothing."""
+    bad = []
+    for p in sorted((run / "video" / "scenes").glob("*.py")):
+        helper = REPO / "templates" / "manim" / p.name
+        if helper.is_file() and helper.read_bytes() == p.read_bytes():
+            continue
+        src = p.read_text(encoding="utf-8")
+        if re.search(r"https?://", src):
+            bad.append(f"{p.name}: URL in scene code")
+        for m in re.finditer(r"(ImageMobject|SVGMobject)\(\s*['\"]([^'\"]+)", src):
+            if not re.match(r"^(\.\./)*(code/figures|data)/", m.group(2)):
+                bad.append(f"{p.name}: {m.group(1)} loads {m.group(2)}")
+    return bad
 
 
 def pre_render(run: Path, g: Gates, cfg: dict):
@@ -280,13 +324,7 @@ def pre_render(run: Path, g: Gates, cfg: dict):
                     st = _json_or_empty(p.with_name(p.name + ".json")) or _json_or_empty(p.with_suffix(".json"))
                     if st.get("generator") != MU.GENERATOR or st.get("sha256") != sha256_file(p):
                         bad.append(f"{rel(p)} (audio without a generator stamp)")
-        for p in (run / "video" / "scenes").glob("*.py"):
-            src = p.read_text(encoding="utf-8")
-            if re.search(r"https?://", src):
-                bad.append(f"{p.name}: URL in scene code")
-            for m in re.finditer(r"(ImageMobject|SVGMobject)\(\s*['\"]([^'\"]+)", src):
-                if not re.match(r"^(\.\./)*(code/figures|data)/", m.group(2)):
-                    bad.append(f"{p.name}: {m.group(1)} loads {m.group(2)}")
+        bad += scene_urls(run)
         return not bad, ("only our renders, data, recordings and generated sound" if not bad else
                          f"unlicensed third-party media risk: {bad[:5]}")
     g.guard("no unlicensed third-party media in the video", media)

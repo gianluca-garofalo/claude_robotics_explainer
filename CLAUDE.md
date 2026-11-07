@@ -28,10 +28,12 @@ map, CLOUD-SESSION.md the cloud environment, SETUP-AUTOMATION.md the optional au
   and reading time: `python3 tools/video/check_design.py runs/<run> --stage draft`, `python3
   tools/video/check_reading.py runs/<run> --stage draft`, `python3 tools/video/check_selfcontained.py runs/<run>`,
   `check_numbers.py`, `check_series.py`, `check_engagement.py` (motion budget, transforms, narration, text; warnings
-  first);
+  first), `check_script.py` (the spoken-script standard on the narration; report only);
   video review merge: `python3 tools/merge_reviews.py runs/<run> --set video`; voice: one setting, `voice.service` in
-  `config/channel.json` (piper, the voice of final renders | azure | recorded | silent); drafts are silent, and a final
-  render without the Piper model stops (`./setup.sh` downloads it): there is no fallback voice
+  `config/channel.json` (azure, Steffan HD `en-US-Steffan:DragonHDLatestNeural` at -8 %, the channel voice; voice
+  policy in README.md: one narrator per series, AI narration always disclosed; needs `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION`
+  in the environment, never in a file | piper, keyless | recorded | silent); drafts are silent, and a final render
+  whose voice cannot work stops (Piper without its model: `./setup.sh` downloads it): there is no fallback voice
 - Series: `python3 tools/series.py from-source sources/<name>` (a source's series in release order),
   `list|next|validate|start series/<series>` (`start --fresh`: leave out kept scenes); planning: `/plan-series
   <explainer run or sources/<name>>` (`tools/series.py plan|write`). Sources are `sources/<name>/` (explainer.html,

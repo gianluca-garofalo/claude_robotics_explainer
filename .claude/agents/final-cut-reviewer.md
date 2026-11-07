@@ -26,7 +26,7 @@ and the caption on screen; the captions with their times; the segments), the con
 Extract any other moment with `ffmpeg -ss <t> -i <video> -frames:v 1 runs/<run>/review/final_cut/extra/t<t>.jpg`
 (several frames a few tenths of a second apart show motion). The deterministic reports are in
 `review/design/final/` (`check_design.md`, `check_reading.md`, `check_numbers.md`, `check_selfcontained.md`,
-`check_series.md`, `check_engagement.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
+`check_series.md`, `check_engagement.md`, `check_script.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
 
 Go through every contact sheet in order (Read the JPG files), then open single frames wherever something looks off.
 For each item, report findings with the time:
@@ -87,6 +87,14 @@ For each item, report findings with the time:
 11. SoME rubric: score the cut 1-5 on **motivation**, **clarity**, **novelty** and **memorability**, each with
     evidence (time and frame), as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` in the report and a
     table in the `.md`. A score of 2 or less on motivation or memorability is also a `major` finding.
+12. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`; `review/design/final/check_script.md` from
+    `python3 tools/video/check_script.py runs/<run> --stage final`: the pace and the pauses over 0.7 s inside a
+    sentence, from the narration's word timings): listen to the narration (`video/voice/` or the final video's audio)
+    with the captions, and score the ten criteria 1-5 with evidence (a quote and `time_s`): ear, rhythm, one idea per
+    sentence, misconception, analogy, questions, signposts, required phrases, read-aloud, register. Put them in the
+    report as `"spoken_script": {"ear": {"score": n, "evidence": "..."}, ...}` and as a table in the `.md`. Confirm
+    or dismiss each mid-sentence pause the tool lists by listening. A score of 2 or less is a finding with the
+    rewritten sentence: `major` for ear, rhythm, required phrases and read-aloud, `minor` otherwise.
 
 Severities for a final cut: `blocker` = a viewer cannot read or follow it (text hidden by an overlap, narration about
 something not on screen, a number in an unreadable format such as 0.500000, a reference outside the video, an equation

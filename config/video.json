@@ -130,7 +130,8 @@
     "quantities": "Owner request (2026-11-04, the review's difference 5): colour bound to quantities, not roles. Tunable; keep the colours colour-blind-safe (the semantic palette).",
     "max_words_on_screen_warn": "Lowered from 40 to 25 on 2026-11-04 (text economy, the review's difference 7: episode 1 peaked at 37-39 words and terms); the error stays at 60 until calibrated.",
     "title_beat": "title_beat_max_s and title_beat_min_speech (2026-11-04, after the v2 final-cut review: an 8.4 s title beat with 4.1 s of silent hold): one spoken sentence over the title, then the body. Warnings (check_series.py).",
-    "thumbnail_min_ink": "2026-11-04, after the v2 final-cut review: the picture of a picture-layout thumbnail is cropped to its content and fitted under the title band; at 168 x 94 its ink should cover at least this share (warning)."
+    "thumbnail_min_ink": "2026-11-04, after the v2 final-cut review: the picture of a picture-layout thumbnail is cropped to its content and fitted under the title band; at 168 x 94 its ink should cover at least this share (warning).",
+    "script": "Owner request (2026-11-05): the spoken-script standard (.claude/skills/manim-video-producer/spoken-script.md; tools/video/check_script.py, report only: errors_block_gate false). The owner found episode 1 v5's cadence unnatural, and an A/B with the same Azure voice (Samuel) put it down to the script. Calibrated on that A/B: the v5 hook (88 words) has 2.3 pause marks per 100 words, 1.1 contractions and 1.1 connectives per 100 words and a sentence-length spread of 2.8 words; the rewrite the owner preferred (115 words) has 0.9, 2.6, 7.0 and 5.8. pause_punct_per_100_warn 1.0: a listener hears punctuation only as pauses, and the voice places odd ones at colons and brackets (error above 3.0; v5 overall 2.7). contractions_per_100_min 1.5 and contraction_share_min 0.5: spoken English contracts where it can (v5: 0.2 per 100 and 14 %). connectives_per_100_min 3.0: clauses that lean on each other ('so', 'which means', 'but') carry the argument; a plain 'and' inside a sentence does not count. sentence_mean 10-22 words, spread at least 5 words (overall and per scene of 5 or more sentences), no run of 3 sentences under 8 words: varied rhythm, as in the preferred rewrite (21, 5 and 2-word sentences side by side). stock_ngram 5: a phrase of five or more words said in two scenes is reported unless refrain_allow lists it (the meter's label and the theorem's refrain); stock_phrases lists generic wording the checks once required ('start again from the same point', said in the hook before anything had started). hype_words: a calm, honest register (INSPIRATION.md: Sebastian Lague's calm voice, The Efficient Engineer's no-nonsense tone). Final stage: wpm_min/max 140-160 overall (the rubric; check_reading.py still enforces reading.narration_wpm_* per block); mid_pause_max_s 0.7 s inside a sentence (error above mid_pause_error_s), from the word timings' durations (Azure) or the audio's silences at silence_db (Piper, recordings). Starting values, warnings: calibrate on the next episodes before errors_block_gate is turned on."
   },
   "equation_numbers": false,
   "self_contained": {
@@ -326,5 +327,75 @@
         "W"
       ]
     }
+  },
+  "script": {
+    "errors_block_gate": false,
+    "pause_punct_per_100_warn": 1.0,
+    "pause_punct_per_100_error": 3.0,
+    "contractions_per_100_min": 1.5,
+    "contraction_share_min": 0.5,
+    "connectives_per_100_min": 3.0,
+    "sentence_mean_min": 10.0,
+    "sentence_mean_max": 22.0,
+    "sentence_spread_min": 5.0,
+    "short_sentence_words": 8,
+    "short_run_min": 3,
+    "scene_spread_min_sentences": 5,
+    "stock_ngram": 5,
+    "refrain_allow": [
+      "what is left to pay",
+      "left to pay",
+      "by at least what that step costs",
+      "at least what that step costs",
+      "at least what the step costs"
+    ],
+    "stock_phrases": [
+      "start again from the same point",
+      "watch one number",
+      "here is the trick",
+      "here's the trick",
+      "let's build it",
+      "as we will see",
+      "it turns out that",
+      "in this video",
+      "without further ado",
+      "let's dive in",
+      "buckle up"
+    ],
+    "hype_words": [
+      "amazing",
+      "incredible",
+      "incredibly",
+      "mind-blowing",
+      "mind blowing",
+      "insane",
+      "crazy",
+      "unbelievable",
+      "shocking",
+      "stunning",
+      "epic",
+      "revolutionary",
+      "game-changer",
+      "game changer",
+      "game-changing",
+      "genius",
+      "magic",
+      "magical",
+      "secret",
+      "ultimate",
+      "obviously",
+      "trivially",
+      "trivial",
+      "simply put",
+      "super easy",
+      "you won't believe"
+    ],
+    "wpm_min": 140.0,
+    "wpm_max": 160.0,
+    "block_wpm_min": 120.0,
+    "block_wpm_max": 180.0,
+    "mid_pause_max_s": 0.7,
+    "mid_pause_error_s": 1.5,
+    "silence_db": -40.0
   }
 }

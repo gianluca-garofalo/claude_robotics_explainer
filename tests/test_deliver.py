@@ -98,7 +98,8 @@ class Deliver(unittest.TestCase):
                        "0:30 The cost still to pay", "stable manifold, Remaining Action",
                        "Altered or synthetic content: **Yes**", "piper (fixture-voice)", "Science & Technology",
                        "No, it is not made for kids", '"Fixture series"', "Two episodes, one idea.", f"`{SLUG}.srt`",
-                       "`thumbnail.jpg`", "End screen from 1:18 to 1:35", "card at 0:30", '"One step"'):
+                       "`thumbnail.jpg`", "End screen from 1:18 to 1:35", "card at 0:30", '"One step"',
+                       "tick **Yes**"):                     # a synthetic voice: the sheet asks for the disclosure box
             self.assertIn(needle, sheet)
         self.assertNotIn(f"Run: {RUN_NAME}", sheet)          # the upload marker only serves automated uploads
         sums = dict(reversed(line.split("  ")) for line in (d / "SHA256SUMS").read_text().splitlines())
@@ -110,6 +111,7 @@ class Deliver(unittest.TestCase):
         self.assertEqual(deliver(run).returncode, 0)
         sheet = (run / "deliver" / "upload_sheet.md").read_text()
         self.assertIn("Altered or synthetic content: **No**", sheet)
+        self.assertNotIn("tick **Yes**", sheet)              # own voice: no disclosure box to tick
 
     def test_the_series_plan_travels_with_the_episode(self):
         import importlib.util

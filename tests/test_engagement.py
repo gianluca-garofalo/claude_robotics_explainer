@@ -102,6 +102,7 @@ class SceneCode(unittest.TestCase):
         toks = CE.NOTATION.findall(text)
         self.assertEqual(sorted(set(toks)), ["L", "V", "d", "prime", "q"])
         self.assertNotIn("A", toks)
+        self.assertEqual(CE.NOTATION.findall("It's q, and it can't be V. Here’s why."), ["q", "V"])  # contractions
         self.assertEqual(len(CE.ADDRESS.findall(text)), 2)
 
     def run_fixture(self, scenes_src, plan_scenes, logs, metaphor=None):

@@ -27,6 +27,8 @@ import metadata  # noqa: E402
 import piper_model  # noqa: E402
 
 TICK = voice.AUDIO_OFFSET_RESOLUTION
+CHOICE_ENV = ("VOICE_SERVICE", "PIPER_MODEL", "PIPER_MODEL_DIR", "PIPER_VOICE", "CHANNEL_CONFIG",
+              "AZURE_SUBSCRIPTION_KEY", "AZURE_SERVICE_REGION", "AZURE_VOICE")
 
 
 def voice_python():
@@ -145,13 +147,12 @@ class Choice(unittest.TestCase):
         (self.tmp / "config").mkdir()
         self.cfg = self.tmp / "config" / "channel.json"
         self.cfg.write_text(json.dumps({"voice": {"service": "piper", "piper": {"voice": "en_US-test-medium"}}}))
-        self.env = {k: os.environ.pop(k) for k in ("VOICE_SERVICE", "PIPER_MODEL", "PIPER_MODEL_DIR", "PIPER_VOICE",
-                                                     "CHANNEL_CONFIG") if k in os.environ}
+        self.env = {k: os.environ.pop(k) for k in CHOICE_ENV if k in os.environ}   # hermetic: no keys of this shell
         os.environ["CHANNEL_CONFIG"] = str(self.cfg)
         self.saved_piper = sys.modules.pop("piper", None)
 
     def tearDown(self):
-        for k in ("VOICE_SERVICE", "PIPER_MODEL", "PIPER_MODEL_DIR", "PIPER_VOICE", "CHANNEL_CONFIG"):
+        for k in CHOICE_ENV:
             os.environ.pop(k, None)
         os.environ.update(self.env)
         sys.modules.pop("piper", None)
@@ -239,6 +240,95 @@ class Choice(unittest.TestCase):
         ok, why = voice.available("azure")
         self.assertFalse(ok)
         self.assertIn("AZURE_SUBSCRIPTION_KEY", why)
+
+    def test_azure_without_its_package_says_so(self):
+        os.environ.update(AZURE_SUBSCRIPTION_KEY="dummy", AZURE_SERVICE_REGION="westeurope")
+        real = voice._has_module
+        voice._has_module = lambda name: False
+        try:
+            ok, why = voice.available("azure")
+        finally:
+            voice._has_module = real
+        self.assertFalse(ok)
+        self.assertIn("azure-cognitiveservices-speech", why)
+
+    def test_azure_settings_and_ssml(self):
+        a = voice.azure_settings({"azure_voice": "en-US-SamuelMultilingualNeural", "azure": {"ellipsis_pause_s": 0.5}})
+        self.assertEqual(a["voice"], "en-US-SamuelMultilingualNeural")
+        ssml = voice.azure_ssml("It does it again... And <bookmark mark='a'/>again & again?", a["voice"], -8,
+                                a["ellipsis_pause_s"])
+        self.assertIn('<voice name="en-US-SamuelMultilingualNeural">', ssml)
+        self.assertIn('<break time="500ms"/>', ssml)            # only the planned beat becomes a break
+        self.assertEqual(ssml.count("<break"), 1)
+        self.assertIn('<prosody rate="-8%">', ssml)
+        self.assertIn("again &amp; again?", ssml)
+        self.assertNotIn("bookmark", ssml)
+
+    def test_hd_voice_name_with_a_colon(self):
+        hd = "en-US-Steffan:DragonHDLatestNeural"
+        a = voice.azure_settings({"azure_voice": hd})
+        self.assertEqual((a["voice"], a["retries"], a["min_wpm"]), (hd, 3, 110))
+        self.assertIn(f'<voice name="{hd}">', voice.azure_ssml("Hello there.", hd))
+        self.assertEqual(voice.DEFAULT_AZURE_VOICE, hd)
+        self.assertEqual(voice.azure_settings({})["min_rate_pct"], -30)
+        self.assertNotIn("silence", json.dumps(voice.azure_ssml("One... two.", hd, -8)))
+
+    def test_voice_anomaly(self):
+        def take(*words):          # (text, start s, length s)
+            return [{"audio_offset": int(t * TICK), "text": w, "duration_milliseconds": int(d * 1000)}
+                    for w, t, d in words]
+        text = "The robot plans a short path ahead. Then it moves one step... and it plans again."
+        good = take(("The", 0.0, 0.2), ("robot", 0.2, 0.3), ("plans", 0.5, 0.3), ("a", 0.8, 0.1),
+                    ("short", 0.9, 0.3), ("path", 1.2, 0.3), ("ahead.", 1.5, 0.5), ("Then", 2.4, 0.2),
+                    ("it", 2.6, 0.1), ("moves", 2.7, 0.3), ("one", 3.0, 0.3), ("step...", 3.3, 0.5),
+                    ("and", 5.3, 0.2), ("it", 5.5, 0.1), ("plans", 5.6, 0.3), ("again.", 5.9, 0.5))
+        self.assertEqual(voice.voice_anomaly(good, text, 6.5), "")          # 1.5 s after a planned beat is fine
+        stretched = [dict(b) for b in good]
+        stretched[7]["audio_offset"] += 3 * TICK                              # 3 s more before "Then"
+        self.assertIn("gap before 'Then'", voice.voice_anomaly(stretched, text, 9.5))
+        long_word = [dict(b) for b in good]
+        long_word[4]["duration_milliseconds"] = 2500
+        self.assertIn("'short'", voice.voice_anomaly(long_word, text, 6.5))
+        self.assertIn("after the last word", voice.voice_anomaly(good, text, 9.0))
+        self.assertEqual(voice.voice_anomaly([], text, 1.0), "no word timings")
+
+    def test_a_faulty_take_is_synthesized_again(self):
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            svc = voice.AzureSpeechService.__new__(voice.AzureSpeechService)
+            svc.voice_name, svc.rate_pct, svc.ellipsis_pause_s, svc.style = "en-US-Steffan:DragonHDLatestNeural", -8, 0.7, None
+            svc.retries, svc.min_wpm, svc.max_wpm, svc.min_rate_pct = 3, 110, 160, -20
+            calls = []
+
+            def fake(ssml, out):
+                calls.append(ssml)
+                Path(out).write_bytes(b"x")
+                gap = 4.0 if len(calls) == 1 else 0.3                         # the first take stretches a pause
+                return [{"audio_offset": 0, "text": "Hello", "duration_milliseconds": 400},
+                        {"audio_offset": int((0.4 + gap) * TICK), "text": "there.", "duration_milliseconds": 400}]
+            svc._synthesize = fake
+            real = voice.audio_duration
+            voice.audio_duration = lambda p: 1.2 if len(calls) > 1 else 4.9
+            try:
+                ssml, bounds, duration, takes, fault = svc._take("Hello there.", -8, tmp / "a.mp3")
+            finally:
+                voice.audio_duration = real
+            self.assertEqual((takes, fault, len(calls)), (2, "", 2))
+            self.assertEqual(calls[0], calls[1])                              # the same SSML: no cut, no splice
+            self.assertEqual(sorted(p.name for p in tmp.iterdir()), ["a.mp3"])
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_proxy_settings(self):
+        self.assertEqual(voice.proxy_settings({"HTTPS_PROXY": "http://user:pw@127.0.0.1:3128"}),
+                         ("127.0.0.1", 3128, "user", "pw"))
+        self.assertIsNone(voice.proxy_settings({}))
+
+    def test_durations_survive_bookmark_safe(self):
+        out = voice.bookmark_safe([{"audio_offset": 0, "text": "Hello", "duration_milliseconds": 300},
+                                   {"audio_offset": 5 * TICK, "text": "there", "duration_milliseconds": 250}],
+                                  "Hello there", 1.0)
+        self.assertEqual([b.get("duration_milliseconds") for b in out[:2]], [300, 250])
 
     def test_cli(self):
         cli = [sys.executable, str(REPO / "templates" / "manim" / "voice.py")]

@@ -14,6 +14,7 @@ media/
 # CI working folders (Pages worktree, caches) and the one-time YouTube token helper's venv
 /site/
 .cache/
+/voice-reference/
 .venv-auth/
 client_secret*.json
 

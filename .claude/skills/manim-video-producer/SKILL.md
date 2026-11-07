@@ -33,7 +33,14 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
    `video/scenes/`, one file per scene, rename the class. Scenes derive from `RAScene` (narration plus automatic reading
    holds); every `with self.voiceover(text=...)` block is narrated and becomes a caption. Place titles and captions with
    `title()` and `caption()` (graphics-safe area). Copy LaTeX from the explainer without its equation numbers or tags.
-4. **Plan** (`video/plan.json`, format in `tools/video/plan.py`): `title` (at most 90 characters, accurate, no
+4. **Spoken-style rewrite pass** (after the narration draft, before any voicing; [spoken-script.md](spoken-script.md)).
+   Read each scene's voiceover blocks aloud in order and rewrite them for the ear. Keep the facts, numbers, scene
+   structure, bookmarks and meter resets. Remove colons, semicolons, dashes and brackets used as pauses, use
+   contractions and connectives, vary sentence length, and word each required phrase (meter resets, title beat,
+   teaser) for its own scene. Then run `python3 tools/video/check_script.py runs/<run> --stage draft` and score the
+   ten criteria in `video/README.md` ("Spoken script": a score and one line of evidence each). Rewrite anything at 2
+   or less.
+5. **Plan** (`video/plan.json`, format in `tools/video/plan.py`): `title` (at most 90 characters, accurate, no
    clickbait), `summary` (two to four sentences for the description), `tags`, `scenes` in order with the explainer
    `section` id each one draws on (a source, for the review), its `chapter`, the title viewers see (written for the
    video, never the explainer's heading), its `role` (`hook` first, `outro` last; `context` and `recap` with
@@ -43,24 +50,28 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
    three words; `layout` `picture` for a frame-first thumbnail with the title in a top band, keeping the top fifth of
    that frame empty, or `panel` with nothing where the title goes, the left half). `python3
    tools/ci/scene_matrix.py runs/<run>` must accept it; `check_series.py` warns about the opening and the packaging.
-5. **Draft check:** `bash tools/render_video.sh runs/<run> --check` (every scene at -ql, silent, with captions and
+6. **Draft check:** `bash tools/render_video.sh runs/<run> --check` (every scene at -ql, silent, with captions and
    layout logs), then
    `python3 tools/video/check_design.py runs/<run> --stage draft`,
    `python3 tools/video/check_reading.py runs/<run> --stage draft`,
    `python3 tools/video/check_numbers.py runs/<run> --stage draft`,
    `python3 tools/video/check_selfcontained.py runs/<run> --stage draft` and
    `python3 tools/video/check_series.py runs/<run> --stage draft` and
-   `python3 tools/video/check_engagement.py runs/<run> --stage draft`. Fix every error; read the warnings (spacing,
+   `python3 tools/video/check_engagement.py runs/<run> --stage draft` and
+   `python3 tools/video/check_script.py runs/<run> --stage draft`. Fix every error; read the warnings (spacing,
    space use, motion, recall load, opening and ending, series beats, and the engagement report: frozen frames under
-   narration, transforms, fades to empty, spoken symbols, slide titles, beats, the metaphor).
-6. **Design review:** start the `video-design-reviewer` subagent on the run (it looks at the sampled frames and contact
+   narration, transforms, fades to empty, spoken symbols, slide titles, beats, the metaphor; and the spoken-script
+   report: pause marks, contractions, connectives, rhythm, stock phrases, hype).
+7. **Design review:** start the `video-design-reviewer` subagent on the run (it looks at the sampled frames and contact
    sheets in `review/design/draft/`), then one `finding-verifier` per blocker or major `VD-` finding, then
    `python3 tools/merge_reviews.py runs/<run> --set video`. Fix confirmed blockers and majors, record decisions in
-   `review/video/resolutions.json` (same format as the explainer's), re-render, re-run step 5 and the merge. At most two
+   `review/video/resolutions.json` (same format as the explainer's), re-render, re-run step 6 and the merge. At most two
    rounds; open blockers stop the run at the gate.
-7. **README:** `video/README.md` with scene -> file -> explainer section -> data and script, the colour meanings, and
-   the voice: Piper by default (`voice.service` in `config/channel.json`), or `python3 tools/video/voice_script.py
-   runs/<run>` lists the blocks to record for the user's own voice.
+8. **README:** `video/README.md` with scene -> file -> explainer section -> data and script, the colour meanings, and
+   the voice: Azure Steffan HD by default, an AI voice disclosed in the description (`voice.service` and `voice.azure_voice` in `config/channel.json`; the keys
+   `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION` come from the environment, never a file), Piper as the keyless
+   voice (`--voice piper`), or `python3 tools/video/voice_script.py runs/<run>` lists the blocks to record for the
+   user's own voice; and the "Spoken script" scores of step 4.
 
 ## Craft: one moving world, not a slide deck (tools/video/check_engagement.py; warnings first)
 
@@ -108,8 +119,9 @@ slide deck; the storyboard's craft plan and these helpers in `common.py` avoid t
 - **The meter means one thing (v5).** Along the controller's path the bill only falls. `layout_probe.py` logs the
   meter's value (`meter()` sets `ra_value`), and `check_engagement.py` warns at every refill that `plan.json` does not
   declare: a scene lists its intended refills as `"metaphor_resets": [{"says": "<words of the narration block that
-  announces it>", "why": "..."}]`, and the narration must say it ("let's build it", "start again from the same
-  point"). v6: the meter refills while or after those words are said, never seconds before them (v5 refilled at a
+  announces it>", "why": "..."}]`, and the narration must say it, in words written for that scene (spoken-script.md,
+  criterion 8: "let's rewind to where it started" for a replay, "put the controller at one" for a new start; never
+  the same reset words in two scenes). v6: the meter refills while or after those words are said, never seconds before them (v5 refilled at a
   cut, 3.6 s before "start again"); and the words state the real reason: "start again from the same point" is true
   of a replay, not of a new example at a new point. A scan over hypothetical points belongs on the bowl or on a ghost meter, not on the meter (episode 1 v4:
   the meter refilled from 0.119 to 0.586 with no step paid, and climbed just before "the bill only goes down"). A
@@ -121,11 +133,39 @@ slide deck; the storyboard's craft plan and these helpers in `common.py` avoid t
   `push=1.04`) while the music swells; music-off scenes get a "low" swell in pauses of 1.8 s or more
   (`config/channel.json` music.off_beat_swell_s), so a beat is never digital silence. One pause-and-ponder
   question; a "so what" sentence after every boxed result. Inside a block, write "..." where a spoken pause belongs
-  (the Piper voice pauses 0.7 s there, 0.45 s after a question, 0.25 s after other sentences).
+  (Azure makes it a break of 0.7 s and places its other pauses itself; Piper also adds 0.45 s after a question and
+  0.25 s after other sentences).
 - **Text economy.** No persistent slide titles (the chapter list names the chapter); at most about 25 words and terms
   on screen; on-screen sentences only for the takeaway.
 - **Camera moves** (`MovingCameraScene`) are not supported yet: `layout_probe.py` and `check_design.py` read object
   coordinates, not the camera frame. Zoom by scaling the world group instead (the checks then stay correct).
+
+## Spoken script (the standard in [spoken-script.md](spoken-script.md); tools/video/check_script.py reports)
+
+Narration is heard once and never read, so write it for the ear. The reviewers score ten criteria from 1 to 5;
+spoken-script.md gives the source and scale anchors for each:
+1. Written for the ear: contractions and connectives, and no colons, semicolons, dashes or brackets as pauses.
+2. Rhythm: varied sentence length, and no runs of short, flat sentences.
+3. One idea per sentence, with the subject and verb up front.
+4. The misconception, why it fails, then the fix.
+5. An everyday analogy in the first 90 s.
+6. Real questions and "you / we", not filler.
+7. Signposts and re-engagement every 2-3 min.
+8. Required phrases (meter resets, title beat, teaser) worded to fit their scene, never stock.
+9. The read-aloud test: no unnatural pause inside a sentence, and about 140-160 words per minute.
+10. A calm, honest register with no hype words.
+
+`check_script.py` counts what can be counted (thresholds in config/video.json "script"):
+- pause marks per 100 words;
+- contractions and connectives;
+- the mean and spread of sentence length, and runs of short sentences;
+- phrases repeated across scenes;
+- hype words;
+- at the final stage, the pace, and pauses over 0.7 s inside a sentence, from the narration's word timings.
+
+It reports and does not block (`script.errors_block_gate`). The voice (Azure) places its own pauses at commas and
+sentence ends, so an ellipsis ("...") is the only planned pause the narration writes. The voice turns it into a break
+of `voice.azure.ellipsis_pause_s`.
 
 ## Self-contained video (house rule; tools/video/check_selfcontained.py fails the gate otherwise)
 

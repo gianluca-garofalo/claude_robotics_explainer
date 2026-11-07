@@ -207,8 +207,10 @@ def sheet(run: Path, meta: dict, files: dict[str, Path], gates: dict, plan: tupl
     if series:
         out.append(f"- [ ] Playlists: add it to \"{pl.get('title') or topic['series_title']}\"")
     out += [f"- [ ] Audience: {kids}",
-            "- [ ] Altered content (altered or synthetic content, in Details): "
-            + ("**Yes** (a synthetic voice narrates)" if synthetic else "No (your own voice)"),
+            ("- [ ] Altered or synthetic content (Details > Show more): tick **Yes**, the box YouTube asks for "
+             "realistic altered or synthetic content: an AI voice narrates (voice policy: AI narration is always "
+             "disclosed; the description says so too)" if synthetic else
+             "- [ ] Altered or synthetic content (Details > Show more): No (your own voice)"),
             "- [ ] Show more > Category, language and license as in Settings",
             f"- [ ] Subtitles: Add language ({sn.get('defaultLanguage', 'en')}), Upload file > With timing > "
             f"`{files['captions'].name}`",

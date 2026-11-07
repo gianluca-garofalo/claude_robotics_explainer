@@ -67,6 +67,35 @@ def synthetic_flag(channel: dict, run: Path | None = None) -> bool:
     return synthetic_voice(channel, run) if v == "auto" else bool(v)
 
 
+def narration_service(channel: dict, run: Path | None = None) -> str:
+    """The speech service that made the narration: video/voice/manifest.json, else $VOICE_SERVICE, else
+    voice.service."""
+    man = run / "video" / "voice" / "manifest.json" if run else None
+    if man is not None and man.exists() and load_json(man).get("service"):
+        return str(load_json(man)["service"]).strip().lower()
+    return (os.environ.get("VOICE_SERVICE") or channel.get("voice", {}).get("service", "silent")).strip().lower()
+
+
+def narration_line(channel: dict, run: Path | None = None) -> str:
+    """The description's disclosure of the AI narration (voice policy, README.md): "Narration: AI voice (Microsoft
+    Azure, Steffan). Script and animation by <owner_name, else channel_name>." Empty for the user's own recordings."""
+    if not synthetic_voice(channel, run):
+        return ""
+    v = channel.get("voice", {})
+    service = narration_service(channel, run)
+    if service == "azure":
+        voice_id = os.environ.get("AZURE_VOICE") or v.get("azure_voice") or ""
+        n = v.get("narrator") or {}
+        name = n.get("display_name") if n.get("voice_id") == voice_id and n.get("display_name") else voice_id
+        who = f"Microsoft Azure, {name}" if name else "Microsoft Azure"
+    elif service == "piper":
+        who = f"Piper, {(v.get('piper') or {}).get('voice') or 'offline voice'}"
+    else:
+        who = service or "synthetic"
+    owner = channel.get("owner_name") or channel.get("channel_name", "")
+    return f"Narration: AI voice ({who}). Script and animation by {owner}."
+
+
 def music_line(run: Path) -> str:
     """The description's music credit, from the provenance stamp assemble.py left (empty without music)."""
     asm_p, st_p = run / "video" / "final" / "assembly.json", run / "video" / "final" / "music.json"
@@ -145,8 +174,7 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
             parts.append("")
         if chs:
             parts += ["Chapters:"] + [c["label"] for c in chs] + [""]
-        note = channel["voice"].get("synthetic_voice_note", "") if synthetic_voice(channel, run) else ""
-        parts += [" ".join(x for x in (note, channel["voice"]["disclosure"]) if x)]
+        parts += [x for x in (narration_line(channel, run), channel["voice"]["disclosure"]) if x]
         if music_line(run):
             parts.append(music_line(run))
         parts += ["",

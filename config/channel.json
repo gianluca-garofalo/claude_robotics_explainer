@@ -29,7 +29,7 @@
     "expected_channel_title": "Remaining Action"
   },
   "voice": {
-    "service": "piper",
+    "service": "azure",
     "piper": {
       "voice": "en_US-ljspeech-medium",
       "revision": "main",
@@ -38,10 +38,38 @@
       "sentence_pause_s": 0.25,
       "speaker": null
     },
-    "azure_voice": "en-US-AndrewNeural",
+    "azure_voice": "en-US-Steffan:DragonHDLatestNeural",
+    "azure": {
+      "rate_pct": -8,
+      "min_rate_pct": -30,
+      "max_wpm": 160,
+      "ellipsis_pause_s": 0.7,
+      "style": null,
+      "note": "Owner decision 2026-11-06: Azure en-US-Steffan:DragonHDLatestNeural is the narrator of the Remaining Action series (chosen over en-US-SamuelMultilingualNeural and others in a matched-pace comparison: about 150 words per minute, a 400 ms break between blocks, prosody rate -8 %). rate_pct -8 gives Steffan HD about 147-156 words per minute (measured 2026-11-06); a block faster than max_wpm (160, the top of the spoken-script standard's 140-160) is synthesized again at a slower prosody rate, never below min_rate_pct (-30: Steffan HD reads some sentences near 200 words per minute at 0 %, and -20 % still left one episode 1 block at 178). HD voices honour <prosody rate> and <break> and ignore mstts:silence (never used). Pauses come only from the service: punctuation, prosody rate, and a planned beat (an ellipsis in the narration) as a <break> of ellipsis_pause_s; the audio is never cut or spliced. HD takes are not deterministic: a take with an unplanned gap, an over-long word or a pace under min_wpm is synthesized again (up to retries times). Keys AZURE_SUBSCRIPTION_KEY and AZURE_SERVICE_REGION come from the environment only. Piper stays installed as the keyless voice (render_video.sh --voice piper); drafts are silent.",
+      "min_wpm": 110,
+      "retries": 3
+    },
+    "narrator": {
+      "vendor": "Microsoft Azure AI Speech",
+      "voice_id": "en-US-Steffan:DragonHDLatestNeural",
+      "display_name": "Steffan",
+      "model": "DragonHDLatest: follows Microsoft's latest model, not pinnable (no versioned name in the voice list, 2026-11-06)",
+      "rate_pct": -8,
+      "since": "2026-11-06",
+      "series": "Remaining Action",
+      "reference": "tools/video/voice_reference.py renders the fixed reference paragraph to voice-reference/ (git-ignored) at every voice change, for regression checks",
+      "previous": [
+        {
+          "voice_id": "en-US-SamuelMultilingualNeural",
+          "from": "2026-11-05",
+          "to": "2026-11-06",
+          "note": "never released"
+        }
+      ]
+    },
     "draft_words_per_minute": 150,
-    "synthetic_voice_note": "Narrated with a synthetic voice.",
-    "disclosure": "Script, figures and animations were produced with an AI-assisted pipeline, checked by scripts and independent reviewers, and approved by a human before publication."
+    "disclosure": "Script, figures and animations were produced with an AI-assisted pipeline, checked by scripts and independent reviewers, and approved by a human before publication.",
+    "policy": "Voice policy (README.md): one canonical narrator per series; changes only at series boundaries, announced; AI voices never presented as real or as different people; a second voice only as a named, disclosed character; the back catalogue is re-voiced on a change; rendered narration WAVs are archived; the reference paragraph is rendered at each change."
   },
   "video": {
     "quality": "h",

@@ -116,8 +116,10 @@ COUNTED = TRANSFORMS | EQUATIONS | {"FadeIn", "FadeOut", "Write", "Create", "Gro
                                     "Circumscribe", "Brace", "BraceLabel", "ValueTracker", "readout", "meter",
                                     "carry_over", "beat", "budget_bars", "SurroundingRectangle", "LaggedStart"}
 COUNTED |= EMPHASIS
-NOTATION = re.compile(r"\b(?:(?![aAI]\b)[A-Za-z]|prime|primes|sub|subscript|superscript|hat|tilde|kappa|omega|"
-                      r"phi|varphi|alpha|beta|gamma|delta|epsilon|theta|lambda|sigma|mu|nu|rho|tau|psi|xi|zeta)\b")
+# a lone letter is notation, but not the s of "it's" or the t of "can't" (spoken-script standard: contractions)
+NOTATION = re.compile(r"(?<!['’])\b(?:(?![aAI]\b)[A-Za-z]|prime|primes|sub|subscript|superscript|hat|tilde|kappa|"
+                      r"omega|phi|varphi|alpha|beta|gamma|delta|epsilon|theta|lambda|sigma|mu|nu|rho|tau|psi|xi|"
+                      r"zeta)\b")
 ADDRESS = re.compile(r"\b(?:you|your|yours|you're|you'll|you've|we|we're|we'll|we've|us|our|ours|let's)\b", re.I)
 WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9'\-]*")
 

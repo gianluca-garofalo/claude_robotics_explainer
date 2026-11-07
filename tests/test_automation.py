@@ -67,6 +67,27 @@ class Metadata(unittest.TestCase):
     def test_tags_length_counts_quotes(self):
         self.assertEqual(metadata.tags_length(["a b", "c"]), len('"a b",c'))
 
+    def test_narration_line_discloses_the_ai_voice(self):
+        hd = "en-US-Steffan:DragonHDLatestNeural"
+        ch = {"channel_name": "Remaining Action", "youtube": {"contains_synthetic_media": "auto"},
+              "voice": {"service": "azure", "azure_voice": hd,
+                        "narrator": {"voice_id": hd, "display_name": "Steffan"}}}
+        old = {k: os.environ.pop(k, None) for k in ("VOICE_SERVICE", "AZURE_VOICE")}
+        try:
+            self.assertEqual(metadata.narration_line(ch),
+                             "Narration: AI voice (Microsoft Azure, Steffan). Script and animation by Remaining Action.")
+            ch["owner_name"] = "Jane Doe"
+            self.assertTrue(metadata.narration_line(ch).endswith("Script and animation by Jane Doe."))
+            ch["voice"]["service"] = "piper"
+            ch["voice"]["piper"] = {"voice": "en_US-ljspeech-medium"}
+            self.assertIn("(Piper, en_US-ljspeech-medium)", metadata.narration_line(ch))
+            ch["voice"]["service"] = "recorded"
+            self.assertEqual(metadata.narration_line(ch), "")                  # the owner's own voice
+        finally:
+            for k, v in old.items():
+                if v is not None:
+                    os.environ[k] = v
+
     def test_synthetic_media_auto(self):
         ch = {"youtube": {"contains_synthetic_media": "auto"}, "voice": {"service": "azure"}}
         old = os.environ.pop("VOICE_SERVICE", None)

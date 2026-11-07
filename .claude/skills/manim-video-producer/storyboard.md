@@ -49,6 +49,9 @@ number line or as the graph of its bill), and no numbers on a schematic picture.
 - "So what" after each result (one sentence of consequence after every boxed result):
 - Carried objects at each cut (what stays on screen from one scene to the next):
 - Outro callback (the hook's picture again, moving) and the teaser as a picture:
+- Spoken script (spoken-script.md; after the rewrite pass): the everyday analogy and where it comes back; the
+  signposts and re-engagement points (every 2-3 min); each required phrase (meter resets, title beat, teaser) as
+  worded for its scene; the "Spoken script" scores (1-5, ten criteria) go in `video/README.md`:
 
 ## What this video leaves out of the explainer, and why
 
