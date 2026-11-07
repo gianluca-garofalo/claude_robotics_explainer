@@ -30,6 +30,7 @@ runs/*
 # Personal Claude Code files
 CLAUDE.local.md
 .claude/settings.local.json
+.claude/worktrees/
 
 # OS and editor noise
 .DS_Store
