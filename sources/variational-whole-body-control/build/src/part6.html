@@ -1,0 +1,597 @@
+
+<!-- ================================================================== -->
+<!-- TWO-LINK ARM -->
+<!-- ================================================================== -->
+<section id="sec-robot">
+<h2>SECNUM Worked Example: A Two-Link Manipulator</h2>
+
+<p>
+  The hilltop of Section&nbsp;SEC(sec-scalar) is a first-order, one-dimensional problem in which everything can be
+  solved in closed form. This section works through a genuinely robotic case: a two-link arm moving in a
+  vertical plane under gravity, regulated to a fixed posture. The plant is second order, its inertia
+  depends on the configuration, and its torques are bounded. The boundary term is the composite-variable energy of
+  <a href="#ref-slotine1987">Slotine &amp; Li (1987)</a>, the strict alternative to the mechanical energy of
+  Section&nbsp;SEC(sec-strict). The example has three goals: to show what the infinitesimal-window rule produces for
+  this $W$ (a familiar controller), to check the certificate EQ(cert2) honestly, including choices for which it fails,
+  and to run the receding-window scheme and confirm the descent inequality EQ(descent) step by step.
+</p>
+
+<h3 id="sec-robot-plant">SECNUM The plant</h3>
+
+<p>
+  Two rigid, massless links of lengths $l_1=0.5$&nbsp;m and $l_2=0.4$&nbsp;m carry point masses
+  $m_1=2.0$&nbsp;kg and $m_2=1.5$&nbsp;kg at their tips. Joint angle $q_1$ is measured from the horizontal,
+  $q_2$ is the relative angle of the second link, and gravity $g_0=9.81$&nbsp;m/s$^2$ acts along $-y$. The
+  equations of motion have the standard form (<a href="#ref-spong2006">Spong et al., 2006</a>)
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armeom)" aria-hidden="true"></span>$$
+M(q)\,\ddot q+C(q,\dot q)\,\dot q+g(q)=\tau ,
+\tag{EQDEF(armeom)}
+$$
+</div>
+
+<p>
+  with $\tau$ the joint torques. Writing $c_2=\cos q_2$, $c_1=\cos q_1$ and
+  $c_{12}=\cos(q_1+q_2)$, the three ingredients are
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armterms)" aria-hidden="true"></span>$$
+\begin{aligned}
+M(q)&amp;=\begin{pmatrix} m_1l_1^2+m_2\big(l_1^2+l_2^2+2l_1l_2c_2\big) &amp; m_2\big(l_2^2+l_1l_2c_2\big)\\[2pt]
+m_2\big(l_2^2+l_1l_2c_2\big) &amp; m_2l_2^2\end{pmatrix},\\[4pt]
+C(q,\dot q)&amp;=m_2l_1l_2\,\sin q_2\begin{pmatrix}-\dot q_2 &amp; -(\dot q_1+\dot q_2)\\ \dot q_1 &amp; 0\end{pmatrix},
+\\[4pt]
+g(q)&amp;=g_0\begin{pmatrix}(m_1+m_2)\,l_1c_1+m_2l_2c_{12}\\ m_2l_2c_{12}\end{pmatrix}.
+\end{aligned}
+\tag{EQDEF(armterms)}
+$$
+</div>
+
+<p>
+  $M$ is the mass matrix of the kinetic energy $\mathcal T=\tfrac12v^\top Mv$, $g=\nabla U$ is the
+  gradient of the potential $U=g_0\,(m_1y_1+m_2y_2)$, with $y_1,y_2$ the heights of the two masses, and $C$ is built
+  from the Christoffel symbols of $M$. With that choice of $C$ the matrix $\dot M-2C$ is skew-symmetric, as used in
+  Section&nbsp;SEC(sec-certificate); here
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armskew)" aria-hidden="true"></span>$$
+\dot M-2C=m_2l_1l_2\,\sin q_2\,(2\dot q_1+\dot q_2)\begin{pmatrix}0&amp;1\\-1&amp;0\end{pmatrix},
+\qquad \xi^\top(\dot M-2C)\,\xi=0\ \ \forall \xi .
+\tag{EQDEF(armskew)}
+$$
+</div>
+
+<p>
+  This is the one structural fact the derivation below needs. It says that the Coriolis and centrifugal
+  forces do no work on the kinetic energy (<a href="#ref-spong2006">Spong et al., 2006</a>).
+</p>
+
+<p>
+  The target is the posture $q_d=(\pi/4,\,-\pi/4)$, which places the second link horizontally. We use the
+  error $e=q-q_d$, the velocity $v=\dot q=\dot e$ and the state $z=(e,v)$; the gradient $\nabla_z$ with
+  respect to $(e,v)$ is the same as with respect to $(q,v)$. The input is the
+  <strong>gravity-compensated torque</strong>
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armu)" aria-hidden="true"></span>$$
+u=\tau-g(q),\qquad\text{so that}\qquad
+\dot q=v,\qquad \dot v=f(z,u)=M(q)^{-1}\big(u-C(q,v)\,v\big).
+\tag{EQDEF(armu)}
+$$
+</div>
+
+<p>
+  The reason for this change of input is simple: holding the arm still at $q_d$ needs the torque
+  $g(q_d)\ne0$, so a cost on $\tau$ itself would not vanish at the target. In the language of
+  Section&nbsp;SEC(sec-certificate), the cost is centred on the impressed torque $\tau_{\rm imp}=g(q)$. In terms of $u$ the
+  rest point is $z=0$, $u=0$. The torque limits $|\tau_1|\le50$&nbsp;N&nbsp;m, $|\tau_2|\le30$&nbsp;N&nbsp;m stay limits on
+  $\tau=u+g(q)$.
+</p>
+
+<div class="margin-note">
+  At the target, $M(q_d)=\begin{pmatrix}1.539&amp;0.452\\0.452&amp;0.240\end{pmatrix}$&nbsp;kg&nbsp;m$^2$
+  with eigenvalues 0.098 and 1.681, a ratio of about 17. The small inertia direction
+  produces a fast closed-loop mode, which matters for the step size in Section&nbsp;SEC(sec-robot-rh).
+</div>
+
+<h3 id="sec-robot-ingredients">SECNUM Lagrangian and boundary term</h3>
+
+<p>
+  The <strong>variational Lagrangian</strong> (stage cost) penalizes position error, velocity and the
+  compensated torque:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armell)" aria-hidden="true"></span>$$
+\ell(z,u)=\tfrac12\,e^\top Q_e\,e+\tfrac12\,v^\top Q_v\,v+\tfrac12\,u^\top R\,u ,
+\qquad Q_e,Q_v,R\succ0 .
+\tag{EQDEF(armell)}
+$$
+</div>
+
+<p>
+  For the <strong>boundary term</strong> we take the energy-like function of Slotine and Li. It is
+  built from the <strong>composite velocity</strong> $s$, which blends the velocity with the position error,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armW)" aria-hidden="true"></span>$$
+s=\dot e+\Gamma e,\qquad
+W(z)=\tfrac12\,s^\top M(q)\,s+\tfrac12\,e^\top K_e\,e,\qquad \Gamma\succ0,\ K_e\succ0 .
+\tag{EQDEF(armW)}
+$$
+</div>
+
+<p>
+  $W$ is positive definite: it is a kinetic energy evaluated at the &ldquo;wrong&rdquo; velocity $s$ plus a
+  spring. To use it as a boundary term we need its rate of change along the plant, as a function of the
+  input. Differentiate, use $M\dot s=M\ddot q+M\Gamma\dot e=u-Cv+M\Gamma\dot e$ from EQ(armu), and replace
+  $\tfrac12s^\top\dot Ms$ by $s^\top Cs$, which is allowed by EQ(armskew). The two Coriolis terms combine,
+  $s^\top C(s-v)=s^\top C\Gamma e$, and what remains is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armWdot)" aria-hidden="true"></span>$$
+\dot W(z,u)=s^\top u+s^\top a(z)+e^\top K_e\,\dot e,
+\qquad a(z)=C(q,v)\,\Gamma e+M(q)\,\Gamma\dot e .
+\tag{EQDEF(armWdot)}
+$$
+</div>
+
+<p>
+  Two features matter. First, $\dot W$ is <strong>affine in $u$</strong>, and the input enters only through
+  $s^\top u$: the inertia has cancelled. Second, $-a(z)$ is exactly the (gravity-compensated) torque that would be needed to
+  follow the &ldquo;reference velocity&rdquo; $\dot q_r=-\Gamma e$, since $M\ddot q_r+C\dot q_r=-a$.
+</p>
+
+<div class="definition">
+  <strong>The classical identity.</strong> Slotine and Li cancel $a$ and add damping on $s$,
+  $u_{\text{SL}}=-a(z)-K_Ds$, with $K_D\succ0$ and $\Gamma K_D$ symmetric (e.g. both diagonal). Then
+  $\dot W=-s^\top K_Ds+e^\top K_e\dot e$. Expanding $s^\top K_Ds$ produces a cross term
+  $-2e^\top\Gamma K_D\dot e$, which the spring cancels exactly if $K_e=2\Gamma K_D$:
+  <span class="eq-anchor" id="eq-EQDEF(armSL)" aria-hidden="true"></span>$$\dot W=-\dot e^\top K_D\,\dot e-e^\top\Gamma K_D\Gamma\,e\qquad(K_e=2\Gamma K_D,\ u=u_{\text{SL}}).\tag{EQDEF(armSL)}$$
+  This is the Lyapunov function of the Slotine&ndash;Li controller (<a href="#ref-slotine1987">Slotine &amp; Li, 1987</a>;
+  <a href="#ref-slotine1991">Slotine &amp; Li, 1991</a>, Ch.&nbsp;9). It requires the feed-forward $a(z)$, i.e. a model of
+  $M$ and $C$.
+</div>
+
+<h3 id="sec-robot-rule">SECNUM The infinitesimal-window rule is PD control with gravity compensation</h3>
+
+<p>
+  Now apply the rule of Section&nbsp;SEC(sec-so-hj) to this pair $(\ell,W)$: over an infinitesimal window, choose
+  the input that minimizes the action rate plus the rate of change of the boundary term, EQ(rule2).
+  By EQ(armWdot) the bracket is $\ell(z,u)+s^\top u+(\text{terms without }u)$, a strictly convex quadratic in $u$.
+  Setting its gradient $Ru+s$ to zero gives
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armrule)" aria-hidden="true"></span>$$
+\begin{gathered}
+u^*(z)=\arg\min_u\big[\ell(z,u)+\dot W(z,u)\big]=-R^{-1}s,\\
+\tau^*=g(q)-K_D\,\dot e-K_P\,e,\quad K_D=R^{-1},\ K_P=R^{-1}\Gamma .
+\end{gathered}
+\tag{EQDEF(armrule)}
+$$
+</div>
+
+<div class="insight">
+  <strong>A familiar controller falls out.</strong> The infinitesimal window does not produce the
+  Slotine&ndash;Li law. It produces <strong>PD control with gravity compensation</strong>, the controller of
+  <a href="#ref-takegaki1981">Takegaki &amp; Arimoto (1981)</a>, with damping gain $K_D=R^{-1}$ and stiffness
+  $K_P=R^{-1}\Gamma$ (symmetric when $R$ and $\Gamma$ commute, e.g. both diagonal, as here). Three observations explain why.
+  <ul>
+    <li>The input enters $\dot W$ only through $s^\top u$, so the minimizer sees only $s$. The feed-forward
+      $a(z)$ does not depend on $u$ and therefore cannot lower $\ell+\dot W$; the rule has no reason to
+      cancel it.</li>
+    <li>In momentum language, the velocity component of $\pi=-\nabla_zW$ is $\pi_v=-M(q)\,s$, and the input
+      acts through $M^{-1}$. The maximizer of $\pi_v\cdot M^{-1}u-\tfrac12u^\top Ru$ is
+      $R^{-1}M^{-1}\pi_v=-R^{-1}s$, as in EQ(manip): the configuration-dependent inertia cancels, which is why
+      constant gains come out.</li>
+    <li>Compare Section&nbsp;SEC(sec-certificate): with the mechanical energy the velocity momentum was $-M\dot q$, and the
+      same rule produced only damping. The composite velocity puts the position error into the velocity momentum,
+      $\pi_v=-M(\dot e+\Gamma e)$, and the rule now produces stiffness $K_P=R^{-1}\Gamma$ as well. This is the weak/strict
+      distinction of Section&nbsp;SEC(sec-strict) seen from the controller side.</li>
+  </ul>
+  The only model knowledge left is $g(q)$, which was put in by the choice $u=\tau-g$. The price is paid in the
+  certificate: $a(z)$ stays in $\dot W$, and Section&nbsp;SEC(sec-robot-condition) shows that the gains must dominate it.
+</div>
+
+<h3 id="sec-robot-condition">SECNUM Checking the certificate</h3>
+
+<p>
+  Whether $W$ certifies descent is decided by the value of the bracket at its minimizer, the
+  <strong>descent defect</strong> of Section&nbsp;SEC(sec-so-hj):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armD)" aria-hidden="true"></span>$$
+\begin{aligned}
+\mathcal D(z)&amp;=\min_u\big[\ell(z,u)+\dot W(z,u)\big]\\
+&amp;=\tfrac12e^\top Q_ee+\tfrac12v^\top Q_vv-\tfrac12s^\top R^{-1}s+s^\top a(z)+e^\top K_e\dot e\\
+&amp;=-H\big(z,-\nabla_zW\big),
+\end{aligned}
+\tag{EQDEF(armD)}
+$$
+</div>
+
+<p>
+  where $H(z,\pi)=\sup_u[\pi_q\cdot v+\pi_v\cdot f(z,u)-\ell]$ is the second-order Hamiltonian EQ(H2). The last
+  equality holds because, for $\pi=-\nabla_zW$, $\pi_q\cdot v+\pi_v\cdot f(z,u)=-\nabla_zW\cdot\dot z=-\dot W(z,u)$. Along $u^*$
+  we have $\dot W=-\ell+\mathcal D$, so the requirement $\dot W\le-\ell$ is $\mathcal D(z)\le0$, i.e.
+  $H(z,-\nabla_zW)\ge0$: the certificate EQ(cert2). It has to hold on a terminal region $\Omega$, here a sublevel set
+  $\{W\le \bar W\}$.
+</p>
+
+<h4>Near the target: matching the Lagrangian to $W$</h4>
+
+<p>
+  Close to $z=0$ the sign of $\mathcal D$ is decided by its quadratic part. The Coriolis part of $a(z)$ is
+  quadratic in $z$, so it contributes only cubic terms. Freezing $M$ at $M_0=M(q_d)$ in the other part gives
+  $\mathcal D(z)=\tfrac12z^\top\nabla^2\mathcal D(0)\,z+O(|z|^3)$ with
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armhess)" aria-hidden="true"></span>$$
+\nabla^2\mathcal D(0)=\begin{pmatrix}
+Q_e-\Gamma K_D\Gamma &amp; K_e-\Gamma K_D+\Gamma M_0\Gamma\\[2pt]
+\big(K_e-\Gamma K_D+\Gamma M_0\Gamma\big)^\top &amp; Q_v-K_D+M_0\Gamma+\Gamma M_0
+\end{pmatrix},
+\qquad K_D=R^{-1},
+\tag{EQDEF(armhess)}
+$$
+</div>
+
+<p>
+  for diagonal $\Gamma$ and $R$. The off-diagonal block of EQ(armhess) is the coupling between position error and
+  velocity. It vanishes for one spring only, and then the diagonal blocks give explicit bounds on the
+  Lagrangian:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armmatch)" aria-hidden="true"></span>$$
+K_e=\Gamma K_D-\Gamma M_0\Gamma,\qquad
+Q_e\preceq\Gamma K_D\Gamma,\qquad
+Q_v\preceq K_D-(M_0\Gamma+\Gamma M_0).
+\tag{EQDEF(armmatch)}
+$$
+</div>
+
+<p>
+  With strict inequalities, $\mathcal D\le-\alpha_0|z|^2$ near the target for some $\alpha_0\gt0$. With
+  equalities, $\nabla^2\mathcal D(0)=0$ and $W$ matches $\ell$ to second order, the analogue of $H=0$; the cubic terms
+  then decide, and they are odd in $z$. With $\Gamma=\gamma I$, a positive-definite spring needs
+  $K_D\succ\gamma M_0$, and a positive-definite $Q_v$ needs $K_D\succ2\gamma M_0$: the damping must
+  dominate the inertia seen through $\Gamma$.
+</p>
+
+<div class="insight">
+  <strong>The Slotine&ndash;Li spring is the wrong spring here.</strong> Give the Slotine&ndash;Li law the same damping as
+  the rule, $K_D=R^{-1}$ as in EQ(armrule); its matching spring EQ(armSL) is then
+  $K_e=2\Gamma R^{-1}$. With $\Gamma=\gamma I$ and $K_e=2\gamma K_D$, the off-diagonal block is $\gamma K_D+\gamma^2M_0$. For $Q_e=Q_v=0$ the
+  Schur complement of the (negative-definite) upper-left block of $\nabla^2\mathcal D(0)$ is
+  $4\gamma M_0+\gamma^2M_0K_D^{-1}M_0\succ0$, so $\nabla^2\mathcal D(0)$ has positive eigenvalues; adding
+  $Q_e,Q_v\succeq0$ only raises them. Hence <em>no</em> stage cost of the form EQ(armell) is certified by the
+  Slotine&ndash;Li gain matching. The reason is a factor of two: $\min_u[\tfrac12u^\top Ru+s^\top u]=-\tfrac12s^\top R^{-1}s$
+  supplies only half of the damping $s^\top K_Ds$ that EQ(armSL) uses, and $u^*$ does not cancel $a(z)$. This is a
+  concrete instance of the caution of Section&nbsp;SEC(sec-plant-energy): <em>the Lagrangian must match $W$</em>. The closed
+  loop is still stable (for set-point regulation, PD with exact gravity compensation and without torque limits is
+  globally asymptotically stable for any symmetric positive-definite gains; <a href="#ref-takegaki1981">Takegaki &amp; Arimoto, 1981</a>); what fails is the
+  certificate, exactly as in Case&nbsp;B of Section&nbsp;SEC(sec-numeric).
+</div>
+
+<h4>Chosen parameters</h4>
+
+<p>
+  We take $\Gamma=\gamma I$ with $\gamma=2$&nbsp;s$^{-1}$ and $R=\operatorname{diag}(0.05,\,0.1)$, so
+  $K_D=\operatorname{diag}(20,\,10)$ and $K_P=\operatorname{diag}(40,\,20)$. The matched spring EQ(armmatch) is
+  $K_e=\begin{pmatrix}33.84&amp;-1.81\\-1.81&amp;19.04\end{pmatrix}$, positive definite. The bounds in EQ(armmatch) are
+  $\Gamma K_D\Gamma=\operatorname{diag}(80,40)$ and $K_D-2\gamma M_0$ with eigenvalues 8.44 and 14.45; we
+  use half the first, $Q_e=\operatorname{diag}(40,\,20)$, and a round value below half the second, $Q_v=4I$ (the smallest
+  eigenvalue of $\tfrac12(K_D-2\gamma M_0)$ is 4.22, so $\tfrac12(K_D-2\gamma M_0)-4I\succ0$).
+</p>
+
+<h4>How far does the certificate hold?</h4>
+
+<p>
+  The largest admissible level is $\bar W^*=\inf\{W(z):\mathcal D(z)\gt0\}$. We estimated it numerically: along
+  $2\times10^5$ random rays in the four-dimensional state space we located the first point with
+  $\mathcal D\gt0$ (out to $|z|=30$) by bisection, took the smallest $W$ found, and refined it by a local
+  minimization of $W$ subject to $\mathcal D\ge0$. This is a sampled check, not a proof. The table compares the
+  chosen design with four alternatives that change one ingredient.
+</p>
+
+<table>
+  <tr><th>Design</th><th>Change</th><th>Eigenvalues of $\nabla^2\mathcal D(0)$</th><th>Largest level $\bar W^*$ with $\mathcal D\le0$ on $\{W\le\bar W^*\}$</th></tr>
+  <tr><td><strong>Chosen</strong></td><td>&mdash; (matched $K_e$; $Q_e=\tfrac12\Gamma K_D\Gamma$, $Q_v=4I$ below half its bound)</td><td>&minus;40.00, &minus;20.00, &minus;10.45, &minus;4.44</td><td>&asymp;&nbsp;1.0&thinsp;&times;&thinsp;10<sup>3</sup></td></tr>
+  <tr><td>Spring without $M_0$ term</td><td>$K_e=\Gamma K_D$ (no $M_0$ correction)</td><td>&minus;41.27, &minus;20.29, &minus;9.47, &minus;3.85</td><td>&asymp;&nbsp;6.0&thinsp;&times;&thinsp;10<sup>2</sup></td></tr>
+  <tr><td>Slotine&ndash;Li spring</td><td>$K_e=2\Gamma K_D$</td><td>&minus;73.51, &minus;34.74, 9.15, 24.22</td><td><strong>0</strong> (fails arbitrarily close to $z=0$)</td></tr>
+  <tr><td>Position weight too large</td><td>$Q_e=1.5\,\Gamma K_D\Gamma$</td><td>&minus;10.45, &minus;4.44, 20.00, 40.00</td><td><strong>0</strong></td></tr>
+  <tr><td>Knife edge</td><td>$Q_e,Q_v$ at the bounds of EQ(armmatch)</td><td>0, 0, 0, 0</td><td><strong>0</strong> (cubic terms: $\mathcal D\approx1.05\,\rho^3\gt0$ at distance $\rho$ along one direction)</td></tr>
+</table>
+
+<p>
+  Three readings. The chosen design satisfies the certificate on a set far larger than any motion of
+  interest (the failure point found lies at about 10&nbsp;rad of joint error and 17&nbsp;rad/s), so for
+  this arm the Hamilton&ndash;Jacobi inequality is <em>not</em> the binding restriction on $\Omega$; the torque
+  limits are (Section&nbsp;SEC(sec-robot-rh)). The $M_0$ correction to the spring is not essential once $Q_e$, $Q_v$ have a margin;
+  the factor of two is. And a Lagrangian that matches $W$ <em>exactly</em> to second order is as fragile here
+  as the continuous-time Riccati weight was in Section&nbsp;SEC(sec-numeric): a margin is what makes the certificate robust.
+</p>
+
+<h3 id="sec-robot-rh">SECNUM The receding-window scheme</h3>
+
+<p>
+  A digital controller needs a step map. We use the semi-implicit (symplectic) Euler step with $h=0.005$&nbsp;s,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armstep)" aria-hidden="true"></span>$$
+\begin{gathered}
+v_{k+1}=v_k+h\,M(q_k)^{-1}\big(u_k-C(q_k,v_k)v_k\big),\qquad e_{k+1}=e_k+h\,v_{k+1},\\
+z_{k+1}=\Phi_h(z_k,u_k),
+\end{gathered}
+\tag{EQDEF(armstep)}
+$$
+</div>
+
+<p>
+  the rectangle-rule stage cost $h\,\ell(z_k,u_k)$ and the terminal cost $c\,W$ on the terminal region
+  $\Omega=\{W\le \bar W\}$, with a scale $c$ as in Section&nbsp;SEC(sec-exactness). The reference flow of
+  Section&nbsp;SEC(sec-terminal) is the PD law EQ(armrule) itself, $u_{\text{ref}}=-R^{-1}s$, and the discrete condition
+  EQ(terminal) reads
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(armterminal)" aria-hidden="true"></span>$$
+c\,\big[W(\Phi_h(z,u_{\text{ref}}))-W(z)\big]\ \le\ -h\,\ell(z,u_{\text{ref}})\qquad\forall z\in\Omega,
+\tag{EQDEF(armterminal)}
+$$
+</div>
+
+<p>
+  together with the torque limits for $\tau=g(q)+u_{\text{ref}}$ on $\Omega$. Since $W$ then decreases under
+  $u_{\text{ref}}$, the sublevel set $\Omega$ is invariant (A1). Three numbers fix the terminal ingredients.
+</p>
+
+<ul>
+  <li><strong>Torque limits.</strong> The reference torque stays inside the limits on $\{W\le \bar W\}$ for
+    $\bar W\le\bar W_\tau\approx0.310$. The first violation is $\tau_2=30$&nbsp;N&nbsp;m, almost at the target posture,
+    $e\approx(0.0006,\,0.013)$&nbsp;rad, at a fast joint-2 velocity, $v\approx(0.71,\,-2.44)$&nbsp;rad/s. At $e=0$ the bound
+    can be read off: there $s=v$, and EQ(armrule) gives $\tau_2=g_2(q_d)-(K_D)_{22}v_2$ with
+    $g_2(q_d)=g_0m_2l_2=5.89$&nbsp;N&nbsp;m, so the limit is reached at $v_2=-(30-g_2(q_d))/(K_D)_{22}=-2.41$&nbsp;rad/s. The
+    least $W=\tfrac12v^\top M_0v$ with this $v_2$, attained at $v_1=-(M_0)_{12}v_2/(M_0)_{11}=0.71$&nbsp;rad/s, is
+    $\tfrac12\big[(M_0)_{22}-(M_0)_{12}^2/(M_0)_{11}\big]v_2^2=0.312$, an upper bound on $\bar W_\tau$. The level itself is the
+    least $W$ on the faces $\tau_i=\pm\tau_{\max,i}$ of the box. On such a face EQ(armrule) fixes
+    $s_i=\big(g_i(q)\mp\tau_{\max,i}\big)/(K_D)_{ii}$ as a function of $e$, while the other component $s_j$ is left free (this minimizes over the plane of the face, a lower bound for the face itself); minimizing
+    EQ(armW) over $s_j$ leaves $\tfrac12\big(M_{ii}-M_{ij}^2/M_{jj}\big)(q)\,s_i^2+\tfrac12e^\top K_ee$,
+    a function of $e$ alone, and since $W\ge\tfrac12e^\top K_ee\ge9.4\,|e|^2$ it needs to be minimized only over a bounded disk
+    of $e$. This gives 0.310 on the face $\tau_2=+30$&nbsp;N&nbsp;m; the other three faces are reached only at $W\ge0.68$. We
+    take $\bar W=0.3$, about 3% below $\bar W_\tau$.</li>
+  <li><strong>Discretization.</strong> The smallest admissible scale is
+    $c\ge\sup_\Omega h\ell/(W-W\circ \Phi_h)$. Near the target this is a generalized eigenvalue problem of the
+    linearization; on $\Omega$ we sampled $4\times10^5$ points and refined the worst ones. For
+    $h=0.005$&nbsp;s the supremum is 0.965 near the target and 0.994 on $\Omega$, so
+    <strong>$c=1$ suffices</strong>: the unscaled $W$ is a valid terminal cost.</li>
+  <li><strong>Why not $h=0.01$&nbsp;s?</strong> Then the required scale is 1.69 near the target and
+    2.27 on $\Omega$. The culprit is the fast mode of the closed loop (eigenvalue
+    $\sigma=-109.5$&nbsp;s$^{-1}$, so $h|\sigma|\approx1.1$), for which the rectangle rule is a poor
+    approximation of the action. Inflating $W$ would work, as in Section&nbsp;SEC(sec-exactness), but to first order in $h$ it
+    also multiplies the gain of the one-step rule by $c$ (the rule for $cW$ is $u=-cR^{-1}s$), so we halve the step
+    instead.</li>
+</ul>
+
+<div class="margin-note">
+  At $h=0.005$&nbsp;s the margin is small ($c=1$ against a sampled requirement of 0.994). It exists
+  only because the weights leave slack in EQ(armmatch): $Q_e$ sits at half its bound and $Q_v=4I$ below half of its
+  bound. The slack is barely enough: with $Q_v$ at exactly half its bound, $\tfrac12(K_D-2\gamma M_0)$, the requirement near
+  the target would already be 1.035, and $c=1$ would fail. A design at the knife edge would violate EQ(armterminal) with
+  $c=1$ for small $h$, because its continuous-time limit $\mathcal D\le0$ already fails.
+</div>
+
+<div class="algorithm">
+  <div class="alg-title">One cycle of the scheme for the arm</div>
+  <ol>
+    <li>Measure $z_k=(q_k-q_d,\dot q_k)$.</li>
+    <li>Solve, over planned torques $\tau_{0|k},\dots,\tau_{N-1|k}$, each inside the box $|\tau_1|\le50$,
+      $|\tau_2|\le30$&nbsp;N&nbsp;m,
+      $$V_N(z_k)=\min\ \sum_{j=0}^{N-1}h\,\ell\big(z_{j|k},\tau_{j|k}-g(q_{j|k})\big)+W(z_{N|k}),$$
+      subject to the step map EQ(armstep), $z_{0|k}=z_k$ and the terminal constraint $W(z_{N|k})\le \bar W$; the subscript
+      $j|k$ marks node $j$ of the plan computed at step $k$. Single shooting, SciPy SLSQP, exact gradients by the adjoint
+      (backward) recursion.</li>
+    <li>Warm start: the previous solution shifted by one step, with one reference step $u_{\text{ref}}$
+      appended at the predicted terminal state. This is the feasible candidate of the proof in
+      Section&nbsp;SEC(sec-descent). If the solver returns a worse cost than the candidate, keep the candidate.</li>
+    <li>Apply $\tau_{0|k}$ for one step and repeat.</li>
+  </ol>
+</div>
+
+<h3 id="sec-robot-results">SECNUM Results</h3>
+
+<h4>Solvable sets</h4>
+
+<p>
+  Start at rest at $q_0=(1.0,\,-0.95)$&nbsp;rad. Then $W(z_0)=1.190$, about four times the terminal level
+  $\bar W=0.3$, so $z_0\notin\Omega$. Whether $z_0$ lies in the solvable set $\mathcal X_N$ is decided by
+  the least terminal value reachable in $N$ steps within the torque limits:
+</p>
+
+<table>
+  <tr><th>$N$ (window length)</th><th>1</th><th>5</th><th>10</th><th>20</th><th>40</th></tr>
+  <tr><td>$\min W(z_N)$</td><td>1.089</td><td>0.724</td><td>0.266</td><td>0.085</td><td>&asymp;&nbsp;0</td></tr>
+  <tr><td>$z_0\in\mathcal X_N$?</td><td><strong>no</strong></td><td><strong>no</strong></td><td>yes</td><td>yes</td><td>yes</td></tr>
+</table>
+
+<p>
+  The one-step window cannot start here: the one-step preimage $\mathcal X_1$ of $\Omega$, EQ(preimage), is barely
+  larger than $\Omega$ (Section&nbsp;SEC(sec-onestep)). Ten steps (50&nbsp;ms) suffice. The PD law needs no feasibility at all and
+  converges from here too, but without a certificate until it enters $\Omega$.
+</p>
+
+<h4>Closed loop</h4>
+
+<p>
+  The table summarizes 2.5&nbsp;s (500 steps). $S_{\text{cl}}=\sum_kh\ell(z_k,u_k)$ is the action
+  actually paid. Write $\ell_k=\ell(z_k,u_k)$. The ratio column reports the smallest value over all steps of the descent
+  ratio $[V_N(z_k)-V_N(z_{k+1})]/h\ell_k$. By EQ(armell), $\ell_k\gt0$ whenever $z_k\ne0$, so EQ(descent), which here
+  reads $V_N(z_{k+1})-V_N(z_k)\le-h\ell_k$, holds at step $k$ exactly when this ratio is at least 1, and its excess over 1
+  is the margin of EQ(descent) relative to the action spent: a ratio of 1.09 means that the remaining action fell by 9%
+  more than the action spent. The difference $V_N(z_{k+1})-V_N(z_k)+h\ell_k$ itself is no measure of this margin: it
+  equals $-h\ell_k$ times the excess, and $h\ell_k$ shrinks with the state, so in every run its largest value comes in the
+  last steps, where $V_N\lt10^{-6}$, and only records how small the state is after 2.5&nbsp;s.
+</p>
+
+<table>
+  <tr><th>Start</th><th>Controller</th><th>$V_N(z_0)$</th><th>$S_{\text{cl}}$</th><th>min descent ratio</th><th>peak $|\tau_1|,|\tau_2|$ [N&nbsp;m]</th></tr>
+  <tr><td rowspan="4">$(1.0,-0.95)$, $W=1.190$</td><td>PD$+g$ EQ(armrule)</td><td>&mdash;</td><td>0.5168</td><td>&mdash;</td><td>18.0, 9.2</td></tr>
+  <tr><td>$N=10$</td><td>5.3027</td><td>2.4633</td><td>1.11</td><td>50.0, 30.0</td></tr>
+  <tr><td>$N=20$</td><td>1.4793</td><td>0.7994</td><td>1.09</td><td>18.5, 13.5</td></tr>
+  <tr><td>$N=40$</td><td>0.7647</td><td>0.5410</td><td>1.16</td><td>18.4, 8.3</td></tr>
+  <tr><td rowspan="4">$(0.9,-0.85)$, $W=0.304$</td><td>PD$+g$ EQ(armrule)</td><td>&mdash;</td><td>0.1337</td><td>&mdash;</td><td>18.0, 7.2</td></tr>
+  <tr><td>$N=1$</td><td>0.3017</td><td>0.1343</td><td>1.55</td><td>18.0, 7.2</td></tr>
+  <tr><td>$N=10$</td><td>0.2739</td><td>0.1517</td><td>1.51</td><td>18.2, 7.5</td></tr>
+  <tr><td>$N=40$</td><td>0.1990</td><td>0.1394</td><td>1.11</td><td>18.3, 6.6</td></tr>
+</table>
+
+<p>
+  Every run satisfies the descent inequality at every step, and the solver never returned a cost worse than
+  the shifted candidate, so no fallback was used. Figure&nbsp;5 shows the motion from the first start and
+  Figure&nbsp;6 the remaining action along it.
+</p>
+
+<figure>
+FIGSVG(5)
+<figcaption>Figure 5. Two-link arm from $q_0=(1.0,-0.95)$ at rest to $q_d=(\pi/4,-\pi/4)$ (dotted).
+  Top: joint angles over the full 2.5&nbsp;s. Bottom: joint torques over the first 0.3&nbsp;s, with the
+  torque limits dotted. Green dashed: PD control with gravity compensation EQ(armrule), the
+  infinitesimal-window rule. Amber and blue: receding window with $N=10$ and $N=40$ steps
+  ($h=0.005$&nbsp;s). Drawn by <code>code/note/sec8_arm/figs.py</code> from the full closed-loop runs, run by hand
+  (Section&nbsp;SEC(sec-verification)).</figcaption>
+</figure>
+
+<figure>
+FIGSVG(6)
+<figcaption>Figure 6. Left: the remaining action $V_N(z_k)$ along the closed loop (solid) and the action
+  actually paid from step $k$ to the end of the run, plus the remaining action left there,
+  $\sum_{k'=k}^{k_{\rm end}-1}h\ell_{k'}+V_N(z_{k_{\rm end}})$ (dashed), with $k_{\rm end}$ the last step. Summing the descent
+  inequality EQ(descent) over the steps $k'=k,\dots,k_{\rm end}-1$ shows that
+  the solid curve must lie above the dashed one. Dotted green: $W$ along the PD
+  loop. Right: the per-step descent ratio $[V_N(z_k)-V_N(z_{k+1})]/h\ell_k$, which EQ(descent) requires to be at least
+  1 (dotted line). Drawn by <code>code/note/sec8_arm/figs.py</code> from the full closed-loop runs, run by hand
+  (Section&nbsp;SEC(sec-verification)).</figcaption>
+</figure>
+
+<h4>What the numbers say</h4>
+
+<p>
+  For reference, a long window approximates the infinite-window optimum. Solving the open-loop problem once from
+  each start (same solver, warm-started from the PD trajectory) gives:
+</p>
+
+<table>
+  <tr><th>Start</th><th>$V_{100}(z_0)$</th><th>$V_{200}(z_0)$</th><th>$V_{400}(z_0)$</th><th>$W(z_0)$</th><th>$S_{\text{cl}}$ of PD$+g$</th></tr>
+  <tr><td>$(1.0,-0.95)$</td><td>0.5509</td><td>0.5073</td><td>0.5052</td><td>1.1904</td><td>0.5168</td></tr>
+  <tr><td>$(0.9,-0.85)$</td><td>0.1430</td><td>0.1311</td><td>0.1306</td><td>0.3041</td><td>0.1337</td></tr>
+</table>
+
+<ul>
+  <li><strong>The certificate does not depend on $N$.</strong> In all six receding-window runs the descent ratio never drops below
+    1.09, so $V_N(z_{k+1})-V_N(z_k)+h\ell_k\le-0.09\,h\ell_k\lt0$ at every step. The remaining action falls by more than the action spent, at every step, exactly as the proof of
+    Section&nbsp;SEC(sec-descent) says it must once EQ(armterminal) holds. Since the solver keeps the shifted candidate
+    whenever it does worse (Section&nbsp;SEC(sec-robot-rh)), this descent follows from EQ(armterminal) whatever the solver&rsquo;s
+    optimality, as in suboptimal MPC: the runs confirm that EQ(armterminal) held along the path, not that each
+    computed $V_N$ is the exact minimum.</li>
+  <li><strong>Short windows are aggressive.</strong> From the first start, the $N=10$ window must bring $W$ from
+    1.190 down to 0.3 within 50&nbsp;ms. The terminal constraint is active for the first 9 steps,
+    both torques run into their limits (50 and 30&nbsp;N&nbsp;m), and the action paid is 2.463, 4.8 times that of
+    PD$+g$. With $N=20$ the constraint is active for 14 steps and the action drops to 0.799; with $N=40$
+    to 0.541 (4 active steps). Figure&nbsp;5 shows the first move of the $N=10$ window: $\tau_1$ at
+    $-50$&nbsp;N&nbsp;m and $\tau_2$ at $+30$&nbsp;N&nbsp;m, followed by an overshoot of joint&nbsp;2. Both windows close
+    the slow joint-1 error faster than PD$+g$, because the spring $K_e$ in $W$ prices position error more
+    heavily than $\ell$ does.</li>
+  <li><strong>A longer window lowers $V_N$, not necessarily the action paid.</strong> $V_N(z_0)$ decreases
+    with $N$ toward the long-window value, as EQ(monotone) predicts. The action actually paid in closed loop
+    need not decrease, and for the windows simulated it stays above that of PD$+g$, which is within
+    2.3% (first start) and 2.4% (second start) of the best long-window cost found (a local optimum, warm-started from
+    the PD path). The reason is the
+    margin built into $W$: with $Q_e$ at half its bound and $Q_v=4I$ below half of its bound in EQ(armmatch), $W$ over-estimates the remaining action by a
+    factor of about 2.3 at the second start, and a short window optimizes against that over-estimate.
+    This is the price of a robust certificate.</li>
+  <li><strong>One step is the discrete PD law.</strong> The closed-loop action of the $N=1$ run is within
+    0.5% of that of PD$+g$. At the states it visits, its torque differs from the PD$+g$ torque EQ(armrule) by at
+    most 0.73 and 1.03&nbsp;N&nbsp;m (joints 1 and 2). The gap builds up over the first 40&ndash;50&nbsp;ms, while the
+    fast mode decays, and then shrinks with the state. These are the $O(h)$ terms that separate the one-step window
+    from the infinitesimal one: at the state of the largest gap, re-solving the one-step problem with $h/2$, $h/4$,
+    $h/8$ shrinks the joint-2 gap to 0.63, 0.35, 0.19&nbsp;N&nbsp;m: each halving of $h$ cuts it by a factor that
+    approaches one half, as expected for an $O(h)$ gap.</li>
+</ul>
+
+<h3 id="sec-robot-limits">SECNUM Torque limits and the terminal constraint as inequalities</h3>
+
+<p>
+  The arm&rsquo;s torque limits and its terminal region are inequalities, and every number above respects them. The theory of
+  Sections&nbsp;SEC(sec-kkt), SEC(sec-constrained-v) and SEC(sec-so-discrete) says three things about them.
+</p>
+
+<ul>
+  <li><strong>The infinitesimal rule with the torque box is saturated PD control.</strong> The box is a constraint
+    $u\in\mathcal U(z)$ on the gravity-compensated input, and by EQ(ruleV), in its phase-space form, the rule minimizes the
+    quadratic $\ell+\dot W$ over it. For the diagonal $R$ used here the minimizer is the componentwise clip of EQ(armrule),
+    <span class="eq-anchor" id="eq-EQDEF(armclip)" aria-hidden="true"></span>$$\tau^*=\mathrm{clip}\big(g(q)-K_D\dot e-K_Pe,\ -\tau_{\max},\ \tau_{\max}\big),\tag{EQDEF(armclip)}$$
+    which is how the PD$+g$ runs of Section&nbsp;SEC(sec-robot-results) were implemented (their torques never reached the
+    limits). A QP solver confirms the clip on 2000 random states, 1515 of them saturated, to $3\times10^{-14}$. With
+    Gauss&rsquo;s weight $R=T_0M^{-1}$ the minimizer is instead the $M^{-1}$-metric projection of the unconstrained torque,
+    which is not a clip: at the most extreme of the same states ($T_0=0.05$&nbsp;s) the unconstrained torque
+    $(214.1,\,37.3)$&nbsp;N&nbsp;m projects to $(50.0,\,-10.2)$&nbsp;N&nbsp;m, whereas clipping gives $(50.0,\,30.0)$&nbsp;N&nbsp;m. Saturating
+    the shoulder reverses the best elbow torque, because the kinetic metric couples the joints.</li>
+  <li><strong>The certificate survives saturation far beyond the torque-limit level.</strong> Since the minimum over the
+    box is no smaller than the unconstrained one,
+    $\mathcal D_{\mathcal U}(z)=\min_{u\in\mathcal U(z)}[\ell+\dot W]\ge\mathcal D(z)$. The level $\bar W_\tau\approx0.310$ of
+    Section&nbsp;SEC(sec-robot-rh) is the level below which the box never binds for the reference law, so there
+    $\mathcal D_{\mathcal U}=\mathcal D$. Beyond it, the saturated law still certifies descent in continuous time on
+    $\{W\le\bar W\}$ for $\bar W$ up to about 5.9 (sampled ray search with local refinement, as in
+    Section&nbsp;SEC(sec-robot-condition)), against about $10^3$ without the box. In discrete time ($h=0.005$&nbsp;s, saturated
+    reference law, which is admissible by construction) the smallest admissible scale in EQ(armterminal),
+    $\sup h\ell/(W-W\circ\Phi_h)$ over the set, is 1.048 on $\{W\le1\}$ and 1.137 on $\{W\le4\}$, so $c=1.05$ and $c=1.14$
+    suffice (sampled, with the worst samples refined by local maximization as in Section&nbsp;SEC(sec-robot-rh)). In both sets
+    the worst state lies on the boundary $W=\bar W$, exactly where the unclipped $\tau_2$ in EQ(armclip) reaches its
+    30&nbsp;N&nbsp;m limit. Letting the reference law saturate would enlarge the terminal region more than
+    tenfold, at the price of a slightly inflated $W$.</li>
+  <li><strong>The active terminal constraint inflates the boundary term.</strong> At the first step of the $N=10$ run from
+    $(1.0,-0.95)$, six of the twenty planned torques sit at a bound, all with multipliers of the correct sign, and the
+    terminal constraint $W(z_N)\le0.3$ is active with $\mu=39.2$. By EQ(msineq) the window plans as if its boundary
+    term were $(1+\mu)W\approx40\,W$, which is why its first move is so aggressive (Section&nbsp;SEC(sec-robot-results)). Along the
+    run $\mu$ falls to 25.9, 17.8, 12.4, 8.4, 5.5, 3.3, 1.7 and 0.59, and the constraint releases at the tenth step, in
+    agreement with the nine active steps reported there.</li>
+</ul>
+
+<h3 id="sec-robot-summary">SECNUM Summary</h3>
+
+<div class="insight">
+  <strong>What the arm teaches.</strong>
+  <ol>
+    <li>For the composite energy $W=\tfrac12s^\top Ms+\tfrac12e^\top K_ee$ and a quadratic Lagrangian in the
+      gravity-compensated input, the infinitesimal-window rule is <strong>PD control with gravity
+      compensation</strong>, $K_D=R^{-1}$, $K_P=R^{-1}\Gamma$ EQ(armrule). The inertia cancels; the feed-forward of
+      Slotine and Li is not selected.</li>
+    <li>The certificate is $\mathcal D=-H(z,-\nabla_zW)\le0$. Near the target it reduces to the explicit matching
+      conditions EQ(armmatch). The Slotine&ndash;Li spring $K_e=2\Gamma K_D$, correct for its own controller, violates them
+      for every admissible $Q_e$, $Q_v$: a good argmin with a failed certificate.</li>
+    <li>For this arm the binding limits on the terminal region are the actuators and the step size, not the
+      Hamilton&ndash;Jacobi inequality. With $h=0.005$&nbsp;s the plain $W$ is a valid discrete terminal cost;
+      with $h=0.01$&nbsp;s it must be inflated by more than 2.</li>
+    <li>The window length behaves as Section&nbsp;SEC(sec-onestep) predicts: it does not change the certificate, it
+      enlarges the solvable set (${N=1}$ and ${N=5}$ cannot start where ${N=10}$ can) and it lowers $V_N$. It does
+      not automatically lower the action paid: with a conservative $W$ and a hard terminal constraint, short
+      windows are more aggressive than the PD law they generalize.</li>
+    <li>Torque limits and the terminal region are inequalities. With the torque box the infinitesimal rule is saturated
+      PD$+g$ EQ(armclip), the certificate survives saturation on a set far larger than the torque-limit level, and an
+      active terminal constraint plans with the inflated boundary term $(1+\mu)W$ ($\mu=39.2$ at the first step of the
+      $N=10$ run).</li>
+  </ol>
+</div>
+</section>

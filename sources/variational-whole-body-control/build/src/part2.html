@@ -1,0 +1,360 @@
+
+<!-- ================================================================== -->
+<!-- CONTINUOUS LIMIT -->
+<!-- ================================================================== -->
+<section id="sec-hj">
+<h2>SECNUM The Continuous Limit: Hamilton&ndash;Jacobi, Momentum and the Certificate</h2>
+
+<p>
+  Sections&nbsp;SEC(sec-core) and SEC(sec-proof) worked with steps. What happens when the step itself shrinks to zero? The
+  recursion EQ(bellman) becomes a partial differential equation, its minimization a Legendre transform, and the one-step
+  condition EQ(V1V0) a pointwise inequality. The limit is worth taking for two reasons: it exposes the mechanics, since
+  momentum and Hamiltonian appear without being put in, and it is where controllers that re-plan at every tick of a fast
+  loop live.
+</p>
+
+<h3 id="sec-hjderiv">SECNUM From steps to rates</h3>
+
+<p>
+  Measure the window in time. Write $\vartheta=t_f-t$ for the time to go and $V_\vartheta(q)$ for the least action
+  EQ(action) over paths of duration $\vartheta$ from $q$; this is EQ(VN) with the sum replaced by the integral, and
+  $V_0$ is the boundary term of EQ(bellman). The remaining action is thus a function of two variables, the point and the
+  time to go; when both change we write $V(q,\vartheta):=V_\vartheta(q)$. Apply the principle of optimality to a first step
+  of length $h$, taken with a constant velocity $v$: its action is $h\,L(q,v)+O(h^2)$, the rectangle rule EQ(rect), and it
+  arrives at $q+hv$ with $\vartheta-h$ still to go, so
+  $$V_\vartheta(q)=\min_{v\in\mathcal V(q)}\big\{h\,L(q,v)+V_{\vartheta-h}(q+hv)\big\}+o(h).$$
+  The step changes both arguments of $V$. Along the line $t'\mapsto(q+t'v,\ \vartheta-t')$, $0\le t'\le h$, the chain rule
+  gives the rate $\tfrac{d}{dt'}V(q+t'v,\vartheta-t')\big|_{t'=0}=\nabla V_\vartheta(q)\cdot v-\partial_\vartheta V_\vartheta(q)$,
+  so where $V$ is continuously differentiable in $(q,\vartheta)$,
+  $$V_{\vartheta-h}(q+hv)=V_\vartheta(q)+h\,\big[\nabla V_\vartheta(q)\cdot v-\partial_\vartheta V_\vartheta(q)\big]+o(h).$$
+  Moving to a new point changes the remaining action at the rate $\nabla V\cdot v$, and the shrinking window at the rate
+  $-\partial_\vartheta V$. The term $V_\vartheta(q)$ cancels on both sides and $\partial_\vartheta V_\vartheta(q)$ does not
+  depend on $v$; dividing by $h$ and letting $h\to0$ gives
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(hjraw)" aria-hidden="true"></span>$$
+\partial_\vartheta V_\vartheta(q)=\min_{v\in\mathcal V(q)}\big[L(q,v)+\nabla V_\vartheta(q)\cdot v\big],\qquad V_0=W\ \text{on }\Omega .
+\tag{EQDEF(hjraw)}
+$$
+</div>
+
+<p>
+  This is the <strong>Hamilton&ndash;Jacobi equation</strong> (in optimal control, the Hamilton&ndash;Jacobi&ndash;Bellman
+  equation), in time-to-go form: the rate at which the remaining action changes as the window opens. The bracket is a
+  balance: $\nabla V\cdot v$ rewards moving downhill on what remains to be paid, while $L$ charges for moving at all.
+  (Passing the minimizer to the limit uses remainders that are $o(h)$ uniformly over bounded sets of velocities, to which
+  superlinearity of $L$ confines the near-minimizers, and a minimizer that exists, by superlinearity or a compact
+  $\mathcal V(q)$, and is unique, by strict convexity of $L$ in $v$ on a convex $\mathcal V(q)$. Where $V$ is not
+  differentiable, constraints being the usual cause, EQ(hjraw) holds in a generalized, viscosity, sense;
+  <a href="#ref-liberzon2012">Liberzon, 2012</a>, &sect;5.3.)
+</p>
+
+<h3 id="sec-momentum">SECNUM Momentum and the Legendre transform</h3>
+
+<p>
+  Give a name to the vector that multiplies $v$ in the bracket. The <strong>momentum field</strong> is minus the gradient of
+  the remaining action,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(pdef)" aria-hidden="true"></span>$$
+p(q):=-\nabla V_\vartheta(q).
+\tag{EQDEF(pdef)}
+$$
+</div>
+
+<p>
+  The bracket becomes $L-p\cdot v$, and its minimum over $v$ is minus a Legendre transform:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(legendre)" aria-hidden="true"></span>$$
+\min_{v\in\mathcal V(q)}\big[L(q,v)-p\cdot v\big]=-H_{\mathcal V}(q,p),\qquad
+H_{\mathcal V}(q,p):=\sup_{v\in\mathcal V(q)}\big[\,p\cdot v-L(q,v)\,\big].
+\tag{EQDEF(legendre)}
+$$
+</div>
+
+<p>
+  Without constraints, $\mathcal V(q)=\mathbb R^n$, we write $H$: it is the <strong>Hamiltonian</strong> of $L$. By superlinearity
+  $p\cdot v-L(q,v)\to-\infty$ as $|v|\to\infty$, so the supremum is finite and attained, at the velocity where
+  $\partial L/\partial v=p$. So the selected velocity is the one whose momentum $\partial L/\partial v$ equals $-\nabla V$;
+  strict convexity of $L$ in $v$ makes $v\mapsto\partial L/\partial v$ one-to-one and superlinearity makes it onto, so this
+  relation can be inverted for every momentum. With
+  EQ(legendre), EQ(hjraw) reads
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(hj)" aria-hidden="true"></span>$$
+\partial_\vartheta V_\vartheta=-H_{\mathcal V}\big(q,-\nabla V_\vartheta\big),\qquad V_0=W\ \text{on }\Omega,
+\tag{EQDEF(hj)}
+$$
+</div>
+
+<p>
+  or, in the absolute initial time $t=t_f-\vartheta$ with the final time $t_f$ fixed,
+  $\partial_t\big[V_{t_f-t}(q)\big]=H_{\mathcal V}(q,-\nabla V)$. The minus sign in
+  EQ(pdef) comes from reading the remaining action as a function of the <em>initial</em> point of the path still to be
+  travelled; textbook mechanics reads the action at the final point (Section&nbsp;SEC(sec-characteristics) shows that the two
+  are one rule). Everything in this section holds with or without constraints; Section&nbsp;SEC(sec-ineq1) collects what
+  changes when a constraint binds, and until then we drop the subscript.
+</p>
+
+<p>
+  For the example EQ(example), the supremum of $pv-\tfrac12mv^2$ is attained at $v=p/m$, so
+  $H(q,p)=\dfrac{p^2}{2m}-\tfrac12\kappa q^2$; for the quadratic Lagrangian, likewise,
+  $H(q,p)=\tfrac12p^\top R^{-1}p-\tfrac12q^\top Qq$, attained at $v=R^{-1}p$.
+</p>
+
+<div class="margin-note">
+  The sign of the costate depends on convention. In Pontryagin&rsquo;s <em>maximum</em> principle (normal case, cost
+  multiplier $-1$) the costate equals the momentum $p$. In the <em>minimum</em> principle commonly used in MPC texts it
+  equals $\nabla V=-p$, written $\eta$ here, and the control Hamiltonian $L+\eta\cdot v$ is minimized:
+  $\min_v[L+\eta\cdot v]=-H(q,-\eta)$. This document fixes $p=\partial L/\partial v$ throughout.
+</div>
+
+<p>
+  <strong>Why $L$ cannot be dropped.</strong> Strict convexity of $L$ in $v$ is what lets the momentum determine the
+  velocity. Set $L\equiv0$: the bracket becomes $\nabla V\cdot v$, which is <strong>linear in $v$</strong>. A Lagrangian
+  linear in the velocities is <strong>singular</strong>: its Legendre map is not invertible, and momentum no longer
+  determines velocity. If $\mathcal V$ is unbounded, the minimum does not exist (the speed grows without bound); if
+  $\mathcal V$ is compact, the minimizer sits on its boundary, typically at a vertex (extreme-speed, bang-bang motion). A
+  Lagrangian that is strictly convex and superlinear in $v$ <em>regularizes</em> the problem: it makes the
+  momentum&ndash;velocity relation invertible and selects an interior velocity that balances the rate of descent against the
+  cost of motion. For a robot the torque cost plays this role (Section&nbsp;SEC(sec-so-manipulator)). Both properties are
+  needed. $L=\tfrac12\kappa q^2+\sqrt{1+v^2}-1$ is strictly convex in $v$ but grows only linearly: its momentum
+  $\partial L/\partial v=v/\sqrt{1+v^2}$ stays in $(-1,1)$, $H(q,p)=+\infty$ for $|p|&gt;1$, and where $|\nabla V|\ge1$ the
+  bracket has no minimizer and the speed grows without bound, as for $L\equiv0$. In general, $H(q,\cdot)$ is finite for
+  every momentum exactly when $L$ is superlinear in $v$.
+</p>
+
+<h3 id="sec-rhc">SECNUM The receding window in continuous time</h3>
+
+<p>
+  The receding-window scheme applies the first move of the window problem and re-solves. In continuous time the first move
+  is the minimizer $v^*_\vartheta(q)$ of the bracket in EQ(hjraw), and the closed loop is $\dot q=v^*_\vartheta(q)$ with the
+  window length $\vartheta$ held fixed. Along it, by EQ(hjraw) evaluated at its own minimizer,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(rhcrate)" aria-hidden="true"></span>$$
+\frac{d}{dt}V_\vartheta\big(q(t)\big)=\nabla V_\vartheta\cdot v^*_\vartheta=-L\big(q,v^*_\vartheta\big)+\partial_\vartheta V_\vartheta(q).
+\tag{EQDEF(rhcrate)}
+$$
+</div>
+
+<p>
+  So the continuous-time descent condition $\dot V_\vartheta\le-L$ holds exactly where $\partial_\vartheta V_\vartheta\le0$,
+  that is, where a longer window would not raise the remaining action. This is EQ(monotone) and EQ(descent) in continuous
+  time. Descent at the full rate $L$ is more decrease than a Lyapunov function needs: by EQ(rhcrate),
+  $\partial_\vartheta V_\vartheta\le(1-\beta)\,L(q,v^*_\vartheta)$ for all $q$, with a constant $0&lt;\beta\le1$, gives
+  $\dot V_\vartheta\le-\beta L\le-\beta\,\alpha_L(|q|)$, the continuous counterpart of EQ(strictdescent) with
+  $\beta\,\alpha_L$ in place of $\alpha_L$. The remaining action can therefore decrease along the receding window although
+  it increases with the window length; the scaled candidates $W=cV_\infty$ with $0&lt;c&lt;1$ do so at $\vartheta=0$
+  (Section&nbsp;SEC(sec-stationary)) and, on the hilltop, for every window (Section&nbsp;SEC(sec-scalar)). In steps the
+  bookkeeping is the same: by EQ(bellman) at its minimizer, $V_N(q^+)-V_N(q)=-L_d(q,q^+)+\big[V_N(q^+)-V_{N-1}(q^+)\big]$, so
+  EQ(descent) holds exactly when $V_N(q^+)\le V_{N-1}(q^+)$, while decrease needs only a bracket
+  below $L_d(q,q^+)$ (Section&nbsp;SEC(sec-numeric)). The full rate is the one pursued here because it can be checked on the
+  pair $(L,W)$ before any window is solved (Sections&nbsp;SEC(sec-infinitesimal) and SEC(sec-allwindows)), whereas the
+  weaker condition involves $V_\vartheta$ itself. What remains is to find boundary terms for which
+  $\partial_\vartheta V_\vartheta\le0$, and the place to look is the shortest window.
+</p>
+
+<h3 id="sec-infinitesimal">SECNUM The infinitesimal window: a rule and a certificate</h3>
+
+<p>
+  As $\vartheta\to0$, $V_\vartheta\to W$ on $\Omega$ (by superlinearity, a path that covers a fixed distance in a vanishing
+  time has unbounded action, and $W$ is continuous): the boundary term itself plays the part of the remaining action, and the receding
+  window applies the minimizer of the bracket with $V=W$,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(rule)" aria-hidden="true"></span>$$
+v^*(q)=\arg\min_{v\in\mathcal V(q)}\big\{L(q,v)+\nabla W(q)\cdot v\big\}.
+\tag{EQDEF(rule)}
+$$
+</div>
+
+<p>
+  The window problem has become a pointwise feedback law: one minimization at the current state, with no trajectory to
+  optimize. A controller that re-plans at every tick of a fast loop, with a window as short as one tick, lives in this
+  limit, and it is the form whole-body controllers take; for the arm of Section&nbsp;SEC(sec-robot) it will be PD control
+  with gravity compensation. By EQ(legendre) with $p=-\nabla W$, or by EQ(rhcrate) at $\vartheta=0$, the rate of change of
+  $W$ along the rule is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(wdot)" aria-hidden="true"></span>$$
+\dot W=\nabla W\cdot v^*=-L(q,v^*)-H\big(q,-\nabla W(q)\big).
+\tag{EQDEF(wdot)}
+$$
+</div>
+
+<p>
+  Hence the continuous-time descent condition $\dot W\le -L$ holds <strong>if and only if</strong>
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(cert)" aria-hidden="true"></span>$$
+\min_{v}\big[L(q,v)+\dot W(q,v)\big]\le0
+\quad\Longleftrightarrow\quad
+H\big(q,-\nabla W(q)\big)\ \ge\ 0 ,
+\tag{EQDEF(cert)}
+$$
+</div>
+
+<p>
+  with $\dot W(q,v)=\nabla W(q)\cdot v$. This is the continuous form of EQ(terminal): the rule EQ(rule) plays the part of the
+  reference flow, and EQ(cert) says that along it $W$ decreases at least at the rate at which action is spent. By EQ(hj) it
+  is also the continuous form of EQ(V1V0): $\partial_\vartheta V_\vartheta\big|_{\vartheta=0}=-H(q,-\nabla W)\le0$, so a short
+  window never needs more than $W$. Here $W$ is a <em>candidate</em>, and EQ(cert) is its <strong>certificate</strong>.
+</p>
+
+<p>
+  The same conclusions follow from the action of a short window directly. Over a window of length $\vartheta$ with
+  constant velocity $v$, both terms of the action expand to first order in $\vartheta$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(expansion)" aria-hidden="true"></span>$$
+\begin{gathered}
+S_\vartheta(q,v)=\int_t^{t+\vartheta}L\,dt'+W(q+\vartheta v)\\
+=W(q)+\vartheta\,\big[\,L(q,v)+\nabla W(q)\cdot v\,\big]+o(\vartheta).
+\end{gathered}
+\tag{EQDEF(expansion)}
+$$
+</div>
+
+<p>
+  $W(q)$ does not depend on $v$. Subtracting it and dividing by $\vartheta&gt;0$ do not change which $v$ minimizes, and both
+  steps are needed: as $\vartheta\to0$, $S_\vartheta\to W(q)$ for every $v$, so the limit of $S_\vartheta$ itself cannot rank
+  velocities, whose costs differ only by $O(\vartheta)$. The comparison of costs $V_1\le W$ of Section&nbsp;SEC(sec-proof)
+  degenerates to $W\le W$; what survives is the comparison of rates, the bracket, which is what a Lyapunov argument checks.
+  With $v=v^*$, EQ(expansion) bounds the remaining action of the infinitesimal window from above by
+  $W-\vartheta\,H(q,-\nabla W)+o(\vartheta)$. Conversely, along any admissible path
+  $W\big(q(\vartheta)\big)=W(q)+\int_0^\vartheta\nabla W\cdot\dot q\,dt$, so its action is
+  $W(q)+\int_0^\vartheta\big[L+\nabla W\cdot\dot q\big]\,dt\ge W(q)-\int_0^\vartheta H\big(q(t),-\nabla W(q(t))\big)\,dt$, and
+  superlinearity keeps the paths of bounded action within $o(1)$ of $q$. Hence, at interior points of $\Omega$,
+  $V_\vartheta=W-\vartheta\,H(q,-\nabla W)+o(\vartheta)$, the first-order solution of EQ(hj).
+</p>
+
+<div class="definition">
+  <strong>Two outputs of one minimization.</strong> The bracket $L+\dot W$ is minimized once and yields two
+  different objects: its <strong>argmin</strong> EQ(rule), the controller the rule selects, and its
+  <strong>minimum value</strong> $-H(q,-\nabla W)$, whose sign is the <strong>certificate</strong> EQ(cert). They answer
+  different questions. A convergent controller whose certificate fails is possible and common; the first examples follow in
+  Sections&nbsp;SEC(sec-stationary) and SEC(sec-numeric). The certificate is a property of the pair $(L,W)$, not of $W$ alone
+  and not of the closed loop.
+</div>
+
+<h3 id="sec-allwindows">SECNUM One certificate for every window length</h3>
+
+<p>
+  Section&nbsp;SEC(sec-rhc) reduced descent of the receding window to $\partial_\vartheta V_\vartheta\le0$, and
+  Section&nbsp;SEC(sec-infinitesimal) gave that inequality at $\vartheta=0$. It propagates to every $\vartheta$ by the
+  argument of Section&nbsp;SEC(sec-monotone):
+</p>
+
+<ol>
+  <li><strong>A short window never needs more than $W$.</strong> Suppose EQ(cert) holds on $\Omega$ and the rule EQ(rule)
+    keeps $\Omega$ invariant (for instance $\Omega$ a sublevel set of $W$, which $\dot W\le-L\le0$ keeps invariant).
+    Integrating $L+\dot W=-H(q,-\nabla W)\le0$ along the rule over a time $\vartheta'$ gives
+    $\int_0^{\vartheta'} L\,dt+W\big(q(\vartheta')\big)\le W(q)$: a feasible path for the window $\vartheta'$ that costs no
+    more than $W$. Hence $V_{\vartheta'}\le V_0$.</li>
+  <li><strong>Monotonicity in the boundary term.</strong> The principle of optimality, splitting the window
+    $\vartheta+\vartheta'$ after its first $\vartheta$, writes $V_{\vartheta+\vartheta'}$ as the window-$\vartheta$ problem
+    with boundary term $V_{\vartheta'}$. That problem is monotone in its boundary term, exactly as $\mathcal B$ is, so
+    $V_{\vartheta'}\le V_0$ gives</li>
+</ol>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ctsmonotone)" aria-hidden="true"></span>$$
+\begin{gathered}
+V_{\vartheta+\vartheta'}\le V_\vartheta\quad\text{for all }\vartheta,\vartheta'\ge0,\\
+\text{hence}\quad\partial_\vartheta V_\vartheta\le0 .
+\end{gathered}
+\tag{EQDEF(ctsmonotone)}
+$$
+</div>
+
+<p>
+  By EQ(rhcrate), the receding window then satisfies $\dot V_\vartheta\le-L$ for every window length: one condition on the
+  pair $(L,W)$ certifies all of them, as EQ(terminal) did in discrete time. In receding-horizon control this is the standard
+  continuous-time requirement on a terminal cost that is a control Lyapunov function
+  (<a href="#ref-chen1998">Chen &amp; Allg&ouml;wer, 1998</a>; <a href="#ref-jadbabaie2001">Jadbabaie et al., 2001</a>), and
+  the rule EQ(rule) is a pointwise controller built on that function, the kind of law that
+  <a href="#ref-primbs2000">Primbs et al. (2000)</a> generalize to receding horizons.
+</p>
+
+<h3 id="sec-stationary">SECNUM The exact boundary term: the stationary Hamilton&ndash;Jacobi equation</h3>
+
+<p>
+  Equality in EQ(cert) for every $q$ makes the right-hand side of EQ(hj) vanish at $\vartheta=0$, and $W$ is a stationary
+  solution of EQ(hj); whether it is the remaining action depends on the terminal region. By EQ(legendre), along any
+  admissible path $L+\dot W\ge\min_{v\in\mathcal V(q)}\big[L+\nabla W\cdot v\big]=-H(q,-\nabla W)=0$, with equality only at
+  the minimizer EQ(rule). Integrated over the window, this says that every path from $q$ that ends in $\Omega$ costs at least
+  $W(q)$, and that the path of the rule EQ(rule) attains $W(q)$ whenever it ends in $\Omega$. Without a terminal constraint
+  ($\Omega=\mathbb R^n$, so $V_0=W$) this gives $V_\vartheta=W$ for all $\vartheta$, and the window length is irrelevant.
+  With a terminal region, $V_\vartheta=W$ exactly where the path of the rule is in $\Omega$ at time $\vartheta$: if the rule
+  keeps $\Omega$ invariant, on $\Omega$ and at every point that the rule brings into $\Omega$ within time $\vartheta$, a set
+  that grows with $\vartheta$. Elsewhere the terminal constraint binds and $V_\vartheta&gt;W$, and the window length still
+  sets the value, the first move and, with bounded velocities, the solvable set (numbers in
+  Section&nbsp;SEC(sec-scalar)). The condition, equality in EQ(cert) for every $q$, is the <strong>stationary
+  Hamilton&ndash;Jacobi equation</strong>,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(stationary)" aria-hidden="true"></span>$$
+H\big(q,-\nabla V_\infty(q)\big)=0 .
+\tag{EQDEF(stationary)}
+$$
+</div>
+
+<p>
+  Among continuously differentiable $W\ge0$ with $W(0)=0$ (and assuming every finite-action path converges to the rest
+  point), its solution is exactly the infinite-time remaining action, $W=V_\infty$; this is the verification theorem of
+  optimal control (<a href="#ref-liberzon2012">Liberzon, 2012</a>, Sec.&nbsp;5.1). The boundary term is then exact. Without
+  these qualifications the equation has other solutions (for the quadratic case below, $-V_\infty$).
+</p>
+
+<p>
+  <strong>Quadratic Lagrangians.</strong> For $L=\tfrac12q^\top Qq+\tfrac12v^\top Rv$, try $W=\tfrac12q^\top Xq$ with
+  $X\succ0$. Then $p=-\nabla W=-Xq$, and the Hamiltonian of Section&nbsp;SEC(sec-momentum) gives
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(quadH)" aria-hidden="true"></span>$$
+H\big(q,-Xq\big)=\tfrac12\,q^\top\big(XR^{-1}X-Q\big)\,q,\qquad v^*=R^{-1}p=-R^{-1}Xq .
+\tag{EQDEF(quadH)}
+$$
+</div>
+
+<p>
+  The stationary equation EQ(stationary) holds if and only if $XR^{-1}X=Q$. Its positive-definite solution $P$,
+  $PR^{-1}P=Q$, is the continuous-time <strong>Riccati solution</strong> for $\dot q=v$; with $W=\tfrac12q^\top Pq$ the rule
+  EQ(rule) is the linear-quadratic regulator (LQR) $v=-R^{-1}Pq$. For the example EQ(example), $P=\sqrt{m\kappa}$.
+</p>
+
+<div class="insight">
+  <strong>Example: scaled candidates.</strong> Take $W=c\,V_\infty$, i.e. $X=cP$ with $c&gt;0$. By EQ(quadH) and
+  $PR^{-1}P=Q$, $H(q,-\nabla W)=\tfrac{c^2-1}{2}\,q^\top Qq$:
+  <ul>
+    <li>$c=1$: $H=0$, and $\dot W=-L$ exactly;</li>
+    <li>$c&gt;1$: $H&gt;0$, so $\dot W&lt;-L$: an over-estimate of the tail certifies descent;</li>
+    <li>$c&lt;1$: $H&lt;0$, so $\dot W&gt;-L$. $W$ still decreases ($\dot W=-c^2q^\top Qq$), but EQ(cert)
+      fails: the condition is sufficient for decrease, not necessary.</li>
+  </ul>
+  Under-estimating the tail breaks the certificate, not necessarily the convergence: the first instance of a good argmin with
+  a failed certificate. Section&nbsp;SEC(sec-scalar) follows the three cases to finite windows, and Section&nbsp;SEC(sec-numeric)
+  finds the discrete mirror image.
+</div>
+
+<figure>
+FIGSVG(2)
+<figcaption>Figure 2. From Lagrangian to Lyapunov function, as derived in this section. The Legendre transform EQ(legendre)
+  produces the Hamiltonian; the remaining action generates the momentum field EQ(pdef); the two meet in the
+  Hamilton&ndash;Jacobi equation EQ(hj), whose stationary, zero-energy form EQ(stationary) makes
+  $V$ decrease at exactly the rate $L$. Diagram drawn by hand; it carries no computed data.</figcaption>
+</figure>
+</section>

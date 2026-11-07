@@ -1,0 +1,307 @@
+<!-- reader-features:body -->
+<script>
+(function () {
+  var root = document.documentElement, store = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
+  var themeBtn = document.querySelector('.theme-toggle');
+  function paintTheme() {
+    var dark = root.getAttribute('data-theme') === 'dark';
+    themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    themeBtn.innerHTML = dark ? '&#9728;' : '&#9790;';
+    themeBtn.title = dark ? 'Light mode' : 'Dark mode';
+  }
+  themeBtn.addEventListener('click', function () {
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next); store('ra-theme', next); paintTheme();
+  });
+  paintTheme();
+
+  var nav = document.getElementById('toc'), btn = document.querySelector('.toc-toggle'),
+      backdrop = document.querySelector('.toc-backdrop'), narrow = window.matchMedia('(max-width: 800px)');
+  function links() { return nav ? nav.querySelectorAll('a') : []; }
+  function setOpen(open, refocus) {
+    root.classList.toggle('toc-open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (backdrop) backdrop.hidden = !open;
+    if (open) { var l = links(); if (l.length) l[0].focus(); } else if (refocus) btn.focus();
+  }
+  function syncState() {
+    if (narrow.matches) { root.classList.remove('toc-collapsed'); setOpen(false, false); }
+    else { root.classList.remove('toc-open'); if (backdrop) backdrop.hidden = true;
+      btn.setAttribute('aria-expanded', root.classList.contains('toc-collapsed') ? 'false' : 'true'); }
+  }
+  if (nav && btn) {
+    btn.addEventListener('click', function () {
+      if (narrow.matches) { setOpen(!root.classList.contains('toc-open'), true); return; }
+      var collapsed = root.classList.toggle('toc-collapsed');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      store('ra-toc', collapsed ? 'collapsed' : 'open');
+    });
+    if (backdrop) backdrop.addEventListener('click', function () { setOpen(false, true); });
+    nav.addEventListener('click', function (e) { if (e.target.closest('a') && narrow.matches) setOpen(false, false); });
+    document.addEventListener('keydown', function (e) {
+      if (!root.classList.contains('toc-open')) return;
+      if (e.key === 'Escape') { setOpen(false, true); return; }
+      if (e.key !== 'Tab') return;
+      var ring = [btn].concat([].slice.call(links())), i = ring.indexOf(document.activeElement);
+      e.preventDefault();                                   // focus stays in the drawer while it is open
+      ring[(i < 0 ? 0 : i + (e.shiftKey ? ring.length - 1 : 1)) % ring.length].focus();
+    });
+    (narrow.addEventListener ? narrow.addEventListener('change', syncState) : narrow.addListener(syncState));
+    syncState();
+    if ('IntersectionObserver' in window) {
+      var byId = {}; links().forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+      var current = null, io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (!en.isIntersecting) return;
+          var a = byId[en.target.id]; if (!a || a === current) return;
+          if (current) { current.classList.remove('current'); current.removeAttribute('aria-current'); }
+          current = a; a.classList.add('current'); a.setAttribute('aria-current', 'true');
+        });
+      }, { rootMargin: '0px 0px -75% 0px' });
+      Object.keys(byId).forEach(function (id) { var el = document.getElementById(id); if (el) io.observe(el); });
+    }
+  }
+
+  var back = document.querySelector('.eq-back'), jumpY = null;
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    /* remember the reading position in the current history entry: Back restores it exactly */
+    try { var st = history.state && typeof history.state === 'object' ? history.state : {};
+      st.raY = window.scrollY; history.replaceState(st, ''); } catch (err) {}
+    if (a.classList.contains('eqref') && back) setTimeout(function () { jumpY = window.scrollY; back.hidden = false; }, 450);
+  });
+  window.addEventListener('popstate', function (e) {
+    if (e.state && typeof e.state.raY === 'number') {
+      var y = e.state.raY;
+      window.scrollTo({ top: y, behavior: 'instant' });
+      setTimeout(function () { if (Math.abs(window.scrollY - y) > 2) window.scrollTo({ top: y, behavior: 'instant' }); }, 60);
+    }
+  });
+  if (back) {
+    back.addEventListener('click', function () { back.hidden = true; jumpY = null; history.back(); });
+    window.addEventListener('scroll', function () {
+      if (jumpY !== null && Math.abs(window.scrollY - jumpY) > 1.5 * window.innerHeight) { back.hidden = true; jumpY = null; }
+    }, { passive: true });
+    window.addEventListener('popstate', function () { back.hidden = true; jumpY = null; });
+  }
+
+  /* Equation preview: pointing at an equation reference (or reaching it with the keyboard) shows a copy of that
+     equation next to the link, without its number, under a line that names it and its section. The card is built
+     only when first needed, so loading does no extra work. On touch screens a tap still jumps to the equation. */
+  var tip = null, tipHead = null, tipBody = null, tipFor = null, showT = null, hideT = null;
+  function eqTarget(a) {              /* the numbered display the link points at: the first display after its anchor */
+    var el = document.getElementById((a.getAttribute('href') || '').slice(1)), d = null;
+    for (; el && !d; el = el.nextElementSibling)     /* KaTeX puts each display inside a span of its own */
+      d = el.classList.contains('katex-display') ? el : el.querySelector('.katex-display');
+    return d;
+  }
+  function sectionOf(d) {             /* "Section 4.2" or "Appendix B": the last heading before the equation */
+    var hs = document.querySelectorAll('article h2, article h3'), h = null, t, m;
+    for (var i = 0; i < hs.length && hs[i].compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING; i++) h = hs[i];
+    if (!h) return '';
+    t = h.textContent.trim(); m = t.match(/^Appendix [A-Z]/);
+    if (m) return m[0];
+    m = t.match(/^[0-9]+(?:\.[0-9]+)*/);
+    return m ? 'Section ' + m[0] : '';
+  }
+  function fitTip() {                 /* the card's width: the formula's own width, within the screen */
+    var max = document.documentElement.clientWidth - 16, extra, need;
+    tip.style.width = ''; tip.style.left = '0px'; tip.style.top = '0px'; tipBody.style.fontSize = '';
+    extra = tip.offsetWidth - tipBody.clientWidth;                  /* the card's padding and border */
+    need = tipBody.scrollWidth;                                     /* KaTeX boxes can reach a little past their line */
+    if (need + extra > max) {  /* too wide: set smaller, down to three quarters of its size; beyond that it scrolls */
+      tipBody.style.fontSize = Math.max(0.75, (max - extra - 4) / need) + 'em';
+      need = tipBody.scrollWidth;
+    }
+    tip.style.width = Math.ceil(Math.min(max, need + extra)) + 'px';
+  }
+  function placeTip(a) {              /* below the link, or above it when only the space above fits the card */
+    var vw = document.documentElement.clientWidth, vh = window.innerHeight, r = a.getBoundingClientRect(),
+        w = tip.offsetWidth, h = tip.offsetHeight, left, below;
+    left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - 8 - w));
+    below = r.bottom + 8 + h <= vh - 8 || r.top - 8 - h < 8;
+    tip.style.left = left + window.scrollX + 'px';
+    tip.style.top = (below ? r.bottom + 6 : r.top - 6 - h) + window.scrollY + 'px';
+  }
+  function showTip(a) {
+    var d = eqTarget(a), c, sec;
+    clearTimeout(showT); clearTimeout(hideT);
+    if (!d) return;
+    if (!tip) {
+      tip = document.createElement('div'); tip.className = 'eq-tip'; tip.id = 'eq-tip'; tip.setAttribute('role', 'tooltip');
+      tipHead = document.createElement('div'); tipHead.className = 'eq-tip-head';
+      tipBody = document.createElement('div'); tipBody.className = 'eq-tip-body';
+      tip.appendChild(tipHead); tip.appendChild(tipBody); document.body.appendChild(tip);
+    }
+    if (tipFor && tipFor !== a) tipFor.removeAttribute('aria-describedby');
+    tipFor = a; a.setAttribute('aria-describedby', 'eq-tip');
+    sec = sectionOf(d);
+    tipHead.textContent = 'Equation ' + a.textContent.trim() + (sec ? ' \u00b7 ' + sec : '');
+    c = d.cloneNode(true); c.classList.remove('tag-below');
+    [].forEach.call(c.querySelectorAll('.tag'), function (t) { t.parentNode.removeChild(t); });
+    [].forEach.call(c.querySelectorAll('[id]'), function (x) { x.removeAttribute('id'); });
+    tipBody.textContent = ''; tipBody.appendChild(c);
+    tip.style.fontSize = getComputedStyle(d.parentNode).fontSize;   /* the size the equation has where it stands */
+    tip.hidden = false; fitTip(); placeTip(a);
+  }
+  function hideTip() {
+    clearTimeout(showT); clearTimeout(hideT);
+    if (!tip || tip.hidden) return;
+    tip.hidden = true;
+    if (tipFor) { tipFor.removeAttribute('aria-describedby'); tipFor = null; }
+  }
+  function refOf(t) { return t && t.closest ? t.closest('a.eqref') : null; }
+  function inTip(t) { return !!(tip && t && tip.contains(t)); }
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType === 'touch') return;
+    var a = refOf(e.target);
+    if (a) {
+      clearTimeout(hideT);
+      if (a === tipFor) return;
+      clearTimeout(showT);
+      if (tipFor) showTip(a);                                   /* moving between references: switch at once */
+      else showT = setTimeout(function () { showTip(a); }, 120);
+    } else if (inTip(e.target)) clearTimeout(hideT);            /* the card itself keeps it open */
+  });
+  document.addEventListener('pointerout', function (e) {
+    if (e.pointerType === 'touch' || !(refOf(e.target) || inTip(e.target))) return;
+    var to = e.relatedTarget;
+    if (to && (inTip(to) || (tipFor && refOf(to) === tipFor))) return;   /* still on the link or its card */
+    clearTimeout(showT); clearTimeout(hideT); hideT = setTimeout(hideTip, 250);
+  });
+  document.addEventListener('focusin', function (e) {
+    var a = refOf(e.target), keyboard = true;
+    if (!a) return;
+    try { keyboard = a.matches(':focus-visible'); } catch (err) {}
+    if (keyboard) showTip(a);
+  });
+  document.addEventListener('focusout', function (e) { if (tipFor && refOf(e.target) === tipFor) hideTip(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(); });
+  document.addEventListener('click', function (e) { if (refOf(e.target)) hideTip(); });
+  window.addEventListener('resize', hideTip);
+  var placeQueued = false;           /* scrolling (also the smooth scroll to a link reached with Tab) re-places the card */
+  window.addEventListener('scroll', function () {
+    if (!tipFor || placeQueued) return;
+    placeQueued = true;
+    requestAnimationFrame(function () { placeQueued = false; if (tipFor) placeTip(tipFor); });
+  }, { passive: true });
+
+  /* After KaTeX has rendered (deferred scripts run before DOMContentLoaded): numbers in table cells never break
+     across lines, a figure keeps its labels at MIN_LABEL px or more (scrolling sideways if it must), a numbered
+     formula too wide for its number puts the number on the line below, and a table too wide for its column scrolls. */
+  var MIN_LABEL = 9, NUM = /[−+-]?[0-9]+(?:[.,][0-9]+)+(?:[eE][−+-]?[0-9]+)?|[0-9]{4,}/g;
+  function keepNumbers() {
+    [].forEach.call(document.querySelectorAll('td, th'), function (cell) {
+      var tw = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT), found = [], n;
+      while ((n = tw.nextNode())) {
+        if (n.nodeValue.indexOf('$') >= 0 || n.parentElement.closest('.katex, .nb, code, pre')) continue;
+        NUM.lastIndex = 0;
+        if (NUM.test(n.nodeValue)) found.push(n);
+      }
+      found.forEach(function (t) {
+        var s = t.nodeValue, frag = document.createDocumentFragment(), last = 0, m;
+        NUM.lastIndex = 0;
+        while ((m = NUM.exec(s))) {
+          if (m.index > last) frag.appendChild(document.createTextNode(s.slice(last, m.index)));
+          var sp = document.createElement('span'); sp.className = 'nb'; sp.textContent = m[0]; frag.appendChild(sp);
+          last = m.index + m[0].length;
+        }
+        if (last < s.length) frag.appendChild(document.createTextNode(s.slice(last)));
+        t.parentNode.replaceChild(frag, t);
+      });
+    });
+  }
+  function fitFigures() {
+    [].forEach.call(document.querySelectorAll('figure svg'), function (svg) {
+      if (svg.parentElement.closest('svg')) return;
+      var fig = svg.closest('figure'), vb = svg.viewBox && svg.viewBox.baseVal, small = Infinity;
+      svg.style.minWidth = ''; fig.classList.remove('fig-scroll');
+      if (!vb || !vb.width) return;
+      [].forEach.call(svg.querySelectorAll('text'), function (t) {
+        var px = parseFloat(getComputedStyle(t).fontSize); if (px > 0 && px < small) small = px; });
+      if (small === Infinity) return;
+      var wa = (svg.getAttribute('width') || '').trim(),
+          natural = /^[0-9]+([.][0-9]+)?(px)?$/.test(wa) ? parseFloat(wa) : vb.width,
+          need = Math.min(natural, Math.ceil(vb.width * MIN_LABEL / small));
+      if (svg.getBoundingClientRect().width < need - 0.5) {
+        svg.style.minWidth = need + 'px'; fig.classList.add('fig-scroll');
+      }
+    });
+  }
+  function fitTags() {                 /* wider screens: a number closer than half an em to its formula goes below it */
+    var ds = [].slice.call(document.querySelectorAll('.katex-display')), below = [];
+    ds.forEach(function (d) { d.classList.remove('tag-below'); });
+    if (narrow.matches) return;          /* narrow screens: the stylesheet always puts the number below */
+    ds.forEach(function (d) {            /* read pass; the rows of a multi-line formula can reach past its outer box */
+      var tag = d.querySelector('.katex-html > .tag'), right = -Infinity, left;
+      if (!tag) return;
+      left = tag.getBoundingClientRect().left + (parseFloat(getComputedStyle(tag).paddingLeft) || 0);
+      [].forEach.call(d.querySelectorAll('.katex-html > .base, .katex-html > .base .vlist-t'), function (b) {
+        right = Math.max(right, b.getBoundingClientRect().right); });
+      if (right > left - 0.5 * (parseFloat(getComputedStyle(tag).fontSize) || 16)) below.push(d);
+    });
+    below.forEach(function (d) { d.classList.add('tag-below'); });
+  }
+  function fitTables() {
+    [].forEach.call(document.querySelectorAll('table'), function (t) {
+      t.classList.remove('tbl-scroll');
+      if (t.getBoundingClientRect().width > t.parentElement.clientWidth + 1) t.classList.add('tbl-scroll');
+    });
+  }
+  function fitAll() { keepShortMath(); fitTags(); fitTables(); fitFigures(); }
+  /* An inline formula keeps a following unit (joined by a no-break space) and trailing punctuation on its line:
+     Chromium otherwise allows a break right after a KaTeX box. Formulas wider than min(half the line, 300 px) are
+     left alone, so that a glued run never overflows. */
+  function glueMath() {
+    var todo = [];
+    [].forEach.call(document.querySelectorAll('article .katex'), function (k) {    /* read pass: measure, change nothing */
+      var w = k.parentNode, t = w.nextSibling, b = w.parentNode, m;
+      if (k.closest('.katex-display') || !t || t.nodeType !== 3) return;
+      m = t.nodeValue.match(/^(?:\u00a0[^\s,.;:!?)]+)*[,.;:!?)\]]*/)[0];
+      if (!m) return;
+      while (b && getComputedStyle(b).display.indexOf('inline') === 0) b = b.parentNode;
+      if (b && k.getBoundingClientRect().width <= Math.min(b.clientWidth / 2, 300)) todo.push([w, t, m]);
+    });
+    todo.forEach(function (x) {                                                     /* write pass */
+      var w = x[0], t = x[1], m = x[2], s = document.createElement('span');
+      s.className = 'nb'; w.parentNode.insertBefore(s, w);
+      s.appendChild(w); s.appendChild(document.createTextNode(m)); t.nodeValue = t.nodeValue.slice(m.length);
+    });
+  }
+  /* A short inline formula never breaks across lines: up to 140 px in text, and up to 200 px in table cells on wide
+     screens (narrow screens keep their tables narrow). Widths are read for all formulas first and styles written after,
+     so the page is laid out once per call, not once per formula. */
+  function inlineMath() { return [].filter.call(document.querySelectorAll('article .katex'), function (k) { return !k.closest('.katex-display'); }); }
+  function mathWidths(ks) {           /* total width of each formula: its line fragments, one read per formula */
+    return ks.map(function (k) {
+      var h = k.querySelector('.katex-html'), w = 0;
+      if (h) [].forEach.call(h.getClientRects(), function (r) { w += r.width; });
+      return w;
+    });
+  }
+  function applyShort(ks, ws) {
+    ks.forEach(function (k, i) {
+      var cap = k.closest('td, th') ? (narrow.matches ? 0 : 200) : 140, v = ws[i] > 0 && ws[i] <= cap ? 'nowrap' : '';
+      if (k.style.whiteSpace !== v) k.style.whiteSpace = v;
+    });
+  }
+  function keepShortMath() { var ks = inlineMath(); applyShort(ks, mathWidths(ks)); }
+  function afterRender() {           /* first pass: all reads (one layout), then all writes, then the fitting reads */
+    keepNumbers();
+    var ks = inlineMath(), ws = mathWidths(ks);
+    glueMath(); applyShort(ks, ws);
+    fitTags(); fitTables(); fitFigures();
+  }
+  var fitQueued = false;             /* the load event and the font promise often fire together: refit once per frame */
+  function fitSoon() { if (fitQueued) return; fitQueued = true; requestAnimationFrame(function () { fitQueued = false; fitAll(); }); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', afterRender); else afterRender();
+  window.addEventListener('load', fitSoon);                   /* the math fonts change the widths once they arrive */
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSoon);
+  var resized = null;
+  window.addEventListener('resize', function () { clearTimeout(resized); resized = setTimeout(fitAll, 150); });
+})();
+</script>
+<!-- /reader-features:body -->
+</body>
+</html>

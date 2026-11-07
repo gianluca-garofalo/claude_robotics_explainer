@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remaining Action and Task Forces</title>
+
+<!-- KaTeX CSS + JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {
+    delimiters: [
+      {left: '$$', right: '$$', display: true},
+      {left: '$', right: '$', display: false}
+    ],
+    throwOnError: false
+  });"></script>
+
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-secondary: #f7f8fa;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --heading: #0f172a;
+    --accent: #3b82f6;
+    --accent-light: #eff6ff;
+    --accent-dim: #eff6ff;
+    --border: #e2e8f0;
+    --code-bg: #f1f5f9;
+    --code-text: #0f172a;
+    --table-header-bg: #f1f5f9;
+    --row-stripe: #f8fafc;
+    --sidebar-bg: #f8fafc;
+    --definition-bg: #f0fdf4;
+    --definition-border: #22c55e;
+    --definition-strong: #15803d;
+    --insight-bg: #fffbeb;
+    --insight-border: #f59e0b;
+    --insight-strong: #b45309;
+    --blockquote-bg: #f8fafc;
+    --sidebar-width: 240px;
+    --content-width: 960px;
+    --margin-note-width: 260px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    font-size: 17px;
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: 'Palatino Linotype', 'Book Antiqua', Palatino, 'Georgia', serif;
+    color: var(--text);
+    background: var(--bg);
+    line-height: 1.65;
+    padding: 0;
+  }
+
+  /* Layout */
+  article {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 2rem 2rem 4rem 2rem;
+    margin-left: calc(var(--sidebar-width) + 2rem);
+    position: relative;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 2.5rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1.5rem;
+  }
+
+  header h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--heading);
+    margin-bottom: 0.5rem;
+  }
+
+  header .subtitle {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  footer.copyright {
+    margin-top: 2.5rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  header .date {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.3rem;
+  }
+
+  /* Abstract */
+  .abstract {
+    background: var(--accent-dim);
+    border-left: 4px solid var(--accent);
+    padding: 1rem 1.2rem;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+
+  .abstract strong { color: var(--accent); }
+
+  /* Sections */
+  section { margin-bottom: 2.5rem; }
+
+  h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--heading);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--heading);
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.2rem;
+    margin-bottom: 0.4rem;
+    color: var(--text);
+  }
+
+  p { margin-bottom: 0.8rem; }
+
+  /* Margin notes (inline style to avoid overflow) */
+  .margin-note {
+    float: none;
+    clear: both;
+    width: 100%;
+    margin: 0.5rem 0;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    padding: 0.5rem 0.8rem;
+    border-left: 3px solid var(--border);
+    background: var(--accent-light);
+  }
+
+  /* Equation blocks — no visual container, tighter spacing */
+  .equation-block {
+    margin: 0.8rem 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    /* Hide scrollbar by default; only appears on very narrow viewports */
+    scrollbar-width: thin;
+  }
+
+  /* KaTeX display math: reduce default generous spacing */
+  .katex-display {
+    overflow: visible !important;
+    margin: 0.5em 0 !important;
+  }
+
+  /* Force tag to not overlap equation: put on its own line when narrow */
+  .katex-display > .katex {
+    max-width: 100%;
+  }
+  .katex-display > .katex > .katex-html > .tag {
+    position: absolute;
+    right: 0;
+    padding-left: 1em;
+  }
+
+  .eq-number {
+    float: right;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  /* Code */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.8rem 1rem;
+    overflow-x: auto;
+    max-width: 100%;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    margin: 1rem 0;
+  }
+
+  code {
+    font-family: 'Fira Code', 'Source Code Pro', 'Consolas', monospace;
+    font-size: 0.85em;
+    color: var(--code-text);
+  }
+
+  p code, li code {
+    background: var(--code-bg);
+    padding: 0.1em 0.35em;
+    border-radius: 3px;
+    font-size: 0.82em;
+  }
+
+  /* Figures */
+  figure {
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+
+  figure img {
+    max-width: 100%;
+  }
+  /* Only add border to result plot images, not flowcharts */
+  figure img[src*="results"] {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  figcaption {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+    font-style: italic;
+  }
+
+  /* Tables */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+  }
+
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.5rem 0.8rem;
+    text-align: left;
+  }
+
+  th {
+    background: var(--table-header-bg);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  tr:nth-child(even) { background: var(--row-stripe); }
+
+  /* Lists */
+  ol, ul {
+    margin: 0.5rem 0 0.8rem 1.5rem;
+  }
+
+  li { margin-bottom: 0.3rem; }
+
+  /* Mermaid diagrams */
+  .mermaid {
+    margin: 1.5rem 0;
+    text-align: center;
+  }
+
+  /* Algorithm box */
+  .algorithm {
+    background: var(--bg);
+    border: none;
+    border-left: 4px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+
+  .algorithm .alg-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid var(--accent);
+    padding-bottom: 0.3rem;
+  }
+
+  .algorithm ol {
+    margin-left: 1.2rem;
+  }
+
+  .algorithm li {
+    margin-bottom: 0.5rem;
+  }
+
+  /* Definition boxes */
+  .definition {
+    background: var(--definition-bg);
+    border-left: 4px solid var(--definition-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+
+  .definition strong { color: var(--definition-strong); }
+
+  /* Warning / insight boxes */
+  .insight {
+    background: var(--insight-bg);
+    border-left: 4px solid var(--insight-border);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+  }
+
+  .insight strong { color: var(--insight-strong); }
+
+  /* Blockquotes */
+  blockquote {
+    border-left: 4px solid var(--accent);
+    padding: 0.6rem 1rem;
+    margin: 1rem 0;
+    background: var(--blockquote-bg);
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  /* Links */
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  /* Sidebar nav */
+  nav.toc {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 0.8rem;
+    font-size: 0.78rem;
+    z-index: 100;
+  }
+
+  nav.toc .toc-title {
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 0.8rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  nav.toc li {
+    margin-bottom: 0.35rem;
+  }
+
+  nav.toc a {
+    color: var(--text-secondary);
+    text-decoration: none;
+    line-height: 1.4;
+    display: block;
+    padding: 0.15rem 0;
+    transition: color 0.2s;
+  }
+
+  nav.toc a:hover {
+    color: var(--accent);
+  }
+
+  /* References */
+  .references {
+    font-size: 0.88rem;
+  }
+
+  .references li {
+    margin-bottom: 0.5rem;
+  }
+
+  /* KaTeX color */
+  .katex { color: var(--heading); }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    article {
+      max-width: 100%;
+      margin-left: calc(var(--sidebar-width) + 0.5rem);
+      padding: 1rem 1.5rem 3rem 1rem;
+    }
+  }
+
+  @media (max-width: 800px) {
+    nav.toc {
+      position: static;
+      width: 100%;
+      height: auto;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+    }
+    article {
+      margin-left: 0;
+      padding: 1rem 1rem 3rem 1rem;
+    }
+  }
+
+  /* ===== Print styles ===== */
+  @media print {
+    /* 1. Hide sidebar nav -- not clickable in PDF */
+    nav.toc {
+      display: none !important;
+    }
+
+    /* Reclaim left margin previously reserved for sidebar */
+    article {
+      padding: 0;
+      margin: 0 auto;
+      margin-left: 0;
+      max-width: 100%;
+    }
+
+    /* 2. Page breaks and h2 styling in print */
+    h2 {
+      page-break-before: always;
+      page-break-after: avoid;
+      margin-top: 2rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--border);
+    }
+
+    /* Don't break the very first section onto a new page (follows abstract) */
+    #sec-setting > h2 {
+      page-break-before: auto;
+    }
+
+    /* Let these sections flow from short predecessors to avoid orphan pages */
+    #sec-proof > h2,
+    #sec-hj > h2,
+    #sec-outlook > h2,
+    #sec-verification > h2 {
+      page-break-before: auto;
+    }
+
+    /* Part labels start a page and stay with the section heading that follows */
+    .part-label { page-break-before: always; page-break-after: avoid; }
+    .part-label + section > h2 { page-break-before: auto; }
+    .part-label.first { page-break-before: auto; }
+
+    /* Prevent ugly mid-element breaks */
+    .algorithm,
+    .equation-block,
+    table,
+    figure,
+    blockquote,
+    .definition,
+    .insight {
+      page-break-inside: avoid;
+    }
+
+    /* Keep headings with content that follows */
+    h3, h4 {
+      page-break-after: avoid;
+    }
+
+    /* Avoid orphan lines: at least 3 lines before/after a break */
+    p, li {
+      orphans: 3;
+      widows: 3;
+    }
+
+    /* 3. Flowchart SVG: fit on one page */
+    #sec-hj figure svg {
+      max-height: 800px;
+      width: auto;
+      max-width: 100%;
+    }
+
+    /* 4. Multi-line code blocks: tighter in print */
+    pre {
+      font-size: 0.72rem;
+      line-height: 1.4;
+      padding: 0.5rem 0.7rem;
+      page-break-inside: avoid;
+    }
+
+    /* 5. Margin notes: render inline, not in the margin (clipped in PDF) */
+    .margin-note {
+      float: none;
+      clear: none;
+      width: 100%;
+      margin: 0.6rem 0 0.6rem 1.5rem;
+      padding: 0.5rem 0.8rem;
+      border-left: 3px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      background: var(--accent-light);
+    }
+
+    /* Print with light background */
+    body {
+      background: #ffffff;
+      color: var(--text);
+      font-size: 11pt;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+  }
+
+  /* Additions */
+  .references li:target { background: var(--insight-bg); }
+  td .katex-display { margin: 0.2em 0 !important; }
+  /* an untagged display inside running text scrolls in its own box, so a long one cannot widen the page */
+  p .katex-display:not(:has(.tag)), li .katex-display:not(:has(.tag)) {
+    overflow-x: auto !important; overflow-y: hidden !important; position: relative; }
+  figure svg { display: block; margin: 0 auto; }
+  .algorithm .katex-display { margin: 0.4em 0 !important; }
+  .definition .katex-display, .algorithm .katex-display, .insight .katex-display, td .katex-display {
+    overflow-x: auto !important; overflow-y: hidden !important; }
+  td { overflow-wrap: anywhere; }
+  @media (max-width: 800px) { table { display: block; overflow-x: auto; } }
+  .part-label {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin: 3rem 0 0.5rem 0; padding-top: 0.6rem; border-top: 3px solid var(--accent-light);
+  }
+  nav.toc .toc-part {
+    margin: 0.9rem 0 0.3rem 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--heading);
+  }
+  tr.group th { background: var(--accent-light); color: var(--accent); font-size: 0.82rem;
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 800px) {
+    /* narrow screens: long displays scroll inside their own box, and tags follow the formula instead of overlapping it */
+    .katex-display { overflow-x: auto !important; overflow-y: hidden !important; }
+    .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
+    /* scrolling boxes must contain KaTeX's absolutely positioned MathML, or it widens the page */
+    table, .equation-block, .katex-display { position: relative; }
+  }
+  nav.toc ol ol { padding-left: 0.7rem; }
+  table.ver td:nth-child(2) { width: 27%; }
+  table.ver td:nth-child(3) { width: 20%; }
+  td code { overflow-wrap: normal; }
+  @media (max-width: 800px) {
+    td, th { overflow-wrap: break-word; hyphens: auto; }
+  }
+
+/* reader-features:css */
+  /* Reader features (tools/html_features.py): dark mode, equation links, collapsible contents */
+  :root { --accent: #2563eb; --fig-ink: #1e293b; --fig-muted: #64748b; --fig-faint: #e2e8f0; --fig-bg: #ffffff; --highlight: #fef3c7; --fig-mix: 100%; --fig-keep: 100%; }
+  :root[data-theme="dark"] { --bg: #0f172a; --bg-secondary: #1e293b; --text: #e2e8f0; --text-secondary: #94a3b8; --heading: #f1f5f9; --accent: #818cf8; --accent-light: #1e2446; --accent-dim: #1e2446; --border: #334155; --code-bg: #1e293b; --code-text: #e2e8f0; --table-header-bg: #1e293b; --row-stripe: #131d33; --sidebar-bg: #131d33; --definition-bg: #0d2b2c; --definition-border: #2dd4bf; --definition-strong: #5eead4; --insight-bg: #2b2410; --insight-border: #fbbf24; --insight-strong: #fcd34d; --blockquote-bg: #1e293b; --danger: #f87171; --fig-ink: #e2e8f0; --fig-muted: #94a3b8; --fig-faint: #334155; --fig-bg: #0f172a; --highlight: #3b3417; --fig-mix: 65%; --fig-keep: 0%; color-scheme: dark; }
+  :root[data-theme="dark"] .algorithm { box-shadow: 0 0 0 1px var(--border); }
+  :root[data-theme="dark"] img { opacity: 0.92; }
+  figure svg { color: var(--fig-ink); }
+  figure svg:not([fill]) { fill: var(--fig-ink); }
+  .reader-controls { position: fixed; top: 0.6rem; right: 0.7rem; z-index: 120; display: flex; gap: 0.4rem; }
+  .reader-controls button, .toc-toggle {
+    font: inherit; font-size: 1.05rem; line-height: 1; min-width: 2.4rem; min-height: 2.4rem; padding: 0.35rem;
+    color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px;
+    cursor: pointer; }
+  .reader-controls button:focus-visible, .toc-toggle:focus-visible, nav.toc a:focus-visible, a.eqref:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px; }
+  .toc-toggle { position: fixed; top: 0.6rem; left: 0.7rem; z-index: 130; display: none; }
+  html.js .toc-toggle { display: inline-block; }
+  html.js nav.toc { padding-top: 3.4rem; }
+  html.js.toc-collapsed nav.toc { display: none; }
+  html.js.toc-collapsed article { margin-left: auto; margin-right: auto; }
+  nav.toc a.current { color: var(--accent); font-weight: 700; }
+  .toc-backdrop { display: none; }
+  a.eqref { white-space: nowrap; }
+  .eq-anchor { display: block; position: relative; height: 0; scroll-margin-top: 4.5rem; }
+  [id] { scroll-margin-top: 4rem; }
+  .eq-anchor:target + .katex-display, .eq-anchor:target + p .katex-display, .equation-block:target {
+    animation: eq-flash 2.4s ease-out; border-radius: 6px; }
+  @keyframes eq-flash { 0%, 30% { background: var(--highlight); } 100% { background: transparent; } }
+  .eq-back { position: fixed; bottom: 1rem; right: 1rem; z-index: 120; padding: 0.5rem 0.8rem; font-size: 0.9rem;
+    color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); cursor: pointer; }
+  .eq-back[hidden] { display: none; }
+  @media (max-width: 800px) {
+    html.js nav.toc { position: fixed; top: 0; left: 0; bottom: 0; width: min(85vw, 320px); height: 100%;
+      transform: translateX(-105%); transition: transform 0.25s ease; border-right: 1px solid var(--border);
+      border-bottom: none; z-index: 125; visibility: hidden; }
+    html.js.toc-open nav.toc { transform: none; visibility: visible; }
+    html.js.toc-collapsed nav.toc { display: block; }
+    html.js .toc-backdrop { position: fixed; inset: 0; z-index: 124; background: rgba(2, 6, 23, 0.55); }
+    html.js.toc-open .toc-backdrop { display: block; }
+    html.js article { padding-top: 3.4rem; }
+    /* nothing wider than the screen: long formulas, tables and code scroll in their own box */
+    .katex-display, .equation-block, table, pre { max-width: 100% !important; overflow-x: auto !important;
+      overflow-y: hidden !important; position: relative; }
+    table { display: block; }
+    .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
+    /* a numbered formula scrolls inside its display and its number stays on screen, on the line below it */
+    .katex-display:has(.tag) { overflow: visible !important; padding-bottom: 1.6em; }
+    .katex-display:has(.tag) > .katex { overflow-x: auto; overflow-y: hidden; }
+    .katex-display:has(.tag) > .katex > .katex-html { position: static !important; }
+    .katex-display:has(.tag) > .katex > .katex-html > .tag { position: absolute !important; right: 0; bottom: 0;
+      padding-left: 0 !important; }
+    .katex-display:has(.tag) > .katex > .katex-html > .tag > .strut { display: none; }   /* only the number's height */
+    .katex .katex-mathml { position: absolute; clip: rect(1px, 1px, 1px, 1px); width: 1px; height: 1px; overflow: hidden; }
+    img, svg, video { max-width: 100%; height: auto; }
+  }
+  .nb { white-space: nowrap; }      /* a number in a table cell never breaks across lines (the body script) */
+  /* the body script marks a numbered formula too wide for its number beside it: the number goes on the line below,
+     and a table that no longer fits its column scrolls in its own box instead of widening the page */
+  .katex-display.tag-below { position: relative !important; overflow: visible !important; padding-bottom: 1.6em; }
+  .katex-display.tag-below > .katex { overflow-x: auto; overflow-y: hidden; }
+  .katex-display.tag-below > .katex > .katex-html { position: static !important; }
+  .katex-display.tag-below > .katex > .katex-html > .tag { position: absolute !important; right: 0; bottom: 0;
+    padding-left: 0 !important; }
+  .katex-display.tag-below > .katex > .katex-html > .tag > .strut { display: none; }
+  table.tbl-scroll { display: block; overflow-x: auto; }
+  figure.fig-scroll { overflow-x: auto; overflow-y: hidden; }   /* labels kept at 9 px or more: the figure scrolls */
+  /* a scrolling box must contain KaTeX's absolutely positioned MathML, or the hidden copy widens the page */
+  table.tbl-scroll, figure.fig-scroll { position: relative; }
+  @media (max-width: 380px) { html { font-size: 15px; } }   /* long inline formulas still fit a 360 px phone */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    html.js nav.toc { transition: none; }
+    .eq-anchor:target + .katex-display, .eq-anchor:target + p .katex-display, .equation-block:target {
+      animation: none; background: var(--highlight); }
+  }
+  @media print {
+    :root, :root[data-theme="dark"] { --bg: #ffffff; --bg-secondary: #f7f8fa; --text: #1e293b; --text-secondary: #64748b; --heading: #0f172a; --accent: #2563eb; --accent-light: #eff6ff; --accent-dim: #eff6ff; --border: #e2e8f0; --code-bg: #f1f5f9; --code-text: #0f172a; --table-header-bg: #f1f5f9; --row-stripe: #f8fafc; --sidebar-bg: #f8fafc; --definition-bg: #f0fdf4; --definition-border: #22c55e; --definition-strong: #15803d; --insight-bg: #fffbeb; --insight-border: #f59e0b; --insight-strong: #b45309; --blockquote-bg: #f8fafc; --danger: #b91c1c; --fig-ink: #1e293b; --fig-muted: #64748b; --fig-faint: #e2e8f0; --fig-bg: #ffffff; --highlight: #fef3c7; --fig-mix: 100%; --fig-keep: 100%; color-scheme: light; }
+    .reader-controls, .toc-toggle, .toc-backdrop, .eq-back { display: none !important; }
+  }
+  nav.toc .katex { color: inherit; font-size: 1em; }
+  /* equation preview (the body script): pointing at an equation reference, or reaching it with the keyboard, shows a
+     copy of that equation in a card next to the link; on touch screens a tap still jumps to the equation */
+  .eq-tip { position: absolute; top: 0; left: 0; z-index: 140; box-sizing: border-box; max-width: calc(100vw - 16px);
+    padding: 0.4rem 0.9rem 0.55rem; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 6px 22px rgba(15, 23, 42, 0.16); line-height: 1.4; }
+  .eq-tip[hidden] { display: none; }
+  :root[data-theme="dark"] .eq-tip { background: var(--bg-secondary); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5); }
+  .eq-tip-head { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; }
+  .eq-tip-body { overflow-x: auto; overflow-y: hidden; }
+  .eq-tip .katex-display { margin: 0.25em 0 0 !important; padding: 0 !important; overflow: visible !important; }
+  .eq-tip .katex-display > .katex { max-width: none; text-align: left; }   /* the card is as wide as the formula */
+  @media print { .eq-tip { display: none !important; } }
+/* /reader-features:css */
+</style>
+
+<!-- reader-features:head -->
+<script>
+/* Theme before first paint (no flash): the stored choice, else the system setting; light without JavaScript. */
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('ra-theme'); } catch (e) {}
+  if (t !== 'dark' && t !== 'light') {
+    t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.classList.add('js');
+  try { if (localStorage.getItem('ra-toc') === 'collapsed' && window.innerWidth > 800) {
+    document.documentElement.classList.add('toc-collapsed'); } } catch (e) {}
+})();
+</script>
+<!-- /reader-features:head -->
+</head>

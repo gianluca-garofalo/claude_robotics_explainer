@@ -1,0 +1,236 @@
+<header>
+  <h1>From the Remaining Action to the Forces on a Task</h1>
+  <div class="subtitle">A variational-mechanics view of receding-window stabilization and hierarchical passivity-based whole-body control:<br>
+    Lagrangians, momenta, Gauss&rsquo;s principle and the multipliers of tasks</div>
+  <div class="date">November 2026</div>
+</header>
+
+<!-- ================================================================== -->
+<!-- ABSTRACT -->
+<!-- ================================================================== -->
+<div class="abstract" id="abstract">
+  <strong>Abstract.</strong>
+  Model predictive control (MPC) stabilizes a system by repeatedly solving a finite-time optimal control
+  problem and applying only its first move; the classical stability argument uses the optimal value function
+  as a Lyapunov function, made to decrease by a terminal equality constraint
+  (<a href="#ref-keerthi1988">Keerthi &amp; Gilbert, 1988</a>) or, as here, by a <em>terminal cost</em> and a
+  <em>terminal set</em> (<a href="#ref-chen1998">Chen &amp; Allg&ouml;wer, 1998</a>; <a href="#ref-mayne2000">Mayne et al., 2000</a>).
+  Whole-body control shares one torque vector among prioritized tasks, one instant at a time. This document
+  reads both in the language of analytical mechanics. It builds the receding-window results from one starting point, Bellman&rsquo;s
+  principle of optimality; the whole-body results add Gauss&rsquo;s principle, with tasks as constraints, and a block factorization. The stage cost becomes a <strong>Lagrangian</strong> and the value function the
+  &ldquo;remaining action&rdquo; (<strong>Hamilton&rsquo;s principal function</strong> plus the boundary term). For a window of
+  $N$ steps the principle of optimality is a monotone recursion, so a boundary term that passes a one-step test makes the
+  remaining action fall, by at least the action just spent, for <em>every</em> window length. Letting the step shrink
+  turns the recursion into the <strong>Hamilton&ndash;Jacobi equation</strong>, its minimization into a Legendre transform
+  whose variable is the <strong>momentum</strong> $p=-\nabla V$, and the one-step test into the
+  <strong>Hamilton&ndash;Jacobi inequality</strong> $H(q,-\nabla W)\ge0$; its characteristics are Hamilton&rsquo;s equations.
+  Discretizing again shows, with numbers, that exactness of one step is a fixed-point property of the pair of discrete
+  Lagrangian and boundary term: the continuous-time Riccati boundary term makes one step exact with the
+  <em>exact</em> discrete Lagrangian (<a href="#ref-marsden2001">Marsden &amp; West, 2001</a>) and also with the midpoint
+  rule, but not with the rectangle rule, which needs its own discrete-Riccati boundary term.
+  For mechanical plants the <strong>Lagrange multipliers</strong> carry the physics. The multipliers of the
+  equations of motion are the <strong>momenta</strong> (Ostrogradsky&rsquo;s momenta, the defect multipliers of
+  multiple shooting); with Gauss&rsquo;s weight the infinitesimal-window torque is the velocity momentum per unit
+  time; and a task imposed as a constraint in <strong>Gauss&rsquo;s principle</strong> has the operational-space
+  <strong>force</strong> as its multiplier (<a href="#ref-bruyninckx2000">Bruyninckx &amp; Khatib, 2000</a>).
+  Three distinctions recur. <em>Argmin versus certificate</em>: a two-link arm whose infinitesimal-window rule, for a
+  cost on the gravity-compensated torque $u=\tau-g$, is PD control with gravity compensation, but whose classical
+  Slotine&ndash;Li gain matching fails the certificate, and the mechanical energy, which certifies only damping, show that
+  a certificate belongs to the pair of Lagrangian and boundary term. <em>Impressed versus constraint forces</em>:
+  passivity-based control with natural inertia versus operational-space control. <em>Invariant versus attributed</em>:
+  the window length leaves the certificate unchanged and, for a given torque, the priority order leaves the total task
+  power unchanged, while the split of the remaining action between window and tail, and of the power among priority
+  levels, depends on the choice. For hierarchies, one block factorization of the stacked mobility, a Gram&ndash;Schmidt
+  process in the $M^{-1}$ metric, yields the dynamically consistent extended Jacobians, the decoupled inertias and the
+  dictionary $F=\Theta^\top\lambda$ between decoupled task forces and stacked multipliers, with consequences for energy
+  tanks at active-set switches.
+  <em>Inequalities</em> (speed and torque limits, terminal regions, joint limits; contacts in outline) keep this structure
+  for each active set, or contact mode without frictional sliding, and a feasible stack: multipliers acquire signs and active sets switch. Frictional sliding, impacts and
+  friction-cone switching are not treated, and infeasible hierarchies only in outline (Section&nbsp;SEC(sec-soft)). An active
+  terminal constraint acts as an inflated boundary term; the sign of a unilateral multiplier survives neither a change of
+  basis nor a pairing with velocity; and an activation anywhere in a hierarchy, in the constraint view, re-attributes forces and power at and below
+  its level while the torque and the total power are unchanged, whereas with prescribed (impressed) forces both jump in
+  general unless the forces are re-mapped through $F=\Theta^\top\lambda$ at the switch. Every number in the document is printed by a script; Section&nbsp;SEC(sec-verification)
+  lists them and says which are run by hand.
+</div>
+
+<div class="part-label first">Part I &middot; Receding windows as mechanics</div>
+
+<!-- ================================================================== -->
+<!-- SETTING -->
+<!-- ================================================================== -->
+<section id="sec-setting">
+<h2>SECNUM Setting and Road Map</h2>
+
+<h3 id="sec-idea">SECNUM The idea in one picture</h3>
+
+<p>
+  A receding-window scheme looks ahead over a window of $N$ steps, finds the cheapest admissible path
+  that ends inside a small <strong>terminal region</strong> $\Omega$ around the rest point, pays a
+  <strong>boundary term</strong> $W$ for wherever that path ends, and then follows only the
+  <em>first</em> segment. At the next instant it does the same again from the new point
+  (Fig.&nbsp;1).
+</p>
+
+<figure>
+FIGSVG(1)
+<figcaption>Figure 1. One cycle of the scheme. Solid: the extremal path computed at step $k$, which must end in
+  $\Omega$ and pays the boundary term $W$ there. Only its first segment (thick) is followed. Dashed: the
+  path recomputed at step $k+1$, whose window has slid one step forward. Diagram drawn by hand; it carries no
+  computed data.</figcaption>
+</figure>
+
+<p>
+  The first question this document answers is <em>why this converges</em>. The answer will be that the
+  <strong>remaining action</strong>, the least action still to be paid from the current point, can only
+  go down, and by at least the action of the step just taken, so that it is a Lyapunov function. The argument needs a
+  single principle, and every quantity it produces on the way (momentum, Legendre transform, Hamilton&ndash;Jacobi
+  equation) has a name in analytical mechanics. The second question is what the same quantities say about
+  <em>whole-body control</em>, where one torque vector has to serve several tasks at once. There the Lagrange
+  multipliers of the tasks will turn out to be the forces acting on them, and the priority order of a hierarchy a
+  choice of basis for those forces.
+</p>
+
+<h3 id="sec-problem">SECNUM The variational problem</h3>
+
+<p>
+  Part&nbsp;I is written for a <strong>first-order</strong> (&ldquo;kinematic&rdquo;) plant, in which the velocity is the
+  decision variable:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(plant1)" aria-hidden="true"></span>$$
+\dot q=v,\qquad v\in\mathcal V(q),\qquad q\in\mathbb R^n .
+\tag{EQDEF(plant1)}
+$$
+</div>
+
+<p>
+  The set of admissible velocities $\mathcal V(q)$ is closed; it encodes unilateral constraints such as a speed limit, and
+  it is all of $\mathbb R^n$ when there are none. This keeps the mechanics visible with the least notation. A robot is a
+  second-order plant, in which the decision variable is a torque that sets an acceleration; Part&nbsp;II redoes the
+  construction for that case.
+</p>
+
+<p>
+  A path is scored by its <strong>action</strong>: the integral of a <strong>variational Lagrangian</strong> $L(q,v)$
+  plus a <strong>boundary term</strong> $W$ paid where the path ends, which must be inside the <strong>terminal
+  region</strong> $\Omega$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(action)" aria-hidden="true"></span>$$
+S=\int_t^{t_f}L\big(q,\dot q\big)\,dt'+W\big(q(t_f)\big),\qquad q(t_f)\in\Omega .
+\tag{EQDEF(action)}
+$$
+</div>
+
+<p>
+  In MPC terms $L$ is the stage cost, $S$ the cost over the horizon, $W$ the terminal cost and $\Omega$ the terminal set.
+  The variational Lagrangian is a cost we <em>choose</em>; it is not the Lagrangian of the plant, and the two will be kept
+  apart throughout. A function $\alpha\colon[0,\infty)\to[0,\infty)$ is of <strong>class $\mathcal K$</strong> if it is
+  continuous, strictly increasing and $\alpha(0)=0$; it is of <strong>class $\mathcal K_\infty$</strong> if, in addition,
+  $\alpha(\rho)\to\infty$ as $\rho\to\infty$. These are the comparison functions of Lyapunov theory
+  (<a href="#ref-rawlings2017">Rawlings et al., 2017</a>, App.&nbsp;B). The standing assumptions are:
+</p>
+
+<div class="definition">
+  <strong>Standing assumptions.</strong>
+  <ul>
+    <li>$L(0,0)=0$, $L(q,v)\ge\alpha_L(|q|)$ with $\alpha_L\in\mathcal K_\infty$; $L$ is continuously differentiable, strictly convex in $v$ and <strong>superlinear</strong> in $v$: $L(q,v)/|v|\to\infty$ as $|v|\to\infty$, uniformly for $q$ in compact sets (superlinearity is not needed where $\mathcal V(q)$ is compact);</li>
+    <li>$W$ is continuous, $W\ge0$ and $W(0)=0$; wherever $\nabla W$ is used (from Section&nbsp;SEC(sec-infinitesimal) on), $W$ is continuously differentiable on a neighbourhood of $\Omega$;</li>
+    <li>$\Omega$ is closed and contains a neighbourhood of the rest point $q=0$.</li>
+  </ul>
+</div>
+
+<p>
+  <strong>Running example.</strong> The <strong>quadratic Lagrangian</strong>
+  $L=\tfrac12q^\top Qq+\tfrac12v^\top Rv$, $Q,R\succ0$, meets these assumptions, and its scalar case
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(example)" aria-hidden="true"></span>$$
+L=\tfrac12m v^2+\tfrac12\kappa \,q^2,\qquad m,\kappa &gt;0,\qquad \omega=\sqrt{\kappa /m},
+\tag{EQDEF(example)}
+$$
+</div>
+
+<p>
+  (that is, $Q=\kappa$, $R=m$) is the simplest one. It penalizes speed and distance from the rest point. Every result
+  of Part&nbsp;I will be computed on it as soon as it is derived.
+</p>
+
+<h3 id="sec-steps">SECNUM Steps of a digital controller</h3>
+
+<p>
+  A digital controller works in steps of length $h$. Over one step the action is replaced by a <strong>discrete
+  Lagrangian</strong> $L_d(q,q')$, the cost of moving from $q$ to $q'$ in one step
+  (<a href="#ref-marsden2001">Marsden &amp; West, 2001</a>): a function of the two endpoints, finite on admissible pairs
+  (those that a velocity in $\mathcal V$ can join) and $+\infty$ otherwise. The simplest choice evaluates $L$ once per
+  step, the <strong>rectangle rule</strong>:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(rect)" aria-hidden="true"></span>$$
+L_d(q,q')=h\,L\Big(q,\frac{q'-q}{h}\Big),\qquad\text{for the example}\quad L_d=\frac{m}{2h}(q'-q)^2+\frac h2\,\kappa q^2 .
+\tag{EQDEF(rect)}
+$$
+</div>
+
+<p>
+  Section&nbsp;SEC(sec-ld) will single out a distinguished choice, the <em>exact</em> discrete Lagrangian, which needs the
+  solution of the continuous problem; nothing before it depends on which $L_d$ is used. Positivity carries over to steps:
+  we assume $L_d(q,q')\ge\alpha_L(|q|)$ on admissible pairs, with a class-$\mathcal K_\infty$ function again written
+  $\alpha_L$ (for EQ(rect) it is $h$ times the one of $L$).
+</p>
+
+<h3 id="sec-roadmap">SECNUM Road map and reading guide</h3>
+
+<p>
+  Part&nbsp;I derives everything from Bellman&rsquo;s principle of optimality. Applied to a window of steps it gives a
+  recursion (Section&nbsp;SEC(sec-core)), whose monotonicity yields descent of the remaining action for every window length
+  (Section&nbsp;SEC(sec-proof)). Letting the step shrink turns the recursion into the Hamilton&ndash;Jacobi equation and the
+  descent condition into a pointwise certificate (Section&nbsp;SEC(sec-hj)); solving the equation along paths gives Hamilton&rsquo;s
+  equations and the worked example of a hilltop (Section&nbsp;SEC(sec-extremals)). Going back to steps answers when one step is
+  exact (Section&nbsp;SEC(sec-discrete)), and inequalities are added last (Section&nbsp;SEC(sec-ineq1)). Part&nbsp;II repeats the
+  construction for mechanical plants, where it needs Lagrange multipliers, identifies them as momenta and, through
+  Gauss&rsquo;s principle, as forces on tasks, and works it out on a two-link arm. Part&nbsp;III treats several tasks at once:
+  a priority hierarchy turns out to be a change of basis for the task forces, with consequences for inequality tasks,
+  power and energy tanks. Part&nbsp;IV collects the recurring threads and the verification.
+</p>
+
+<p>
+  Readers coming from control can use this translation of the terms used in Sections&nbsp;SEC(sec-setting)&ndash;SEC(sec-proof);
+  the remaining ones (costate, Hamilton&ndash;Jacobi&ndash;Bellman equation, Riccati equation) are introduced with their
+  derivations and collected in Section&nbsp;SEC(sec-syn-dict). Appendix&nbsp;A collects the principal symbols and those of the worked examples that later sections reuse.
+</p>
+
+<table>
+  <tr><th>MPC / optimal-control term</th><th>Term used here</th></tr>
+  <tr><td>Model predictive control, receding horizon</td><td>Finite-window variational scheme, re-solved from the current point</td></tr>
+  <tr><td>Stage cost</td><td>Variational Lagrangian $L(q,v)$ (and $\ell(z,u)$ once dynamics are attached, Part&nbsp;II)</td></tr>
+  <tr><td>Total cost over the horizon</td><td>Action $S$</td></tr>
+  <tr><td>Terminal cost $V_f$</td><td>Boundary (Bolza) term $W$</td></tr>
+  <tr><td>Terminal constraint set $\mathbb{X}_f$</td><td>Terminal region $\Omega$</td></tr>
+  <tr><td>Terminal control law (written $\kappa_f$ in MPC texts)</td><td>Reference flow $\varphi_f$</td></tr>
+  <tr><td>Optimal value function $V_N^0$</td><td>Remaining action $V_N$</td></tr>
+  <tr><td>Recursive feasibility</td><td>&ldquo;The path can always be extended admissibly&rdquo;</td></tr>
+</table>
+
+<p>
+  A reader interested mainly in whole-body control can read Sections&nbsp;SEC(sec-setting)&ndash;SEC(sec-hj) as the minimum
+  background (Section&nbsp;SEC(sec-asymptotic) can be skipped; the assumption A3 cited in Section&nbsp;SEC(sec-so-setting) is the positivity
+  assumption of Section&nbsp;SEC(sec-steps)), then Sections&nbsp;SEC(sec-characteristics), SEC(sec-so-setting)&ndash;SEC(sec-so-augmented),
+  SEC(sec-so-manipulator) and SEC(sec-so-discrete) (in Section&nbsp;SEC(sec-so-discrete) the comparisons with
+  Sections&nbsp;SEC(sec-discrete), SEC(sec-kkt) and SEC(sec-so-example) can be skipped), and continue with
+  Sections&nbsp;SEC(sec-gauss), SEC(sec-impressed) and SEC(sec-hierarchy)&ndash;SEC(sec-synthesis). Results of the skipped
+  sections that are used there can be taken on trust: the finite-window Riccati equation of Section&nbsp;SEC(sec-scalar) and
+  its closed-form solution (cited in Sections&nbsp;SEC(sec-so-augmented) and SEC(sec-mpc-limit)), the fixed-point
+  property of Section&nbsp;SEC(sec-exactness) and the example of Sections&nbsp;SEC(sec-numeric) and SEC(sec-split) (used in
+  Section&nbsp;SEC(sec-parallel)), and the arm of Section&nbsp;SEC(sec-robot) (used in Sections&nbsp;SEC(sec-covectors),
+  SEC(sec-forces), SEC(sec-mpc-limit) and SEC(sec-parallel)). Section&nbsp;SEC(sec-synthesis) also collects results of the
+  skipped sections, each with the section that derives it. A reader interested in receding-horizon stability can stop
+  after Section&nbsp;SEC(sec-equilibria). Inequalities are treated in Sections&nbsp;SEC(sec-ineq1), SEC(sec-so-discrete),
+  SEC(sec-unilateral), SEC(sec-robot-limits), SEC(sec-ineq-hier), SEC(sec-ineq-power) and SEC(sec-outlook).
+</p>
+</section>

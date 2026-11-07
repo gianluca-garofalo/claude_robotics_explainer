@@ -1,0 +1,38 @@
+<svg viewBox="0 0 680 260" role="img" aria-label="Receding window: a predicted path over N steps ending in the terminal region, only the first step applied, then the window shifts" style="width:100%;max-width:680px;height:auto;font-family:inherit">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))"/>
+    </marker>
+  </defs>
+  <!-- terminal band -->
+  <rect x="40" y="168" width="620" height="52" fill="#f0fdf4" stroke="#22c55e" stroke-dasharray="4 3" style="fill: color-mix(in srgb, #f0fdf4 var(--fig-keep), #14341e); stroke: color-mix(in srgb, #22c55e var(--fig-mix), #ffffff)"/>
+  <text x="648" y="186" text-anchor="end" font-size="13" fill="#15803d" style="fill: color-mix(in srgb, #15803d var(--fig-mix), #ffffff)">terminal region &#937;</text>
+  <line x1="40" y1="194" x2="660" y2="194" stroke="#94a3b8" stroke-width="0.8" stroke-dasharray="2 3" style="stroke: color-mix(in srgb, #94a3b8 var(--fig-keep), var(--fig-muted))"/>
+  <text x="36" y="198" text-anchor="end" font-size="12" fill="#64748b" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))">0</text>
+  <!-- axes -->
+  <line x1="40" y1="236" x2="665" y2="236" stroke="#64748b" marker-end="url(#arr)" style="stroke: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))"/>
+  <line x1="40" y1="236" x2="40" y2="18" stroke="#64748b" marker-end="url(#arr)" style="stroke: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))"/>
+  <text x="660" y="253" text-anchor="end" font-size="13" fill="#64748b" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))">step</text>
+  <text x="48" y="24" font-size="13" fill="#64748b" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))">q</text>
+  <!-- window k+1 (dashed) -->
+  <polyline points="130,86 190,121 250,148 310,166 370,178 430,185 490,189" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-dasharray="6 4" style="stroke: color-mix(in srgb, #f59e0b var(--fig-mix), #ffffff)"/>
+  <!-- window k -->
+  <polyline points="70,40 130,86 190,124 250,152 310,171 370,182 430,188" fill="none" stroke="#3b82f6" stroke-width="1.8" style="stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+  <line x1="70" y1="40" x2="130" y2="86" stroke="#1d4ed8" stroke-width="5" stroke-linecap="round" style="stroke: color-mix(in srgb, #1d4ed8 var(--fig-mix), #ffffff)"/>
+  <g fill="#3b82f6" style="fill: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)">
+    <circle cx="70" cy="40" r="5"/><circle cx="130" cy="86" r="4"/><circle cx="190" cy="124" r="4"/>
+    <circle cx="250" cy="152" r="4"/><circle cx="310" cy="171" r="4"/><circle cx="370" cy="182" r="4"/>
+  </g>
+  <circle cx="430" cy="188" r="6" fill="#fff" stroke="#3b82f6" stroke-width="2.5" style="fill: color-mix(in srgb, #fff var(--fig-keep), var(--fig-bg)); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+  <circle cx="490" cy="189" r="5" fill="#fff" stroke="#f59e0b" stroke-width="2.2" style="fill: color-mix(in srgb, #fff var(--fig-keep), var(--fig-bg)); stroke: color-mix(in srgb, #f59e0b var(--fig-mix), #ffffff)"/>
+  <!-- labels -->
+  <text x="80" y="34" font-size="13" fill="#0f172a" style="fill: color-mix(in srgb, #0f172a var(--fig-keep), var(--fig-ink))">q (current point)</text>
+  <text x="104" y="54" font-size="12" fill="#1d4ed8" transform="rotate(37 104 54)" style="fill: color-mix(in srgb, #1d4ed8 var(--fig-mix), #ffffff)">applied</text>
+  <text x="200" y="104" font-size="12.5" fill="#3b82f6" style="fill: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)">window at step k (N = 6)</text>
+  <text x="290" y="128" font-size="12.5" fill="#b45309" style="fill: color-mix(in srgb, #b45309 var(--fig-mix), #ffffff)">window at step k+1</text>
+  <text x="436" y="158" font-size="12.5" fill="#0f172a" style="fill: color-mix(in srgb, #0f172a var(--fig-keep), var(--fig-ink))">q<tspan baseline-shift="sub" font-size="9">N</tspan> &#8712; &#937;, pay W(q<tspan baseline-shift="sub" font-size="9">N</tspan>)</text>
+  <!-- step ticks -->
+  <g font-size="11" fill="#64748b" text-anchor="middle" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))">
+    <text x="70" y="250">k</text><text x="130" y="250">k+1</text><text x="430" y="250">k+N</text><text x="490" y="250">k+N+1</text>
+  </g>
+</svg>

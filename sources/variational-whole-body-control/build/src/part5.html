@@ -1,0 +1,415 @@
+
+<!-- ================================================================== -->
+<!-- GAUSS -->
+<!-- ================================================================== -->
+<section id="sec-gauss">
+<h2>SECNUM Gauss&rsquo;s Principle: Multipliers Are Forces</h2>
+
+<p>
+  Section&nbsp;SEC(sec-second-order) ended with a torque set by a momentum. This section shows that the infinitesimal-window
+  rule with Gauss&rsquo;s weight is Gauss&rsquo;s principle of least constraint, and that a task imposed as a constraint in it
+  has a force as its multiplier. This is where whole-body control enters.
+</p>
+
+<h3 id="sec-gauss-free">SECNUM Gauss&rsquo;s principle as the infinitesimal-window rule</h3>
+
+<p>
+  Gauss&rsquo;s principle of least constraint says that, among all accelerations compatible with the
+  constraints, a mechanical system realizes the one closest to its <em>free</em> acceleration, measured in the
+  kinetic-energy metric (<a href="#ref-udwadia1996">Udwadia &amp; Kalaba, 1996</a>):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(gauss)" aria-hidden="true"></span>$$
+\begin{gathered}
+\ddot q=\arg\min_{\ddot q}\ \tfrac12\,(\ddot q-\ddot q_{\rm free})^\top M\,(\ddot q-\ddot q_{\rm free})
+\quad\text{s.t. the constraints},\\
+\ddot q_{\rm free}=M^{-1}(\tau_{\rm imp}-b).
+\end{gathered}
+\tag{EQDEF(gauss)}
+$$
+</div>
+
+<p>
+  The free acceleration is what the <strong>impressed</strong> torque $\tau_{\rm imp}$, a given function of the
+  state (gravity compensation, springs, dampers), would produce on its own. Write the actual acceleration as the
+  free one plus a correction produced by an extra torque, $M{(\ddot q-\ddot q_{\rm free})}=\tau_c$, so that
+  $\tau=\tau_{\rm imp}+\tau_c$. Then the Gauss function is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(gaussfn)" aria-hidden="true"></span>$$
+\tfrac12\,(\ddot q-\ddot q_{\rm free})^\top M\,(\ddot q-\ddot q_{\rm free})=\tfrac12\,\tau_c^\top M^{-1}\tau_c ,
+\tag{EQDEF(gaussfn)}
+$$
+</div>
+
+<p>
+  which is the torque cost of Section&nbsp;SEC(sec-so-manipulator) centred on $\tau_{\rm imp}$, with weight $M^{-1}$. To be
+  added to $\dot W$, a power, the cost needs a time constant: $\ell=\tfrac{T_0}2\,\tau_c^\top M^{-1}\tau_c$, i.e. the
+  weight $R=T_0M^{-1}$, which we call <strong>Gauss&rsquo;s weight</strong>. So Gauss&rsquo;s principle <em>is</em> a one-step
+  variational rule: over an infinitesimal step, choose the correction torque of least Gauss effort that achieves
+  what is required. What is required can be said in two ways.
+</p>
+
+<ul>
+  <li><strong>By a boundary term.</strong> Minimizing $\tfrac{T_0}2\tau_c^\top M^{-1}\tau_c+\dot W$ over $\tau_c$ gives, by
+    EQ(manip) with $R=T_0M^{-1}$,
+    <span class="eq-anchor" id="eq-EQDEF(gausstorque)" aria-hidden="true"></span>$$\tau_c=\frac{\pi_v}{T_0},\qquad \pi_v=-\nabla_vW:\tag{EQDEF(gausstorque)}$$
+    the inertia cancels, and the correction torque is the velocity momentum of $W$ per unit time. The multiplier of
+    the dynamics is the force, up to $T_0$.</li>
+  <li><strong>By a constraint.</strong> Prescribe what a task must do; then the multiplier of the task is the force
+    (Section&nbsp;SEC(sec-gauss-task)).</li>
+</ul>
+
+<p>
+  <strong>In discrete time.</strong> Identity&nbsp;EQ(gausstorque) is exact in continuous time. In a multiple-shooting
+  transcription with the stage cost $h\tfrac{T_0}2\tau_j^\top M^{-1}\tau_j$, the stationarity condition of EQ(mskkt) reads
+  $hT_0M^{-1}\tau_j=\partial_\tau\Phi_h^\top\pi_{j+1}$, with $\pi_{j+1}=-\nabla V_{N-j-1}(z_{j+1})$, so, written with the
+  momenta at the end of the step, the position momentum enters as soon as the torque moves the position within the step:
+</p>
+<ul>
+  <li><strong>Zero-order hold</strong> (exact if $M$ and $b$ are both constant, as for the free mass of the example below; to leading order in $h$ otherwise):
+    $\partial_\tau\Phi_h=\big(\tfrac{h^2}2M^{-1},\,hM^{-1}\big)$, so $T_0\tau_j=\pi_{v,j+1}+\tfrac h2\,\pi_{q,j+1}$. A constant $M$ alone is not enough: it leaves $b=g(q)$, and a change of torque moves $q$ within the step and with it $g$. Differentiating the flow of $\dot q=v$, $\dot v=M^{-1}(\tau-b)$ with respect to the held torque and expanding in $h$ gives in general the position and velocity blocks $\tfrac{h^2}2M^{-1}+O(h^3)$ and $hM^{-1}-\tfrac{h^2}2M^{-1}(\dot M+\partial_vb)M^{-1}+O(h^3)$, with $M$, $\dot M$ and $\partial_vb$ at $z_j$, so that
+    $T_0\tau_j=\pi_{v,j+1}+\tfrac h2\big[\pi_{q,j+1}-(\dot M+\partial_vb)^{\!\top}M^{-1}\pi_{v,j+1}\big]+O(h^2)$.
+    For constant $M$ and $b=g(q)$ the bracket is $\pi_{q,j+1}$ and the identity is off only at $O(h^2)$; for a configuration-dependent $M$ in motion, or a damper, the second term of the bracket is of the same order as the first, and the position momentum is not the only $O(h)$ correction.</li>
+  <li><strong>Symplectic Euler</strong>, $v_{j+1}=v_j+hM^{-1}(\tau_j-b)$, $q_{j+1}=q_j+h\,v_{j+1}$, written as an explicit map:
+    $\partial_\tau\Phi_h=\big(h^2M^{-1},\,hM^{-1}\big)$, so $T_0\tau_j=\pi_{v,j+1}+h\,\pi_{q,j+1}$. Transcribed instead with
+    $v_{j+1}$ as a node variable in the position defect, $q_{j+1}-q_j-hv_{j+1}=0$, the torque enters only the velocity
+    defect, and $T_0\tau_j$ equals that defect&rsquo;s multiplier exactly; the two transcriptions differ by a change of the
+    defect coordinates, under which that multiplier is $\pi_{v,j+1}+h\,\pi_{q,j+1}$.</li>
+</ul>
+<p>
+  The costate recursion EQ(mskkt) carries these end-of-step momenta back to the node where the torque
+  acts. Under symplectic Euler, $\partial v_{j+1}/\partial v_j=I-hM^{-1}b_v$ and $\partial q_{j+1}/\partial v_j=h\,(I-hM^{-1}b_v)$,
+  with $b_v=\partial b/\partial v$ and $M$ evaluated at $z_j$, so the velocity part of EQ(mskkt) and the
+  stationarity condition give, exactly,
+  $$\pi_{v,j}=\big(I-h\,b_v^\top M^{-1}\big)\big(\pi_{v,j+1}+h\,\pi_{q,j+1}\big)-\nabla_v\ell_d
+  =\big(I-h\,b_v^\top M^{-1}\big)\,T_0\tau_j-\nabla_v\ell_d(z_j,\tau_j).$$
+  When neither $b$ nor the stage cost depends on $v$ (for instance Gauss&rsquo;s weight alone and $b=g(q)$, with no Coriolis,
+  centrifugal or damping terms), this is $T_0\tau_j=\pi_{v,j}=-\nabla_vV_{N-j}(z_j)$, exactly, for $j=0,\dots,N-1$; for $j=0$,
+  $\pi_0$ is the multiplier of the initial value (Section&nbsp;SEC(sec-so-discrete)). <strong>The torque is the velocity momentum at the node
+  where it is applied</strong>: the discrete counterpart of $\tau^*=\pi_v/T_0$, EQ(manip) with
+  Gauss&rsquo;s weight. This holds in either transcription, because it involves only the remaining action, which does not depend
+  on how the defects are written; in the implicit one, the velocity-defect multiplier of step $j$ is $\pi_{v,j}$. Coriolis terms,
+  damping or a velocity cost change it by $O(h)$. Under zero-order hold with constant $M$ and $b$,
+  $\partial_z\Phi_h=\begin{pmatrix}I&amp;hI\\0&amp;I\end{pmatrix}$, and with Gauss&rsquo;s weight alone $\nabla_z\ell_d=0$; so
+  EQ(mskkt) gives $\pi_{v,j}=\pi_{v,j+1}+h\,\pi_{q,j+1}$, and the first bullet becomes
+  $T_0\tau_j=\tfrac12(\pi_{v,j}+\pi_{v,j+1})$: the held torque is the mean of the velocity momenta at the two ends of its step.
+</p>
+<p>
+  Take one degree of freedom, a free mass ($b=0$) with $M=2$&nbsp;kg, the boundary term $W=\tfrac12Mv^2+\tfrac12K_eq^2$ with spring
+  $K_e=30$&nbsp;N/m, $T_0=0.1$&nbsp;s and a window of 10&nbsp;ms, starting at rest; since $M$ is constant and $b=0$, both exact
+  identities hold. The end-of-step position-momentum term, $\tfrac h2\pi_{q,1}$ under zero-order hold and $h\pi_{q,1}$ under
+  symplectic Euler, is then 110%, 35.5% and 5.5% of $T_0\tau_0$ under zero-order hold for $(h,N)=(10\ \text{ms},1)$,
+  $(5\ \text{ms},2)$ and $(1\ \text{ms},10)$, and 54% and 10.5% under symplectic Euler for the last two. These numbers measure
+  where the momentum is read, not a part of the torque supplied by the position momentum: the term is the difference
+  $\pi_{v,0}-\pi_{v,1}=h\,\pi_{q,1}$ between the velocity momenta at the two ends of the first step (half of it under
+  zero-order hold), and it is large only because a window started
+  from rest, where $\nabla_vW=0$, produces a first torque of the order of the window length, so the ratio is of order $1/N$.
+  &ldquo;Torque equals velocity momentum&rdquo; is exact in continuous time. In discrete time it is exact at the node where the
+  torque is applied under symplectic Euler, and exact for the mean over the step under zero-order hold, under the conditions
+  just stated; otherwise it holds to $O(h)$.
+</p>
+
+<h3 id="sec-gauss-task">SECNUM A task as a constraint: operational-space control</h3>
+
+<p>
+  The second answer imposes the task acceleration: $J\ddot q=a_x$, where $J=\partial x/\partial q$ is the Jacobian of a task
+  coordinate $x(q)$ and $a_x=\ddot x_{\rm cmd}-\dot J\dot q$, with $\ddot x_{\rm cmd}$ a commanded task acceleration (for
+  instance a PD law plus feedforward): since $\dot x=J\dot q$ gives $\ddot x=J\ddot q+\dot J\dot q$, the constraint says
+  $\ddot x=\ddot x_{\rm cmd}$. With multiplier $\lambda$ for this constraint, the KKT conditions of EQ(gauss) are
+  $M(\ddot q-\ddot q_{\rm free})=J^\top\lambda$ and $J\ddot q=a_x$. Eliminating $\ddot q$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(osc)" aria-hidden="true"></span>$$
+\lambda=\Lambda\,\big(a_x-J\ddot q_{\rm free}\big),\qquad \tau_c=J^\top\lambda,\qquad \Lambda=(JM^{-1}J^\top)^{-1}.
+\tag{EQDEF(osc)}
+$$
+</div>
+
+<p>
+  This is Khatib&rsquo;s operational-space control (<a href="#ref-khatib1987">Khatib, 1987</a>): $a_x-J\ddot q_{\rm free}$ is the task
+  acceleration that is missing from the free motion, and the <strong>task inertia</strong> $\Lambda$ converts it into the
+  force that supplies it. The value of the Gauss function at the optimum is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(oscvalue)" aria-hidden="true"></span>$$
+\min\ \tfrac12\,\tau_c^\top M^{-1}\tau_c=\tfrac12\,\big(a_x-J\ddot q_{\rm free}\big)^\top\Lambda\,\big(a_x-J\ddot q_{\rm free}\big),
+\tag{EQDEF(oscvalue)}
+$$
+</div>
+
+<p>
+  so $\Lambda$ is the Gauss metric <em>pushed forward</em> to task space (a Schur complement). The connection
+  between Gauss&rsquo;s principle and operational-space control was made explicit by
+  <a href="#ref-bruyninckx2000">Bruyninckx &amp; Khatib (2000)</a>, building on the constrained-motion formulation of
+  <a href="#ref-udwadia1996">Udwadia &amp; Kalaba (1996)</a>; the same family of control laws arises as minimizers of
+  $\tfrac12\tau^\top R\,\tau$ subject to a task constraint, with $R=M^{-1}$ giving the operational-space law
+  (<a href="#ref-udwadia2003">Udwadia, 2003</a>; <a href="#ref-peters2008">Peters et al., 2008</a>).
+</p>
+
+<h3 id="sec-gauss-dual">SECNUM The dual is the task force</h3>
+
+<div class="definition">
+  <strong>Reading.</strong> In the constraint view, the force acting on the task <em>is</em> the Lagrange
+  multiplier of the task constraint: $\lambda$ in EQ(osc) is a generalized force in task coordinates, and its
+  power is $\lambda^\top\dot x$. This is the whole-body counterpart of Section&nbsp;SEC(sec-so-augmented): there the multipliers
+  of the <em>dynamics</em> were momenta; here the multipliers of the <em>tasks</em> are forces. Both are duals, and both
+  are read off a KKT system.
+</div>
+
+<p>
+  <strong>Units make the parallel exact.</strong> In the units of Section&nbsp;SEC(sec-gauss-free), where the stage cost
+  $\tfrac{T_0}2\tau_c^\top M^{-1}\tau_c$ is a power, the task-constrained problem has the multiplier
+  $T_0\lambda=\Lambda\,T_0(a_x-J\ddot q_{\rm free})$: the task inertia times the velocity that the missing acceleration
+  would build up over $T_0$, an impulse. Its torque is $J^\top(T_0\lambda)/T_0$, exactly as the torque of EQ(gausstorque) is
+  $\pi_v/T_0$. Written with a cost in units of power, both multipliers are momenta, and dividing by $T_0$ turns both
+  into forces.
+</p>
+
+<p>
+  <strong>Contacts.</strong> The analogy with contact is exact: a bilateral contact is a task whose acceleration is
+  prescribed so that the contact point does not move ($\ddot x_c=0$, i.e. $a_x=-\dot J_c\dot q$), and its multiplier
+  is the contact force. A unilateral contact turns the equality into a complementarity condition, the subject of the next
+  subsection.
+</p>
+
+<h3 id="sec-unilateral">SECNUM Unilateral constraints: forces that can only push</h3>
+
+<p>
+  A contact that may open, a joint limit or a distance to an obstacle is a unilateral constraint on a task coordinate,
+  $x_i(q)\ge\underline x_i$. On the boundary it is imposed at the acceleration level, $J_{\mathcal I}\ddot q\ge a_{\mathcal I}$
+  (with $\dot J\dot q$ absorbed), next to equality rows $J_{\mathcal E}\ddot q=a_{\mathcal E}$. Gauss&rsquo;s principle
+  EQ(gauss) with such rows has the KKT conditions
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(unikkt)" aria-hidden="true"></span>$$
+M(\ddot q-\ddot q_{\rm free})=J_{\mathcal E}^\top\lambda_{\mathcal E}+J_{\mathcal I}^\top\lambda_{\mathcal I},\qquad
+J_{\mathcal E}\ddot q=a_{\mathcal E},\qquad
+0\le\lambda_{\mathcal I}\ \perp\ J_{\mathcal I}\ddot q-a_{\mathcal I}\ge0 .
+\tag{EQDEF(unikkt)}
+$$
+</div>
+
+<p>
+  The constraint force can only push ($\lambda_{\mathcal I}\ge0$), and only where the bound is reached (the complementarity
+  $\perp$: each component of $\lambda_{\mathcal I}$ or of the margin vanishes). Eliminating $\ddot q$ leaves $\lambda_{\mathcal E}$ and $\lambda_{\mathcal I}$ coupled through the
+  mobility of all rows (the Delassus matrix of contact mechanics), whose blocks are $J_{\mathcal E}M^{-1}J_{\mathcal E}^\top$,
+  $J_{\mathcal I}M^{-1}J_{\mathcal E}^\top$ and $J_{\mathcal I}M^{-1}J_{\mathcal I}^\top$. The equality rows can be eliminated as
+  well. Together with the second, $J_{\mathcal E}\ddot q=a_{\mathcal E}$, the first condition of EQ(unikkt) is the KKT
+  system of Section&nbsp;SEC(sec-gauss-task) for the equality rows, with the free acceleration
+  $\ddot q_{\rm free}+M^{-1}J_{\mathcal I}^\top\lambda_{\mathcal I}$; so, for $J_{\mathcal E}$ of full row rank,
+  EQ(osc) gives
+  $\lambda_{\mathcal E}=\Lambda_{\mathcal E}\big(a_{\mathcal E}-J_{\mathcal E}\ddot q_{\rm free}-J_{\mathcal E}M^{-1}J_{\mathcal I}^\top\lambda_{\mathcal I}\big)$,
+  with $\Lambda_{\mathcal E}=(J_{\mathcal E}M^{-1}J_{\mathcal E}^\top)^{-1}$ the task inertia of the equality rows. What remains is a
+  linear complementarity problem for $\lambda_{\mathcal I}$ alone,
+  $$0\le\lambda_{\mathcal I}\ \perp\ \big(J_{\mathcal I}M^{-1}J_{\mathcal I}^\top-J_{\mathcal I}M^{-1}J_{\mathcal E}^\top\Lambda_{\mathcal E}J_{\mathcal E}M^{-1}J_{\mathcal I}^\top\big)\lambda_{\mathcal I}+J_{\mathcal I}\ddot q_{\mathcal E}-a_{\mathcal I}\ \ge0 ,$$
+  where $\ddot q_{\mathcal E}=\ddot q_{\rm free}+M^{-1}J_{\mathcal E}^\top\Lambda_{\mathcal E}\big(a_{\mathcal E}-J_{\mathcal E}\ddot q_{\rm free}\big)$
+  is Gauss&rsquo;s acceleration with the equality rows alone, so that the offset is the margin at $\lambda_{\mathcal I}=0$. Its
+  matrix is the mobility of the unilateral rows while the equality rows are held: the Schur complement of
+  $J_{\mathcal E}M^{-1}J_{\mathcal E}^\top$ in the mobility of all rows, which is also the pivot of the unilateral rows when the
+  stack $[J_{\mathcal E};J_{\mathcal I}]$ is factored block by block as in Section&nbsp;SEC(sec-ldl). It is positive
+  definite when this stack has full row rank, and the complementarity problem then has a unique solution. It reduces to the
+  unilateral block $J_{\mathcal I}M^{-1}J_{\mathcal I}^\top$ exactly when $J_{\mathcal I}M^{-1}J_{\mathcal E}^\top=0$, in particular
+  when there are no equality rows. Optimality in the convex problem EQ(gauss) can also be written as
+  Fourier&rsquo;s inequality, the unilateral form of d&rsquo;Alembert&rsquo;s principle: the gradient of the Gauss function,
+  $M{(\ddot q-\ddot q_{\rm free})}=\tau_c$, makes a non-negative product with every admissible direction,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(fourier)" aria-hidden="true"></span>$$
+\tau_c^\top\big(\ddot q'-\ddot q\big)\ \ge\ 0\qquad\text{for every admissible acceleration }\ddot q' .
+\tag{EQDEF(fourier)}
+$$
+</div>
+
+<p>
+  In a fixed-seed example ($n=7$, a two-row equality task, three unilateral rows) two rows end up active with
+  $\lambda=1.770$ and $1.609$, the third is inactive with $\lambda=0$ and a margin of $0.375$, and EQ(fourier) holds on
+  1407 sampled admissible accelerations.
+</p>
+
+<div class="definition">
+  <strong>At which level is a unilateral force workless?</strong> Complementarity can be written at three levels, and only one
+  of them speaks about power.
+  <ul>
+    <li><strong>Position</strong> (Signorini): gap $x_c\ge0$, force $f_n\ge0$, $f_nx_c=0$. The force acts only at contact.</li>
+    <li><strong>Velocity</strong> (Moreau): on a closed contact, $\dot x_c\ge0$, $f_n\ge0$, $f_n\dot x_c=0$. The power
+      $f_n\dot x_c$ vanishes identically; at an impact the velocity jumps and, with Moreau&rsquo;s impact law and restitution
+      coefficients up to one, energy is lost, not gained (<a href="#ref-moreau1988">Moreau, 1988</a>; <a href="#ref-brogliato2016">Brogliato, 2016</a>).</li>
+    <li><strong>Acceleration</strong> (Gauss, EQ(unikkt)): the complementarity pairs force with <em>acceleration</em>. A
+      contact force is workless here only because $\dot x_c=0$ on a persistent contact.</li>
+  </ul>
+  For an inequality task whose acceleration bound $a_i(x_i,\dot x_i)$ is a feedback law, nothing ties $\dot x_i$ to zero while
+  the row is active, and $\lambda_i\ge0$ does not make $\lambda_i\dot x_i\le0$. In the example above, at a velocity for which one
+  active row stays on its bound ($\dot x=0$) and the other recedes from it ($\dot x=0.5$), the powers are $0$ and $+0.805$:
+  the second force pushes in the allowed direction and injects energy. The power is non-positive only if a row can be
+  active solely while its coordinate does not recede ($\dot x_i\le0$ whenever $\lambda_i&gt;0$).
+</div>
+
+<p>
+  <strong>Passivity.</strong> Contacts with complementarity at the velocity level are passive constraints: no work while
+  smooth, dissipation at impacts. Feedback-defined inequality tasks are not passive by construction; their power belongs in
+  the energy bookkeeping like that of any task (Section&nbsp;SEC(sec-ineq-power)). A sign on a force is not a sign on its power.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- IMPRESSED VS CONSTRAINT -->
+<!-- ================================================================== -->
+<section id="sec-impressed">
+<h2>SECNUM Impressed versus Constraint Forces</h2>
+
+<p>
+  Section&nbsp;SEC(sec-gauss) gave two ways to say what a task requires: through a boundary term
+  (Section&nbsp;SEC(sec-gauss-free)) and through a constraint (Section&nbsp;SEC(sec-gauss-task)). This section compares them as
+  impressed and constraint forces, and asks what certifies each.
+</p>
+
+<h3 id="sec-two-ways">SECNUM Two ways to act on a task</h3>
+
+<p>
+  Analytical mechanics distinguishes <strong>impressed forces</strong>, which are given functions of the state,
+  from <strong>constraint forces</strong>, which take whatever value the constraint requires. A controller can
+  play either role; in the notation of Section&nbsp;SEC(sec-gauss-free), it acts through $\tau_{\rm imp}$ or through $\tau_c$.
+</p>
+
+<ul>
+  <li><strong>Constraint (Section&nbsp;SEC(sec-gauss-task)).</strong> Impose $J\ddot q=a_x$. The controller supplies whatever
+    force $\lambda$ that takes. The closed-loop task dynamics are $\ddot x=\ddot x_{\rm cmd}$: the task behaves as a unit mass, i.e.
+    the controller <em>shapes</em> the inertia. An unmeasured external force $J^\top F_{\rm ext}$, which the controller does
+    not see in $\ddot q_{\rm free}$, still acts through the natural inertia: the plant obeys
+    $M(\ddot q-\ddot q_{\rm free})=J^\top(\lambda+F_{\rm ext})$ with $\lambda$ from EQ(osc), so
+    $J\ddot q=a_x+\Lambda^{-1}F_{\rm ext}$, i.e. $\Lambda(\ddot x-\ddot x_{\rm cmd})=F_{\rm ext}$, and shaping the apparent inertia against $F_{\rm ext}$ requires force feedback. A
+    unilateral version of the constraint supplies a force of one sign only (Section&nbsp;SEC(sec-unilateral)).</li>
+  <li><strong>Impressed.</strong> Apply a task force $F(x,\dot x)$, for example $F=-K_{P,x}\tilde x-K_{D,x}\dot x$ with
+    $\tilde x=x-x_d$ the error from a constant task target $x_d$, as an additional torque $J^\top F$ inside
+    $\tau_{\rm imp}$. Gauss&rsquo;s principle with no task constraint returns the free motion under that torque, and the task
+    acceleration changes, relative to its value without $F$, by
+    <span class="eq-anchor" id="eq-EQDEF(impressed)" aria-hidden="true"></span>$$\Delta\ddot x=JM^{-1}J^\top F=\Lambda^{-1}F .\tag{EQDEF(impressed)}$$
+    The task responds with its <strong>natural inertia</strong> $\Lambda$: in the absence of other effects,
+    $\Lambda\ddot x+K_{D,x}\dot x+K_{P,x}\tilde x=F_{\rm ext}$, an impedance with the robot&rsquo;s own inertia.</li>
+</ul>
+
+<p>
+  Passivity-based (impedance) control with preserved natural inertia, the family studied by
+  <a href="#ref-ott2008">Ott (2008)</a>, <a href="#ref-ott2015">Ott et al. (2015)</a>, <a href="#ref-dietrich2020">Dietrich &amp; Ott (2020)</a>
+  and <a href="#ref-garofalo2020">Garofalo &amp; Ott (2020)</a>, is the impressed-force view. Operational-space control is
+  the constraint view. The two coincide in what they achieve (convergence of the task), but they assign different
+  forces to the task and inject different power, which is what matters for interaction and passivity.
+</p>
+
+<h3 id="sec-certificate">SECNUM Argmin or certificate?</h3>
+
+<p>
+  Which of the two is optimal in the sense of the infinitesimal-window rule, and what certifies it? Take the rule with an
+  energy-type boundary term, the kinetic energy plus a designed (&ldquo;shaped&rdquo;) potential $U_s$ in place of the
+  gravitational one. Differentiating along $M\ddot q+C\dot q+g=\tau$,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(energyW)" aria-hidden="true"></span>$$
+W=\tfrac12\,v^\top M v+U_s(q)\qquad\Longrightarrow\qquad
+\dot W=\dot q^\top\big(\tau-g+\nabla U_s\big),
+\tag{EQDEF(energyW)}
+$$
+</div>
+
+<p>
+  where the term $\tfrac12\dot q^\top(\dot M-2C)\dot q$ vanished because $\dot M-2C$ is skew-symmetric for the
+  Christoffel-symbol choice of $C$: the Coriolis and centrifugal forces do no work on the kinetic energy
+  (<a href="#ref-spong2006">Spong et al., 2006</a>). The torque enters $\dot W$ only through the power $\dot q^\top\tau$, and
+  the velocity momentum of this $W$ is $\pi_v=-\nabla_vW=-Mv$, minus the mechanical momentum. Now take a stage
+  cost <em>centred</em> on an impressed torque $\tau_{\rm imp}(q)$,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(centred)" aria-hidden="true"></span>$$
+\ell=\tfrac12\,(\tau-\tau_{\rm imp})^\top R\,(\tau-\tau_{\rm imp})+\ell_0(q,v),
+\qquad
+\tau^\ast=\arg\min_\tau\big[\ell+\dot W\big]=\tau_{\rm imp}-R^{-1}\dot q ,
+\tag{EQDEF(centred)}
+$$
+</div>
+
+<p>
+  the minimizer following from the gradient $R(\tau-\tau_{\rm imp})+\dot q=0$. With $\tau_{\rm imp}=g-\nabla U_s$ (gravity
+  compensation plus the shaped potential, e.g. $\nabla U_s=J^\top K_{P,x}\tilde x$), EQ(centred) is the passivity-based law
+  $\tau=g-J^\top K_{P,x}\tilde x-K_D\dot q$ with $K_D=R^{-1}$. With Gauss&rsquo;s weight $R=T_0M^{-1}$ the correction is
+  $\tau_c=-M\dot q/T_0=\pi_v/T_0$, which is EQ(gausstorque): damping proportional to the mechanical momentum, $K_D=M/T_0$.
+  Substituting $\tau^\ast$ gives the descent defect of Section&nbsp;SEC(sec-so-hj),
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(defectE)" aria-hidden="true"></span>$$
+\mathcal D=\min_\tau\big[\ell+\dot W\big]=\ell_0(q,v)-\tfrac12\,v^\top K_D\,v\ \le\ 0
+\quad\Longleftrightarrow\quad \ell_0\le\tfrac12\,v^\top K_D\,v .
+\tag{EQDEF(defectE)}
+$$
+</div>
+
+<div class="definition">
+  <strong>Argmin versus certificate.</strong> Both laws minimize a one-step problem; they differ in what
+  certifies them.
+  <ul>
+    <li>The <strong>operational-space law</strong> minimizes the Gauss cost, centred on the <em>free</em> motion,
+      subject to the task as a hard constraint (Section&nbsp;SEC(sec-gauss-task)). No boundary term enters; its stability is
+      that of the imposed task dynamics $\ddot x=\ddot x_{\rm cmd}$.</li>
+    <li>The <strong>passivity-based law with natural inertia</strong> minimizes the cost EQ(centred), centred on the
+      <em>shaped</em> impressed torque, plus $\dot W$ for the energy-type $W$ of EQ(energyW), and the minimum value
+      EQ(defectE) is the certificate EQ(cert2). The minimization contributes only the damping $-R^{-1}\dot q$;
+      stiffness and gravity compensation enter through $\tau_{\rm imp}$, which must match the $U_s$ in $W$.</li>
+  </ul>
+  Gauss&rsquo;s weight, which makes the damping proportional to the inertia, is one modelling choice, not a requirement.
+</div>
+
+<h3 id="sec-strict">SECNUM Why energy alone certifies only damping</h3>
+
+<p>
+  Condition&nbsp;EQ(defectE) requires $\ell_0(q,0)\le0$: a non-negative $\ell_0$ must vanish at rest, so it cannot
+  penalize the task error $\tilde x$ there, because $\dot W$ in EQ(energyW) contains no term that is negative when
+  $v=0$ and $\tilde x\neq0$. This is the precise sense in which the mechanical energy is a <em>weak</em> Lyapunov
+  function:
+</p>
+
+<ul>
+  <li>the infinitesimal-window rule with an energy-type $W$ produces <strong>pure damping</strong> around the impressed torque;
+    any stiffness has to be placed in $\tau_{\rm imp}$ by hand;</li>
+  <li>convergence of $\tilde x$ then follows from LaSalle&rsquo;s invariance principle, not from EQ(cert2) with a
+    positive-definite $\ell$;</li>
+  <li>a <em>strict</em> certificate needs cross terms between position and velocity in $W$, as in the
+    composite variable $s=\dot e+\Gamma e$ of <a href="#ref-slotine1987">Slotine &amp; Li (1987)</a>, worked out in
+    Section&nbsp;SEC(sec-robot).</li>
+</ul>
+
+<div class="insight">
+  <strong>Take-away.</strong> &ldquo;Optimal torque = momentum&rdquo; EQ(gausstorque) is true, but with an
+  energy-type $W$ the momentum $-\nabla_vW=-Mv$ carries no position information. Position feedback
+  enters either through an impressed torque on which the designer centres the cost, or through a $W$ with cross terms.
+  Natural-inertia controllers take the first route; Section&nbsp;SEC(sec-robot) takes the second.
+</div>
+
+<h3 id="sec-plant-energy">SECNUM The plant&rsquo;s energy as the boundary term</h3>
+
+<p>
+  There is published precedent for taking a plant energy as $W$. <a href="#ref-kawai2005">Kawai et al. (2005)</a> apply
+  receding-horizon control to a two-link direct-drive manipulator with an energy function as the terminal cost (our
+  boundary term $W$) instead of a terminal constraint (our region $\Omega$). The energy serves as a control Lyapunov
+  function, chosen by considering inverse optimality, and the paper reports experiments on the arm. Terminal
+  costs without terminal constraints are the setting of <a href="#ref-jadbabaie2001">Jadbabaie et al. (2001)</a>. Two
+  cautions apply when reusing the idea on another plant:
+</p>
+<ul>
+  <li><strong>The Lagrangian must match $W$.</strong> If the Lagrangian is <em>constructed</em> from the energy
+    (inverse optimality), descent holds by design. Choosing $\ell$ independently and then reusing the energy as
+    $W$ does not guarantee descent: check EQ(terminal), or its continuous form EQ(cert2), for your $\ell$.
+    Section&nbsp;SEC(sec-certificate) showed one way the match fails (a position penalty against a weak $W$);
+    Section&nbsp;SEC(sec-robot-condition) shows another (the Slotine&ndash;Li spring).</li>
+  <li><strong>One paper is evidence of a workable construction, not a general theorem.</strong> Any specific
+    plant still needs its own check.</li>
+</ul>
+</section>

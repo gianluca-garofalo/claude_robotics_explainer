@@ -1,0 +1,794 @@
+
+<!-- ================================================================== -->
+<!-- INEQUALITIES, PART I -->
+<!-- ================================================================== -->
+<section id="sec-ineq1">
+<h2>SECNUM Inequalities: Reactions, Saturation and the Exact Boundary Term</h2>
+
+<p>
+  Speed limits, torque limits and the terminal region are inequalities. Sections&nbsp;SEC(sec-core)&ndash;SEC(sec-hj) already
+  allowed them (admissible pairs, the set $\mathcal V(q)$, the region $\Omega$); this section says what they change.
+  Multipliers acquire signs and enter the momenta as reactions, the rule saturates, and the exact boundary term changes.
+</p>
+
+<h3 id="sec-kkt">SECNUM One step with active constraints</h3>
+
+<p>
+  Write the admissibility of the step and the terminal region as inequalities $\chi_i(q,q')\le0$ on the free next point
+  $q'$. If the gradients of the active ones are linearly independent, the minimizer $q^+$ of the one-step problem
+  EQ(onestep) satisfies the KKT conditions
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(kkt)" aria-hidden="true"></span>$$
+\begin{gathered}
+\partial_2L_d(q,q^+)+\nabla W(q^+)+\sum_i\mu_i\nabla_{q'}\chi_i(q,q^+)=0,\\
+\mu_i\ge0,\qquad \chi_i(q,q^+)\le0,\qquad \mu_i\,\chi_i(q,q^+)=0,
+\end{gathered}
+\tag{EQDEF(kkt)}
+$$
+</div>
+
+<p>
+  the explicit form of the inclusion $0\in\partial_2L_d(q,q^+)+\nabla W(q^+)+\mathcal N_{\mathcal C}(q^+)$, with
+  $\mathcal N_{\mathcal C}$ the normal cone of the feasible set $\mathcal C$ of next points (for a longer window, $W$ is replaced
+  by $V_{N-1}$). Without active constraints EQ(kkt) is EQ(dstationarity). By EQ(dlegendre) the arrival momentum becomes
+  $p^+=-\nabla W(q^+)-\sum_i\mu_i\nabla_{q'}\chi_i(q,q^+)$: minus the gradient of the boundary term, corrected by the reactions of the
+  active constraints. Two cases recur below.
+</p>
+
+<ul>
+  <li><strong>A bound on the step.</strong> Take the rectangle rule of Section&nbsp;SEC(sec-numeric),
+    $L_d=\tfrac1{2h}(q'-q)^2+\tfrac h2q^2$, with $W=\tfrac12q^2$ and $h=0.1$, and add the speed limit $q-q'\le h\bar v$ with
+    $\bar v=0.5$. From $q=1$ the unconstrained minimizer solves $(q^+-q)/h+q^+=0$, i.e. $q^+=1/(1+h)=0.909$, which
+    violates the bound; so the bound is active, $q^+=0.95$, and EQ(kkt) with $\nabla_{q'}\chi=-1$ gives
+    $\mu=(q^+-q)/h+q^+=0.45$. The arrival momentum is $p^+=(q^+-q)/h=-0.50$ instead of $-W'(q^+)=-0.95$.</li>
+  <li><strong>The terminal region as a sublevel set</strong>, $W(q')\le\bar W$. Its gradient is $\nabla W$ itself, so
+    $p^+=-(1+\mu)\nabla W(q^+)$: an active terminal constraint acts like a locally inflated boundary term $(1+\mu)W$, a
+    scaled boundary term $cW$ with $c=1+\mu$ chosen by the optimizer (compare the inflation of
+    Section&nbsp;SEC(sec-exactness)). Section&nbsp;SEC(sec-robot-limits) measures $\mu$ on the arm.</li>
+</ul>
+
+<h3 id="sec-constrained-v">SECNUM Constrained velocities in the infinitesimal rule</h3>
+
+<p>
+  If the admissible velocities form a closed convex set $\mathcal V(q)$, Sections&nbsp;SEC(sec-hjderiv)&ndash;SEC(sec-allwindows)
+  hold as written, with the constrained Hamiltonian $H_{\mathcal V}$ of EQ(legendre):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ruleV)" aria-hidden="true"></span>$$
+v^*(q)=\arg\min_{v\in\mathcal V(q)}\big[L+\nabla W\cdot v\big],\qquad
+\min_{v\in\mathcal V(q)}\big[L+\dot W\big]\le0\ \Longleftrightarrow\ H_{\mathcal V}\big(q,-\nabla W\big)\ge0 ,
+\tag{EQDEF(ruleV)}
+$$
+</div>
+
+<p>
+  and EQ(wdot) holds with $H_{\mathcal V}$. Three things change.
+</p>
+
+<ul>
+  <li><strong>The argmin is a projection.</strong> For $L$ quadratic in $v$ with weight $R$,
+    $L+\nabla W\cdot v=\tfrac12(v-v_u)^\top R\,(v-v_u)+\text{const}$ with $v_u$ the unconstrained minimizer, so $v^*$ is the
+    $R$-metric projection of $v_u$ onto $\mathcal V(q)$. For a box and a diagonal $R$ this is componentwise clipping, a
+    saturated law; for a non-diagonal $R$ it is not (Section&nbsp;SEC(sec-robot-limits)).</li>
+  <li><strong>The Legendre map saturates.</strong> Where the constraint is active, $v^*$ sits on the boundary of
+    $\mathcal V(q)$ and no longer follows the momentum. There the problem behaves like the singular case of
+    Section&nbsp;SEC(sec-momentum); an interior, momentum-determined velocity survives only where the constraint is inactive.</li>
+  <li><strong>The certificate becomes stronger.</strong> Since $H_{\mathcal V}\le H$, condition EQ(ruleV) implies
+    EQ(cert) but not conversely: a boundary term that certifies the unconstrained rule can fail once the constraint binds.
+    Constraints shrink the certified region; they add no new mechanism.</li>
+</ul>
+
+<h3 id="sec-speedlimit">SECNUM Worked example: the hilltop with a speed limit</h3>
+
+<p>
+  The fixed-point statement of Section&nbsp;SEC(sec-exactness) needs care with an active constraint. With $W$ equal to the
+  remaining action of the <em>constrained</em> problem, the principle of optimality still gives $V_1=W$. The Riccati weight
+  equals it only where the unconstrained optimal path stays admissible; elsewhere it under-estimates the tail, exactly like
+  $c&lt;1$, and the certificate fails even when the rule&rsquo;s argmin is optimal. The hilltop shows this in closed form. Add
+  the bound $|v|\le\bar v$ to the example EQ(example), so $\mathcal V=[-\bar v,\bar v]$, and write $q_s=\bar v/\omega$. The
+  supremum in EQ(legendre) is attained at $v=p/m$ if that is admissible and at $v=\bar v\,\mathrm{sign}(p)$ otherwise, so the
+  constrained Hamiltonian is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(Hconstr)" aria-hidden="true"></span>$$
+H_{\mathcal V}(q,p)=\begin{cases}\dfrac{p^2}{2m}-\tfrac12\kappa q^2, &amp; |p|\le m\bar v,\\[6pt]
+\bar v\,|p|-\tfrac12m\bar v^2-\tfrac12\kappa q^2, &amp; |p|&gt;m\bar v.\end{cases}
+\tag{EQDEF(Hconstr)}
+$$
+</div>
+
+<ol>
+  <li><strong>The rule saturates.</strong> With $W=V$ of EQ(hilltopV) the infinitesimal-window rule EQ(ruleV) is
+    $v^*=\mathrm{clip}(-\omega q,\,-\bar v,\,\bar v)$: the unconstrained law, clipped.</li>
+  <li><strong>The unconstrained remaining action no longer certifies it.</strong> With $p=-V'=-\sqrt{m\kappa}\,q$, the
+    condition $|p|\le m\bar v$ is $|q|\le q_s$. For $|q|\le q_s$ nothing changes, $H_{\mathcal V}(q,-V')=0$. For $|q|&gt;q_s$,
+    $H_{\mathcal V}(q,-V')=-\tfrac12{\big(\sqrt\kappa\,|q|-\sqrt m\,\bar v\big)^2}&lt;0$: condition EQ(ruleV) fails, although the
+    state converges. With $m=\kappa=1$ and $\bar v=0.5$, at $q=1$ the value is $-0.125$.</li>
+  <li><strong>The constrained remaining action does certify it.</strong> Solving $H_{\mathcal V}(q,-V')=0$ on the saturated
+    branch outside $q_s$ gives $V'(q)=\big(\tfrac12m\bar v^2+\tfrac12\kappa q^2\big)/\bar v$ there, hence
+    <span class="eq-anchor" id="eq-EQDEF(VV)" aria-hidden="true"></span>$$V_{\mathcal V}(q)=\begin{cases}\tfrac12\sqrt{m\kappa}\,q^2, &amp; |q|\le q_s,\\[2pt]
+    \tfrac12\sqrt{m\kappa}\,q_s^2+\tfrac12m\bar v\,(|q|-q_s)+\dfrac{\kappa\,(|q|^3-q_s^3)}{6\bar v}, &amp; |q|&gt;q_s.\end{cases}\tag{EQDEF(VV)}$$
+    It is $C^2$ at $q_s$ (both one-sided second derivatives equal $\sqrt{m\kappa}$) but not $C^3$, and it exceeds $V$ outside
+    $q_s$: $V_{\mathcal V}(1)=0.5417$ against $V(1)=0.5$. Its own rule is again the clipped law, which is therefore optimal:
+    integrating $L$ along the clipped law from $q=1$ gives $0.5417$.</li>
+</ol>
+
+<div class="insight">
+  <strong>The controller was optimal all along; only the boundary term was wrong.</strong> The clipped law is the exact
+  infinite-window optimum, yet the unconstrained remaining action does not certify it wherever the speed limit binds,
+  because it under-estimates the tail there, like $W=cV_\infty$ with $c&lt;1$ in Section&nbsp;SEC(sec-stationary). An active
+  constraint changes which boundary term is exact. In general the constrained remaining action is only piecewise smooth,
+  and the Hamilton&ndash;Jacobi equation has to be read in a generalized (viscosity) sense
+  (<a href="#ref-liberzon2012">Liberzon, 2012</a>, &sect;5.3); here it holds classically.
+</div>
+
+<div class="definition">
+  <strong>What Part&nbsp;I has established</strong>, from the principle of optimality alone.
+  <ol>
+    <li>With a boundary term that passes the one-step test EQ(terminal), the remaining action is a Lyapunov function of the
+      receding window for every window length, EQ(descent).</li>
+    <li>In the continuous limit the test is the Hamilton&ndash;Jacobi inequality EQ(cert) on the pair $(L,W)$; the
+      infinitesimal window yields a controller (the argmin) and a certificate (the sign of the minimum), and the certificate
+      at $\vartheta=0$ covers every window, EQ(ctsmonotone).</li>
+    <li>Along optimal paths the momentum is $p=-\nabla V$, the paths are the extremals of the action, and the boundary term
+      fixes the arrival momentum, EQ(hamilton).</li>
+    <li>Where the terminal constraint is inactive, one step is exact if and only if $W$ is a fixed point of the Bellman
+      operator of the chosen discrete Lagrangian. With $L_d^E$ that operator is the continuous problem over one step, so
+      $V_\infty$ is a fixed point; for a quadratic Lagrangian the continuous-time Riccati weight is also a fixed point for the
+      midpoint rule (whose step is a Cayley map, not the exact sample of the LQR flow), but not for the rectangle rule, whose
+      fixed point is $\tfrac12q^\top P_dq$ with $P_d\neq P$.</li>
+    <li>Constraints add reactions to the momenta, saturate the rule, strengthen the certificate and change the exact
+      boundary term.</li>
+  </ol>
+</div>
+</section>
+
+<div class="part-label">Part II &middot; Mechanical plants: momenta and forces</div>
+
+<!-- ================================================================== -->
+<!-- SECOND-ORDER PLANTS -->
+<!-- ================================================================== -->
+<section id="sec-second-order">
+<h2>SECNUM Second-Order Plants: Multipliers Are Momenta</h2>
+
+<p>
+  Part&nbsp;I assumed that the velocity is the decision variable. A robot does not work that way: we choose a torque, the
+  torque sets an acceleration, and position and velocity follow. This section redoes the construction of Part&nbsp;I for such
+  Newtonian plants. The recursion and the Hamilton&ndash;Jacobi equation carry over with $q$ replaced by the phase-space point
+  $z=(q,v)$; what needs new work is the momentum. The classical tool for it is a <strong>Lagrange multiplier</strong>
+  attached to every equation of motion, and the multipliers turn out to be the momenta.
+</p>
+
+<h3 id="sec-so-setting">SECNUM Setting, and what carries over</h3>
+
+<p>
+  The <strong>state</strong> is now the pair $z=(q,v)\in\mathbb R^{2n}$, and the decision variable is a
+  <strong>control</strong> $u\in\mathbb R^{n_u}$ that acts on the acceleration. The plant and the action are
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(plant2)" aria-hidden="true"></span>$$
+\dot q=v,\qquad \dot v=f(q,v,u),\qquad
+S=\int_t^{t_f}\ell(q,v,u)\,dt'+W\big(z(t_f)\big).
+\tag{EQDEF(plant2)}
+$$
+</div>
+
+<p>
+  A typical $f$ is the manipulator equation $M(q)\dot v+b(q,v)=\tau$. Here $M(q)$ is the inertia matrix of the kinetic
+  energy $\mathcal T=\tfrac12v^\top M(q)v$, and $b=C(q,v)v+g(q)$ collects the Coriolis, centrifugal and gravity terms, with
+  $g=\nabla U$ the gradient of the potential energy $U(q)$. Taking the gravity-compensated torque $u=\tau-g(q)$ as the
+  control gives $f=M(q)^{-1}\big(u-C(q,v)v\big)$. Along solutions $v=\dot q$; we write $v$ where the velocity is a state
+  variable (in $\ell$, $W$, $f$, $b$ and their gradients) and keep $\dot q$ in equations of motion, powers and control laws.
+  The <strong>stage cost</strong> $\ell$ takes over the role of $L$. The standing assumptions are the analogues of
+  Section&nbsp;SEC(sec-problem): $f(0,0,0)=0$ (the rest point is an equilibrium under zero control, which the gravity
+  compensation in $u$ provides), $\ell(0,0,0)=0$, $\ell\ge\alpha_\ell(|z|)$ with $\alpha_\ell\in\mathcal K_\infty$; $f$ and
+  $\ell$ are continuously differentiable; $f$ is affine in $u$, $f=f_0(q,v)+f_u(q,v)\,u$ (for the manipulator above,
+  $f_0=-M^{-1}Cv$ and $f_u=M^{-1}$); $\ell$ is strictly convex and superlinear in $u$, as $L$ is in $v$ (superlinearity is not
+  needed where the admissible inputs $\mathcal U(z)$ of Section&nbsp;SEC(sec-so-hj) form a compact convex set); and $W$ is as
+  in Section&nbsp;SEC(sec-problem). Then the bracket $\pi_v\cdot f-\ell$ is strictly concave in $u$ and tends to $-\infty$ as
+  $|u|\to\infty$, so the supremum over $u$ in the Hamiltonian of Section&nbsp;SEC(sec-so-hj) is finite and attained at a
+  single $u^*$. The remaining action $V(z)$ is the least value of $S$ from the phase-space point $z$.
+</p>
+
+<p>
+  <strong>What carries over without any work.</strong> Sections&nbsp;SEC(sec-core) and SEC(sec-proof) used only the transition
+  cost $L_d(z,z')$, the least action of an admissible transition from $z$ to $z'$ (infinite if there is none). Replace $q$ by
+  $z$, let $\Omega\subset\mathbb R^{2n}$ be a phase-space region and $\varphi_f$ a reference flow on it (for instance a
+  stabilizing state feedback), and EQ(bellman), EQ(terminal), EQ(descent) and EQ(strictdescent) hold verbatim. Assumption A3
+  now needs $L_d(z,z')\ge\alpha_L(|z|)$, i.e. a stage cost that penalizes position <em>and</em> velocity. If $\ell$ ignores
+  $v$, positivity in $z$ fails and asymptotic stability needs a detectability (LaSalle-type) argument instead;
+  Section&nbsp;SEC(sec-so-example) has an example.
+</p>
+
+<p>
+  <strong>What does not carry over directly is the momentum.</strong> Why not simply treat $z$ as the configuration and
+  $\dot z$ as its velocity, and reuse Section&nbsp;SEC(sec-momentum)? Because half of $\dot z$ is <em>not free</em>. The first
+  block, $\dot q$, is pinned to the state component $v$; only the second block, $\dot v$, can be influenced, and only through
+  $u$. Written as a function of $(z,\dot z)$, the stage cost is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(Lz)" aria-hidden="true"></span>$$
+L_z(z,\dot z)=
+\begin{cases}
+\inf_u\big\{\ell(q,v,u):\ \dot v=f(q,v,u)\big\}, &amp; \dot q=v,\\[2pt]
++\infty, &amp; \dot q\neq v .
+\end{cases}
+\tag{EQDEF(Lz)}
+$$
+</div>
+
+<p>
+  This Lagrangian is finite only on an affine subspace of velocities. It has no derivative with respect to $\dot q$, so the
+  momentum $\partial L/\partial\dot q$ of Section&nbsp;SEC(sec-momentum) is undefined, and the Legendre map cannot be inverted:
+  no momentum can tell the plant to move $q$ at any rate other than $v$. The way out is to let the Hamilton&ndash;Jacobi
+  equation define the momentum, as it did in Part&nbsp;I, and to enforce the dynamics with multipliers.
+</p>
+
+<h3 id="sec-so-hj">SECNUM The Hamilton&ndash;Jacobi equation in phase space</h3>
+
+<p>
+  Repeat the derivation of Section&nbsp;SEC(sec-hjderiv) with $z$ in place of $q$ and the control $u$ held constant over a first
+  step of length $h$. The step costs $h\,\ell(z,u)+O(h^2)$ and, because the velocity changes during it, arrives at
+  $z+h\dot z+O(h^2)$ with $\dot z=(v,f(z,u))$; the same expansion and the limit $h\to0$ give
+  $\partial_\vartheta V_\vartheta=\min_u\big[\ell+\nabla_zV_\vartheta\cdot\dot z\big]$. Write
+  $\pi:=-\nabla_zV$, the momentum EQ(pdef) of this window, now with a position component $\pi_q$ and a velocity component
+  $\pi_v$. The minimum is minus the supremum
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(H2)" aria-hidden="true"></span>$$
+H(z,\pi)=\sup_u\Big[\,\pi_q\cdot v+\pi_v\cdot f(q,v,u)-\ell(q,v,u)\,\Big],
+\tag{EQDEF(H2)}
+$$
+</div>
+
+<p>
+  the <strong>Hamiltonian of a second-order plant</strong>, and the Hamilton&ndash;Jacobi equation reads
+  $\partial_\vartheta V_\vartheta=-H(z,-\nabla_zV_\vartheta)$, exactly as EQ(hj). In Part&nbsp;I the supremum ran over the
+  velocity, which was chosen freely. Here $\dot q=v$ is pinned and only $\dot v=f$ moves, through $u$. So the supremum runs
+  over $u$, the term $\pi_q\cdot v$ sits in $H$ untouched, and $H$ is <strong>linear in $\pi_q$</strong>. It is still the
+  Legendre transform of the degenerate Lagrangian EQ(Lz): in $\sup_{\dot z}[\pi\cdot\dot z-L_z(z,\dot z)]$ the value
+  $+\infty$ forces $\dot q=v$, and the infimum over $u$ inside $L_z$ becomes the supremum over $u$. The transform survives;
+  what is lost is its inverse, since $\partial H/\partial\pi_q=v$ merely restates $\dot q=v$.
+</p>
+
+<p>
+  With $\pi=-\nabla_zW$, the infinitesimal-window rule of Section&nbsp;SEC(sec-infinitesimal) and the rate of change of $W$ along
+  it are
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(rule2)" aria-hidden="true"></span>$$
+\begin{gathered}
+u^*(z)=\arg\max_u\big[\pi_v\cdot f(z,u)-\ell(z,u)\big]_{\pi=-\nabla W},\\
+\dot W=\nabla_zW\cdot\dot z\big|_{u^*}=-\ell(z,u^*)-H\big(z,-\nabla_zW\big),
+\end{gathered}
+\tag{EQDEF(rule2)}
+$$
+</div>
+
+<p>
+  which is EQ(wdot) with $q\to z$. Only $\pi_v$ enters the choice of $u$: the control is set by the sensitivity of $W$ (when
+  $W=V_\infty$, of the remaining action) to <em>velocity</em>, because velocity is what the control acts on. The rest of
+  Section&nbsp;SEC(sec-hj) follows by the same lines:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(cert2)" aria-hidden="true"></span>$$
+\begin{aligned}
+&amp;\text{stability condition:} &amp;&amp; \min_u\big[\ell+\dot W\big]\le0\ \Longleftrightarrow\ H\big(z,-\nabla_z W(z)\big)\ \ge\ 0,\\
+&amp;\text{stationary HJ:} &amp;&amp; H\big(z,-\nabla_zV_\infty\big)=0,\\
+&amp;\text{transversality:} &amp;&amp; \pi(t_f)=-\nabla W\big(z(t_f)\big).
+\end{aligned}
+\tag{EQDEF(cert2)}
+$$
+</div>
+
+<p>
+  The receding-window identity EQ(rhcrate) and the propagation argument of Section&nbsp;SEC(sec-allwindows) carry over
+  verbatim, so the first line certifies every window length. Along an optimal path $\dot V=-\ell$ (Section&nbsp;SEC(sec-characteristics)),
+  and $H=0$ for the infinite window because $H$ is conserved along extremals of an autonomous problem and
+  $H(0,0)=-\inf_u\ell(0,0,u)=0$. The value of the bracket at its minimizer,
+  $\mathcal D(z)=\min_u[\ell+\dot W]=-H(z,-\nabla_zW)$, the <strong>descent defect</strong>, is the form in which the
+  certificate is used from Section&nbsp;SEC(sec-gauss) on: it must be non-positive.
+</p>
+
+<p>
+  With input constraints $u\in\mathcal U(z)$, take the supremum in EQ(H2) over $\mathcal U(z)$ (written $H_{\mathcal U}$, with
+  descent defect $\mathcal D_{\mathcal U}$), as in Section&nbsp;SEC(sec-constrained-v): EQ(rule2) and EQ(cert2) keep their form,
+  and the maximum condition $u^*\in\arg\max_{u\in\mathcal U(z)}[\pi_v\cdot f-\ell]$ is Pontryagin&rsquo;s form of the principle,
+  which needs no differentiability in $u$. State constraints are harder: in continuous time their multipliers are measures,
+  and the momenta can jump where the path meets the constraint (<a href="#ref-hartl1995">Hartl et al., 1995</a>), the
+  optimal-control counterpart of an impact. The discrete version of Section&nbsp;SEC(sec-so-discrete) keeps the bookkeeping
+  elementary.
+</p>
+
+<h3 id="sec-so-augmented">SECNUM The multipliers are the momenta</h3>
+
+<p>
+  Section&nbsp;SEC(sec-characteristics) followed the Hamilton&ndash;Jacobi equation along the optimal path and found
+  Hamilton&rsquo;s equations for $p=-\nabla V$. The same three steps in $z$ (differentiate the equation, use
+  $\dot z=\partial H/\partial\pi$ along the path, cancel the Hessian terms) give, for $\pi:=-\nabla_zV$ along an optimal path,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(hamilton2)" aria-hidden="true"></span>$$
+\dot z=\frac{\partial H}{\partial\pi},\qquad\dot\pi=-\frac{\partial H}{\partial z},\qquad\pi(t_f)=-\nabla_zW\big(z(t_f)\big).
+\tag{EQDEF(hamilton2)}
+$$
+</div>
+
+<p>
+  By the envelope theorem the derivatives of EQ(H2) are those of its bracket at the maximizing $u^*$, so
+  $\dot z=\partial H/\partial\pi$ is the plant EQ(plant2), and the other equations, written out, are
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(costate)" aria-hidden="true"></span>$$
+\begin{aligned}
+\dot\pi_q&amp;=\nabla_q\ell-f_q^{\top}\pi_v &amp;&amp;(\text{from }-\partial H/\partial q),\\
+\dot\pi_v&amp;=\nabla_v\ell-\pi_q-f_v^{\top}\pi_v &amp;&amp;(\text{from }-\partial H/\partial v),\\
+0&amp;=\nabla_u\ell-f_u^{\top}\pi_v &amp;&amp;(\text{maximizing }u),
+\end{aligned}
+\tag{EQDEF(costate)}
+$$
+</div>
+
+<p>
+  where $f_q,f_v,f_u$ are Jacobians. These are exactly the <strong>costate equations and the stationarity condition of
+  Pontryagin&rsquo;s principle</strong> (<a href="#ref-pontryagin1962">Pontryagin et al., 1962</a>;
+  <a href="#ref-bryson1975">Bryson &amp; Ho, 1975</a>; <a href="#ref-liberzon2012">Liberzon, 2012</a>). For an infinite window,
+  apply the argument to a finite window with $W=V_\infty$ and no terminal constraint: by the principle of optimality its remaining action is $V_\infty$
+  for every length ($c=1$ in EQ(finitewindow)), so $\pi=-\nabla_zV_\infty$ along the finite-action path.
+</p>
+
+<p>
+  The same equations come out of a variational principle once the dynamics are made visible to it. Attach a multiplier to
+  each equation of motion, writing the constraints as &ldquo;velocity minus model&rdquo; so that the signs of Part&nbsp;I survive,
+  and call the multipliers $\pi_q$ and $\pi_v$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(augmented)" aria-hidden="true"></span>$$
+\tilde L(q,v,u,\pi;\dot q,\dot v)=\ell(q,v,u)+\pi_q\cdot(\dot q-v)+\pi_v\cdot\big(\dot v-f(q,v,u)\big).
+\tag{EQDEF(augmented)}
+$$
+</div>
+
+<p>
+  On every path that obeys the plant the two brackets vanish, so $\int\tilde L\,dt=\int\ell\,dt$: nothing has changed except
+  that the dynamics are now visible to the variational calculus. $\tilde L$ depends on the velocities $\dot q,\dot v$ only
+  linearly, through $\pi_q\cdot\dot q+\pi_v\cdot\dot v$, so the <strong>canonical momenta of $\tilde L$ are the multipliers
+  themselves</strong>: $\partial\tilde L/\partial\dot q=\pi_q$, $\partial\tilde L/\partial\dot v=\pi_v$. Treat $q$, $v$, $u$,
+  $\pi_q$, $\pi_v$ as independent functions of time and write the Euler&ndash;Lagrange equation of $\tilde L$ for each: the rate
+  of change of the momentum conjugate to a variable equals the derivative of $\tilde L$ with respect to that variable. For
+  $q$, $\tfrac{d}{dt}\,\partial\tilde L/\partial\dot q=\partial\tilde L/\partial q$ reads $\dot\pi_q=\nabla_q\ell-f_q^\top\pi_v$,
+  the first line of EQ(costate); that is why $\pi$ carries a dot. The variations of $v$ and $u$ give the other two lines (the
+  last is algebraic because $\tilde L$ contains no $\dot u$), and the variations of the multipliers give back the plant. In the
+  variation of the action the derivative arrives by integration by parts,
+  $\int\pi_q\cdot\delta\dot q\,dt=\big[\pi_q\cdot\delta q\big]-\int\dot\pi_q\cdot\delta q\,dt$, and the boundary term, which must
+  cancel $\nabla W\cdot\delta z(t_f)$, gives the transversality condition in EQ(hamilton2). Finally, the Legendre transform of
+  $\tilde L$ is EQ(H2): the $\dot z$ terms cancel in ${\pi\cdot\dot z}-\tilde L={\pi_q\cdot v}+{\pi_v\cdot f}-\ell$, and the
+  supremum over $u$, whose stationarity condition is the third line of EQ(costate), gives EQ(H2).
+</p>
+
+<p>
+  The two derivations meet: <strong>the Lagrange multipliers of the equations of motion, adjoined with this sign, are the
+  momenta $\pi=-\nabla_zV$</strong>. The calculus-of-variations derivation of optimal control introduces the costates in
+  exactly this way, as Lagrange multipliers of the dynamics adjoined to the cost (<a href="#ref-bryson1975">Bryson &amp; Ho,
+  1975</a>).
+</p>
+
+<div class="definition">
+  <strong>Sign convention.</strong> Along an optimal path the multipliers equal minus the gradient of the remaining action,
+  $\pi=(\pi_q,\pi_v)=\bigl(-\nabla_qV,\,-\nabla_vV\bigr)$, the analogue of $p=-\nabla V$ in Part&nbsp;I; Section&nbsp;SEC(sec-so-discrete)
+  derives the same sign from the dynamic-programming recursion. Two conventions are in use, and they differ by this sign:
+  <table>
+    <tr><th>Convention</th><th>Multiplier</th><th>Hamiltonian</th><th>Optimum over $u$</th></tr>
+    <tr><td>This document, as Pontryagin&rsquo;s <em>maximum</em> principle (normal case)</td><td>$\pi=-\nabla_zV$</td><td>$\pi\cdot\dot z-\ell$</td><td>maximized</td></tr>
+    <tr><td><em>Minimum</em> principle (<a href="#ref-bryson1975">Bryson &amp; Ho, 1975</a>; most MPC texts)</td><td>$\eta=\nabla_zV=-\pi$</td><td>$\ell+\eta\cdot\dot z$</td><td>minimized</td></tr>
+  </table>
+  The two are related by $\min_u[\ell+\eta\cdot\dot z]=-H(z,\pi)$, with $H$ the maximized Hamiltonian EQ(H2).
+</div>
+
+<p>
+  Three different objects have now been called &ldquo;Lagrangian&rdquo;. Most confusion about signs and stability comes from
+  mixing them up:
+</p>
+
+<table>
+  <tr><th>Object</th><th>Definition</th><th>Sign property</th></tr>
+  <tr><td><strong>Physical Lagrangian</strong> of the plant</td><td>$L_{\text{phys}}=\mathcal T-U$</td><td>No fixed sign. $\mathcal T-U&gt;0$ everywhere would force $U&lt;0$.</td></tr>
+  <tr><td><strong>Variational Lagrangian</strong> ($L$, or the stage cost $\ell$)</td><td>Integrand of the action being minimized</td><td>Positive definite, by design</td></tr>
+  <tr><td><strong>Augmented Lagrangian</strong> EQ(augmented)</td><td>$\tilde L=\ell+\pi_q\cdot(\dot q-v)+\pi_v\cdot(\dot v-f)$</td><td>A saddle function; no sign meaning</td></tr>
+</table>
+
+<p>
+  The physical Lagrangian describes the robot. The variational Lagrangian describes the path we <em>choose</em> to optimize.
+  They are unrelated unless the designer relates them (Section&nbsp;SEC(sec-shaping)); Section&nbsp;SEC(sec-gauss) meets a hybrid,
+  Gauss&rsquo;s function, a variational Lagrangian on the torque whose weight is borrowed from the plant&rsquo;s kinetic energy.
+</p>
+
+<h3 id="sec-so-ostrogradsky">SECNUM Fully actuated plants: a higher-order Lagrangian and Ostrogradsky&rsquo;s momenta</h3>
+
+<p>
+  When the control can produce any acceleration, i.e. $f_u$ is invertible, the control can be eliminated:
+  $u$ is a function of $(q,\dot q,\ddot q)$. The cleanest case is the <strong>double integrator</strong>
+  $f=u$ (which is also what computed-torque control makes of a manipulator); for a manipulator one
+  substitutes $\tau=M(q)\ddot q+b(q,\dot q)$ instead. The stage cost then becomes a Lagrangian that
+  depends on the <em>acceleration</em>:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ostro)" aria-hidden="true"></span>$$
+\hat\ell(q,\dot q,\ddot q)=\ell(q,\dot q,u)\big|_{u=\ddot q},\qquad
+p_1=\frac{\partial\hat\ell}{\partial\dot q}-\frac{d}{dt}\frac{\partial\hat\ell}{\partial\ddot q},\qquad
+p_2=\frac{\partial\hat\ell}{\partial\ddot q}.
+\tag{EQDEF(ostro)}
+$$
+</div>
+
+<p>
+  Mechanics has had a Hamiltonian theory for such Lagrangians since <a href="#ref-ostrogradsky1850">Ostrogradsky (1850)</a>. Its
+  canonical coordinates are $(q,\dot q)$ and the <strong>Ostrogradsky momenta</strong> $p_1,p_2$ of EQ(ostro).
+  They are not a new construction; they are our multipliers. With $f=u$, EQ(costate) reads
+  $0=\nabla_u\ell-\pi_v$, $\dot\pi_v=\nabla_v\ell-\pi_q$ and $\dot\pi_q=\nabla_q\ell$. The first equation
+  gives $\pi_v=\partial\hat\ell/\partial\ddot q=p_2$; solving the second for $\pi_q$ gives
+  $\pi_q=\partial\hat\ell/\partial\dot q-\tfrac{d}{dt}\partial\hat\ell/\partial\ddot q=p_1$; and the third
+  becomes the <strong>Euler&ndash;Poisson equation</strong> of a second-order Lagrangian
+  (<a href="#ref-gelfand1963">Gelfand &amp; Fomin, 1963</a>):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(eulerpoisson)" aria-hidden="true"></span>$$
+\frac{\partial\hat\ell}{\partial q}-\frac{d}{dt}\frac{\partial\hat\ell}{\partial\dot q}
++\frac{d^2}{dt^2}\frac{\partial\hat\ell}{\partial\ddot q}=0 .
+\tag{EQDEF(eulerpoisson)}
+$$
+</div>
+
+<p>
+  The Ostrogradsky Hamiltonian $p_1\cdot\dot q+p_2\cdot\ddot q-\hat\ell$, with $\ddot q$ eliminated
+  through $p_2=\partial\hat\ell/\partial\ddot q$, is EQ(H2) with $f=u$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ostroH)" aria-hidden="true"></span>$$
+\begin{gathered}
+H(q,v,p_1,p_2)=p_1\cdot v+\sup_a\big[\,p_2\cdot a-\hat\ell(q,v,a)\,\big],\\
+(p_1,p_2)=(\pi_q,\pi_v)=-\nabla_zV\quad\text{on optimal paths}.
+\end{gathered}
+\tag{EQDEF(ostroH)}
+$$
+</div>
+
+<p>
+  So for a fully actuated plant, the momentum structure of Part&nbsp;I holds word for word, with Ostrogradsky&rsquo;s momenta in
+  place of $p=\partial L/\partial v$. The non-degeneracy condition of Ostrogradsky&rsquo;s theory, invertibility of
+  $\partial^2\hat\ell/\partial\ddot q^2$, asks a little more than our strict convexity of $\ell$ in $u$. For $f=u$, and for
+  the manipulator, where the substitution $\tau=M\ddot q+b$ makes $u=\tau-g$ affine in $\ddot q$ with
+  $\partial u/\partial\ddot q=M$, strict convexity makes $p_2=\partial\hat\ell/\partial\ddot q$ one-to-one in $\ddot q$, so
+  $\ddot q$ is eliminated uniquely through $p_2$, as in EQ(ostroH). By the chain rule the Hessian is
+  $\partial^2\ell/\partial u^2$ for $f=u$ and $M\,(\partial^2\ell/\partial u^2)\,M$ for the manipulator; since $\ell$ is
+  convex in $u$, it is invertible exactly where $\partial^2\ell/\partial u^2\succ0$. Positive definiteness of
+  $\partial^2\ell/\partial u^2$ for all $u$ implies strict convexity, but strict convexity does not imply it: with $f=u$,
+  the cost $\ell=\tfrac12|z|^2+\tfrac14|u|^4$ meets every assumption of Section&nbsp;SEC(sec-so-setting), yet
+  $\partial^2\ell/\partial u^2=|u|^2I+2uu^\top$ vanishes at $u=0$, and its Hamiltonian
+  $H=\pi_q\cdot v+\tfrac34|\pi_v|^{4/3}-\tfrac12|z|^2$ is not twice differentiable where $\pi_v=0$. The quadratic costs
+  used here have $\partial^2\ell/\partial u^2\succ0$ ($w_u&gt;0$ for the double integrator of Section&nbsp;SEC(sec-so-example), $R\succ0$ for the manipulator of Section&nbsp;SEC(sec-so-manipulator)), and for a smooth
+  $\ell$ this makes $H$ twice differentiable, as the linearization at the rest point below requires. (Outside the
+  assumptions of Section&nbsp;SEC(sec-so-setting), if $f$ is nonlinear in $u$, the curvature of $f$ enters as well,
+  $\partial^2\hat\ell/\partial\ddot q^2=f_u^{-\top}\,\partial_u^2\big[\ell-p_2\cdot f\big]\,f_u^{-1}$ with $p_2$ held
+  fixed, and $\partial^2\ell/\partial u^2\succ0$ no longer suffices.)
+</p>
+
+<div class="insight">
+  <strong>Is the Ostrogradsky instability a problem here?</strong> Ostrogradsky&rsquo;s theorem says that
+  the Hamiltonian EQ(ostroH) of a non-degenerate higher-derivative Lagrangian is <em>linear</em> in $p_1$, hence
+  unbounded below. In physics, where this $H$ is the conserved energy, there is then no lowest-energy
+  state; in interacting theories this generically lets positive- and negative-energy degrees of freedom
+  grow together without limit (<a href="#ref-woodard2015">Woodard, 2015</a>). Three things are different here, and they should be kept apart:
+  <ul>
+    <li><strong>$H$ is not our Lyapunov candidate.</strong> The Lyapunov function is $V$. It is
+      non-negative because $\ell\ge0$, and $\dot V=-\ell$ by EQ(rule2)&ndash;EQ(cert2); neither fact needs $H$ to be
+      bounded. Boundedness of $H$ would matter only if we wanted to use $H$ itself as an energy.</li>
+    <li><strong>The extremal flow is unstable, but that is not specific to higher order.</strong> The
+      linearized state&ndash;momentum flow at the rest point has its eigenvalues in pairs $\pm\sigma$, so under
+      the usual stabilizability and detectability assumptions exactly half of them lie in the right
+      half-plane. This is already so for the first-order hilltop of Section&nbsp;SEC(sec-scalar), whose $H$ is unbounded
+      below as well. The boundary conditions select the extremal. On an infinite window, finite action selects the
+      stable manifold, on which $H=0$ (Section&nbsp;SEC(sec-so-example)). On a finite window whose endpoint lies in the interior of $\Omega$, transversality
+      $\pi(t_f)=-\nabla W\big(z(t_f)\big)$ puts the window&rsquo;s path on that manifold exactly when
+      $\nabla W=\nabla V_\infty$ at $z(t_f)$, in particular for $W=V_\infty$ (Sections&nbsp;SEC(sec-riccati) and
+      SEC(sec-so-augmented)). Otherwise, $W=0$ included, the path lies off the manifold, and its conserved Hamiltonian keeps
+      the terminal value $H\big(z(t_f),-\nabla W(z(t_f))\big)=-\mathcal D\big(z(t_f)\big)$, which is in general not zero: by
+      EQ(H2) it is $-\inf_u\ell\big(z(t_f),u\big)&lt;0$ for $W=0$, and by EQ(quadH) it is
+      $\tfrac{c^2-1}{2}\,\kappa\,q(t_f)^2$ for the hilltop with $W=cV_\infty$. The receding loop applies only the start of
+      that path and re-solves, so the departure from the manifold is never followed; and when
+      $\nabla_zV_\vartheta\to\nabla_zV_\infty$ as the window lengthens, as for the hilltop by EQ(finitewindow), the start,
+      whose momentum is $-\nabla_zV_\vartheta$, approaches the manifold.</li>
+    <li><strong>Linearity in $p_1$ is the kinematic constraint.</strong> The canonical equation
+      $\dot q=\partial H/\partial p_1=v$ is just $\dot q=v$. What Section&nbsp;SEC(sec-momentum) calls singular, linearity
+      in the decision variable, would be a problem; linearity in a momentum is not.</li>
+  </ul>
+  So the accurate statement is: the closed loop is stable because the remaining action of a
+  positive-definite cost decreases along the selected flow, not because any Hamiltonian is bounded. It is
+  <em>not</em> a claim that the extremal (state&ndash;momentum) dynamics are stable: with eigenvalues in
+  $\pm\sigma$ pairs they are never asymptotically stable.
+</div>
+
+<h3 id="sec-so-example">SECNUM Worked example: the double integrator</h3>
+
+<p>
+  This example checks EQ(cert2), the sign convention $\pi=-\nabla_zV$ and Ostrogradsky&rsquo;s momenta EQ(ostro) on a linear,
+  fully actuated plant with an infinite window. Take a unit mass driven by a force, $\dot q=v$, $\dot v=u$ (scalar), with
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(dint)" aria-hidden="true"></span>$$
+\begin{gathered}
+\ell=\tfrac12\big(w_q\,q^2+w_v\,v^2+w_u\,u^2\big),\quad w_q,w_u&gt;0,\ w_v\ge0,\\
+H(z,\pi)=\pi_q v+\frac{\pi_v^2}{2w_u}-\tfrac12\big(w_qq^2+w_vv^2\big),
+\end{gathered}
+\tag{EQDEF(dint)}
+$$
+</div>
+
+<p>
+  where $H$ follows from EQ(H2): the supremum of $\pi_vu-\tfrac {w_u}2u^2$ is attained at $u^*=\pi_v/w_u$. Note
+  the linearity in $\pi_q$. In matrix form $A=\begin{pmatrix}0&amp;1\\0&amp;0\end{pmatrix}$,
+  $B=\begin{pmatrix}0\\1\end{pmatrix}$, $Q=\mathrm{diag}(w_q,w_v)$, $R=w_u$.
+</p>
+
+<ol>
+  <li><strong>Riccati solution in closed form.</strong> Try $V=\tfrac12z^\top Pz$ for the remaining action of the infinite
+    window. The stationary equation in EQ(cert2) becomes the algebraic Riccati equation
+    $A^\top P+PA-PBR^{-1}B^\top P+Q=0$, which splits into three scalar equations,
+    $P_{12}^2=w_u w_q$, $P_{11}=P_{12}P_{22}/w_u$, $P_{22}^2=w_u(w_v+2P_{12})$, whose positive solution is
+    <div class="equation-block">
+    <span class="eq-anchor" id="eq-EQDEF(dintP)" aria-hidden="true"></span>$$
+    \begin{gathered}
+    P_{12}=\sqrt{w_u w_q},\qquad P_{22}=\sqrt{w_u\big(w_v+2\sqrt{w_u w_q}\big)},\\
+    P_{11}=\sqrt{w_q\big(w_v+2\sqrt{w_u w_q}\big)} .
+    \end{gathered}
+    \tag{EQDEF(dintP)}
+    $$
+    </div></li>
+  <li><strong>Momenta and control.</strong> $\pi=-Pz$, i.e. $\pi_q=-(P_{11}q+P_{12}v)$,
+    $\pi_v=-(P_{12}q+P_{22}v)$, and $u^*=\pi_v/w_u=-w_u^{-1}B^\top Pz$, the LQR law. Only the velocity
+    momentum $\pi_v$ sets the force.</li>
+  <li><strong>Hamilton&ndash;Jacobi.</strong> Substituting $\pi=-Pz$ into EQ(dint) gives $H(z,-\nabla V)\equiv0$,
+    and $\dot V=z^\top P(A-BK)z=-\ell(z,u^*)$ with $K=w_u^{-1}B^\top P$ (both identities hold symbolically
+    for all $w_q,w_v,w_u$).</li>
+  <li><strong>The Hamiltonian matrix.</strong> Hamilton&rsquo;s equations EQ(hamilton2) of EQ(dint) are linear,
+    $\tfrac{d}{dt}(z,\pi)=\Xi\,(z,\pi)$ with
+    <div class="equation-block">
+    <span class="eq-anchor" id="eq-EQDEF(dintXi)" aria-hidden="true"></span>$$
+    \Xi=\begin{pmatrix}A&amp;BR^{-1}B^\top\\ Q&amp;-A^\top\end{pmatrix},
+    \qquad
+    \det(\sigma I-\Xi)=\frac{w_u \sigma^4-w_v \sigma^2+w_q}{w_u}.
+    \tag{EQDEF(dintXi)}
+    $$
+    </div>
+    The roots come in pairs $\pm\sigma$. The graph $\{\pi=-Pz\}$ is invariant,
+    $\Xi\binom{I}{-P}=\binom{I}{-P}(A-BK)$, and it is the <strong>stable</strong> invariant
+    subspace (<a href="#ref-laub1979">Laub, 1979</a>; <a href="#ref-anderson1990">Anderson &amp; Moore, 1990</a>): the closed loop has
+    $\det(\sigma I-A+BK)=\sigma^2+\sqrt{(w_v+2\sqrt{w_u w_q})/w_u}\,\sigma+\sqrt{w_q/w_u}$, whose
+    roots are the left-half-plane roots of EQ(dintXi). For $A=0$, $B=I$ this reduces to the matrix
+    $\begin{pmatrix}0&amp;R^{-1}\\Q&amp;0\end{pmatrix}$ of Section&nbsp;SEC(sec-riccati).</li>
+  <li><strong>Ostrogradsky check.</strong> With $\hat\ell=\tfrac12(w_qq^2+w_v\dot q^2+w_u\ddot q^2)$, EQ(ostro)
+    gives $p_2=w_u\ddot q$ and $p_1=w_v\dot q-w_u\,q^{(3)}$. Along the closed loop
+    $\ddot q=-(P_{12}q+P_{22}v)/w_u$, so $p_2=\pi_v$ at once; differentiating once more and using
+    $P_{22}^2/w_u=w_v+2P_{12}$ and $P_{11}=P_{12}P_{22}/w_u$ gives $p_1=-(P_{11}q+P_{12}v)=\pi_q$.</li>
+  <li><strong>Scaled candidates.</strong> For $W=c\,V$, $c&gt;0$, using the Riccati equation,
+    $H(z,-c\nabla V)=\tfrac{c-1}{2}\big[c\,w_u^{-1}(B^\top Pz)^2+z^\top Qz\big]$. So the stability condition in EQ(cert2)
+    holds exactly when $c\ge1$ (for $Q\succ0$), as in the scaled candidates of Section&nbsp;SEC(sec-stationary). With $A=0$,
+    $B=I$ the bracket collapses to $(c+1)\,z^\top Qz$ and that formula is recovered.</li>
+</ol>
+
+<p>Numbers for two weight choices ($w_u=1$; initial state $z_0=(1,0)$):</p>
+
+<table>
+  <tr><th>Quantity</th><th>$w_q=1,\ w_v=0$</th><th>$w_q=1,\ w_v=1$</th></tr>
+  <tr><td>$P$</td><td>$\begin{pmatrix}\sqrt2&amp;1\\1&amp;\sqrt2\end{pmatrix}$</td><td>$\begin{pmatrix}\sqrt3&amp;1\\1&amp;\sqrt3\end{pmatrix}$</td></tr>
+  <tr><td>Gain $K=w_u^{-1}B^\top P$</td><td>$(1,\ \sqrt2)$</td><td>$(1,\ \sqrt3)$</td></tr>
+  <tr><td>Closed-loop poles</td><td>$(-1\pm i)/\sqrt2$, damping $0.7071$</td><td>$(-\sqrt3\pm i)/2$, damping $0.8660$</td></tr>
+  <tr><td>Eigenvalues of $\Xi$</td><td>$(\pm1\pm i)/\sqrt2$</td><td>$(\pm\sqrt3\pm i)/2$</td></tr>
+  <tr><td>$V(z_0)=\tfrac12P_{11}$</td><td>$0.707107$</td><td>$0.866025$</td></tr>
+  <tr><td>$\int_0^\infty\ell\,dt$ (numerical)</td><td>$0.707107$</td><td>$0.866025$</td></tr>
+  <tr><td>Positivity A3 in $z$</td><td>fails ($v$ unpenalized); stability via detectability</td><td>holds</td></tr>
+</table>
+
+<p>
+  Along the optimal path for $w_q=w_v=w_u=1$ (so $u^*=\pi_v$), the momenta and the remaining action are:
+</p>
+
+<table>
+  <tr><th>$t$</th><th>$q$</th><th>$v$</th><th>$u^*$</th><th>$\pi_q=p_1$</th><th>$\pi_v=p_2$</th><th>$V(z)$</th><th>$\int_t^\infty\ell\,dt'$</th></tr>
+  <tr><td>0</td><td>1.00000</td><td>0.00000</td><td>&minus;1.00000</td><td>&minus;1.73205</td><td>&minus;1.00000</td><td>0.86603</td><td>0.86603</td></tr>
+  <tr><td>0.5</td><td>0.90631</td><td>&minus;0.32091</td><td>&minus;0.35048</td><td>&minus;1.24886</td><td>&minus;0.35048</td><td>0.50969</td><td>0.50969</td></tr>
+  <tr><td>1</td><td>0.71841</td><td>&minus;0.40331</td><td>&minus;0.01985</td><td>&minus;0.84101</td><td>&minus;0.01985</td><td>0.29809</td><td>0.29809</td></tr>
+  <tr><td>2</td><td>0.35345</td><td>&minus;0.29775</td><td>0.16227</td><td>&minus;0.31444</td><td>0.16227</td><td>0.07973</td><td>0.07973</td></tr>
+  <tr><td>3</td><td>0.13383</td><td>&minus;0.14846</td><td>0.12331</td><td>&minus;0.08335</td><td>0.12331</td><td>0.01473</td><td>0.01473</td></tr>
+  <tr><td>5</td><td>0.00310</td><td>&minus;0.01576</td><td>0.02420</td><td>0.01039</td><td>0.02420</td><td>0.00017</td><td>0.00017</td></tr>
+</table>
+
+<p>
+  The last two columns agree to the digits shown: the remaining action <em>is</em> the action still to be
+  paid, and it decreases at rate $\ell$. Since $w_u=1$, the columns $u^*$ and $\pi_v$ coincide. The momentum $\pi_v$
+  changes sign shortly after $t=1$, exactly where the force switches from pulling the mass toward the
+  origin to braking it.
+</p>
+
+<figure>
+FIGSVG(4)
+<figcaption>Figure 4. Phase plane of the double-integrator example ($w_q=w_v=w_u=1$). The optimal path from
+  $z_0=(1,0)$ (blue) crosses the level sets of $V=\tfrac12z^\top Pz$ (dashed). The momentum
+  $\pi=-\nabla V$ (orange, scaled by $0.15$) is normal to the level sets and points downhill, not along the
+  path; the applied force is its second component, $u^*=\pi_v/w_u$. Drawn by
+  <code>code/note/fig4_double_integrator.py</code>.</figcaption>
+</figure>
+
+<h3 id="sec-so-manipulator">SECNUM The manipulator: the torque is the velocity momentum</h3>
+
+<p>
+  For $M(q)\dot v+b(q,v)=\tau$ with stage cost $\ell=\ell_0(q,v)+\tfrac12\tau^\top R\,\tau$, $R\succ0$,
+  the supremum in EQ(H2) is a concave quadratic in $\tau$. Setting its gradient
+  $M^{-1}\pi_v-R\tau$ to zero ($M$ is symmetric) gives
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(manip)" aria-hidden="true"></span>$$
+\tau^*=R^{-1}M(q)^{-1}\pi_v,\qquad
+H=\pi_q\cdot v-\pi_v\cdot M^{-1}b+\tfrac12\,\pi_v^\top M^{-1}R^{-1}M^{-1}\pi_v-\ell_0(q,v).
+\tag{EQDEF(manip)}
+$$
+</div>
+
+<p>
+  With the plain torque cost $R=I$, the optimal torque is $M^{-1}\pi_v$. In every case the conclusion of
+  Section&nbsp;SEC(sec-so-hj) is visible directly: <strong>the torque is dictated by $\pi_v=-\nabla_vV$</strong>, how
+  much the remaining action would drop if the joints moved slightly faster. A holding torque against gravity is
+  included by penalizing $\tau-g(q)$ instead of $\tau$, which adds $g(q)$ to $\tau^*$; more generally, centring the
+  cost on any given torque adds that torque. One weight makes the inertia disappear from the optimal torque in
+  EQ(manip), $R\propto M^{-1}$: with $R=T_0M^{-1}$, $T_0&gt;0$ a time constant, $\tau^*=\pi_v/T_0$. It is Gauss&rsquo;s weight, and it is the bridge to
+  whole-body control (Section&nbsp;SEC(sec-gauss)).
+</p>
+
+<h3 id="sec-so-discrete">SECNUM Discrete version: multiple shooting and its multipliers</h3>
+
+<p>
+  A digital controller holds the control constant over each step and integrates the plant over it. Call
+  the result $z_{j+1}=\Phi_h(z_j,u_j)$ (an exact flow, or a Runge&ndash;Kutta step) and let
+  $\ell_d(z_j,u_j)$ be the stage cost of the step. <strong>Multiple shooting</strong> keeps every node
+  $z_j$ as a separate unknown and imposes the step equations as continuity constraints, the &ldquo;defects&rdquo;
+  $z_{j+1}-\Phi_h(z_j,u_j)=0$ (<a href="#ref-bock1984">Bock &amp; Plitt, 1984</a>; <a href="#ref-rawlings2017">Rawlings et al., 2017</a>, Ch.&nbsp;8). Attaching a multiplier to each defect,
+  with the sign of EQ(augmented), gives the discrete augmented action
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ms)" aria-hidden="true"></span>$$
+\tilde S_d=\sum_{j=0}^{N-1}\Big[\ell_d(z_j,u_j)+\pi_{j+1}\cdot\big(z_{j+1}-\Phi_h(z_j,u_j)\big)\Big]+W(z_N).
+\tag{EQDEF(ms)}
+$$
+</div>
+
+<p>
+  This is precisely the Lagrangian function of the multiple-shooting nonlinear program, and its
+  stationarity conditions are the program&rsquo;s KKT conditions. Differentiate with respect to the
+  interior nodes, the last node and the controls:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(mskkt)" aria-hidden="true"></span>$$
+\begin{gathered}
+\pi_j=\partial_z\Phi_h(z_j,u_j)^{\!\top}\pi_{j+1}-\nabla_z\ell_d(z_j,u_j),\qquad
+\pi_N=-\nabla W(z_N),\\
+\nabla_u\ell_d(z_j,u_j)=\partial_u\Phi_h(z_j,u_j)^{\!\top}\pi_{j+1}.
+\end{gathered}
+\tag{EQDEF(mskkt)}
+$$
+</div>
+
+<p>
+  The first equation is the <strong>discrete costate recursion</strong>, run backwards from the
+  <strong>discrete transversality condition</strong> (the second, the phase-space form of $p_N=-\nabla W(q_N)$ in
+  Section&nbsp;SEC(sec-stationarity)); the third is the discrete stationarity condition. Differentiating the dynamic-programming
+  recursion $V_N(z)=\min_u\{\ell_d(z,u)+V_{N-1}(\Phi_h(z,u))\}$, $V_0=W$ on $\Omega$, with the envelope theorem, exactly as in
+  Section&nbsp;SEC(sec-stationarity), gives the same recursion for $-\nabla V_N$. Hence $\pi_j=-\nabla V_{N-j}(z_j)$:
+  <strong>the defect multipliers are the discrete momenta</strong> EQ(dmomentum), minus the gradient of the remaining action
+  with $N-j$ steps to go. If the initial value is imposed as a constraint, with the same sign convention
+  $\pi_0\cdot(z_0-\hat z)$, the node $z_0$ becomes an unknown and its stationarity condition is the first equation of
+  EQ(mskkt) at $j=0$. The multiplier of the initial value is therefore the momentum at the current state,
+  $\pi_0=-\nabla V_N(\hat z)$: the solver returns minus the gradient of the Lyapunov function at the current state for
+  free.
+</p>
+
+<p>
+  How does this relate to the discrete Legendre transforms EQ(dlegendre)? Define the transition cost on state
+  pairs, $L_d(z,z')=\min_u\{\ell_d(z,u):\Phi_h(z,u)=z'\}$. Where it is differentiable, the multiplier rule
+  and EQ(mskkt) give
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(msLd)" aria-hidden="true"></span>$$
+\pi_j=-\partial_1L_d(z_j,z_{j+1}),\qquad \pi_{j+1}=\partial_2L_d(z_j,z_{j+1}),
+\tag{EQDEF(msLd)}
+$$
+</div>
+
+<p>
+  which is EQ(dlegendre) with $q\to z$, $p\to\pi$. The caveat is in &ldquo;where it is differentiable&rdquo;. With
+  a constant control over the step, the set of reachable $z'$ has dimension $n_u\le n$ inside the
+  $2n$-dimensional state space, so $L_d=+\infty$ off a thin set and $\partial_2L_d$ does not exist. The
+  multipliers of EQ(ms) are what replaces it. With the exact discrete Lagrangian EQ(LdE), where the control
+  may vary continuously within the step, $L_d$ is finite and smooth for a controllable plant and EQ(msLd)
+  holds literally; it is, however, stiff (for the double integrator the inverse controllability Gramian
+  over one step has entries of order $h^{-3}$), so an endpoint pair inconsistent with the plant is very
+  expensive rather than forbidden.
+</p>
+
+<p>
+  Discrete mechanics has been used for optimal control before: the DMOC approach discretizes the variational
+  description of a mechanical system directly, and the resulting program is equivalent to the one obtained by
+  discretizing Hamilton&rsquo;s equations of the mechanical system itself, in configuration and mechanical momentum, by a
+  symplectic partitioned Runge&ndash;Kutta scheme (<a href="#ref-oberbloebaum2011">Ober-Bl&ouml;baum et al., 2011</a>). Here
+  the discrete momenta are instead those of the remaining action, EQ(dmomentum), read off the
+  multipliers of a standard multiple-shooting program.
+</p>
+
+<p>
+  <strong>Inequalities.</strong> Input and state constraints $\chi(z_j,u_j)\le0$ and the terminal region $W(z_N)\le\bar W$ enter
+  EQ(ms) with multipliers $\mu_j\ge0$, $\mu_N\ge0$ and complementarity, and EQ(mskkt) becomes
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(msineq)" aria-hidden="true"></span>$$
+\begin{gathered}
+\pi_j=\partial_z\Phi_h^{\!\top}\pi_{j+1}-\nabla_z\ell_d-\nabla_z\chi^\top\mu_j,\qquad
+\nabla_u\ell_d+\nabla_u\chi^\top\mu_j=\partial_u\Phi_h^{\!\top}\pi_{j+1},\\
+\pi_N=-(1+\mu_N)\,\nabla W(z_N).
+\end{gathered}
+\tag{EQDEF(msineq)}
+$$
+</div>
+
+<p>
+  Active state constraints change the momenta by their reactions; active input constraints change only the stationarity
+  condition; an active terminal constraint scales the arrival momentum, as in Section&nbsp;SEC(sec-kkt): EQ(msineq) is the
+  multiple-shooting form of EQ(kkt).
+</p>
+
+<div class="algorithm">
+  <div class="alg-title">Reading momenta off a multiple-shooting solver</div>
+  <ol>
+    <li>Solve the window problem as an NLP in the nodes $z_1,\dots,z_N$ and controls $u_0,\dots,u_{N-1}$,
+      with defect constraints $z_{j+1}-\Phi_h(z_j,u_j)=0$.</li>
+    <li>Read the defect multipliers. If the solver forms its Lagrangian as cost
+      $+\sum_j\psi_{j+1}^{\top}\big(z_{j+1}-\Phi_h(z_j,u_j)\big)$, then $\psi_{j+1}=\pi_{j+1}$. If it writes the
+      defects as $\Phi_h(z_j,u_j)-z_{j+1}$, or subtracts
+      the multiplier term, the sign flips: $\psi_{j+1}=-\pi_{j+1}=\nabla V_{N-j-1}(z_{j+1})$ is the minimum-principle
+      costate $\eta$. Multipliers of
+      inequalities carry the signs of EQ(msineq) in the same convention.</li>
+    <li>Check the convention once at the last node: $\pi_N=-\nabla W(z_N)$.</li>
+    <li>Use $-\pi_j$ as $\nabla V_{N-j}(z_j)$, e.g. to monitor the Hamilton&ndash;Jacobi residual or the
+      stability condition EQ(cert2) along the predicted path.</li>
+  </ol>
+</div>
+
+<div class="margin-note">
+  The discrete version was checked on the double integrator of Section&nbsp;SEC(sec-so-example) with step $h=0.2$, $N=10$,
+  zero-order hold and the rectangle-rule stage cost $h\,\ell$. The KKT multipliers of the multiple-shooting problem EQ(ms)
+  satisfy $\pi_j=-P_{N-j}z_j$, with $P_N$ the weight of $V_N=\tfrac12z^\top P_Nz$ from the backward discrete Riccati
+  recursion started at $P_0=\nabla^2W$, $\pi_N=-\nabla W(z_N)$ and EQ(mskkt) to machine precision,
+  for $W$ equal to the discrete Riccati weight, to the continuous one, and to three times the former.
+  With the exact discrete Lagrangian and $W$ the continuous Riccati weight, the one-step rule of
+  Section&nbsp;SEC(sec-exactness) reproduces $z'=e^{(A-BK)h}z$ and $V_1=W$, now in phase space.
+</div>
+</section>

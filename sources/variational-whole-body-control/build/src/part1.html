@@ -1,0 +1,296 @@
+
+<!-- ================================================================== -->
+<!-- REMAINING ACTION AND PRINCIPLE OF OPTIMALITY -->
+<!-- ================================================================== -->
+<section id="sec-core">
+<h2>SECNUM The Remaining Action and the Principle of Optimality</h2>
+
+<h3 id="sec-window">SECNUM The window problem</h3>
+
+<p>
+  Consider a window of $N$ steps. The <strong>remaining action</strong> is the least action that has to
+  be paid from the current point $q$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(VN)" aria-hidden="true"></span>$$
+V_N(q)=\min_{q_1,\dots,q_N}\ \Big\{\sum_{j=0}^{N-1}L_d(q_j,q_{j+1})+W(q_N)\Big\},
+\qquad q_0=q,\quad q_N\in\Omega,
+\tag{EQDEF(VN)}
+$$
+</div>
+
+<p>
+  over admissible paths. It is the optimal value function of MPC; in mechanics it is Hamilton&rsquo;s principal function of
+  the <em>initial</em> point plus the boundary term, minimized over the endpoint in $\Omega$ (Section&nbsp;SEC(sec-characteristics)
+  makes this precise). The set of points from which EQ(VN) has a solution is the <strong>solvable set</strong>
+  $\mathcal X_N$; we write $V_N(q)=+\infty$ outside it and assume that the minima are attained (for instance, $L_d$ and $W$
+  continuous and $\Omega$ compact). The receding-window scheme re-solves EQ(VN) from the current point and follows only the
+  <strong>first segment</strong> $q\mapsto q^+=q_1$ of the extremal path (Fig.&nbsp;1).
+</p>
+
+<h3 id="sec-bellman">SECNUM The principle of optimality</h3>
+
+<p>
+  Everything in Part&nbsp;I follows from one observation, Bellman&rsquo;s <strong>principle of optimality</strong>: the tail
+  of an optimal path is optimal for the problem that starts where the tail starts. Split the sum in EQ(VN) after the first
+  step. For a fixed first point $q_1=q'$, the minimum over $q_2,\dots,q_N$ is the problem EQ(VN) with $N-1$ steps from
+  $q'$, so
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(bellman)" aria-hidden="true"></span>$$
+V_N(q)=\min_{q'}\big\{L_d(q,q')+V_{N-1}(q')\big\},\qquad
+V_0(q)=\begin{cases}W(q),&amp;q\in\Omega,\\ +\infty,&amp;q\notin\Omega.\end{cases}
+\tag{EQDEF(bellman)}
+$$
+</div>
+
+<p>
+  The recursion builds the remaining action one step at a time, from the boundary term outwards; the terminal constraint
+  is carried by the value $+\infty$ of $V_0$. Write it as $V_N=\mathcal B V_{N-1}$ with the <strong>Bellman
+  operator</strong>
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(T)" aria-hidden="true"></span>$$
+(\mathcal BV)(q)=\min_{q'}\big\{L_d(q,q')+V(q')\big\}.
+\tag{EQDEF(T)}
+$$
+</div>
+
+<p>
+  The one property of $\mathcal B$ used below is immediate from EQ(T): <strong>$\mathcal B$ is monotone</strong>, i.e.
+  $V_a\le V_b$ pointwise implies $\mathcal BV_a\le\mathcal BV_b$. A cheaper arrival can only make the departure cheaper.
+  (The dynamic-programming literature often writes this operator $T$; here the letter $\mathcal T$ is the kinetic energy.)
+</p>
+
+<h3 id="sec-terminal">SECNUM Terminal ingredients</h3>
+
+<p>
+  The recursion starts from $V_0$, which is finite only on $\Omega$, so whether the scheme stabilizes depends on $W$ and
+  $\Omega$. The classical requirement (<a href="#ref-chen1998">Chen &amp; Allg&ouml;wer, 1998</a>; <a href="#ref-mayne2000">Mayne et al., 2000</a>;
+  <a href="#ref-rawlings2017">Rawlings et al., 2017</a>, Ch.&nbsp;2; <a href="#ref-grune2017">Gr&uuml;ne &amp; Pannek, 2017</a>,
+  Ch.&nbsp;5) is a <strong>reference flow</strong> $\varphi_f:\Omega\to\Omega$, $\varphi_f(0)=0$, with two properties:
+</p>
+
+<div class="definition">
+  <strong>Terminal ingredients.</strong>
+  <ol>
+    <li><strong>A1 (invariance).</strong> For all $q\in\Omega$ the step $(q,\varphi_f(q))$ is admissible and
+      $\varphi_f(q)\in\Omega$.</li>
+    <li><strong>A2 (boundary-term descent).</strong> Along the reference flow, $W$ decreases at least as fast as the action
+      is spent:
+      <span class="eq-anchor" id="eq-EQDEF(terminal)" aria-hidden="true"></span>$$W(\varphi_f(q))-W(q)\le -L_d\big(q,\varphi_f(q)\big)\qquad\forall q\in\Omega.\tag{EQDEF(terminal)}$$</li>
+  </ol>
+</div>
+
+<p>
+  In the language of the recursion the two conditions say one thing. For $q\in\Omega$ the reference step is a candidate in
+  EQ(bellman) with $N=1$, so $V_1(q)\le L_d(q,\varphi_f(q))+W(\varphi_f(q))\le W(q)=V_0(q)$; for $q\notin\Omega$,
+  $V_0(q)=+\infty$. Hence
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(V1V0)" aria-hidden="true"></span>$$
+\text{A1 and A2}\quad\Longrightarrow\quad V_1\le V_0\quad\text{everywhere.}
+\tag{EQDEF(V1V0)}
+$$
+</div>
+
+<p>
+  Conversely, if $V_1\le W$ on $\Omega$, then from each $q\in\Omega$ the minimizer of the one-step problem is an admissible
+  successor in $\Omega$ for which EQ(terminal) holds, and it can serve as the reference flow. So EQ(terminal) says exactly
+  that <strong>one step of the recursion does not raise the remaining action</strong>. It is a property of $W$, $\Omega$ and
+  one step of $L_d$; it has to be verified before use, and it is the same for every window length.
+</p>
+
+<p>
+  The original argument of <a href="#ref-keerthi1988">Keerthi &amp; Gilbert (1988)</a> used the terminal equality
+  constraint $q_N=0$ instead of a boundary term: $\Omega=\{0\}$, $W=0$, $\varphi_f(0)=0$. A1 and A2 then ask only that the
+  rest step $(0,0)$ be admissible with $L_d(0,0)=0$, and Sections&nbsp;SEC(sec-monotone)&ndash;SEC(sec-descent) apply unchanged (the candidate
+  path is extended by a rest step). This $\Omega$ is excluded by the standing assumption that $\Omega$ contains a
+  neighbourhood of $q=0$, on which the upper bound of Section&nbsp;SEC(sec-asymptotic) relies. With $\Omega=\{0\}$ that bound has to come
+  from controllability instead: $V_N\le V_1$ by Section&nbsp;SEC(sec-monotone), and $V_1(q)=L_d(q,0)$ wherever the step $(q,0)$ is
+  admissible, which for EQ(rect) gives $V_N(q)\le\big(\tfrac{m}{2h}+\tfrac{h\kappa}{2}\big)q^2$, the same bound
+  that Section&nbsp;SEC(sec-asymptotic) obtains with $\mathcal V=\mathbb R$.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- DESCENT -->
+<!-- ================================================================== -->
+<section id="sec-proof">
+<h2>SECNUM Descent for Every Window Length</h2>
+
+<p>
+  This section derives the stability of the scheme from the recursion EQ(bellman), the monotonicity of $\mathcal B$
+  and the one-step condition EQ(V1V0), for any $N\ge1$ and any discrete Lagrangian.
+</p>
+
+<h3 id="sec-monotone">SECNUM Monotonicity in the window length</h3>
+
+<p>
+  Apply the monotone operator $\mathcal B$ to EQ(V1V0): $V_2=\mathcal BV_1\le\mathcal BV_0=V_1$, and by induction
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(monotone)" aria-hidden="true"></span>$$
+V_N\le V_{N-1}\le\dots\le V_1\le V_0 .
+\tag{EQDEF(monotone)}
+$$
+</div>
+
+<p>
+  Two consequences follow at once. The solvable sets are nested, $\mathcal X_N\supseteq\mathcal X_{N-1}$, because a finite
+  $V_{N-1}$ forces a finite $V_N$; and $V_N\le W$ on $\Omega$ for every $N$.
+</p>
+
+<h3 id="sec-descent">SECNUM The descent inequality</h3>
+
+<p>
+  Let $q\in\mathcal X_N$ and let $q^+$ be the first point of an optimal path (uniqueness is not needed). The recursion
+  EQ(bellman) holds with equality at its minimizer, and EQ(monotone) at $q^+$ gives $V_{N-1}(q^+)\ge V_N(q^+)$:
+  $$V_N(q)=L_d(q,q^+)+V_{N-1}(q^+)\ \ge\ L_d(q,q^+)+V_N(q^+).$$
+  This is the <strong>descent inequality</strong>:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(descent)" aria-hidden="true"></span>$$
+V_N(q^+)-V_N(q)\ \le\ -L_d(q,q^+).
+\tag{EQDEF(descent)}
+$$
+</div>
+
+<p>
+  In words: after one step, the action still to be paid has dropped by at least the action just spent. The same line gives
+  <strong>recursive feasibility</strong>: $V_{N-1}(q^+)&lt;\infty$, so $q^+\in\mathcal X_{N-1}\subseteq\mathcal X_N$ and the
+  scheme is defined again at the next step. Nothing beyond EQ(bellman), the monotonicity of $\mathcal B$ and EQ(terminal) was
+  used, and $N$ is arbitrary. The classical proof unpacks EQ(monotone) into an explicit feasible candidate
+  (<a href="#ref-mayne2000">Mayne et al., 2000</a>, Sec.&nbsp;3); written out, it also covers solvers that do not return the
+  exact minimum.
+</p>
+
+<div class="algorithm">
+  <div class="alg-title">The same proof with an explicit candidate: $V_N(q^+)-V_N(q)\le -L_d(q,q^+)$</div>
+  <ol>
+    <li><strong>Optimal action at $q$.</strong> Let $(q_0,\dots,q_N)$, $q_0=q$, be an optimal path of EQ(VN). Then
+      $V_N(q)=\sum_{j=0}^{N-1}L_d(q_j,q_{j+1})+W(q_N)$, and the scheme moves to $q^+=q_1$.</li>
+    <li><strong>A feasible candidate from $q^+$.</strong> Shift the path and extend it by one reference step:
+      $(q_1,\dots,q_N,\tilde q)$ with $\tilde q=\varphi_f(q_N)$. Since $q_N\in\Omega$, A1 makes the extra step admissible and
+      puts $\tilde q$ in $\Omega$.</li>
+    <li><strong>Bound the optimum by the candidate.</strong>
+      $V_N(q^+)\le\sum_{j=1}^{N-1}L_d(q_j,q_{j+1})+L_d(q_N,\tilde q)+W(\tilde q)$.</li>
+    <li><strong>Use the boundary-term descent.</strong> By A2, $L_d(q_N,\tilde q)+W(\tilde q)\le W(q_N)$: the reference step
+      cancels, and $V_N(q^+)\le\sum_{j=1}^{N-1}L_d(q_j,q_{j+1})+W(q_N)$.</li>
+    <li><strong>Subtract</strong> step&nbsp;1: $V_N(q^+)-V_N(q)\le-L_d(q,q^+)$. $\blacksquare$</li>
+  </ol>
+</div>
+
+<p>
+  For $N=1$ the shifted path is empty, the candidate is the reference step alone, and step&nbsp;4 reads
+  $V_1(q^+)\le W(q^+)$. Steps&nbsp;3&ndash;5 use only that the plan applied at the next step costs no more than the candidate.
+  A solver that is warm-started with the candidate and returns it whenever it finds nothing better therefore keeps
+  EQ(descent) for the cost it computes, whatever its optimality, as in suboptimal MPC; Section&nbsp;SEC(sec-robot-rh) uses this.
+</p>
+
+<h3 id="sec-asymptotic">SECNUM From descent to asymptotic stability</h3>
+
+<p>
+  Strict decrease alone is not enough. A Lyapunov function must also be sandwiched between two comparison functions,
+  $\alpha_1(|q|)\le V_N(q)\le\alpha_2(|q|)$ (<a href="#ref-rawlings2017">Rawlings et al., 2017</a>, App.&nbsp;B). Write the
+  positivity assumption of Section&nbsp;SEC(sec-steps) as <strong>A3</strong>: $L_d(q,q')\ge\alpha_L(|q|)$ on admissible
+  pairs, with $W\ge0$, $W(0)=0$.
+</p>
+
+<ul>
+  <li><strong>Lower bound.</strong> Every term of EQ(VN) is non-negative, so $V_N(q)\ge L_d(q,q_1)\ge\alpha_L(|q|)$.</li>
+  <li><strong>Upper bound near the rest point.</strong> By EQ(monotone), $V_N\le W$ on $\Omega$. Take
+    $\varepsilon&gt;0$ with $\{|q|\le\varepsilon\}\subseteq\Omega$ and set $\alpha_W(\rho)=\sup_{|q|\le \rho}W(q)+\rho$, which is of class $\mathcal K$
+    because $W$ is continuous with $W(0)=0$.</li>
+  <li><strong>Upper bound away from it.</strong> If $V_N\le\bar V$ on $\mathcal X_N$, then for $|q|\ge \varepsilon$,
+    $V_N(q)\le \bar V\le (\bar V/\varepsilon)|q|$. Since $V_N(q)\ge\alpha_L(|q|)$, such a $\bar V$ exists only if
+    $\mathcal X_N$ is bounded. When $L_d$ is bounded on bounded sets of admissible pairs, as the example EQ(rect) is, a
+    bounded $\mathcal X_N$ is also enough. Each point $q_j$ of an admissible $N$-step path ending in $\Omega$ lies in
+    $\mathcal X_{N-j}\subseteq\mathcal X_N$, because its tail from $q_j$ is an admissible $(N-j)$-step path into $\Omega$ and
+    the solvable sets are nested (Section&nbsp;SEC(sec-monotone)). So $V_N\le N\sup L_d+\max_\Omega W$ on $\mathcal X_N$, with
+    the supremum taken over admissible pairs in $\mathcal X_N$. Continuous $L_d$ and $W$ and a bounded $\Omega$ do not make
+    $\mathcal X_N$ bounded, but bounded steps do: if $|q'-q|\le D$ on admissible pairs (a speed limit $|v|\le\bar v$ gives
+    $D=h\bar v$), then $\mathcal X_N$ lies within distance $ND$ of $\Omega$. Without such a limit $\mathcal X_N$ need not be
+    bounded. For EQ(rect) with $\mathcal V=\mathbb R$, every point reaches $\Omega$ in one step, so $\mathcal X_N=\mathbb R$,
+    and on it $V_N(q)\ge\tfrac h2\kappa q^2$ is unbounded.</li>
+</ul>
+
+<p>
+  Hence $\alpha_2(\rho)=\max\{\alpha_W(\rho),\,\bar V \rho/\varepsilon\}$ is a class-$\mathcal K$ upper bound on all of
+  $\mathcal X_N$, and with A3 the descent inequality EQ(descent) becomes
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(strictdescent)" aria-hidden="true"></span>$$
+V_N(q_{k+1})-V_N(q_k)\le-\alpha_L(|q_k|),
+\tag{EQDEF(strictdescent)}
+$$
+</div>
+
+<p>
+  which yields <strong>asymptotic stability of $q=0$ with region of attraction $\mathcal X_N$</strong>. When no such
+  $\bar V$ exists, a global bound may still hold. For EQ(rect) with $\mathcal V=\mathbb R$, EQ(monotone) and the one-step
+  candidate $q'=0\in\Omega$ give $V_N(q)\le V_1(q)\le L_d(q,0)+W(0)=\big(\tfrac m{2h}+\tfrac h2\kappa\big)q^2$ for every
+  $q$. This is a class-$\mathcal K$ choice of $\alpha_2$ on all of $\mathcal X_N=\mathbb R$, so the region of attraction is
+  all of $\mathbb R$. Otherwise, restrict the region of attraction to a sublevel set $\{V_N\le\bar V\}$ with $\bar V&gt;0$. It is invariant by EQ(descent), and on it the upper bound holds with this $\bar V$.
+</p>
+
+<h3 id="sec-onestep">SECNUM What the window length does: the one-step window</h3>
+
+<p>
+  The certificate EQ(terminal) involves $W$, $\Omega$ and one step of $L_d$; it does not involve $N$. What a longer window
+  does is read off EQ(monotone): it <strong>enlarges the solvable set</strong>, $\mathcal X_N\supseteq\mathcal X_{N-1}$; it
+  <strong>lowers the remaining action</strong>, $V_N\le V_{N-1}$ (appending a reference step never increases the action);
+  and it leaves the certificate unchanged. It moves the cut between the part of the remaining action that is computed (the
+  window) and the part that is estimated (the tail $W$); Section&nbsp;SEC(sec-split) shows this cut with numbers.
+</p>
+
+<p>
+  The shortest window, $N=1$, has no lookahead. The scheme becomes a <strong>local rule</strong>: from $q$, jump to the
+  admissible $q'\in\Omega$ that minimizes
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(onestep)" aria-hidden="true"></span>$$
+V_1(q)=\min_{q'}\ \big\{L_d(q,q')+W(q')\big\}
+\quad\text{s.t. }(q,q')\ \text{admissible},\ q'\in\Omega,
+\tag{EQDEF(onestep)}
+$$
+</div>
+
+<p>
+  which is EQ(bellman) with $N=1$. All the stability-relevant information now sits in $W$, which must satisfy EQ(terminal)
+  on $\Omega$ and only there, because the constraint forces every successor into $\Omega$. Each step trades the descent of
+  $W$ against the cost $L_d$ of moving, and nothing beyond the next point is examined (a &ldquo;greedy&rdquo; path). The
+  solvable set is the <strong>one-step preimage</strong> of $\Omega$,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(preimage)" aria-hidden="true"></span>$$
+\mathcal X_1=\{q:\ \exists\,q'\in\Omega,\ (q,q')\ \text{admissible}\}\ \supseteq\ \Omega ,
+\tag{EQDEF(preimage)}
+$$
+</div>
+
+<p>
+  larger than $\Omega$ and, when the steps are limited (a speed limit, or the torque limits of
+  Section&nbsp;SEC(sec-robot)), typically still small (with no limit on the steps it is all of $\mathbb R^n$,
+  Section&nbsp;SEC(sec-asymptotic)); from points outside it no admissible one-step path exists, and the scheme
+  is undefined there (Section&nbsp;SEC(sec-robot-results) has an example). The comparison with a longer window is:
+</p>
+
+<table>
+  <tr><th>Property</th><th>Longer window ($N&gt;1$)</th><th>One step ($N=1$)</th></tr>
+  <tr><td>Source of the stability certificate</td><td>Boundary term $W$ and region $\Omega$</td><td>Boundary term $W$ and region $\Omega$</td></tr>
+  <tr><td>Role of $L$</td><td>Shapes the whole path</td><td>Weights only the single step</td></tr>
+  <tr><td>Solvable initial set</td><td>Larger: $\mathcal X_N\supseteq\mathcal X_1$</td><td>One-step preimage $\mathcal X_1$ of $\Omega$</td></tr>
+  <tr><td>Remaining action</td><td>$V_N\le V_1$</td><td>$V_1\le W$ on $\Omega$</td></tr>
+  <tr><td>Work per solve</td><td>Path optimization over $N$ points</td><td>Pointwise minimization</td></tr>
+</table>
+</section>

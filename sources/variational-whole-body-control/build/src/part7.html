@@ -1,0 +1,488 @@
+
+<!-- ================================================================== -->
+<!-- TWO LAGRANGIANS -->
+<!-- ================================================================== -->
+<section id="sec-equilibria">
+<h2>SECNUM Two Lagrangians and the Stability of Equilibria</h2>
+
+<p>
+  It is tempting to ask: if a positive-definite Lagrangian yields stability in Part&nbsp;I, what does the
+  <em>physical</em> Lagrangian $\mathcal T-U$ say about the stability of the plant? The two questions look as if they
+  should be linked, and the signs seem to clash: the hilltop of Section&nbsp;SEC(sec-scalar) is a positive-definite variational
+  Lagrangian whose mechanical reading is an unstable equilibrium. There is no clash: it is a sign difference between two
+  unrelated Lagrangians (the table of Section&nbsp;SEC(sec-so-augmented)). The section ends by placing the impressed and
+  constraint forces of Section&nbsp;SEC(sec-impressed) on the two sides of this divide.
+</p>
+
+<h3 id="sec-var-lag">SECNUM The variational Lagrangian</h3>
+
+<p>
+  A positive-definite $L$ is a <strong>necessary ingredient</strong> of the stability argument, not the
+  argument itself. Stability follows because the remaining action $V$ is a Lyapunov function:
+  $V\ge\alpha_1(|q|)$ and $V^+-V\le-L_d$ (Section&nbsp;SEC(sec-proof)), or $\dot V\le-L$ in continuous time
+  (Section&nbsp;SEC(sec-hj); for the infinitesimal window, $V=W$).
+</p>
+
+<h3 id="sec-phys-lag">SECNUM The physical Lagrangian</h3>
+
+<p>
+  For a natural system, $L_{\text{phys}}=\mathcal T-U$ is positive definite only if $U$ is negative definite,
+  which puts the origin at a potential <strong>maximum</strong>. What is known about equilibria of natural
+  systems, with Lagrangian $\mathcal T-U$ and positive-definite kinetic energy $\mathcal T=\tfrac12\dot q^\top M(q)\dot q$, is
+  summarized below.
+</p>
+
+<table>
+  <tr><th style="width:42%">Statement</th><th>Status</th></tr>
+  <tr><td>Strict local minimum of $U$ &rArr; Lyapunov stable (Lagrange&ndash;Dirichlet)</td><td><strong>Theorem.</strong> $E=\mathcal T+U$ is a Lyapunov function.</td></tr>
+  <tr><td>A negative eigenvalue of $\nabla^2U(0)$ &rArr; unstable</td><td><strong>Theorem.</strong> The linearization has a positive real eigenvalue (Lyapunov&rsquo;s first method).</td></tr>
+  <tr><td>Local <strong>maximum</strong> of a smooth potential &rArr; Lyapunov unstable</td><td><strong>Theorem.</strong> Strict maximum: <a href="#ref-hagedorn1971">Hagedorn (1971)</a>; any maximum of a $C^2$ potential, strict or not: <a href="#ref-taliaferro1980a">Taliaferro (1980a)</a>. Stronger instability notions can fail even at an isolated maximum (<a href="#ref-urena2020">Ure&ntilde;a, 2020</a>).</td></tr>
+  <tr><td>&ldquo;Not a minimum &rArr; unstable&rdquo; for <strong>smooth</strong> ($C^\infty$) potentials</td><td><strong>False.</strong> Painlev&eacute; (1904) and Wintner gave one-degree-of-freedom counterexamples. Painlev&eacute;&ndash;Wintner-type potentials oscillate infinitely often near the origin, e.g. $U(q)=e^{-1/q^2}\cos(1/q)$, $U(0)=0$: the origin is stable but not a minimum. <a href="#ref-laloy1976">Laloy (1976)</a> gave a two-degree-of-freedom example.</td></tr>
+  <tr><td>Same statement for <strong>real-analytic</strong> potentials</td><td>In <strong>two degrees of freedom</strong> a non-minimum critical point is unstable: <a href="#ref-palamodov1977">Palamodov (1977)</a> and <a href="#ref-taliaferro1980b">Taliaferro (1980b)</a> proved it for the Newtonian kinetic energy ($M=I$, $\ddot q=-\nabla U$), and <a href="#ref-burgos2022">Burgos &amp; Paternain (2022</a>, preprint, &sect;1) report its extension to an arbitrary kinetic energy by <a href="#ref-kozlov1981">Kozlov (1981)</a>. <a href="#ref-laloy1982">Laloy &amp; Peiffer (1982)</a> prove that a non-strict minimum is unstable as well; as <a href="#ref-burgos2022">Burgos &amp; Paternain (2022</a>, &sect;1) note, this completes the analytic converse of Lagrange&ndash;Dirichlet (stable &rArr; strict minimum) in two degrees of freedom. In higher dimension even Arnold&rsquo;s problem 1971-4, instability at an <em>isolated</em> critical point that is not a minimum (<a href="#ref-arnold2004">Arnold, 2004</a>), is open in general. In dimension three, <a href="#ref-burgos2022">Burgos &amp; Paternain (2022</a>, preprint) prove instability on an open dense subset of non-strict minima. From three degrees of freedom on, the analytic converse of Lagrange&ndash;Dirichlet is <strong>open</strong> (see also <a href="#ref-burgos2021">Burgos et al., 2021</a>).</td></tr>
+  <tr><td>&ldquo;Stable <strong>if and only if</strong> $U$ has a <strong>strict</strong> local minimum&rdquo; as a general theorem</td><td><strong>Does not exist</strong> in this generality. The &ldquo;if&rdquo; half is Lagrange&ndash;Dirichlet (first row); the &ldquo;only if&rdquo; half is its converse. The converse is false for smooth potentials (Painlev&eacute;&ndash;Wintner, above). For real-analytic potentials it is proved in one degree of freedom and in two (previous row), and open from three on. One degree of freedom is elementary: if $0$ is not a strict minimum, either $U$ is constant near $0$, and then every motion with $\dot q\neq0$ is monotone and leaves a fixed neighbourhood, or the lowest-order term $aq^k$ of $U-U(0)$ has $k$ odd or $a&lt;0$, so $U$ decreases strictly away from $0$ on one side, and a motion released at rest on that side, however close to $0$, runs downhill out of a fixed neighbourhood. Without &ldquo;strict&rdquo; even the &ldquo;if&rdquo; half fails for analytic $U$: for $U\equiv0$ and $M=I$, $q(t)=q_0+\dot q_0t$ with $\dot q_0\neq0$ leaves every neighbourhood of $0$.</td></tr>
+  <tr><td>A potential maximum is <em>always</em> unstable</td><td><strong>False</strong> once the system is not purely natural (next two rows).</td></tr>
+  <tr><td>Gyroscopic forces can stabilize a maximum</td><td>A <strong>linear (spectral)</strong> statement. For the linearization $M\ddot q+G\dot q+\nabla^2U(0)\,q=0$, with gyroscopic matrix $G=-G^\top$: an <em>odd</em> number of negative eigenvalues of the stiffness $\nabla^2U(0)$ (degree of instability) makes gyroscopic stabilization impossible (Thomson&ndash;Tait); an even degree is necessary, and then stabilization is possible for suitable $G$ (sufficient conditions for even dimension and negative-definite stiffness: <a href="#ref-seyranian1995">Seyranian et al., 1995</a>). Adding complete (positive-definite) damping destroys it (Kelvin&ndash;Tait&ndash;Chetaev). All of this is spectral: nonlinear Lyapunov stability needs further arguments. An application is the gyroscopic stabilization of orbits (<a href="#ref-mohandas2019">Mohandas et al., 2019</a>).</td></tr>
+  <tr><td>Vibrational averaging can stabilize a maximum (Kapitza pendulum)</td><td>The system is <strong>driven</strong> (explicitly time-dependent), so not an autonomous natural system. For pivot amplitude $a\ll l$ and frequency $\nu\gg\omega_0=\sqrt{g_0/l}$, averaging gives an effective potential with a minimum at the upright position when $a^2\nu^2&gt;2g_0l$, i.e. $(a/l)(\nu/\omega_0)&gt;\sqrt2$ (<a href="#ref-landau1976">Landau &amp; Lifshitz, 1976</a>, &sect;30, Problem&nbsp;1).</td></tr>
+</table>
+
+<h3 id="sec-resolution">SECNUM Resolution</h3>
+
+<p>
+  In Section&nbsp;SEC(sec-scalar) the variational problem <em>is</em> an unstable hilltop, and that is exactly why the
+  optimal path is the <strong>stable manifold of a saddle</strong>: the extremal rides the separatrix. The
+  physical stability of the plant is a separate matter, governed by the plant&rsquo;s actual energy
+  $E=\mathcal T+U$, not by the variational Lagrangian.
+</p>
+
+<h3 id="sec-shaping">SECNUM Where the two meet: energy shaping</h3>
+
+<p>
+  The method of <strong>controlled Lagrangians</strong> modifies the plant&rsquo;s Lagrangian so that the
+  closed loop is Lagrangian by construction, which lets energy methods select stabilizing gains.
+</p>
+<ul>
+  <li><strong>Part I</strong> (<a href="#ref-bloch2000">Bloch et al., 2000</a>) uses <strong>kinetic shaping</strong> and stabilizes the
+    system modulo a symmetry group.</li>
+  <li><strong>Part II</strong> (<a href="#ref-bloch2001">Bloch et al., 2001</a>) adds <strong>potential shaping</strong> and feedback
+    dissipation, giving asymptotic stabilization of the full state.</li>
+</ul>
+<p>
+  The shaped energy has a minimum at the target. Lagrange&ndash;Dirichlet then gives Lyapunov stability,
+  and injected dissipation (with LaSalle&rsquo;s invariance principle) gives asymptotic stability. This is
+  the physical analogue of Section&nbsp;SEC(sec-proof), with the shaped energy playing the role of $V$.
+</p>
+
+<div class="insight">
+  <strong>Damping cuts both ways.</strong> Here damping helps, because the shaped energy has a minimum. In
+  the gyroscopic row of Section&nbsp;SEC(sec-phys-lag) it destabilizes, because there the equilibrium is a maximum held
+  only by gyroscopic coupling.
+</div>
+
+<h3 id="sec-meet">SECNUM Impressed and constraint forces on the two sides</h3>
+
+<p>
+  The two ways of acting on a task in Section&nbsp;SEC(sec-two-ways) fall on opposite sides of the divide between the two
+  Lagrangians.
+</p>
+<ul>
+  <li><strong>Impressed forces shape the physical Lagrangian.</strong> A natural-inertia controller (one task, or several
+    tasks without null-space projections) leaves the kinetic energy alone and reshapes only the potential,
+    $\mathcal T-U\mapsto\mathcal T-U_s$ (gravity compensated, task springs added), then injects damping. Its closed loop is a
+    mechanical system again, and its stability argument is the physical one of Section&nbsp;SEC(sec-shaping):
+    Lagrange&ndash;Dirichlet for the shaped energy and LaSalle for the damping. In the language of Part&nbsp;I this energy is a
+    weak boundary term (Section&nbsp;SEC(sec-strict)). Under strict priority the projected task forces are no longer the
+    gradient of one potential, and the argument has to be made level by level (Section&nbsp;SEC(sec-leak)).</li>
+  <li><strong>Constraint forces come from a variational problem.</strong> An operational-space controller does not modify
+    the physical Lagrangian; it solves Gauss&rsquo;s problem with the task as a constraint at every instant and applies the
+    multiplier. The task then behaves as a unit mass. In a Lagrangian picture that would be a reshaping of the kinetic
+    energy (compare the kinetic shaping of <a href="#ref-bloch2000">Bloch et al., 2000</a>), but here it is produced by a
+    constraint force computed from the model, not by a new closed-loop Lagrangian, and unmeasured external forces still
+    meet the natural inertia (Section&nbsp;SEC(sec-two-ways)).</li>
+  <li><strong>The receding window sits on the variational side</strong>, with a positive-definite Lagrangian and a
+    certificate of Hamilton&ndash;Jacobi type. Section&nbsp;SEC(sec-robot) shows that its infinitesimal limit can land on a
+    physical-side controller (PD with gravity compensation, the classical potential-shaping law) while the certificate
+    stays variational.</li>
+</ul>
+</section>
+
+<div class="part-label">Part III &middot; Hierarchies, power and windows</div>
+
+<!-- ================================================================== -->
+<!-- HIERARCHY -->
+<!-- ================================================================== -->
+<section id="sec-hierarchy">
+<h2>SECNUM Hierarchy as Gram&ndash;Schmidt in the $M^{-1}$ Metric</h2>
+
+<p>
+  With several tasks the question &ldquo;what is the force on task $i$?&rdquo; acquires a second layer: the
+  same torque can be split among tasks in many ways. Strict priorities pick one split. This section shows
+  that the split is a <strong>change of basis</strong>, and that one factorization produces all the objects of
+  hierarchical, inertially decoupled control. It starts from the reason a change of basis matters at all.
+</p>
+
+<h3 id="sec-covectors">SECNUM Forces are covectors</h3>
+
+<p>
+  A multiplier pairs with a velocity to give a power, and only that pairing is independent of the coordinates. Change the
+  coordinates of the velocity, and the multiplier changes by the transposed map. The arm of Section&nbsp;SEC(sec-robot) gives a
+  small example: replace the velocity $v$ by the composite velocity $s=v+\Gamma e$ of EQ(armW), with $e=q-q_d$ the position
+  error from the constant target (so ${\dot e=v}$). Writing $W(e,v)=\tilde W(e,s)$ with $v=s-\Gamma e$, the chain rule gives
+  $\partial\tilde W/\partial s=\partial W/\partial v$ and $\partial\tilde W/\partial e=\partial W/\partial e-\Gamma^\top\partial W/\partial v$,
+  so in the coordinates $(e,s)$ the momenta are
+  $$\tilde\pi_s=\pi_v,\qquad\tilde\pi_e=\pi_q-\Gamma^\top\pi_v .$$
+  The velocity momentum, which sets the torque, is unchanged; the position momentum is not, because $\partial W/\partial e$
+  at fixed $v$ is not $\partial W/\partial e$ at fixed $s$. The pairing
+  $\tilde\pi_e\cdot\dot e+\tilde\pi_s\cdot\dot s=\pi_q\cdot\dot e+\pi_v\cdot\dot v=-\dot W$ is the same in both (checked
+  numerically for the arm, Section&nbsp;SEC(sec-verification)). The same mechanism appears in task space: the
+  &ldquo;force on a task&rdquo; depends on which other task coordinates are held fixed, and a priority order is that choice.
+</p>
+
+<h3 id="sec-ldl">SECNUM One factorization</h3>
+
+<p>
+  Let task $i$ have coordinates $x_i(q)$ of dimension $n_i$ and Jacobian $J_i=\partial x_i/\partial q$, with $r$ priority levels,
+  $i=1$ the highest. Stack the task Jacobians in priority order, $J=[J_1;\dots;J_r]$, so that the task inertia of
+  Section&nbsp;SEC(sec-gauss-task) is $\Lambda=(JM^{-1}J^\top)^{-1}$, and that of task $i$ alone $\Lambda_i=(J_iM^{-1}J_i^\top)^{-1}$.
+  Throughout, the stack $J$ has full row rank (no algorithmic singularities; every set of task accelerations is then
+  compatible), except where rank deficiency is discussed explicitly, and the terms $\dot J_i\dot q$ are absorbed in the task
+  accelerations. Factor the stacked mobility (the inverse of the stacked task inertia) as
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(ldl)" aria-hidden="true"></span>$$
+JM^{-1}J^\top=\Theta\,\bar\Lambda^{-1}\,\Theta^\top,\qquad
+\Theta=\begin{pmatrix}I&amp;&amp;\\ \Theta_{21}&amp;I&amp;\\ \vdots&amp;&amp;\ddots\end{pmatrix},\qquad
+\bar\Lambda=\mathrm{blockdiag}(\bar\Lambda_1,\dots,\bar\Lambda_r).
+\tag{EQDEF(ldl)}
+$$
+</div>
+
+<p>
+  This is a block $LDL^\top$ factorization, with $\Theta$ in the role of $L$ (the letter $L$ stays reserved for Lagrangians) and
+  the pivots written as inverse inertias. It is also the block form of Gram&ndash;Schmidt orthogonalization of the rows of $J$
+  in the inner product $\langle a,b\rangle=aM^{-1}b^\top$: each block row is made $M^{-1}$-orthogonal to all rows above it.
+  Define
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(Jbar)" aria-hidden="true"></span>$$
+\bar J=\Theta^{-1}J,\qquad \zeta=\bar J\dot q,\qquad \dot x=J\dot q=\Theta\,\zeta .
+\tag{EQDEF(Jbar)}
+$$
+</div>
+
+<h3 id="sec-consistency">SECNUM What it reproduces</h3>
+
+<ul>
+  <li><strong>Dynamically consistent extended Jacobians.</strong> Since $\Theta$ is unit block lower triangular, block row $i$ of
+    $\bar J$ is $J_i$ minus its $M^{-1}$-orthogonal projection on the rows above it,
+    <span class="eq-anchor" id="eq-EQDEF(extJ)" aria-hidden="true"></span>$$\bar J_i=J_i\big(I-J_{&lt;i}^{M+}J_{&lt;i}\big),\qquad J_{&lt;i}^{M+}=M^{-1}J_{&lt;i}^\top\big(J_{&lt;i}M^{-1}J_{&lt;i}^\top\big)^{-1},\tag{EQDEF(extJ)}$$
+    with $J_{&lt;i}$ the stack of higher-priority tasks. That is $J_i$ times the dynamically consistent null-space
+    projector of the higher tasks: the projected (null-space-restricted) task Jacobian of hierarchical control
+    (<a href="#ref-dietrich2015">Dietrich et al., 2015</a>; <a href="#ref-ott2015">Ott et al., 2015</a>). We call the stack $\bar J$ the
+    <em>extended Jacobian</em>, following that literature; it is unrelated to Baillieul&rsquo;s extended-Jacobian method.
+    Checked numerically to $2.1\times10^{-15}$.</li>
+  <li><strong>Dynamic consistency.</strong> By construction $J_{&lt;i}M^{-1}\bar J_i^\top=0$: a torque
+    $\bar J_i^\top F_i$ produces <em>no acceleration</em> of any higher-priority task.</li>
+  <li><strong>Decoupled inertias.</strong> $\bar JM^{-1}\bar J^\top=\Theta^{-1}JM^{-1}J^\top\Theta^{-\top}=\bar\Lambda^{-1}$ is block
+    diagonal, so $\bar\Lambda_i$ is the inertia seen by level $i$. If the stack is square ($\sum_i n_i=n$, completing it with
+    a null-space task if needed), the kinetic energy splits:
+    <span class="eq-anchor" id="eq-EQDEF(KEsplit)" aria-hidden="true"></span>$$\tfrac12\,\dot q^\top M\dot q=\sum_i\tfrac12\,\zeta_i^\top\bar\Lambda_i\,\zeta_i .\tag{EQDEF(KEsplit)}$$
+    This is the inertially decoupled structure exploited by hierarchical passivity-based controllers
+    (<a href="#ref-ott2015">Ott et al., 2015</a>; <a href="#ref-dietrich2020">Dietrich &amp; Ott, 2020</a>; <a href="#ref-garofalo2020">Garofalo &amp; Ott, 2020</a>; <a href="#ref-garofalo2024">Garofalo, 2024</a>).</li>
+  <li><strong>Conflicts and singularities.</strong> If a level is (partly) in conflict with higher levels, its pivot
+    $\bar J_iM^{-1}\bar J_i^\top$ is singular. Using pseudo-inverse pivots in EQ(ldl) still reproduces EQ(extJ) with
+    pseudo-inverses, and $\bar J$ stays unique; $\Theta$ is then not unique, neither are $\lambda$ and $F=\Theta^\top\lambda$
+    (Section&nbsp;SEC(sec-forces)), and $\bar\Lambda_i$ exists only as a pseudo-inverse. Rank deficiency of the stack is a
+    property of the Jacobians; whether the task <em>targets</em> are then compatible is a separate question, which decides
+    whether the lower task is met or only satisfied in a least-squares sense.</li>
+</ul>
+
+<div class="insight">
+  <strong>Inertial decoupling is not dynamic decoupling.</strong> For a square stack and
+  $\tau=g+\bar J^\top F$, the dynamics in the decoupled velocities read
+  $\bar\Lambda\dot\zeta+\bar C\,\zeta=F$, with $\bar C$ the Coriolis matrix in these coordinates and
+  $\dot{\bar\Lambda}-2\bar C$ skew-symmetric. Since $\bar\Lambda$ is block diagonal, the off-diagonal blocks satisfy
+  $\bar C_{ij}=-\bar C_{ji}^\top$, and
+  $$\frac{d}{dt}\,\tfrac12\,\zeta_i^\top\bar\Lambda_i\zeta_i=\zeta_i^\top F_i-\sum_{j\ne i}\zeta_i^\top\bar C_{ij}\zeta_j .$$
+  The Coriolis couplings exchange kinetic energy between levels without creating any (the coupling terms cancel
+  in the sum over $i$). Hierarchical controllers compensate them or carry them through the proof
+  (<a href="#ref-ott2015">Ott et al., 2015</a>; <a href="#ref-dietrich2020">Dietrich &amp; Ott, 2020</a>). For
+  Section&nbsp;SEC(sec-power) this means that $F_i^\top\zeta_i$ is the power <em>injected</em> into level $i$, not the rate of
+  change of its kinetic energy.
+</div>
+
+<div class="margin-note">
+  The factorization is the computational content; the result is not new. Successive dynamically consistent
+  projection is the standard construction, and sparse factorizations of the joint-space inertia matrix make the
+  operational-space inertia and the dynamically consistent projectors cheap to compute
+  (<a href="#ref-featherstone2010">Featherstone, 2010</a>); in prioritized whole-body control the decoupled inertias
+  $\bar\Lambda_i$ are the prioritized task inertias (<a href="#ref-sentis2005">Sentis &amp; Khatib, 2005</a>). The dual
+  statement of the next subsection, the change of basis $F=\Theta^\top\lambda$ between decoupled forces and stacked
+  multipliers, follows directly from the velocity relation EQ(Jbar); we make it explicit because it
+  organizes the rest of Part&nbsp;III.
+</div>
+
+<h3 id="sec-forces">SECNUM Forces on a task depend on the basis</h3>
+
+<p>
+  Write $\tau_x$ for the torque produced through the task channel. In the constraint view it is the constraint torque
+  $\tau_c$ of Section&nbsp;SEC(sec-gauss-task), with the stacked multipliers $\lambda=(\lambda_1,\dots,\lambda_r)$ of the stacked
+  constraints; in the impressed view it is the task part of $\tau_{\rm imp}$ ($J^\top F$ of Section&nbsp;SEC(sec-two-ways), and
+  $\bar J^\top F$ level by level, with <strong>decoupled task forces</strong> $F=(F_1,\dots,F_r)$; a single task is the case
+  $r=1$, $\bar J=J$). In both views it can be written in two ways: through the stacked Jacobian with stacked multipliers, or
+  through the extended Jacobians with decoupled forces. Since $J=\Theta\bar J$, the transpose of the velocity relation
+  EQ(Jbar) gives
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(forcebasis)" aria-hidden="true"></span>$$
+\tau_x=J^\top\lambda=\bar J^\top F
+\qquad\Longleftrightarrow\qquad
+F=\Theta^\top\lambda,\qquad F_i=\lambda_i+\sum_{j&gt;i}\Theta_{ji}^\top\lambda_j .
+\tag{EQDEF(forcebasis)}
+$$
+</div>
+
+<p>
+  In the constraint view, $\lambda$ are the multipliers of the stacked Gauss problem EQ(osc); in the impressed view,
+  $F$ are the forces the controller designs per level. Equation&nbsp;EQ(forcebasis) is the dictionary between them. It is
+  Newton&rsquo;s law written in two coordinate systems: multiplying $\tau_x=J^\top\lambda$ and $\tau_x=\bar J^\top F$ by $JM^{-1}$
+  and $\bar JM^{-1}$ and using EQ(ldl),
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(forcesacc)" aria-hidden="true"></span>$$
+\lambda=\Lambda\,\big(JM^{-1}\tau_x\big),\qquad F_i=\bar\Lambda_i\,\big(\bar J_iM^{-1}\tau_x\big):
+\tag{EQDEF(forcesacc)}
+$$
+</div>
+
+<p>
+  each is an inertia times the acceleration that $\tau_x$ produces, $\lambda$ in the stacked task coordinates with
+  their coupled inertia $\Lambda$, and $F_i$ in the decoupled coordinate of level $i$ with its decoupled inertia
+  $\bar\Lambda_i$. This is the covector mechanism of Section&nbsp;SEC(sec-covectors): a component of a force depends on which
+  other coordinates are held fixed. Three consequences:
+</p>
+
+<ul>
+  <li><strong>The effort separates by level</strong> (in the constraint view, the Gauss function):
+    $\tfrac12\tau_x^\top M^{-1}\tau_x=\tfrac12F^\top\bar JM^{-1}\bar J^\top F=\sum_i\tfrac12F_i^\top\bar\Lambda_i^{-1}F_i$.</li>
+  <li><strong>Only the last level agrees:</strong> $F_r=\lambda_r$. Every higher level carries, in addition, the
+    multipliers of the lower levels mapped through $\Theta$.</li>
+  <li><strong>The priority order is a choice of basis.</strong> With the same torque and the order reversed, the
+    force attributed to a task in general changes; it cannot for a task with $J_iM^{-1}J_k^\top=0$ for all $k\neq i$ (see
+    the end of this subsection). In a fixed-seed example (random symmetric positive-definite $M$, Jacobians and
+    stacked multipliers $\lambda$, $n=7$, task dimensions 2, 3, 2, and a random joint velocity $\dot q$ for the powers of
+    Section&nbsp;SEC(sec-invariance)), task&nbsp;1
+    carries $F_1=(-0.079,\,-1.197)$ at first priority and $(0.260,\,-0.858)$ at last priority, which equals its
+    stacked multiplier.</li>
+</ul>
+
+<figure>
+FIGSVG(7)
+<figcaption>Figure 7. One torque, two bases. The two-link arm of Section&nbsp;SEC(sec-robot) at its target posture;
+  task&nbsp;1 is the hand height (Jacobian $J_1$, higher priority), task&nbsp;2 the elbow angle ($J_2=(0,1)$). The torque
+  $\tau_x$ produced by the stacked multipliers $\lambda=(2\ \text{N},\,0.4\ \text{N m})$ (in this constraint view
+  $\tau_x=\tau_c$) is decomposed along the stacked basis
+  $\{J_1^\top,J_2^\top\}$ (blue) and along the basis of the hierarchy $\{J_1^\top,\bar J_2^\top\}$ (amber), where
+  $\bar J_2^\top=J_2^\top-\Theta_{21}J_1^\top$ is the part of $J_2^\top$ that is $M^{-1}$-orthogonal to $J_1^\top$ (here
+  $\Theta_{21}=2.5\ \text{m}^{-1}$). The second coefficient is the same, $F_2=\lambda_2$; the first is not,
+  $F_1=\lambda_1+\Theta_{21}\lambda_2=3$&nbsp;N. The amber second leg is tangent to the level set of $\tau^\top M^{-1}\tau$
+  through $F_1J_1^\top$, so $F_1J_1^\top$ is the $M^{-1}$-orthogonal projection of $\tau_x$, and $F_1=\Lambda_1J_1M^{-1}\tau_x$
+  accounts for all the hand-height acceleration that $\tau_x$ produces. (At this posture a pure shoulder torque leaves the
+  hand height unchanged, which is why $\bar J_2^\top$ happens to be horizontal.) Drawn by
+  <code>code/merged/fig_bases.py</code>.</figcaption>
+</figure>
+
+<div class="insight">
+  <strong>What &ldquo;the force acting on a task&rdquo; means.</strong> There is no basis-free answer. The
+  multiplier $\lambda_i$ is the force on task $i$ <em>as seen in the stacked task coordinates</em>; $F_i$ is the
+  force on task $i$ <em>in the decoupled coordinates of the hierarchy</em>. They coincide, in general, only for the
+  lowest-priority task. In the constraint view with a feasible stack, all orders produce the same torque and the same
+  acceleration; the order then matters for the motion only under conflict or singularity (including conflicts that
+  active inequalities create, Section&nbsp;SEC(sec-ineq-hier)), but it matters, in general, for the attribution of forces. By EQ(forcesacc), task $i$ carries
+  $F_i=\Lambda_iJ_iM^{-1}\tau_x=\lambda_i+\Lambda_i\sum_{k\neq i}J_iM^{-1}J_k^\top\lambda_k$ at first priority (where
+  $\bar J_i=J_i$ and $\bar\Lambda_i=\Lambda_i$) and $F_i=\lambda_i$ at last priority. For generic multipliers the two differ
+  unless $J_iM^{-1}J_k^\top=0$ for all $k\neq i$; in that case EQ(extJ) gives $\bar J_i=J_i$, hence $F_i=\lambda_i$, in every
+  order. In the impressed view, where the designer prescribes each $F_i$, the order in general changes the torque itself,
+  because $\bar J$ changes with it (checked on a feasible stack, Section&nbsp;SEC(sec-verification)). Neither effect occurs
+  if the stacked task inertia $\Lambda$ is already block diagonal ($J_iM^{-1}J_k^\top=0$ for all $i\neq k$; for example, hand
+  tasks on two arms mounted on a fixed base with no joint in common): then $\bar J=J$, $\Theta=I$ and $F=\lambda$ in every
+  order.
+</div>
+
+<h3 id="sec-leak">SECNUM Strict priority and the leak</h3>
+
+<p>
+  Suppose a lower-priority task $i$ wants to apply a force $f_i$, for example $f_i=-\nabla U_i(x_i)$ from its potential
+  $U_i(x_i)$. Written with its own Jacobian, the torque spreads over all levels at and above $i$: by EQ(Jbar),
+  $J_i=\sum_{j\le i}\Theta_{ij}\bar J_j$ (with $\Theta_{ii}=I$), so
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(leak)" aria-hidden="true"></span>$$
+J_i^\top f_i=\sum_{j\le i}\bar J_j^\top \Theta_{ij}^\top f_i .
+\tag{EQDEF(leak)}
+$$
+</div>
+
+<p>
+  The terms $j&lt;i$ disturb higher-priority tasks. Strict priority keeps only $j=i$, i.e. applies
+  $\bar J_i^\top f_i$. This has a consequence for the variational picture: the resulting torque is in general
+  <em>not</em> the gradient of a potential on $q$, because the projected Jacobians are not integrable. There is
+  then no single potential, and hence no single $W$ of the form EQ(energyW), whose descent certifies the whole hierarchy.
+  The stability analyses of hierarchical passivity-based controllers accordingly work level by level and handle
+  the remaining couplings explicitly (<a href="#ref-ott2015">Ott et al., 2015</a>; <a href="#ref-dietrich2020">Dietrich &amp; Ott, 2020</a>;
+  <a href="#ref-garofalo2020">Garofalo &amp; Ott, 2020</a>). In the language of Part&nbsp;I, strict priority is <em>lexicographic</em>
+  (as in hierarchical quadratic programming; <a href="#ref-escande2014">Escande et al., 2014</a>), not the argmin of one
+  remaining action.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- INEQUALITY TASKS -->
+<!-- ================================================================== -->
+<section id="sec-ineq-hier">
+<h2>SECNUM Inequality Tasks in a Hierarchy</h2>
+
+<p>
+  Joint limits, obstacle distances and contact conditions enter whole-body control as inequality tasks, at any priority
+  level. This section extends Section&nbsp;SEC(sec-hierarchy) to them, with the unilateral forces of
+  Section&nbsp;SEC(sec-unilateral) as the building block.
+</p>
+
+<h3 id="sec-lexi">SECNUM The lexicographic problem and its active set</h3>
+
+<p>
+  A strict hierarchy with inequalities is a lexicographic optimization: level by level, minimize the violation of that
+  level&rsquo;s equalities and inequalities while keeping the optimal violations of all levels above, with Gauss&rsquo;s function
+  closing the hierarchy as the last level (<a href="#ref-kanoun2011">Kanoun et al., 2011</a>; <a href="#ref-escande2014">Escande et al.,
+  2014</a>). Two facts organize the rest of this section.
+</p>
+<ul>
+  <li><strong>For a fixed active set it is an equality hierarchy.</strong> Active inequality rows (the set
+    $\mathcal A\subseteq\mathcal I$ held at their bounds) are kept, inactive ones are dropped, and
+    Section&nbsp;SEC(sec-hierarchy) applies to the active stack $J_{\mathcal A}$ (the active rows inserted at their levels): one
+    factorization $J_{\mathcal A}M^{-1}J_{\mathcal A}^\top=\Theta_{\mathcal A}\bar\Lambda_{\mathcal A}^{-1}\Theta_{\mathcal A}^\top$,
+    extended Jacobians $\bar J_{\mathcal A}=\Theta_{\mathcal A}^{-1}J_{\mathcal A}$ and decoupled forces
+    $F=\Theta_{\mathcal A}^\top\lambda_{\mathcal A}$.</li>
+  <li><strong>A feasible stack is a single QP.</strong> If all tasks can be met at once, the lexicographic solution is the
+    Gauss problem with every row as a constraint, EQ(unikkt); the order then decides only the attribution, as in
+    Section&nbsp;SEC(sec-forces). The multipliers carry the signs of EQ(unikkt), and the solution of this strictly convex QP
+    depends continuously on its data as long as the active rows stay linearly independent.</li>
+</ul>
+<p>
+  <a href="#ref-garofalo2024">Garofalo (2024)</a> uses this structure in the passivity-based setting: a weighted hierarchical QP
+  extracts the set of active tasks, and the stack of active tasks defines the coordinate transformation that inertially
+  decouples them, with the natural inertia preserved.
+</p>
+
+<h3 id="sec-ineq-switch">SECNUM Activation and deactivation at any level</h3>
+
+<p>
+  An inequality row switches in two ways, both read off its complementary pair in EQ(unikkt), its multiplier and its margin
+  (its entry of $J_{\mathcal I}\ddot q-a_{\mathcal I}$): it <strong>activates</strong> when its margin reaches zero while its
+  multiplier is still zero, and it <strong>deactivates</strong> when its multiplier returns to zero while its margin is still
+  zero. These are events at the acceleration level, not at the position level: with an acceleration bound that is a feedback
+  law (Section&nbsp;SEC(sec-unilateral)) a row can become active before its coordinate reaches its position bound, and it can
+  be active while its coordinate recedes, as in the example of Section&nbsp;SEC(sec-unilateral). At the switching instant both
+  complementary quantities vanish, so the solution with the row dropped, given a zero multiplier for the row, also satisfies
+  the KKT conditions with the row held at its bound; by strict convexity the two solutions coincide there. Hence in the
+  constraint view, for a feasible stack whose data $M$, $\ddot q_{\rm free}$, $J_{\mathcal E}$, $J_{\mathcal I}$,
+  $a_{\mathcal E}$, $a_{\mathcal I}$ vary continuously in time and whose active rows stay linearly independent
+  (Section&nbsp;SEC(sec-lexi)), the torque is continuous across the switch. This excludes impacts. A row imposed only on the
+  boundary, as for a contact, enters the problem without a jump only if its coordinate arrives there with zero velocity: a
+  contact that closes with nonzero approach velocity cannot be kept from penetrating by any finite force, and the impulse it
+  needs makes the velocity, and in general the data of EQ(unikkt) and the torque, jump. Impacts are not treated here
+  (Sections&nbsp;SEC(sec-unilateral) and&nbsp;SEC(sec-outlook)). The active stack, and with it the basis of Section&nbsp;SEC(sec-hierarchy), changes
+  discontinuously. Since Gram&ndash;Schmidt orthogonalizes each level only against the levels above it, a switch at level $i$
+  leaves $\bar J_j$, $\zeta_j$ and $\Theta_{kj}$ for $j&lt;i$, and hence by EQ(forcesacc) the decoupled forces and powers of
+  every level above $i$, untouched; it re-orthogonalizes level $i$ and everything below.
+</p>
+
+<p>
+  In a fixed-seed example ($n=7$; random inertia, Jacobians and free acceleration, and a random joint velocity $\dot q$
+  for the powers; a two-row equality task at level&nbsp;1; at level&nbsp;2 a one-row inequality $J_2\ddot q\ge a_2(t)$, an upper
+  bound on a task coordinate $x_2$ imposed at the acceleration level, $J_2=-\partial x_2/\partial q$; a three-row
+  equality task at level&nbsp;3; feasible) the bound $a_2(t)$ rises and falls so that the row activates at
+  $t=1/6$ and deactivates at $t=5/6$. Along the sweep $\lambda_2\ge0$ throughout, the torque changes by at most
+  $1.8\times10^{-2}$ per step of $3.3\times10^{-4}$ in $t$, and by $2.9\times10^{-3}$ across either switch. At either switching
+  instant, with the same torque, the two attributions read:
+</p>
+
+<table>
+  <tr><th></th><th>Row 2 not in the stack</th><th>Row 2 in the stack, $\lambda_2=0$</th></tr>
+  <tr><td>Level 1 (above): $F_1$; power</td><td>$(2.465,\,-2.379)$; $-10.024$</td><td>unchanged</td></tr>
+  <tr><td>Level 2 (switching): $F_2$; power</td><td>&mdash;</td><td>$-11.501$; $-13.476$</td></tr>
+  <tr><td>Level 3 (below, last): $F_3=\lambda_3$; power</td><td>$(6.138,\,32.693,\,4.664)$; $-89.066$</td><td>$F_3$ unchanged; $-75.590$</td></tr>
+  <tr><td>Total power</td><td>$-99.090$</td><td>$-99.090$</td></tr>
+</table>
+
+<p>
+  The switching level carries a decoupled force although its multiplier is zero (it inherits the lower multipliers through
+  $\Theta$, EQ(forcebasis)), and the last level keeps its force ($F_r=\lambda_r$) but not its power, because its decoupled
+  velocity is redefined. The same happens at the top of a hierarchy: in another fixed-seed example (an inequality of
+  dimension 1 activating above tasks of dimensions 2 and 3, with random multipliers for the two tasks and the inertia and
+  joint velocity of the example of Section&nbsp;SEC(sec-forces)):
+</p>
+
+<table>
+  <tr><th></th><th>Before activation</th><th>After activation</th></tr>
+  <tr><td>Torque $\tau_x$</td><td colspan="2" style="text-align:center">identical (residual $4\times10^{-16}$)</td></tr>
+  <tr><td>Decoupled force of the new inequality level</td><td>&mdash;</td><td>$0.0125$ (its multiplier is $0$)</td></tr>
+  <tr><td>Decoupled force on task 1</td><td>$(1.620,\,0.372)$</td><td>$(1.633,\,0.386)$</td></tr>
+  <tr><td>Decoupled force on task 2 (last level)</td><td>$(0.407,\,-0.989,\,-0.658)$</td><td>unchanged</td></tr>
+  <tr><td>Power on the inequality level</td><td>&mdash;</td><td>$0.024$</td></tr>
+  <tr><td>Power on task 1</td><td>$-3.160$</td><td>$-2.840$</td></tr>
+  <tr><td>Power on task 2</td><td>$-4.330$</td><td>$-4.674$</td></tr>
+  <tr><td>Total power</td><td>$-7.491$</td><td>$-7.491$</td></tr>
+</table>
+
+<p>
+  In the <em>impressed</em> view, where the designer prescribes the $F_i$, the task torque $\tau_x=\bar J^\top F$ jumps at a switch
+  unless the forces are re-mapped through EQ(forcebasis), because $\bar J$ changes. Let $\mathcal A$ and
+  $\mathcal A'$ be the active sets before and after the switch, and $\lambda_{\mathcal A}=\Theta_{\mathcal A}^{-\top}F$ the stacked
+  multipliers of the prescribed forces. At an activation $\tau_x=J_{\mathcal A'}^\top\lambda_{\mathcal A'}$, where
+  $\lambda_{\mathcal A'}$ is $\lambda_{\mathcal A}$ with a zero inserted for the new row; by EQ(forcebasis) the
+  re-mapped forces $F'=\Theta_{\mathcal A'}^\top\lambda_{\mathcal A'}$ keep the torque, and since $\bar J_{\mathcal A'}$ has full
+  row rank they are the only forces on the new stack that do. At a deactivation of row $i$,
+  $\tau_x=J_{\mathcal A'}^\top\lambda_{\mathcal A'}+J_i^\top\lambda_i$, where $\lambda_{\mathcal A'}$ is $\lambda_{\mathcal A}$
+  without $\lambda_i$; since $J_{\mathcal A}$ has full row rank, no force on the new stack keeps the torque unless $\lambda_i=0$,
+  which the constraint view ensures and prescribed forces do not. In the first example, re-mapping at the activation keeps
+  $F_1$ and $F_3$ (in general, forces above the switching level and on the last level keep their values) and gives the inequality row $F_2=\Theta_{32}^\top\lambda_3=-11.501$; holding $F_1$ and $F_3$ and giving the new
+  row $F_2=0$, as a barrier force at its threshold would, changes the torque by $11.501\,\bar J_2^\top$. A rule that drops the row when its own decoupled force $F_i$
+  returns to zero does not ensure $\lambda_i=0$: by EQ(forcebasis) it leaves $\lambda_i=-\sum_{j&gt;i}\Theta_{ji}^\top\lambda_j$,
+  which is nonzero in general.
+</p>
+
+<h3 id="sec-ineq-signs">SECNUM A sign on the multiplier is not a sign on the decoupled force</h3>
+
+<p>
+  The multiplier of an active inequality row is non-negative, EQ(unikkt). Its decoupled force is
+  $F_i=\lambda_i+\sum_{j&gt;i}\Theta_{ji}^\top\lambda_j$ by EQ(forcebasis), and the second term has no sign. In the example of
+  Section&nbsp;SEC(sec-ineq-switch), over the whole active interval $\lambda_2$ ranges from $0$ to $31.06$ while $F_2$ stays between
+  $-11.50$ and $-4.02$: the force that the hierarchy attributes to the inequality task points against the only direction in
+  which the constraint can push. With the row oriented the other way ($J_2=+\partial x_2/\partial q$, a lower instead of an
+  upper bound on $x_2$), $F_2$ ranges from $+11.50$ to $+18.98$ over the same range of $\lambda_2$; the multipliers of the
+  other levels change with the orientation. The sign of $F_i$ is set by the lower levels&rsquo;
+  multipliers through $\Theta$, not by the inequality. Together with Section&nbsp;SEC(sec-unilateral): the sign of a unilateral
+  multiplier survives neither a change of basis nor a pairing with velocity.
+</p>
+
+<h3 id="sec-soft">SECNUM Conflicts and soft priorities</h3>
+
+<p>
+  When the stack is infeasible, the lexicographic solution is no longer a single QP. Each level minimizes its own violation
+  inside the optimal set of the levels above, and the sign condition $\lambda\ge0$ belongs to the level at which an inequality
+  is decided. A weighted problem, all levels in one QP with weights $w_i$, replaces strict priority by soft priority, and
+  strict priority is its limit as the weight ratios grow. In a fixed-seed example ($n=7$, a two-row inequality at level&nbsp;1 in
+  conflict with a seven-row posture task at level&nbsp;2) the weighted solution approaches the lexicographic one like
+  $0.1218/w$, with $w=w_1/w_2$ the weight ratio: the distance is $1.2\times10^{-3}$ at $w=10^2$ and $1.2\times10^{-6}$ at $w=10^5$, where the inequality is violated by
+  $2.0\times10^{-6}$. Soft priorities within a level, as in weighted hierarchical QPs, are this weighted problem restricted to the
+  tasks of one level: the block Gram&ndash;Schmidt picture applies between levels, while within a level the weights decide how a
+  conflict is shared. With conflicts, continuity across active-set changes needs care; <a href="#ref-mansard2009">Mansard et al.
+  (2009)</a> analyse the irregularities that unilateral constraints create in task hierarchies and show how to insert them at
+  any priority level. Our continuity checks cover the feasible case only.
+</p>
+</section>

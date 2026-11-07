@@ -1,0 +1,373 @@
+
+<div class="part-label">Part IV &middot; Synthesis and verification</div>
+
+<!-- ================================================================== -->
+<!-- SYNTHESIS -->
+<!-- ================================================================== -->
+<section id="sec-synthesis">
+<h2>SECNUM Synthesis</h2>
+
+<p>
+  The receding-window results grew from one root, the principle of optimality of Section&nbsp;SEC(sec-bellman): its
+  monotone recursion gave descent (Section&nbsp;SEC(sec-proof)), its limit the Hamilton&ndash;Jacobi equation and the
+  momentum (Section&nbsp;SEC(sec-hj)), its characteristics the extremals (Section&nbsp;SEC(sec-extremals)), its fixed points
+  exactness (Section&nbsp;SEC(sec-exactness)), and its phase-space form the momenta, the multipliers of the equations of
+  motion (Section&nbsp;SEC(sec-second-order)). The whole-body results draw on two further ingredients that do not follow
+  from it: Gauss&rsquo;s principle with tasks imposed as constraints
+  (Sections&nbsp;SEC(sec-gauss-task)&ndash;SEC(sec-unilateral)), in which no boundary term enters and whose multipliers are
+  the task forces; and one block factorization of the stacked mobility (Section&nbsp;SEC(sec-ldl)), from which
+  EQ(extJ)&ndash;EQ(power) and the attribution rules of Sections&nbsp;SEC(sec-ineq-hier) and SEC(sec-power) follow by
+  linear algebra. Gauss&rsquo;s weight ties both to the root: with a boundary term, Gauss&rsquo;s problem is the
+  infinitesimal-window rule EQ(gausstorque); with a constraint, it is operational-space control EQ(osc); and its metric
+  $M^{-1}$ is the inner product of the factorization, which rewrites the stacked multipliers as decoupled forces
+  EQ(forcebasis). Strict priority, finally, is lexicographic, not the argmin of one remaining action
+  (Sections&nbsp;SEC(sec-leak), SEC(sec-lexi)), and the stability arguments built on the mechanical energy
+  (Sections&nbsp;SEC(sec-strict), SEC(sec-robot-condition) and SEC(sec-equilibria)) are classical results, not
+  consequences of the root. Six threads ran through the
+  construction; this section collects them, then the instances of the second one, the multipliers met on the way and a
+  single dictionary.
+</p>
+
+<h3 id="sec-threads">SECNUM Six threads</h3>
+
+<div class="definition">
+  <ol>
+    <li><strong>Multipliers are physical quantities.</strong> The multipliers of the equations of motion are
+      momenta (Sections&nbsp;SEC(sec-so-augmented), SEC(sec-so-ostrogradsky) and SEC(sec-so-discrete)); the
+      multipliers of tasks are forces (Sections&nbsp;SEC(sec-gauss-task)&ndash;SEC(sec-gauss-dual)), those of
+      contacts are contact wrenches (Section&nbsp;SEC(sec-gauss-dual); on a floating base, in the plant&rsquo;s own Gauss
+      principle, Section&nbsp;SEC(sec-outlook)), and in a hierarchy the decoupled task forces
+      are the same multipliers written in another basis (Section&nbsp;SEC(sec-forces)). All of them are covectors:
+      their values depend on the coordinates, their pairing with velocities, a power, does not
+      (Sections&nbsp;SEC(sec-covectors), SEC(sec-invariance)).</li>
+    <li><strong>Argmin versus certificate.</strong> One minimization, of the stage cost plus the rate of change of
+      the boundary term, yields a controller (its argmin) and a certificate (the sign of its minimum, equivalently a
+      Hamilton&ndash;Jacobi inequality). They answer different questions, and a good controller can fail the
+      certificate (Sections&nbsp;SEC(sec-stationary), SEC(sec-numeric), SEC(sec-certificate),
+      SEC(sec-robot-condition)). A certificate belongs to the <em>pair</em> of Lagrangian and boundary term.</li>
+    <li><strong>Weak versus strict Lyapunov functions.</strong> A Lagrangian that penalizes position can only be
+      certified by a strict Lyapunov function. The mechanical energy is weak and certifies only damping
+      (Section&nbsp;SEC(sec-strict)); the composite energy of Slotine and Li is strict (Section&nbsp;SEC(sec-robot)); for a
+      strict hierarchy no single energy-type certificate is available, and the analysis is cascaded
+      (Sections&nbsp;SEC(sec-leak), SEC(sec-cascade)).</li>
+    <li><strong>Invariant versus attributed.</strong> The window length does not change the certificate, and, for a
+      given torque, the priority order does not change the total power injected through the tasks. What they change is how a total is
+      split: between the computed window and the estimated tail (Sections&nbsp;SEC(sec-onestep), SEC(sec-split),
+      SEC(sec-parallel)), or among priority levels (Sections&nbsp;SEC(sec-forces), SEC(sec-power)).</li>
+    <li><strong>Two Lagrangians.</strong> The variational Lagrangian (the cost we choose) and the physical one (the
+      robot) are different objects (Sections&nbsp;SEC(sec-so-augmented), SEC(sec-equilibria)). Controllers that act
+      through impressed forces shape the physical one and keep the natural inertia; controllers that impose tasks as
+      constraints in a variational principle shape the inertia (Sections&nbsp;SEC(sec-two-ways), SEC(sec-meet)).</li>
+    <li><strong>Inequalities: signs and switches.</strong> Inequality constraints keep every structure above: the descent
+      proof, the multipliers, the Hamilton&ndash;Jacobi certificate (with the supremum taken over the admissible set) and the
+      block Gram&ndash;Schmidt picture (for each active set), for a fixed contact mode without frictional sliding and a feasible stack (conflicts and
+      contacts: Sections&nbsp;SEC(sec-soft) and SEC(sec-outlook)). They add two things. Multipliers acquire a sign, but the sign lives
+      in one basis and at one level: it carries over neither to the decoupled forces of a hierarchy nor to the power
+      (Sections&nbsp;SEC(sec-unilateral), SEC(sec-ineq-signs)). And active sets switch. In the constraint view, for a feasible stack, a
+      switch moves the attribution of forces and power at and below the switching level, never the torque or the total
+      power. In the impressed view, where the $F_i$ are prescribed, the torque, and with it the total power, jumps in
+      general; re-mapping the forces through EQ(forcebasis) at the switch removes the jump at an activation, and at a
+      deactivation only if the stacked multiplier of the leaving row is zero there
+      (Sections&nbsp;SEC(sec-ineq-switch), SEC(sec-ineq-power)). An active constraint also
+      changes which boundary term is exact (Sections&nbsp;SEC(sec-kkt), SEC(sec-speedlimit)).</li>
+  </ol>
+</div>
+
+<h3 id="sec-syn-cert">SECNUM Argmin versus certificate, in one table</h3>
+
+<table>
+  <tr><th>Pair (Lagrangian, boundary term)</th><th>Argmin: the controller</th><th>Certificate</th><th>Closed loop</th><th>Where</th></tr>
+  <tr><td>Quadratic $L$, $W=cV_\infty$ with $c&lt;1$</td><td>$v=-cR^{-1}Pq$</td><td><strong>fails</strong>: $H&lt;0$, for every window length</td><td>converges</td><td>&sect;SEC(sec-stationary), SEC(sec-scalar)</td></tr>
+  <tr><td>Rectangle-rule $L_d$, $W=\tfrac12q^2$ (continuous Riccati weight)</td><td>$q\mapsto0.909\,q$</td><td><strong>fails</strong>: $V_1&gt;W$</td><td>converges</td><td>&sect;SEC(sec-numeric)</td></tr>
+  <tr><td>Same $L_d$, $W$ inflated by $c\ge1.05125$ ($c=1.2$)</td><td>$q\mapsto0.893\,q$</td><td>holds</td><td>converges</td><td>&sect;SEC(sec-exactness), SEC(sec-numeric)</td></tr>
+  <tr><td>Hilltop with speed limit $|v|\le\bar v$, $W=V$ (unconstrained remaining action)</td><td>clipped law, which is optimal</td><td><strong>fails</strong> for $|q|&gt;\bar v/\omega$: $H_{\mathcal V}&lt;0$</td><td>converges</td><td>&sect;SEC(sec-speedlimit)</td></tr>
+  <tr><td>Same, $W=V_{\mathcal V}$ (constrained remaining action)</td><td>clipped law</td><td>holds with equality, $H_{\mathcal V}=0$</td><td>converges</td><td>&sect;SEC(sec-speedlimit)</td></tr>
+  <tr><td>Gauss cost with the task as a constraint (no $W$)</td><td>operational-space law EQ(osc)</td><td>none; stability is that of $\ddot x=\ddot x_{\rm cmd}$</td><td>task converges</td><td>&sect;SEC(sec-gauss-task), SEC(sec-certificate)</td></tr>
+  <tr><td>$\ell_0$ penalizing $\tilde x$; mechanical energy as $W$; cost centred on $\tau_{\rm imp}=g-\nabla U_s$</td><td>passivity-based law $\tau_{\rm imp}-R^{-1}\dot q$</td><td><strong>fails</strong> for every $K_D$, at every rest state with $\tilde x\neq0$ (hence arbitrarily close to $\tilde x=0$, $v=0$): there $\mathcal D=\ell_0(q,0)&gt;0$ in EQ(defectE)</td><td>converges (LaSalle)</td><td>&sect;SEC(sec-certificate)&ndash;SEC(sec-strict)</td></tr>
+  <tr><td>Arm: EQ(armell) with the composite $W$ EQ(armW) and the Slotine&ndash;Li spring $K_e=2\Gamma K_D$</td><td>PD$+g$ EQ(armrule)</td><td><strong>fails</strong> arbitrarily close to $z=0$</td><td>globally asymptotically stable (no torque limits)</td><td>&sect;SEC(sec-robot-condition)</td></tr>
+  <tr><td>Arm: matched spring EQ(armmatch), $Q_e$, $Q_v$ with a margin</td><td>PD$+g$ EQ(armrule)</td><td>holds on $\{W\le\bar W\}$ for $\bar W$ up to about $10^3$ (sampled)</td><td>globally asymptotically stable (no torque limits)</td><td>&sect;SEC(sec-robot-condition)</td></tr>
+  <tr><td>Arm with the torque box: EQ(armell), composite $W$, matched spring</td><td>saturated PD$+g$ EQ(armclip)</td><td>holds on $\{W\le\bar W\}$ for $\bar W$ up to about 5.9 (sampled); box inactive below 0.310</td><td>converges</td><td>&sect;SEC(sec-robot-limits)</td></tr>
+</table>
+
+<p>
+  In every row the controller is the minimizer of one bracket and the certificate is the value of that bracket at the
+  minimizer. Whether the certificate holds is decided by how the Lagrangian and the boundary term fit together, never by
+  the controller alone: the same PD law is certified with one spring and not with another, and the same clipped law is
+  certified by one remaining action and not by another. The repairs are of two
+  kinds: inflate $W$ (Sections&nbsp;SEC(sec-exactness), SEC(sec-robot-rh)), or shape the Lagrangian to match it
+  (Section&nbsp;SEC(sec-robot-condition)); an inverse-optimal construction (Section&nbsp;SEC(sec-plant-energy)) does the second by
+  design. The weak/strict thread is the case in which no Lagrangian that penalizes position can be matched at all: at rest,
+  where $\dot q=0$, the rate of any $W$ is $\dot W=\nabla_vW\cdot f(z,u)=-\pi_v\cdot f(z,u)$, and for an energy-type $W$
+  the velocity momentum $\pi_v=-Mv$ vanishes there whatever the position error. A strict certificate EQ(cert2) therefore
+  needs a velocity momentum that carries the position error, that is, a position&ndash;velocity cross term in $W$, as in
+  Slotine and Li&rsquo;s composite velocity (Sections&nbsp;SEC(sec-strict), SEC(sec-robot-rule)), and the Lagrangian must
+  still be matched to it (Section&nbsp;SEC(sec-robot-condition)). A strict hierarchy adds a separate obstruction: its
+  projected task forces are in general not the gradient of one potential, so not even a single $W$ of the form
+  EQ(energyW) certifies the whole hierarchy (Section&nbsp;SEC(sec-leak)). The natural candidate there is a boundary term
+  per level in the decoupled coordinates $\zeta_i$; since every $\zeta_i$ vanishes at rest, each level&rsquo;s term would
+  need its own cross term, and whether the per-level descent defects then add up to a certificate is open
+  (Section&nbsp;SEC(sec-cascade)).
+</p>
+
+<h3 id="sec-syn-mult">SECNUM The multipliers, with their physical readings</h3>
+
+<table>
+  <tr><th>Constraint</th><th>Multiplier</th><th>Physical reading</th><th>Where</th></tr>
+  <tr><td>Equations of motion $\dot q=v$, $\dot v=f$</td><td>$\pi=(\pi_q,\pi_v)$</td><td>Momenta, $\pi=-\nabla_zV$</td><td>&sect;SEC(sec-so-augmented)</td></tr>
+  <tr><td>Same, fully actuated ($f=u$)</td><td>$(p_1,p_2)$</td><td>Ostrogradsky&rsquo;s momenta</td><td>&sect;SEC(sec-so-ostrogradsky)</td></tr>
+  <tr><td>Shooting defects $z_{j+1}=\Phi_h(z_j,u_j)$, $j=0,\dots,N-1$</td><td>$\pi_{j+1}$</td><td>Discrete momenta, $\pi_{j+1}=-\nabla V_{N-j-1}(z_{j+1})$</td><td>&sect;SEC(sec-so-discrete)</td></tr>
+  <tr><td>Initial value $z_0=\hat z$</td><td>$\pi_0$</td><td>Momentum at the current state, $-\nabla V_N(\hat z)$: minus the gradient of the Lyapunov function</td><td>&sect;SEC(sec-so-discrete)</td></tr>
+  <tr><td>Step and terminal inequalities $\chi\le0$</td><td>$\mu\ge0$</td><td>Reactions; an active terminal constraint plans with $(1+\mu)W$</td><td>&sect;SEC(sec-kkt), SEC(sec-so-discrete)</td></tr>
+  <tr><td>Task acceleration $J\ddot q=a_x$</td><td>$\lambda$</td><td>Operational-space force ($T_0\lambda$: an impulse)</td><td>&sect;SEC(sec-gauss-task)</td></tr>
+  <tr><td>Unilateral task rows $J_{\mathcal I}\ddot q\ge a_{\mathcal I}$</td><td>$\lambda_{\mathcal I}\ge0$</td><td>Forces that can only push; their power has no sign</td><td>&sect;SEC(sec-unilateral)</td></tr>
+  <tr><td>Bilateral contact</td><td>$\lambda_c$</td><td>Contact wrench $f_c$ on a fixed base; on a floating base $f_c\neq\lambda_c$ in general</td><td>&sect;SEC(sec-gauss-dual), SEC(sec-outlook)</td></tr>
+  <tr><td>Base rows $(M\ddot q+b-J_c^\top f_c)_{\rm base}=0$ of a floating base</td><td>$\lambda_{\rm base}$</td><td>Zero if the contacts can exert any base wrench; otherwise paired with the momentum $(M\dot q)_{\rm base}$ in the actuator power</td><td>&sect;SEC(sec-outlook)</td></tr>
+  <tr><td>Stacked tasks, written in the basis of a hierarchy</td><td>$F=\Theta^\top\lambda$</td><td>Decoupled task forces</td><td>&sect;SEC(sec-forces)</td></tr>
+</table>
+
+<h3 id="sec-syn-dict">SECNUM One dictionary</h3>
+
+<table>
+  <tr><th>Variational / mechanics object</th><th>Control object</th><th>Where</th></tr>
+  <tr><td>Variational Lagrangian $L$, $\ell$; action $S$</td><td>Stage cost; cost over the horizon</td><td>&sect;SEC(sec-problem)</td></tr>
+  <tr><td>Remaining action (principal function of the initial point plus boundary term)</td><td>Optimal value function; Lyapunov function</td><td>&sect;SEC(sec-window), SEC(sec-characteristics)</td></tr>
+  <tr><td>Principle of optimality, Bellman operator $\mathcal B$</td><td>Dynamic-programming recursion</td><td>&sect;SEC(sec-bellman)</td></tr>
+  <tr><td>Boundary term $W$, region $\Omega$, reference flow $\varphi_f$</td><td>Terminal cost, terminal set, terminal control law</td><td>&sect;SEC(sec-terminal)</td></tr>
+  <tr><td>&ldquo;The path can always be extended admissibly&rdquo;</td><td>Recursive feasibility</td><td>&sect;SEC(sec-descent)</td></tr>
+  <tr><td>Hamilton&ndash;Jacobi equation</td><td>Hamilton&ndash;Jacobi&ndash;Bellman equation</td><td>&sect;SEC(sec-hjderiv)</td></tr>
+  <tr><td>Momentum $p=-\nabla V$; Legendre transform $\min_v[L-p\cdot v]=-H$</td><td>Costate $\eta=\nabla V=-p$ (minimum principle); control Hamiltonian $L+\eta\cdot v$</td><td>&sect;SEC(sec-momentum)</td></tr>
+  <tr><td>Hamilton&ndash;Jacobi inequality $H(z,-\nabla W)\ge0$</td><td>Descent certificate $\mathcal D\le0$; terminal cost that is a control Lyapunov function</td><td>&sect;SEC(sec-infinitesimal), SEC(sec-so-hj)</td></tr>
+  <tr><td>Stable Lagrangian subspace of the Hamiltonian (or symplectic) matrix</td><td>LQR, algebraic Riccati equation</td><td>&sect;SEC(sec-riccati), SEC(sec-so-example)</td></tr>
+  <tr><td>Exact discrete Lagrangian $L_d^E$</td><td>Exact sampling of the continuous-time cost over one step: the continuous-time Riccati weight is then an exact one-step terminal cost and the step samples the LQR flow (the midpoint rule keeps the first property, with a Cayley step; the rectangle rule needs its own discrete-Riccati weight)</td><td>&sect;SEC(sec-exactness)</td></tr>
+  <tr><td>Momentum $\pi=-\nabla_zV$; Ostrogradsky&rsquo;s momenta</td><td>Costate (up to sign); defect multipliers of multiple shooting</td><td>&sect;SEC(sec-so-augmented)&ndash;SEC(sec-so-discrete)</td></tr>
+  <tr><td>One-step rule with Gauss&rsquo;s weight $R=T_0M^{-1}$</td><td>Gauss&rsquo;s principle of least constraint; $\tau_c=\pi_v/T_0$</td><td>&sect;SEC(sec-gauss-free)</td></tr>
+  <tr><td>Multiplier of a task constraint</td><td>Operational-space force $\lambda=\Lambda(a_x-J\ddot q_{\rm free})$</td><td>&sect;SEC(sec-gauss-task)&ndash;SEC(sec-gauss-dual)</td></tr>
+  <tr><td>Gauss metric pushed forward</td><td>Task inertia $\Lambda$</td><td>EQ(oscvalue)</td></tr>
+  <tr><td>Constraint force</td><td>Inertia-shaping control (operational space)</td><td>&sect;SEC(sec-two-ways)</td></tr>
+  <tr><td>Impressed force</td><td>Impedance with natural inertia</td><td>&sect;SEC(sec-two-ways)</td></tr>
+  <tr><td>Argmin of a centred cost with an energy-type $W$</td><td>Passivity-based law $\tau=g-J^\top K_{P,x}\tilde x-K_D\dot q$</td><td>&sect;SEC(sec-certificate)</td></tr>
+  <tr><td>Weak versus strict Lyapunov function</td><td>Mechanical energy (LaSalle) versus composite variable</td><td>&sect;SEC(sec-strict), SEC(sec-robot)</td></tr>
+  <tr><td>Infinitesimal-window rule for the composite energy and a cost on $u=\tau-g$</td><td>PD control with gravity compensation</td><td>&sect;SEC(sec-robot-rule)</td></tr>
+  <tr><td>Physical versus variational Lagrangian</td><td>Energy shaping versus receding-window optimization</td><td>&sect;SEC(sec-equilibria)</td></tr>
+  <tr><td>Gram&ndash;Schmidt in the $M^{-1}$ metric, $JM^{-1}J^\top=\Theta\bar\Lambda^{-1}\Theta^\top$</td><td>Dynamically consistent hierarchy, decoupled inertias</td><td>&sect;SEC(sec-ldl)&ndash;SEC(sec-consistency)</td></tr>
+  <tr><td>Change of basis $F=\Theta^\top\lambda$</td><td>Decoupled task forces versus stacked multipliers</td><td>&sect;SEC(sec-forces)</td></tr>
+  <tr><td>Lexicographic optimization</td><td>Strict priority</td><td>&sect;SEC(sec-leak)</td></tr>
+  <tr><td>Basis-invariant power $F^\top\zeta=\lambda^\top\dot x$</td><td>Total task port; single energy tank</td><td>&sect;SEC(sec-power)</td></tr>
+  <tr><td>Window length; priority order</td><td>Split between window and tail; split among levels</td><td>&sect;SEC(sec-parallel)</td></tr>
+  <tr><td>KKT multiplier $\mu\ge0$ of an active constraint</td><td>Constraint reaction; an active terminal constraint plans with $(1+\mu)W$</td><td>&sect;SEC(sec-kkt), SEC(sec-so-discrete), SEC(sec-robot-limits)</td></tr>
+  <tr><td>$H_{\mathcal V}$, $H_{\mathcal U}$: supremum over the admissible set</td><td>Saturated (projected) rule; a stronger certificate</td><td>&sect;SEC(sec-constrained-v)</td></tr>
+  <tr><td>Unilateral constraint in Gauss&rsquo;s principle; Fourier&rsquo;s inequality</td><td>Contact force, inequality-task force ($\lambda_{\mathcal I}\ge0$)</td><td>&sect;SEC(sec-unilateral)</td></tr>
+  <tr><td>Complementarity at position, velocity, acceleration level</td><td>Signorini; Moreau (workless, dissipative impacts); Gauss</td><td>&sect;SEC(sec-unilateral), SEC(sec-outlook)</td></tr>
+  <tr><td>Lexicographic QP with inequalities, per active set</td><td>Strict hierarchy with inequality tasks (hierarchical QP)</td><td>&sect;SEC(sec-lexi)</td></tr>
+  <tr><td>Weighted QP</td><td>Soft priorities; strict priority as its limit</td><td>&sect;SEC(sec-soft)</td></tr>
+</table>
+</section>
+
+<!-- ================================================================== -->
+<!-- VERIFICATION -->
+<!-- ================================================================== -->
+<section id="sec-verification">
+<h2>SECNUM Verification Status</h2>
+
+<p>
+  This section lists how the claims were checked: the scripts behind the numbers (Section&nbsp;SEC(sec-ver-num)) and the records
+  behind the references (Section&nbsp;SEC(sec-ver-lit)).
+</p>
+
+<h3 id="sec-ver-num">SECNUM Numerical and symbolic checks</h3>
+
+<p>
+  Every number in this document is printed by one of the scripts below (Python with SymPy, NumPy, SciPy; Pinocchio
+  for one cross-check). Paths are relative to the companion-code folder <code>code/</code> next to this document, whose
+  <code>README.md</code> lists, for each script, the sections it supports and how to run it. Most scripts run in the
+  automated check (<code>code/checks.toml</code>, with their output in <code>code/logs/</code>). Three are run by hand: the
+  full 500-step closed-loop runs of Section&nbsp;SEC(sec-robot-results) (<code>closedloop.py A 10,20,40</code> and
+  <code>closedloop.py B 1,10,40</code>, up to about 25&nbsp;minutes each; their console output is kept in
+  <code>data/</code>), the figures drawn from them (Figures&nbsp;5 and 6), and the Pinocchio cross-check, which needs a
+  package the project does not install. Four further scripts,
+  <code>checks/<wbr>torque_<wbr>momentum_<wbr>share.py</code>, <code>checks/<wbr>midpoint_<wbr>fixed_<wbr>point.py</code>,
+  <code>checks/<wbr>torque_<wbr>level.py</code> and <code>checks/<wbr>terminal_<wbr>set_<wbr>window.py</code> (rows marked
+  &#9651;), are not in <code>checks.toml</code> and are also run by hand. &ldquo;Exact&rdquo; means a symbolic identity;
+  &ldquo;sampled&rdquo; means a numerical search that can miss a counterexample and is not a proof.
+</p>
+
+<table class="ver">
+  <tr><th>Claim</th><th>Script</th><th>Result</th></tr>
+  <tr class="group"><th colspan="3">Part I: receding windows (Sections&nbsp;SEC(sec-setting)&ndash;SEC(sec-ineq1))</th></tr>
+  <tr><td>Hilltop: $V=\tfrac12\sqrt{m\kappa}\,q^2$, $\int_0^\infty L\,dt=V(q_0)$, eigenvalues $\pm\omega$, $H(q,-V')=0$, $p=-V'$ on the extremal; finite window with $W=0$, $V_\vartheta=\tfrac12\sqrt{m\kappa}\tanh(\omega\vartheta)q^2$, solves $\partial_\vartheta V=-H$</td><td><code>note/<wbr>sec5_<wbr>6_<wbr>symbolic_<wbr>checks.py</code></td><td>Exact</td></tr>
+  <tr><td>Finite window with $W=cV$, EQ(finitewindow): solves $\partial_\vartheta V=-H$ with $V_0=cV$; monotone in $\vartheta$ with the sign of $1-c$</td><td><code>checks/<wbr>torque_<wbr>momentum_<wbr>share.py</code> &#9651;</td><td>Agreement with numerical integration ${\le10^{-10}}$ for $c\in\{0,0.5,1,1.2,3\}$</td></tr>
+  <tr><td>Jacobi field $\sinh\omega t$ (no conjugate point); closed form EQ(LdEexample) of $L_d^E$ equals the action of the extremal; one step with $L_d^E$: $V_1=W$, $\nabla V_1=\partial_1L_d^E$, $p^+=\partial_2L_d^E=-\nabla W(q^+)$, $q^+=e^{-\omega h}q$</td><td><code>merged/<wbr>hilltop_<wbr>extra.py</code>, <code>note/<wbr>sec5_<wbr>6_<wbr>symbolic_<wbr>checks.py</code></td><td>Exact</td></tr>
+  <tr><td>Exact boundary term with a terminal region (Sections&nbsp;SEC(sec-stationary), SEC(sec-scalar), SEC(sec-exactness)): hilltop with $m=\kappa=1$, $W=V=\tfrac12q^2$ and $\Omega=[-\tfrac12,\tfrac12]$; window $\vartheta=0.1$ (one $L_d^E$ step, $h=0.1$): $V_\vartheta(1)=V_1(1)=1.404$ against $W(1)=0.5$, first move $p/m=-5.04$ against the rule&rsquo;s $-\omega q=-1$; $V_N(1)=W(1)$ only from $N=7$, the first $N$ with $e^{-Nh}\le\tfrac12$</td><td><code>checks/<wbr>terminal_<wbr>set_<wbr>window.py</code> &#9651;</td><td>Exact QP over the chain; $V_N(1)$ agrees with the continuous window of length $Nh$ to ${10^{-15}}$; the multiplier of $\Omega$ is positive up to $N=6$ and zero from $N=7$</td></tr>
+  <tr><td>$p=-Pq$ is the stable subspace of the Hamiltonian matrix; $PR^{-1}P=Q$ equals SciPy&rsquo;s CARE solution; $\dot W+L=-H(q,-\nabla W)$ and $H\propto c^2-1$ for $W=cV_\infty$</td><td><code>note/<wbr>sec5_<wbr>6_<wbr>symbolic_<wbr>checks.py</code></td><td>Residuals ${\approx10^{-15}}$; confirmed for $c\in\{0.5,0.9,1,1.3,2\}$</td></tr>
+  <tr><td>Tables of Section&nbsp;SEC(sec-numeric); rectangle-rule $L_d$ with the continuous Riccati weight violates EQ(terminal) and EQ(descent); thresholds $c\ge P_d/P$, with $P_d/P=1.051249$ ($h=0.1$) and $1.280776$ ($h=0.5$)</td><td><code>note/<wbr>sec4_<wbr>3_<wbr>one_<wbr>step_<wbr>example.py</code>, <code>note/<wbr>sec5_<wbr>6_<wbr>symbolic_<wbr>checks.py</code></td><td>Confirmed</td></tr>
+  <tr><td>Descent EQ(descent) for general $N$, a numerical illustration of Section&nbsp;SEC(sec-descent): 3-D example, rectangle rule ($h=0.1$), $W=\tfrac c2 q^\top Pq$ with $c\in\{c^\ast\!=1.106,\,1.5,\,3\}$, $N\in\{1,2,3,5,8\}$, 20 random starts &times; 30 closed-loop steps</td><td><code>note/<wbr>sec10_<wbr>general_<wbr>N_<wbr>descent.py</code></td><td>Holds in every sampled case (at $c=c^\ast$ the terminal condition EQ(terminal) is tight in one direction, next row, which the samples miss)</td></tr>
+  <tr><td>Matrix threshold: $cP$ minus its image under the one-step Riccati map EQ(riccatimap) is positive semidefinite exactly for $c\ge c^\ast=\lambda_{\max}(P^{-1}P_d)$ (3-D example)</td><td><code>merged/<wbr>riccati_<wbr>threshold.py</code></td><td>Smallest eigenvalue changes sign at $c^\ast$</td></tr>
+  <tr><td>Midpoint rule (Section&nbsp;SEC(sec-exactness)): $L_d(q,q')+W(q')-W(q)=h\big[L(q_{1/2},v)+\nabla W(q_{1/2})\cdot v\big]$ for quadratic $W$; with $W=\tfrac12q^\top Pq$, $V_1=W$ for every $h$ and the step is the Cayley map, not $e^{-hR^{-1}P}q$ (3-D example with $QR\neq RQ$, $h\in\{0.05,0.3,1,3\}$)</td><td><code>checks/<wbr>midpoint_<wbr>fixed_<wbr>point.py</code> &#9651;</td><td>Identity exact; residuals ${\le3\times10^{-14}}$</td></tr>
+  <tr><td>Window/tail split of Section&nbsp;SEC(sec-split)</td><td><code>merged/<wbr>window_<wbr>split.py</code></td><td>Exact pair: $V_N=0.5$ for all $N$ (to ${10^{-15}}$)</td></tr>
+  <tr><td>Hilltop with speed limit: $H_{\mathcal V}$ EQ(Hconstr); clipped rule; $H_{\mathcal V}(q,-V')=-\tfrac12(\sqrt\kappa|q|-\sqrt m\bar v)^2$ beyond $q_s$ ($-0.125$ at $q=1$); $V_{\mathcal V}$ EQ(VV) solves $H_{\mathcal V}=0$, is $C^2$ not $C^3$, $V_{\mathcal V}(1)=0.5417=\int L\,dt$ along the clipped law; one bounded step: $\mu=0.45$, $p^+=-0.50$</td><td><code>merged/<wbr>ineq_<wbr>hilltop.py</code></td><td>Closed forms to ${10^{-15}}$ (numerical supremum to ${3\times10^{-8}}$)</td></tr>
+  <tr class="group"><th colspan="3">Part II: mechanical plants (Sections&nbsp;SEC(sec-second-order)&ndash;SEC(sec-equilibria))</th></tr>
+  <tr><td>Euler&ndash;Lagrange equations of $\tilde L$ EQ(augmented) = Hamilton&rsquo;s equations of EQ(H2); Ostrogradsky momenta EQ(ostro) = $(\pi_q,\pi_v)$ for $f=u$</td><td><code>note/<wbr>sec7_<wbr>symbolic_<wbr>checks.py</code></td><td>Exact, general $f$, $\ell$</td></tr>
+  <tr><td>Double integrator: $P$ of EQ(dintP) solves the Riccati equation; $H(z,-\nabla V)=0$; $\dot V=-\ell$; $\pi=-Pz$ is the stable invariant subspace of $\Xi$ EQ(dintXi); $p_1=\pi_q$, $p_2=\pi_v$; scaled candidates; both tables</td><td><code>note/<wbr>sec7_<wbr>symbolic_<wbr>checks.py</code>, <code>note/<wbr>sec7_<wbr>numerical_<wbr>checks.py</code></td><td>Exact; $\int_0^\infty\ell\,dt-V(z_0)\approx10^{-13}$</td></tr>
+  <tr><td>Multiple shooting ($h=0.2$, $N=10$): KKT multipliers of EQ(ms) equal $-P_{N-j}z_j$; EQ(mskkt) and $\pi_N=-\nabla W$ hold for three choices of $W$</td><td><code>note/<wbr>sec7_<wbr>numerical_<wbr>checks.py</code></td><td>Residuals ${\approx10^{-16}}$</td></tr>
+  <tr><td>Manipulator torque EQ(manip) against numerical maximization of EQ(H2), for $R=I$ and $R=M^{-1}$</td><td><code>note/<wbr>sec7_<wbr>numerical_<wbr>checks.py</code></td><td>Agreement ${\approx10^{-8}}$</td></tr>
+  <tr><td>Discrete &ldquo;torque = momentum&rdquo; (Section&nbsp;SEC(sec-gauss-free)) in the one-degree-of-freedom setup, with $\pi_j=-\nabla V_{N-j}(z_j)$: $T_0\tau_0=\pi_{v,1}+\tfrac h2\pi_{q,1}$ (zero-order hold) and $\pi_{v,1}+h\pi_{q,1}$ (symplectic Euler); at every node, $T_0\tau_j=\tfrac12(\pi_{v,j}+\pi_{v,j+1})$ (zero-order hold) and $T_0\tau_j=\pi_{v,j}$ (symplectic Euler); end-of-step term $\tfrac h2\pi_{q,1}$ or $h\pi_{q,1}$ equal to 110%, 35.5%, 5.5% (ZOH) and 54%, 10.5% (symplectic Euler) of $T_0\tau_0$; per unit displacement, $-\pi_{v,0}/T_0=2.864$ and $-\pi_{v,1}/T_0=-0.136$&nbsp;N/m for the 10&nbsp;ms zero-order-hold window (Section&nbsp;SEC(sec-mpc-limit))</td><td><code>checks/<wbr>torque_<wbr>momentum_<wbr>share.py</code> &#9651;</td><td>Identities to ${10^{-15}}$; shares confirmed</td></tr>
+  <tr><td>Finite-window stiffness 2.86 (optimal time-varying torque) versus 1.36&nbsp;N/m (zero-order hold) at $\vartheta=10$&nbsp;ms (Section&nbsp;SEC(sec-mpc-limit))</td><td><code>wbc_<wbr>brainstorm/<wbr>redteam_<wbr>check_<wbr>C_<wbr>F.py</code>; re-derived in <code>checks/<wbr>torque_<wbr>momentum_<wbr>share.py</code> &#9651;</td><td>One-degree-of-freedom examples; 2.8635 and 1.3636</td></tr>
+  <tr><td>Power units: the multiplier of the task-constrained problem with cost $\tfrac{T_0}2\tau_c^\top M^{-1}\tau_c$ is $T_0\lambda$; momenta in the coordinates $(e,v)$ and $(e,s)$: $\tilde\pi_s=\pi_v$, $\tilde\pi_e=\pi_q-\Gamma^\top\pi_v$, same pairing $-\dot W$ (arm, 200 random states)</td><td><code>merged/<wbr>duals_<wbr>check.py</code></td><td>${3\times10^{-17}}$; ${7\times10^{-9}}$ and ${2\times10^{-7}}$ (finite differences)</td></tr>
+  <tr><td>EQ(osc) and EQ(oscvalue): KKT multiplier of the Gauss problem $=\Lambda(a_x-J\ddot q_{\rm free})$, Gauss value $=\tfrac12\|a_x-J\ddot q_{\rm free}\|^2_\Lambda$; EQ(impressed); stationarity of EQ(centred)</td><td><code>wbc/<wbr>wbc_<wbr>companion_<wbr>checks.py</code></td><td>Residuals ${\le1\times10^{-15}}$</td></tr>
+  <tr><td>Unilateral Gauss problem EQ(unikkt): $\lambda_{\mathcal I}=(1.770,\,0,\,1.609)$, complementarity, Fourier&rsquo;s inequality EQ(fourier); unilateral powers $0$ and $+0.805$</td><td><code>merged/<wbr>ineq_<wbr>gauss.py</code></td><td>KKT residual ${5\times10^{-15}}$; EQ(fourier) on 1407 sampled accelerations (an illustration: EQ(fourier) is the optimality condition of the convex problem)</td></tr>
+  <tr><td>Arm: hand-written $M$, $C$, $g$ against Pinocchio (1000 random states); skew-symmetry of $\dot M-2C$</td><td><code>note/<wbr>sec8_<wbr>arm/<wbr>pinocchio_<wbr>crosscheck.py</code> (by hand; needs Pinocchio)</td><td>${\le7\times10^{-15}}$; skew residual ${4\times10^{-10}}$ (finite-difference $\dot M$); manual run, not logged in <code>code/logs/</code></td></tr>
+  <tr><td>Arm: $\dot W$ EQ(armWdot), identity EQ(armSL), $u^\ast$ EQ(armrule), $\mathcal D=-H$ EQ(armD), $\pi_v=-Ms$</td><td><code>note/<wbr>sec8_<wbr>arm/<wbr>sym_<wbr>derive.py</code></td><td>Exact</td></tr>
+  <tr><td>Arm: eigenvalues of $\nabla^2\mathcal D(0)$ and levels $\bar W^*$ (table of Section&nbsp;SEC(sec-robot-condition)); thresholds on $c$ (including 1.035 near the target for $Q_v=\tfrac12(K_D-2\gamma M_0)$, Section&nbsp;SEC(sec-robot-rh)); solvable sets</td><td><code>note/<wbr>sec8_<wbr>arm/<wbr>condcheck.py</code>, <code>edge.py</code>, <code>quadlimit.py</code>, <code>omega_<wbr>check.py</code>, <code>discrete_<wbr>check.py</code>, <code>feas.py</code></td><td>Sampled (ray search, $2$&ndash;$4\times10^5$ samples) with local refinement; not proofs</td></tr>
+  <tr><td>Arm: torque-limit level of the reference law (Section&nbsp;SEC(sec-robot-rh)), $\bar W_\tau=0.310$ on the face $\tau_2=+30$&nbsp;N&nbsp;m at $e=(0.0006,\,0.013)$, $v=(0.71,\,-2.44)$; 0.682 and 0.867 on the faces $\tau_2=-30$ and $\tau_1=+50$&nbsp;N&nbsp;m; 3.81 on the plane $\tau_1=-50$&nbsp;N&nbsp;m, whose minimizer has $\tau_2$ outside the box (5.78 on that face of the box, at the corner $\tau=(-50,30)$); bound 0.312 at $e=0$</td><td><code>checks/<wbr>torque_<wbr>level.py</code> &#9651;</td><td>Face-by-face reduction to a function of $e$ (the free component of $s$ eliminated in closed form), grid on the disk that contains every state with $W\le4$, then local polish; agrees with multistart constrained minimization over $z$. A ray search alone can only over-estimate such a level, since every point it returns is a violation: with $2\times10^5$ rays and no refinement it returns 0.31&ndash;0.37, depending on the seed</td></tr>
+  <tr><td>Arm: adjoint gradients of the single-shooting problem against finite differences</td><td><code>merged/<wbr>arm_<wbr>extra_<wbr>checks.py</code></td><td>${\le1\times10^{-9}}$</td></tr>
+  <tr><td>Arm: descent inequality EQ(descent) along six closed-loop runs (500 steps each); long-window values $V_{100},V_{200},V_{400}$</td><td><code>note/<wbr>sec8_<wbr>arm/<wbr>closedloop.py</code> (full runs by hand; output in <code>data/</code>), <code>longh.py</code></td><td>Descent ratio $[V_N(z)-V_N(z^+)]/h\ell\ge1.09$ at every step of every run, so $V_N(z^+)-V_N(z)+h\ell\le-0.09\,h\ell$; never positive</td></tr>
+  <tr><td>Arm: torque gap between the $N=1$ window and PD$+g$ (0.73, 1.03&nbsp;N&nbsp;m) and its halving with $h$</td><td><code>merged/<wbr>arm_<wbr>extra_<wbr>checks.py</code></td><td>Confirmed</td></tr>
+  <tr><td>Arm with the torque box: box-QP minimizer equals the clip EQ(armclip) for diagonal $R$; with $R=T_0M^{-1}$ projection $(50.0,-10.2)$ versus clip $(50.0,30.0)$&nbsp;N&nbsp;m</td><td><code>merged/<wbr>ineq_<wbr>arm.py</code></td><td>${3\times10^{-14}}$ on 2000 states (1515 saturated)</td></tr>
+  <tr><td>Arm: certificate with the box on $\{W\le\bar W\}$ up to $\bar W\approx5.9$; discrete condition with saturated reference needs $c\ge1.048$ ($\bar W=1$) and $c\ge1.137$ ($\bar W=4$)</td><td><code>merged/<wbr>ineq_<wbr>arm.py</code></td><td>Sampled with local refinement (three seeds give 6.03&ndash;6.22 for the level before refinement); not proofs</td></tr>
+  <tr><td>Arm: KKT of the $N=10$ window along the first ten steps: bound multipliers $\ge0$, terminal multiplier $\mu=39.2,\dots,0.59$, release at the tenth step</td><td><code>merged/<wbr>ineq_<wbr>arm.py</code></td><td>Stationarity residual on free torques ${\le6\times10^{-7}}$</td></tr>
+  <tr class="group"><th colspan="3">Part III: hierarchies (Sections&nbsp;SEC(sec-hierarchy)&ndash;SEC(sec-outlook)); fixed seed, random inertia, $n=7$ unless a row states otherwise</th></tr>
+  <tr><td>EQ(ldl)&ndash;EQ(extJ): $\Theta^{-1}J$ equals the dynamically consistent extended Jacobians; $\bar JM^{-1}\bar J^\top$ block diagonal; $\dot x=\Theta\zeta$</td><td><code>wbc/<wbr>wbc_<wbr>companion_<wbr>checks.py</code></td><td>Residuals ${\le3\times10^{-15}}$</td></tr>
+  <tr><td>EQ(KEsplit): the kinetic energy splits over levels (square stack)</td><td><code>wbc/<wbr>wbc_<wbr>companion_<wbr>checks.py</code></td><td>$72.717361247003$ both ways</td></tr>
+  <tr><td>EQ(forcebasis): $\tau_x=\bar J^\top F$ with $F=\Theta^\top\lambda$; effort separation; $F_r=\lambda_r$; order dependence; EQ(leak)</td><td><code>wbc/<wbr>wbc_<wbr>companion_<wbr>checks.py</code></td><td>Residuals ${\le4\times10^{-16}}$</td></tr>
+  <tr><td>EQ(forcesacc) and the numbers of Figure&nbsp;7 (two-link arm of Section&nbsp;SEC(sec-robot), $n=2$: $\Theta_{21}=2.5$, $F=(3,\,0.4)$, $F_1=\Lambda_1J_1M^{-1}\tau_x$)</td><td><code>merged/<wbr>fig_<wbr>bases.py</code></td><td>Confirmed</td></tr>
+  <tr><td>Rank-deficient (conflicting) stack: pseudo-inverse pivots reproduce the extended Jacobians</td><td><code>wbc_<wbr>brainstorm/<wbr>redteam_<wbr>check_<wbr>A_<wbr>B.py</code></td><td>Residuals ${\le3\times10^{-15}}$</td></tr>
+  <tr><td>Order dependence of the torque: prescribed per-level forces on a feasible square stack (impressed view) versus the stacked constraint view</td><td><code>wbc_<wbr>brainstorm/<wbr>redteam_<wbr>check_<wbr>ineq_<wbr>order.py</code></td><td>Joint accelerations differ by up to $0.37$ versus ${9\times10^{-16}}$</td></tr>
+  <tr><td>EQ(power): total power invariant across orders, per-level power not (Section&nbsp;SEC(sec-invariance)); top-level active-set switch (second table of Section&nbsp;SEC(sec-ineq-switch))</td><td><code>wbc/<wbr>wbc_<wbr>companion_<wbr>checks.py</code></td><td>Confirmed</td></tr>
+  <tr><td>Inequality at level 2 of 3: activation at $t=1/6$, deactivation at $5/6$, $\lambda_2\ge0$, continuous torque; attribution tables; $F_2\in[-11.50,-4.02]$ (and $[+11.50,+18.98]$ for the reversed row) while $\lambda_2\in[0,31.06]$; impressed view at the activation with $F_1$, $F_3$ held and $F_2=0$: torque change $11.501\,\bar J_2^\top$, total power $-99.090\to-10.024-75.590$</td><td><code>merged/<wbr>ineq_<wbr>hierarchy.py</code></td><td>Equality residuals ${\le2\times10^{-15}}$</td></tr>
+  <tr><td>Strict priority as the limit of soft priority: $w$ times the distance tends to $0.1218$ ($0.0974$ at $w=1$, $0.1215$ at $w=10^2$, $0.1218$ from $w=10^3$ to $10^5$)</td><td><code>merged/<wbr>ineq_<wbr>soft.py</code></td><td>Confirmed</td></tr>
+</table>
+
+<h3 id="sec-ver-lit">SECNUM Literature checks</h3>
+<p>
+  Every reference was checked against publisher, repository, library-catalogue or index records and the
+  reference lists of citing papers, found through web search. A DOI is given only where it appeared in such a
+  record. Only one full text of a cited work is relied on: the open-access preprint of
+  <a href="#ref-burgos2022">Burgos &amp; Paternain (2022)</a>. Its &sect;1 and its reference list are the source of the
+  history given in the rows for smooth and for real-analytic potentials in the table of Section&nbsp;SEC(sec-phys-lag):
+  Painlev&eacute;&rsquo;s 1904 example and Wintner&rsquo;s version of it, the two-degree-of-freedom example of
+  <a href="#ref-laloy1976">Laloy (1976)</a>, the Newtonian result of <a href="#ref-palamodov1977">Palamodov (1977)</a> and
+  <a href="#ref-taliaferro1980b">Taliaferro (1980b)</a>, its extension to an arbitrary kinetic energy by
+  <a href="#ref-kozlov1981">Kozlov (1981)</a>, the instability at a non-strict minimum proved by
+  <a href="#ref-laloy1982">Laloy &amp; Peiffer (1982)</a> and the resulting two-degree-of-freedom analytic converse, and the statement and open status of Arnold&rsquo;s problem
+  1971-4. These statements rest on that account, not on the original works. Entries marked &#9675; were confirmed only
+  through secondary sources (citing papers or tables of contents). For these entries, and for the statements just
+  listed, the specific statement attributed should be checked against the original before being relied on. The descriptions of the cited hierarchical controllers are
+  kept at the level of their published abstracts and standard constructions; specific weightings and proofs should be
+  taken from the papers themselves.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- REFERENCES -->
+<!-- ================================================================== -->
+<section id="sec-references">
+<h2>SECNUM References</h2>
+
+REFSLIST
+</section>
+
+<!-- ================================================================== -->
+<!-- APPENDIX: NOTATION -->
+<!-- ================================================================== -->
+<section id="sec-notation">
+<h2>Appendix A. Notation</h2>
+
+<p>
+  This table collects the principal symbols, and those of the worked examples that later sections reuse. They are grouped
+  by where they are introduced, a Part&nbsp;II analogue sharing the row of its Part&nbsp;I symbol and the task-space
+  objects of Sections&nbsp;SEC(sec-gauss) and SEC(sec-impressed) being listed with Part&nbsp;III. Symbols used only inside
+  one derivation or example, such as $M_0$, $u_{\text{SL}}$, $u_{\text{ref}}$ and $S_{\text{cl}}$ of
+  Section&nbsp;SEC(sec-robot), are not repeated here.
+</p>
+
+<table>
+  <tr><th>Object</th><th>Symbol</th><th>Definition / assumption</th></tr>
+  <tr class="group"><th colspan="3">Receding windows (Sections&nbsp;SEC(sec-setting)&ndash;SEC(sec-ineq1))</th></tr>
+  <tr><td>Configuration</td><td>$q\in\mathbb{R}^n$</td><td>Rest point at $q=0$</td></tr>
+  <tr><td>Admissible velocities</td><td>$v=\dot q\in\mathcal V(q)$</td><td>The decision variable of a first-order plant EQ(plant1); $\mathcal V(q)$ is closed and encodes unilateral constraints</td></tr>
+  <tr><td>Variational Lagrangian</td><td>$L(q,v)$</td><td>$L(0,0)=0$; $L(q,v)\ge\alpha_L(|q|)$ with $\alpha_L\in\mathcal K_\infty$; continuously differentiable, strictly convex and superlinear in $v$</td></tr>
+  <tr><td>Action on $[t,t_f]$</td><td>$S$</td><td>EQ(action) along any admissible path; window length $\vartheta=t_f-t$ in time, or $N$ steps of length $h$</td></tr>
+  <tr><td>Boundary (Bolza) term</td><td>$W(q)$ ($W(z)$)</td><td>Continuous, $W\ge 0$, $W(0)=0$; from Section&nbsp;SEC(sec-second-order) on a function of the state $z$, EQ(plant2); continuously differentiable on a neighbourhood of $\Omega$ wherever $\nabla W$ is used (from Section&nbsp;SEC(sec-infinitesimal) on)</td></tr>
+  <tr><td>Quadratic weights</td><td>$Q$, $R$; $Q_e$, $Q_v$</td><td>Weights of the state and of the decision variable in a quadratic Lagrangian: $\tfrac12q^\top Qq+\tfrac12v^\top Rv$ in Part&nbsp;I (state: the position; decision variable: the velocity), $\tfrac12z^\top Qz+\tfrac12u^\top Ru$ from Section&nbsp;SEC(sec-second-order) on (state: $z=(q,v)$; decision variable: an input or torque), e.g. $Q=\mathrm{diag}(w_q,w_v)$, $R=w_u$ in Section&nbsp;SEC(sec-so-example); the arm&rsquo;s stage cost EQ(armell) splits the state weight into $Q_e$ on the position error $e=q-q_d$ and $Q_v$ on the velocity; Gauss&rsquo;s weight is the choice $R=T_0M^{-1}$ (Section&nbsp;SEC(sec-so-manipulator))</td></tr>
+  <tr><td>Riccati solutions</td><td>$P$, $P_d$; $P_\vartheta$, $P_N$</td><td>Weights of quadratic remaining actions, $\tfrac12q^\top Pq$ ($\tfrac12z^\top Pz$ from Section&nbsp;SEC(sec-second-order) on). $P$: the weight of $V_\infty$, the positive-definite solution of the continuous-time algebraic Riccati equation $A^\top P+PA-PBR^{-1}B^\top P+Q=0$; for $\dot q=v$ ($A=0$, $B=I$) the equation is $PR^{-1}P=Q$ (Section&nbsp;SEC(sec-stationary)), and for the double integrator the solution is EQ(dintP) (Section&nbsp;SEC(sec-so-example)). $P_d$: the discrete-time solution of a given discretization; for the rectangle rule, the fixed point of the one-step Riccati map EQ(riccatimap) (Section&nbsp;SEC(sec-exactness)). $P_\vartheta$, $P_N$: the weights of $V_\vartheta$, $V_N$ for a finite window, from the Riccati differential equation in $\vartheta$ (Sections&nbsp;SEC(sec-scalar), SEC(sec-mpc-limit)) or the backward discrete Riccati recursion (Section&nbsp;SEC(sec-so-discrete)), started at the weight $P_0=\nabla^2W$ of $W$</td></tr>
+  <tr><td>Momentum</td><td>$p$; $p_j$, $p^+$; $\eta$</td><td>$p=\partial L/\partial v$; along an optimal path it is minus the gradient of the remaining action of the window at hand, $p=-\nabla V$ (Sections&nbsp;SEC(sec-momentum), SEC(sec-characteristics)); $p=-\nabla W$ for the infinitesimal window. At node $j$ of a computed path the discrete momentum is $p_j$, EQ(dlegendre), with $p_j=-\nabla V_{N-j}(q_j)$, EQ(dmomentum); $p^+$ is the momentum at the next point $q^+$, EQ(dstationarity). The minimum-principle costate is $\eta=\nabla V=-p$ (Section&nbsp;SEC(sec-momentum)), and $\eta=\nabla_zV=-\pi$ in Part&nbsp;II (Section&nbsp;SEC(sec-so-augmented))</td></tr>
+  <tr><td>Hamiltonian</td><td>$H(q,p)$</td><td>$\sup_v\,[\,p\cdot v-L(q,v)\,]$ (Legendre transform, EQ(legendre))</td></tr>
+  <tr><td>Terminal region</td><td>$\Omega\ni 0$</td><td>Closed, containing a neighbourhood of the rest point; positively invariant under $\varphi_f$</td></tr>
+  <tr><td>Reference flow</td><td>$\varphi_f:\Omega\to\Omega$</td><td>$\varphi_f(0)=0$; each step $q\mapsto\varphi_f(q)$ admissible (A1, A2)</td></tr>
+  <tr><td>Discrete Lagrangian</td><td>$L_d(q,q')$, $L_d^E$</td><td>Action of one step (Section&nbsp;SEC(sec-steps)), and its exact version EQ(LdE); $\partial_1,\partial_2$ are derivatives in the first and second argument</td></tr>
+  <tr><td>Next point</td><td>$q^+$ ($z^+$)</td><td>The point the scheme moves to after one step; $q'$ is the free second argument of $L_d$ and of the minimization, $q_k$ ($z_k$) the closed-loop sequence</td></tr>
+  <tr><td>Nodes of a planned path</td><td>$q_j$, $z_j$; $z_{j|k}$</td><td>$j=0,\dots,N$ inside a window; $z_{j|k}$ is node $j$ of the plan computed at closed-loop step $k$ (Section&nbsp;SEC(sec-robot-rh))</td></tr>
+  <tr><td>Remaining action</td><td>$V_N$, $V_\vartheta$, $V_\infty$; $V$</td><td>Least action from the current point with $N$ steps (time $\vartheta$) to go, or over an infinite window (Sections&nbsp;SEC(sec-window), SEC(sec-hjderiv)); as a function of both arguments $V(q,\vartheta):=V_\vartheta(q)$, and $V_\vartheta\to W$ on $\Omega$ as $\vartheta\to0$ (the infinitesimal window). In absolute time, $V_{t_f-t}(q)$. Without a subscript, $V$ is the remaining action of the window at hand</td></tr>
+  <tr><td>Bellman operator</td><td>$\mathcal B$</td><td>EQ(T); monotone; $V_N=\mathcal BV_{N-1}$</td></tr>
+  <tr><td>One-step Riccati map</td><td>$\mathcal R_h$</td><td>EQ(riccatimap): $\mathcal B\big(\tfrac12q^\top Xq\big)=\tfrac12q^\top\mathcal R_h(X)\,q$ for the rectangle rule EQ(rect) with a quadratic Lagrangian and no active constraint; monotone ($X_a\preceq X_b$ implies $\mathcal R_h(X_a)\preceq\mathcal R_h(X_b)$); its positive-definite fixed point is $P_d$</td></tr>
+  <tr><td>Principal function</td><td>$\mathcal S(q_i,t_i;q_f,t_f)$</td><td>$\int_{t_i}^{t_f}L\,dt$ along the extremal that joins the two endpoints, <em>without</em> the boundary term; the remaining action adds $W$ and minimizes over the endpoint in $\Omega$, EQ(principal)</td></tr>
+  <tr><td>Solvable set</td><td>$\mathcal X_N$</td><td>Points from which the $N$-step problem has a solution</td></tr>
+  <tr><td>Inequality multipliers</td><td>$\mu\ge0$</td><td>KKT multipliers of step, state, input and terminal constraints $\chi\le0$; complementary, $\mu\chi=0$</td></tr>
+  <tr><td>Constrained Hamiltonian</td><td>$H_{\mathcal V}$, $H_{\mathcal U}$</td><td>Supremum over the admissible velocities $\mathcal V(q)$ or inputs $\mathcal U(z)$ instead of all of them</td></tr>
+  <tr><td>Comparison functions</td><td>$\mathcal K$, $\mathcal K_\infty$; $\alpha_1,\alpha_2$</td><td>Classes of Section&nbsp;SEC(sec-problem); $\alpha_1(|q|)\le V_N(q)\le\alpha_2(|q|)$ for a Lyapunov function (Section&nbsp;SEC(sec-asymptotic), where $\alpha_1=\alpha_L$; Section&nbsp;SEC(sec-var-lag))</td></tr>
+  <tr><td>Running example</td><td>$m,\kappa$; $\omega$</td><td>$L=\tfrac12mv^2+\tfrac12\kappa q^2$ with $m,\kappa&gt;0$, i.e. $Q=\kappa$, $R=m$; $\omega=\sqrt{\kappa/m}$, EQ(example). Read as $\mathcal T-U$ with $U=-\tfrac12\kappa q^2$, it is the hilltop of Section&nbsp;SEC(sec-scalar)</td></tr>
+  <tr><td>Trial weight, scale</td><td>$X\succ0$; $c&gt;0$</td><td>$W=\tfrac12q^\top Xq$, a trial quadratic boundary term (Sections&nbsp;SEC(sec-stationary), SEC(sec-exactness)); $c$ scales a boundary term, $W=cV_\infty$, i.e. $X=cP$ (Section&nbsp;SEC(sec-stationary)), and again in Sections&nbsp;SEC(sec-scalar), SEC(sec-exactness), SEC(sec-so-example), SEC(sec-robot-rh) and SEC(sec-robot-limits)</td></tr>
+  <tr><td>First move, rule</td><td>$v^*_\vartheta(q)$; $v^*(q)$</td><td>First move of the window problem of length $\vartheta$ (Section&nbsp;SEC(sec-rhc)); $v^*$, the infinitesimal-window rule, minimizes $L+\nabla W\cdot v$ over $\mathcal V(q)$, EQ(rule), EQ(ruleV). Its Part&nbsp;II analogues are $u^*(z)$, EQ(rule2), and the optimal torque $\tau^*$, EQ(manip), EQ(centred), EQ(armrule), EQ(armclip)</td></tr>
+  <tr><td>Eigenvalue</td><td>$\sigma$</td><td>An eigenvalue, or the variable of a characteristic polynomial; those of a Hamiltonian matrix come in pairs $\pm\sigma$ (Sections&nbsp;SEC(sec-riccati), SEC(sec-so-ostrogradsky), SEC(sec-so-example)); in Section&nbsp;SEC(sec-robot-rh), a closed-loop eigenvalue</td></tr>
+  <tr><td>Speed limit</td><td>$\bar v$; $q_s$</td><td>$|v|\le\bar v$, i.e. $\mathcal V=[-\bar v,\bar v]$ (Section&nbsp;SEC(sec-speedlimit); on one step, $q-q'\le h\bar v$, Section&nbsp;SEC(sec-kkt)); $q_s=\bar v/\omega$: for $|q|\le q_s$ the unconstrained optimal velocity $-\omega q$ respects the limit</td></tr>
+  <tr><td>Constrained remaining action</td><td>$V_{\mathcal V}$</td><td>Infinite-window remaining action of the hilltop under the speed limit, EQ(VV)</td></tr>
+  <tr><td>Terminal level</td><td>$\bar W$</td><td>Level of a terminal region that is a sublevel set of the boundary term, $\Omega=\{W\le\bar W\}$ (Sections&nbsp;SEC(sec-kkt), SEC(sec-so-discrete), SEC(sec-robot-condition)&ndash;SEC(sec-robot-limits))</td></tr>
+  <tr class="group"><th colspan="3">Mechanical plants (Sections&nbsp;SEC(sec-second-order)&ndash;SEC(sec-equilibria))</th></tr>
+  <tr><td>State, control</td><td>$z=(q,v)\in\mathbb R^{2n}$, $u\in\mathbb R^{n_u}$</td><td>$\dot q=v$, $\dot v=f(z,u)$; one step of a digital controller $z_{k+1}=\Phi_h(z_k,u_k)$</td></tr>
+  <tr><td>Stage cost</td><td>$\ell(z,u)$</td><td>The variational Lagrangian of a second-order plant; $\ell\ge\alpha_\ell(|z|)$; continuously differentiable, strictly convex and superlinear in $u$, with $f$ affine in $u$; it has the units of a power</td></tr>
+  <tr><td>Momenta</td><td>$\pi=(\pi_q,\pi_v)$</td><td>Multipliers of $\dot q=v$ and $\dot v=f$; $\pi=-\nabla_zV$ along optimal paths</td></tr>
+  <tr><td>Hamiltonian of a second-order plant</td><td>$H(z,\pi)$</td><td>$\sup_u[\pi_q\cdot v+\pi_v\cdot f-\ell]$, EQ(H2); $H_{\mathcal U}$ with $u\in\mathcal U(z)$</td></tr>
+  <tr><td>Equations of motion</td><td>$M(q)\dot v+b(q,v)=\tau$, $\dot q=v$</td><td>$b=C(q,v)v+g(q)$, $g=\nabla U$; $\dot M-2C$ skew-symmetric; kinetic energy $\mathcal T=\tfrac12v^\top M(q)v$; potential energy $U(q)$; gravity-compensated input $u=\tau-g(q)$</td></tr>
+  <tr><td>Impressed and constraint torque</td><td>$\tau=\tau_{\rm imp}+\tau_c$</td><td>$\tau_{\rm imp}$ a given function of the state; free acceleration $\ddot q_{\rm free}=M^{-1}(\tau_{\rm imp}-b)$</td></tr>
+  <tr><td>Gauss&rsquo;s weight</td><td>$R=T_0M^{-1}$</td><td>$T_0$ a time constant that makes $\tfrac12\tau^\top R\tau$ a power</td></tr>
+  <tr><td>Admissible inputs</td><td>$\mathcal U(z)$</td><td>For example the torque box $|\tau_i|\le\tau_{\max,i}$ on $\tau=u+g(q)$ (Section&nbsp;SEC(sec-robot-limits))</td></tr>
+  <tr><td>Descent defect</td><td>$\mathcal D(z)$, $\mathcal D_{\mathcal U}(z)$</td><td>$\min_u[\ell+\dot W]=-H(z,-\nabla_zW)$, and the same minimum over $\mathcal U(z)$; the certificate is $\mathcal D\le0$ (or $\mathcal D_{\mathcal U}\le0$)</td></tr>
+  <tr><td>Lagrangians of Part&nbsp;II</td><td>$L_z$; $\tilde L$; $\hat\ell$; $L_{\text{phys}}$</td><td>$L_z(z,\dot z)$, the stage cost as a function of $(z,\dot z)$, finite only where $\dot q=v$, EQ(Lz); $\tilde L$, the augmented Lagrangian EQ(augmented), whose canonical momenta are the multipliers $\pi_q,\pi_v$; $\hat\ell(q,\dot q,\ddot q)=\ell|_{u=\ddot q}$ for $f=u$, EQ(ostro); $L_{\text{phys}}=\mathcal T-U$, the physical Lagrangian of the plant (Sections&nbsp;SEC(sec-so-augmented), SEC(sec-phys-lag))</td></tr>
+  <tr><td>Ostrogradsky momenta</td><td>$p_1,p_2$</td><td>Canonical momenta of $\hat\ell$, EQ(ostro); $(p_1,p_2)=(\pi_q,\pi_v)$ on optimal paths, EQ(ostroH)</td></tr>
+  <tr><td>Torque-free stage cost</td><td>$\ell_0(q,v)$</td><td>The part of $\ell$ that does not depend on the torque: $\ell=\ell_0+\tfrac12\tau^\top R\tau$ (Section&nbsp;SEC(sec-so-manipulator)), or, centred on $\tau_{\rm imp}$, EQ(centred)</td></tr>
+  <tr><td>Double integrator</td><td>$w_q,w_v,w_u$; $A,B,K$; $\Xi$</td><td>$\ell=\tfrac12(w_qq^2+w_vv^2+w_uu^2)$ with $w_q,w_u&gt;0$, $w_v\ge0$, EQ(dint), so that $Q=\mathrm{diag}(w_q,w_v)$ weights the state $z$ and $R=w_u$; $\dot z=Az+Bu$, with LQR gain $K=w_u^{-1}B^\top P$ for $P$ of EQ(dintP); Hamiltonian matrix $\Xi$, $\tfrac{d}{dt}(z,\pi)=\Xi\,(z,\pi)$, EQ(dintXi) (Section&nbsp;SEC(sec-so-example))</td></tr>
+  <tr><td>Multiple shooting</td><td>$\ell_d$; $\tilde S_d$; $\hat z$</td><td>Stage cost of one step; discrete augmented action EQ(ms); the current state, imposed as $z_0=\hat z$ with multiplier $\pi_0=-\nabla V_N(\hat z)$ (Section&nbsp;SEC(sec-so-discrete))</td></tr>
+  <tr><td>Energies</td><td>$E$; $U_s(q)$</td><td>$E=\mathcal T+U$, the mechanical energy of the plant (Sections&nbsp;SEC(sec-phys-lag), SEC(sec-resolution)); $U_s$, a designed (shaped) potential, $W=\tfrac12v^\top Mv+U_s$, EQ(energyW), matched by $\tau_{\rm imp}=g-\nabla U_s$ (Sections&nbsp;SEC(sec-certificate), SEC(sec-meet))</td></tr>
+  <tr><td>Joint-space gains</td><td>$K_D$, $K_P$</td><td>Damping and stiffness. The infinitesimal-window rule gives $K_D=R^{-1}$ (Section&nbsp;SEC(sec-certificate); EQ(armrule)), which is $M/T_0$ for Gauss&rsquo;s weight, and, for the composite $W$ of the arm, $K_P=R^{-1}\Gamma$, EQ(armrule); in the Slotine&ndash;Li law of Section&nbsp;SEC(sec-robot-ingredients), $K_D$ is a free gain</td></tr>
+  <tr><td>Two-link arm: target, error</td><td>$q_d$; $e=q-q_d$; $g_0$</td><td>Target posture and joint error, with state $z=(e,v)$ and $\dot e=v$ (Section&nbsp;SEC(sec-robot-plant); again in Section&nbsp;SEC(sec-covectors)); $g_0$ the gravitational acceleration (also in Section&nbsp;SEC(sec-phys-lag))</td></tr>
+  <tr><td>Two-link arm: boundary term</td><td>$s$, $\Gamma$; $K_e$; $a(z)$</td><td>Composite velocity $s=\dot e+\Gamma e$ with $\Gamma\succ0$ (first named in Section&nbsp;SEC(sec-strict)) and spring $K_e\succ0$ of $W=\tfrac12s^\top Ms+\tfrac12e^\top K_ee$, EQ(armW); $K_e$ is also the spring of the one-degree-of-freedom $W=\tfrac12Mv^2+\tfrac12K_eq^2$ of Sections&nbsp;SEC(sec-gauss-free) and SEC(sec-mpc-limit); $a(z)=C\Gamma e+M\Gamma\dot e$, a torque, in $\dot W=s^\top\big(u+a(z)\big)+e^\top K_e\dot e$, EQ(armWdot)</td></tr>
+  <tr><td>Two-link arm: certified levels</td><td>$\bar W^*$; $\bar W_\tau$</td><td>$\bar W^*=\inf\{W(z):\mathcal D(z)&gt;0\}$, the largest level with $\mathcal D\le0$ on $\{W\le\bar W^*\}$ (Section&nbsp;SEC(sec-robot-condition)); $\bar W_\tau\approx0.310$, the level below which the reference torque stays inside the torque limits (Sections&nbsp;SEC(sec-robot-rh), SEC(sec-robot-limits))</td></tr>
+  <tr class="group"><th colspan="3">Whole-body control (Sections&nbsp;SEC(sec-gauss), SEC(sec-impressed), SEC(sec-hierarchy)&ndash;SEC(sec-outlook))</th></tr>
+  <tr><td>Task $i$ (priority $i=1$ highest)</td><td>$x_i(q)$, $J_i=\partial x_i/\partial q$</td><td>Dimension $n_i$; $r$ priority levels</td></tr>
+  <tr><td>Stacked Jacobian</td><td>$J$</td><td>$[J_1;\dots;J_r]$ in priority order (a single task is the case $r=1$)</td></tr>
+  <tr><td>Task inertia</td><td>$\Lambda$, $\Lambda_i$</td><td>$(JM^{-1}J^\top)^{-1}$, $(J_iM^{-1}J_i^\top)^{-1}$</td></tr>
+  <tr><td>Commanded task acceleration</td><td>$\ddot x_{\rm cmd}$; $a_x$</td><td>$a_x=\ddot x_{\rm cmd}-\dot J\dot q$ is the right-hand side of $J\ddot q=a_x$ (the term $\dot J\dot q$ is absorbed in it), so that $\ddot x=\ddot x_{\rm cmd}$</td></tr>
+  <tr><td>Task multipliers</td><td>$\lambda=(\lambda_1,\dots,\lambda_r)$</td><td>Duals of the stacked task constraints</td></tr>
+  <tr><td>Block factorization</td><td>$\Theta$, $\bar\Lambda$</td><td>$JM^{-1}J^\top=\Theta\bar\Lambda^{-1}\Theta^\top$; $\Theta$ unit block lower triangular, $\bar\Lambda=\mathrm{blockdiag}(\bar\Lambda_i)$</td></tr>
+  <tr><td>Extended Jacobians</td><td>$\bar J=\Theta^{-1}J$</td><td>Rows $\bar J_i$; decoupled (null-space) velocities $\zeta=\bar J\dot q$</td></tr>
+  <tr><td>Decoupled task forces</td><td>$F=(F_1,\dots,F_r)$</td><td>$\tau_x=\bar J^\top F$, with $\tau_x$ the torque produced through the task channel: $\tau_c$ in the constraint view, the task part of $\tau_{\rm imp}$ in the impressed view (Section&nbsp;SEC(sec-forces))</td></tr>
+  <tr><td>Equality and inequality rows</td><td>$\mathcal E$, $\mathcal I$, $\mathcal A\subseteq\mathcal I$</td><td>$J_{\mathcal E}\ddot q=a_{\mathcal E}$, $J_{\mathcal I}\ddot q\ge a_{\mathcal I}$ with $\lambda_{\mathcal I}\ge0$; $\mathcal A$ the rows held at their bound (active set); a row may carry a sign, e.g. $J_2=-\partial x_2/\partial q$ for an upper bound (Section&nbsp;SEC(sec-ineq-switch))</td></tr>
+  <tr><td>Equality rows eliminated</td><td>$\Lambda_{\mathcal E}$; $\ddot q_{\mathcal E}$</td><td>$\Lambda_{\mathcal E}=(J_{\mathcal E}M^{-1}J_{\mathcal E}^\top)^{-1}$, the task inertia of the equality rows; $\ddot q_{\mathcal E}=\ddot q_{\rm free}+M^{-1}J_{\mathcal E}^\top\Lambda_{\mathcal E}\big(a_{\mathcal E}-J_{\mathcal E}\ddot q_{\rm free}\big)$, Gauss&rsquo;s acceleration with the equality rows alone (Section&nbsp;SEC(sec-unilateral))</td></tr>
+  <tr><td>Contact</td><td>$x_c(q)\ge0$, $f_c=(f_n,f_t)$</td><td>Gap; normal and tangential contact force (a wrench for a surface contact); friction coefficient $\mu_c$; for a point contact, Jacobian $J_c$ with normal and tangential rows $J_n$, $J_t$, sliding velocity $v_t=J_t\dot q$ and $\hat v_t=v_t/\|v_t\|$</td></tr>
+  <tr><td>Floating base</td><td>$(\cdot)_{\rm base}$, $M_{\rm base}$; $J_c$; $\lambda_c$, $\lambda_{\rm base}$; $\Delta f_c$</td><td>Six base rows of a vector and of $M$ ($\tau_{\rm base}=0$); Jacobian of the closed contacts; multipliers of the contact rows and of the base rows $(M\ddot q+b-J_c^\top f_c)_{\rm base}=0$; the part of $f_c$ that carries $(J^\top\lambda)_{\rm base}$ (Section&nbsp;SEC(sec-outlook))</td></tr>
+  <tr><td>Task target and error, task gains, external force</td><td>$x_d$, $\tilde x=x-x_d$; $K_{P,x},K_{D,x}$; $F_{\rm ext}$</td><td>Constant task target and task error; stiffness and damping of the impressed task force $F=-K_{P,x}\tilde x-K_{D,x}\dot x$; an unmeasured external task force, acting through $J^\top F_{\rm ext}$ (Section&nbsp;SEC(sec-two-ways))</td></tr>
+  <tr><td>Momenta in the coordinates $(e,s)$</td><td>$\tilde W$; $\tilde\pi_e,\tilde\pi_s$</td><td>$W(e,v)=\tilde W(e,s)$; $\tilde\pi_s=\pi_v$, $\tilde\pi_e=\pi_q-\Gamma^\top\pi_v$ (Section&nbsp;SEC(sec-covectors))</td></tr>
+  <tr><td>Decoupled Coriolis matrix</td><td>$\bar C$, $\bar C_{ij}$</td><td>For a square stack and $\tau=g+\bar J^\top F$, $\bar\Lambda\dot\zeta+\bar C\zeta=F$, with $\dot{\bar\Lambda}-2\bar C$ skew-symmetric and $\bar C_{ij}=-\bar C_{ji}^\top$ (Section&nbsp;SEC(sec-consistency))</td></tr>
+</table>
+
+<div class="margin-note">
+  Symbols that clash across the literatures are fixed as follows. $L$ always denotes a Lagrangian, so the block
+  $LDL^\top$ factor of a hierarchy is written $\Theta$ (with the pivots written $\bar\Lambda_i^{-1}$); $\Lambda$ always
+  denotes a task inertia, so the gain of Slotine and Li is written $\Gamma$; $\mathcal T$ always denotes the kinetic energy,
+  so the Bellman operator, often $T$ in dynamic programming, is written $\mathcal B$; a short time is a step $h$ or a
+  window length $\vartheta$, so that $\delta$ always denotes a variation; decoupled velocities are $\zeta$, the
+  minimum-principle costate is $\eta$, and $\lambda_{\max}(\cdot)$ is the largest eigenvalue. Gains are $K_P,K_D$ in
+  joint space and $K_{P,x},K_{D,x}$ in task space; $c$ alone always scales a boundary term (the cosines of
+  Section&nbsp;SEC(sec-robot-plant) are written $c_1$, $c_2$, $c_{12}$), and constraint functions are written $\chi\le0$.
+  Multipliers of inequalities are $\mu$ in the optimal-control parts and $\lambda_{\mathcal I}$ in Gauss&rsquo;s principle;
+  the friction coefficient is $\mu_c$. Four marks carry two meanings, told apart by context: an overbar marks a bound or
+  level in Parts&nbsp;I and II ($\bar v$, $\bar V$, $\bar W$) but an object of the decoupled basis in Part&nbsp;III
+  ($\bar J$, $\bar\Lambda$, $\bar C$); a subscript on $V$ is a window length ($V_N$, $V_\vartheta$, $V_\infty$), but in
+  $V_{\mathcal V}$ it names the admissible set, as in $H_{\mathcal V}$; $p_j$ is the momentum at node $j$, whereas
+  Ostrogradsky&rsquo;s $p_1,p_2$ are indexed by derivative order; and $a(z)$ of Section&nbsp;SEC(sec-robot) is a torque,
+  whereas $a_x$, $a_{\mathcal E}$, $a_{\mathcal I}$ are accelerations. The calligraphic $\mathcal R_h$ of
+  Section&nbsp;SEC(sec-exactness) is $\mathcal B$ written on quadratic weights.
+</div>
+</section>
+
+<footer class="copyright">&copy; 2026 Gianluca Garofalo. All rights reserved.</footer>

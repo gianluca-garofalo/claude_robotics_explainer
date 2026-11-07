@@ -1,0 +1,37 @@
+<svg viewBox="0 0 720 230" role="img" aria-label="Concept map from the Lagrangian to the Lyapunov property" style="width:100%;max-width:720px;height:auto;font-family:inherit">
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b82f6" style="fill: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    </marker>
+  </defs>
+  <g font-size="13" text-anchor="middle" fill="#0f172a" style="fill: color-mix(in srgb, #0f172a var(--fig-keep), var(--fig-ink))">
+    <rect x="8" y="18" width="150" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6" style="fill: color-mix(in srgb, #eff6ff var(--fig-keep), #142234); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    <text x="83" y="39">Lagrangian</text><text x="83" y="57" font-style="italic">L(q, v)</text>
+    <rect x="190" y="18" width="150" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6" style="fill: color-mix(in srgb, #eff6ff var(--fig-keep), #142234); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    <text x="265" y="39">Action</text><text x="265" y="57" font-style="italic">S = &#8747;L dt + W(q(t<tspan baseline-shift="sub" font-size="9">f</tspan>))</text>
+    <rect x="372" y="18" width="160" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6" style="fill: color-mix(in srgb, #eff6ff var(--fig-keep), #142234); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    <text x="452" y="39">Remaining action</text><text x="452" y="57" font-style="italic">V(q, &#977;), initial point</text>
+    <rect x="564" y="18" width="148" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6" style="fill: color-mix(in srgb, #eff6ff var(--fig-keep), #142234); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    <text x="638" y="39">Momentum field</text><text x="638" y="57" font-style="italic">p = &#8722;&#8711;V</text>
+    <rect x="8" y="150" width="150" height="50" rx="6" fill="#eff6ff" stroke="#3b82f6" style="fill: color-mix(in srgb, #eff6ff var(--fig-keep), #142234); stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)"/>
+    <text x="83" y="171">Hamiltonian</text><text x="83" y="189" font-style="italic">H(q,p) = p&#183;v &#8722; L</text>
+    <rect x="300" y="150" width="200" height="50" rx="6" fill="#fffbeb" stroke="#f59e0b" style="fill: color-mix(in srgb, #fffbeb var(--fig-keep), #342d14); stroke: color-mix(in srgb, #f59e0b var(--fig-mix), #ffffff)"/>
+    <text x="400" y="171">Hamilton&#8211;Jacobi</text><text x="400" y="189" font-style="italic">&#8706;<tspan baseline-shift="sub" font-size="9">&#977;</tspan>V = &#8722;H(q, &#8722;&#8711;V)</text>
+    <rect x="540" y="150" width="172" height="50" rx="6" fill="#f0fdf4" stroke="#22c55e" style="fill: color-mix(in srgb, #f0fdf4 var(--fig-keep), #14341e); stroke: color-mix(in srgb, #22c55e var(--fig-mix), #ffffff)"/>
+    <text x="626" y="171">V&#775; = &#8722;L</text><text x="626" y="189">V is a Lyapunov function</text>
+  </g>
+  <g stroke="#3b82f6" stroke-width="1.6" fill="none" marker-end="url(#arr2)" style="stroke: color-mix(in srgb, #3b82f6 var(--fig-mix), #ffffff)">
+    <line x1="158" y1="43" x2="188" y2="43"/>
+    <line x1="340" y1="43" x2="370" y2="43"/>
+    <line x1="532" y1="43" x2="562" y2="43"/>
+    <line x1="83" y1="68" x2="83" y2="148"/>
+    <line x1="158" y1="175" x2="298" y2="175"/>
+    <path d="M638,68 C638,110 470,110 440,148"/>
+    <line x1="500" y1="175" x2="538" y2="175"/>
+  </g>
+  <g font-size="11.5" fill="#64748b" font-style="italic" style="fill: color-mix(in srgb, #64748b var(--fig-keep), var(--fig-muted))">
+    <text x="90" y="112">Legendre transform</text>
+    <text x="566" y="104">substitute</text>
+    <text x="503" y="168">H = 0</text>
+  </g>
+</svg>

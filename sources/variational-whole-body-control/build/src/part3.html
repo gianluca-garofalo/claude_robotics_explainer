@@ -1,0 +1,514 @@
+
+<!-- ================================================================== -->
+<!-- EXTREMALS -->
+<!-- ================================================================== -->
+<section id="sec-extremals">
+<h2>SECNUM Extremals: Solving the Hamilton&ndash;Jacobi Equation</h2>
+
+<p>
+  Section&nbsp;SEC(sec-hj) derived the Hamilton&ndash;Jacobi equation; this section solves it. The tool is the method of
+  characteristics, which follows the equation along the optimal path. It returns Hamilton&rsquo;s equations, so the optimal
+  paths are the extremals of classical mechanics and the momentum EQ(pdef) is their canonical momentum.
+</p>
+
+<h3 id="sec-characteristics">SECNUM Characteristics: the momentum along the optimal path</h3>
+
+<p>
+  Fix a window $\vartheta_0$ and start the optimal path from $q$ at $t=0$, so that $t_f=\vartheta_0$; along it the time to go
+  is $\vartheta=t_f-t$. Its
+  velocity is the minimizer in EQ(hjraw), which by the envelope theorem applied to EQ(legendre) is
+  $\dot q=\partial H/\partial p$ at $p=-\nabla V$. Assume $V$ twice continuously differentiable along the path.
+</p>
+
+<ol>
+  <li>Differentiate EQ(hj) with respect to $q$: $\partial_\vartheta\nabla V=-H_q+\nabla^2V\,H_p$, with $H_q$ and $H_p$
+    evaluated at $(q,-\nabla V)$.</li>
+  <li>Along the path the window shrinks, so
+    $\tfrac{d}{dt}\nabla V=\nabla^2V\,\dot q-\partial_\vartheta\nabla V=\nabla^2V\,H_p+H_q-\nabla^2V\,H_p=H_q$.</li>
+  <li>Hence $p(t)=-\nabla V\big(q(t),t_f-t\big)$ obeys Hamilton&rsquo;s equations, and at the end of the window, where the
+    time to go is zero and the remaining action is $V_0=W$, it takes the value fixed by the boundary term:</li>
+</ol>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(hamilton)" aria-hidden="true"></span>$$
+\dot q=\frac{\partial H}{\partial p},\qquad \dot p=-\frac{\partial H}{\partial q},\qquad
+p(t_f)=-\nabla W\big(q(t_f)\big).
+\tag{EQDEF(hamilton)}
+$$
+</div>
+
+<p>
+  The last condition is the <strong>transversality condition</strong> of a Bolza problem
+  (<a href="#ref-gelfand1963">Gelfand &amp; Fomin, 1963</a>, &sect;&sect;6, 14). Step&nbsp;3 uses $V_0=W$ near $q(t_f)$, so the condition
+  needs $q(t_f)$ in the interior of $\Omega$; at an endpoint on the boundary of $\Omega$ the arrival momentum also carries the
+  reaction of the terminal constraint (see the discussion of the principal function below). Without velocity constraints, eliminating $p$ through
+  $\partial L/\partial v=p$ turns the first two equations into the Euler&ndash;Lagrange equation
+  $\tfrac{d}{dt}\,\partial L/\partial\dot q=\partial L/\partial q$: <strong>the optimal paths are the extremals of the
+  action</strong>, and their canonical momentum is minus the gradient of the remaining action. Three consequences follow.
+</p>
+
+<ul>
+  <li><strong>Descent along the optimal path.</strong> Along the path computed at one instant,
+    $\tfrac{d}{dt}V=\nabla V\cdot\dot q-\partial_\vartheta V=-p\cdot\dot q+H=-L$, using $H=p\cdot\dot q-L$ at the maximizer.
+    This holds for every window. It is not EQ(rhcrate): along the computed path the window shrinks, whereas the receding loop
+    keeps $\vartheta$ fixed and re-solves, and its rate differs from $-L$ by $\partial_\vartheta V_\vartheta$, the
+    monotonicity term that the certificate EQ(cert) controls (Section&nbsp;SEC(sec-allwindows)).</li>
+  <li><strong>Why $H=0$ for the infinite window.</strong> $L$ has no explicit time dependence, so $H$ is conserved along
+    EQ(hamilton): $\tfrac{d}{dt}H={H_q\cdot\dot q}+{H_p\cdot\dot p}=0$. On the path that reaches the rest point, $q\to0$ and
+    $p\to0$, and $H(0,0)=-\min_vL(0,v)=0$. So $H=0$ all along, which is EQ(stationary) seen from the path.</li>
+  <li><strong>One rule for every window.</strong> The momentum is minus the gradient of the remaining action of the problem
+    at hand:
+    <table>
+      <tr><th>Window</th><th>Remaining action</th><th>Momentum</th></tr>
+      <tr><td>Infinitesimal, $\vartheta\to0$ (Section&nbsp;SEC(sec-infinitesimal))</td><td>$V_\vartheta=W+O(\vartheta)$, so $W$ in the limit</td><td>$p=-\nabla W$</td></tr>
+      <tr><td>Length $\vartheta$, boundary term $W$</td><td>$V_\vartheta$</td><td>$p=-\nabla V_\vartheta$ at the start; $p(t_f)=-\nabla W$ at the end, where the time to go is zero</td></tr>
+      <tr><td>Infinite, no boundary term</td><td>$V_\infty$</td><td>$p=-\nabla V_\infty$</td></tr>
+    </table></li>
+</ul>
+
+<p>
+  <strong>The link to textbook mechanics.</strong> Hamilton&rsquo;s <strong>principal function</strong>
+  $\mathcal S(q_i,t_i;q_f,t_f)$ is the integral of $L$ along the extremal that joins two endpoints, <em>without</em> the
+  boundary term. Textbook mechanics reads it as a function of the <em>final</em> point, with
+  $\partial\mathcal S/\partial q_{\text{final}}=p$ (<a href="#ref-arnold1989">Arnold, 1989</a>, &sect;46); its differential is
+  $d\mathcal S=p_f\,dq_f-H_f\,dt_f-p_i\,dq_i+H_i\,dt_i$. The remaining action reads it as a function of the
+  <em>initial</em> point, adds the boundary term and minimizes over the endpoint in $\Omega$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(principal)" aria-hidden="true"></span>$$
+V_{t_f-t}(q)=\min_{q_f\in\Omega}\big[\mathcal S(q,t;q_f,t_f)+W(q_f)\big].
+\tag{EQDEF(principal)}
+$$
+</div>
+
+<p>
+  In $V$ the final time is fixed and the endpoint is free in $\Omega$. At an optimal endpoint in the interior of $\Omega$ the
+  transversality condition in EQ(hamilton) makes the $dq_f$ terms of $d\mathcal S$ and $dW$ cancel. At an optimal endpoint
+  on the boundary of $\Omega=\{\chi\le0\}$ the first-order condition of EQ(principal) is instead
+  $p_f=-\nabla W(q_f)-\mu\nabla\chi(q_f)$ with $\mu\ge0$: the arrival momentum carries the reaction of the terminal
+  constraint ($p_f=-(1+\mu)\nabla W$ for a sublevel set of $W$, as in Section&nbsp;SEC(sec-kkt)). The $dq_f$ terms still drop
+  out, because while the constraint stays active the optimal endpoint moves along the boundary, $\nabla\chi\cdot dq_f=0$.
+  Either way this leaves $dV=-p_i\,dq_i+H_i\,dt_i$: $\nabla V=-p$ and,
+  since the time to go is $\vartheta=t_f-t_i$, $\partial_\vartheta V=-H$ at the initial point, which are EQ(pdef) and EQ(hj)
+  again. Every sign difference between the two
+  literatures comes from that one switch, from the final to the initial point:
+</p>
+
+<table>
+  <tr><th>Textbook mechanics</th><th>In this construction</th><th>Caveat</th></tr>
+  <tr><td>Lagrangian $L(q,\dot q)$</td><td>Variational Lagrangian $L(q,v)$</td><td>Exact when $\dot q=v$; otherwise dynamics enter through multipliers (Part&nbsp;II)</td></tr>
+  <tr><td>Action $\int L\,dt$, <strong>stationary</strong> (Hamilton&rsquo;s principle)</td><td>Action, <strong>minimized</strong></td><td>If $L$ is jointly convex in $(q,v)$, every fixed-endpoint extremal is a minimizer</td></tr>
+  <tr><td>Principal function of the <strong>final</strong> point</td><td>Remaining action $V$ of the <strong>initial</strong> point</td><td>$\partial\mathcal S/\partial q_{\text{initial}}=-p$</td></tr>
+  <tr><td>Momentum $p=\partial L/\partial\dot q$</td><td>$p=-\nabla V$</td><td>Sign flip relative to the final-point convention</td></tr>
+  <tr><td>$H=p\cdot\dot q-L$</td><td>Same $H(q,p)$</td><td>$\min_v[L-p\cdot v]=-H$</td></tr>
+  <tr><td>Hamilton&ndash;Jacobi equation</td><td>$\partial_\vartheta V_\vartheta=-H(q,-\nabla V_\vartheta)$</td><td>$\vartheta=t_f-t$ is the time to go; in the absolute initial time $t$, $\partial_t\big[V_{t_f-t}\big]=H(q,-\nabla V)$. Stationary case: $H(q,-\nabla V)=0$</td></tr>
+  <tr><td>Boundary term in the action (Bolza)</td><td>$W$</td><td>Transversality: $p(t_f)=-\nabla W\big(q(t_f)\big)$</td></tr>
+  <tr><td>Lyapunov function (cf. the energy in the Lagrange&ndash;Dirichlet theorem)</td><td>$V$</td><td>Along the optimal path, $\dot V=-L$</td></tr>
+</table>
+
+<h3 id="sec-scalar">SECNUM Worked example: the hilltop</h3>
+
+<p>
+  This example solves the stationary equation EQ(stationary) for the running example EQ(example), the ideal boundary term
+  $V_\infty$ (written $V$ here), and checks the three predictions of Section&nbsp;SEC(sec-characteristics): $H=0$ on the
+  finite-action extremal, $p=-V'$ along it, and, with $W=V$ in the rule EQ(rule), $\dot V=-L$ exactly. Each step is labelled
+  with what it establishes. Write the Lagrangian with $\dot q$ for $v$,
+  $L=\tfrac12m\dot q^2+\tfrac12\kappa q^2$.
+</p>
+
+<ol>
+  <li><strong>Read $L$ as $\mathcal T-U$.</strong> $\mathcal T=\tfrac12m\dot q^2$ and $U(q)=-\tfrac12\kappa \,q^2$. The
+    minimizing paths obey Newton&rsquo;s law for a particle on an <strong>inverted parabolic potential</strong>, a hilltop at
+    the origin. This $L$ is the variational Lagrangian, the cost we chose; the hilltop belongs to the variational problem,
+    not to any robot (Section&nbsp;SEC(sec-equilibria) returns to the difference).</li>
+  <li><strong>Hamilton&rsquo;s equations:</strong> <em>the candidate extremals.</em> With
+    $H=p^2/(2m)-\tfrac12\kappa q^2$ (Section&nbsp;SEC(sec-momentum)), EQ(hamilton) reads ${\dot q=p/m}$, ${\dot p=\kappa q}$, i.e.
+    the Euler&ndash;Lagrange equation $m\ddot q=\kappa q$, so $q(t)\sim e^{\pm\omega t}$. The Hamiltonian matrix
+    $\begin{pmatrix}0&amp;1/m\\\kappa&amp;0\end{pmatrix}$ has eigenvalues $\pm\omega$: the origin is a
+    <strong>saddle</strong> in the $(q,p)$ plane.</li>
+  <li><strong>Jacobi:</strong> <em>a minimum between fixed endpoints, not just stationarity.</em> The Jacobi equation is the
+    Euler&ndash;Lagrange equation linearized along the extremal. A later point where a nonzero solution $y$ with $y(0)=0$
+    vanishes again is called conjugate; with $\partial^2L/\partial v^2&gt;0$ and no conjugate point in $(0,t_f]$, the
+    extremal is a <em>weak</em> minimum: no path with the same two endpoints that stays close to it in both position and
+    velocity has a smaller action (<a href="#ref-gelfand1963">Gelfand &amp; Fomin, 1963</a>, &sect;28). Here the Jacobi
+    equation is $\ddot y=\omega^2y$ along every extremal, and $y(0)=0$ gives $y\propto\sinh\omega t$, which never vanishes
+    again: no extremal has a conjugate point, on any interval. Because this $L$ is jointly convex in $(q,v)$, the minimum
+    is even global among paths with the same endpoints. For an extremal $q$ with momentum $p=\partial L/\partial v$ and any
+    path $q+\delta q$, convexity and the Euler&ndash;Lagrange equation $\dot p=\partial L/\partial q$ give
+    $L(q+\delta q,\dot q+\delta\dot q)-L(q,\dot q)\ge\tfrac{\partial L}{\partial q}\cdot\delta q+p\cdot\delta\dot q=\tfrac{d}{dt}\big(p\cdot\delta q\big)$;
+    integrated, the action of $q+\delta q$ exceeds that of $q$ by at least $\big[p\cdot\delta q\big]_0^{t_f}$, which is
+    zero when $\delta q(0)=\delta q(t_f)=0$. So every extremal is the least-action path between its own endpoints, the
+    caveat in the table of Section&nbsp;SEC(sec-characteristics). Both results hold for every extremal, the growing ones
+    $\propto e^{+\omega t}$ included, so they do not select the path of the infinite window: finite action selects it
+    (step&nbsp;4), and the verification theorem of Section&nbsp;SEC(sec-stationary) makes its action the least
+    (step&nbsp;5). For an ordinary oscillator, $U=+\tfrac12\kappa q^2$, the Jacobi field is $\sin\omega t$, a conjugate point
+    appears at $t=\pi/\omega$, and the action is only stationary on longer intervals.</li>
+  <li><strong>Finite action:</strong> <em>it selects the $H=0$ extremal.</em> Of all extremals only
+    $q(t)=q_0e^{-\omega t}$ has finite action. Its momentum is $p=m\dot q=-\sqrt{m\kappa}\,q$ and its energy is
+    $$H=\frac{p^2}{2m}-\frac12\kappa q^2=0,$$
+    the separatrix, i.e. the stable manifold of the saddle (Fig.&nbsp;3).</li>
+  <li><strong>The remaining action generates it:</strong> <em>$p=-V'$.</em> With $p=-V'$, the stationary equation
+    EQ(stationary) reads $V'^2/(2m)=\tfrac12\kappa q^2$, and its solution with $V\ge0$, $V(0)=0$ is
+    <span class="eq-anchor" id="eq-EQDEF(hilltopV)" aria-hidden="true"></span>$$V(q)=\tfrac12\sqrt{m\kappa}\,q^2,\qquad p=-V'(q)=-\sqrt{m\kappa}\,q,\tag{EQDEF(hilltopV)}$$
+    the momentum of step&nbsp;4: the finite-action extremal is the graph of $p=-V'(q)$. It is the Riccati solution
+    $P=\sqrt{m\kappa}$ of Section&nbsp;SEC(sec-stationary). Check against direct integration (along $q=q_0e^{-\omega t}$, both
+    terms of $L$ are equal):
+    $$\int_0^\infty L\,dt=\int_0^\infty \kappa \,q_0^2e^{-2\omega t}\,dt=\tfrac12\sqrt{m\kappa}\,q_0^2\ \checkmark$$</li>
+  <li><strong>Velocity law:</strong> <em>the rule EQ(rule) with $W=V$ gives $\dot V=-L$.</em> The minimizer of $L+V'v$
+    solves $mv=-V'$, so $v^*=-\omega q$, which is $\dot q=p/m$ again. Along it $\dot V=V'v^*=-\kappa q^2=-L(q,v^*)$, as
+    EQ(wdot) with $H=0$ predicts, and $q$ decays exponentially to the rest point.</li>
+</ol>
+
+<figure>
+FIGSVG(3)
+<figcaption>Figure 3. Phase portrait of the variational problem EQ(example) for $m=\kappa =1$. Grey: level sets of $H$ and the
+  Hamiltonian flow EQ(hamilton). The origin is a saddle. Only initial momenta on the green line $p=-\sqrt{m\kappa}\,q$
+  (zero energy) reach the rest point; this line is the graph of $p=-V'(q)$, EQ(hilltopV). Drawn by
+  <code>code/note/fig3_phase_portrait.py</code>.</figcaption>
+</figure>
+
+<div class="insight">
+  <strong>Physical intuition: balancing on the hilltop.</strong> Picture a ball that must come to rest on top
+  of an upside-down parabola. Its energy $H$ is conserved. Push it slightly too hard ($H&gt;0$) and it rolls
+  over the top and off the other side. Push it too softly ($H&lt;0$) and it stops short and rolls back.
+  Only with exactly $H=0$ does it creep up and arrive, as $t\to\infty$, with a speed $\omega|q|$ proportional
+  to the distance still to go. That knife-edge set of initial momenta is the stable manifold. The
+  finite-action requirement selects it, and the remaining action $V$ is its generating function.
+</div>
+
+<p>
+  <strong>Finite windows and scaled candidates.</strong> With a quadratic boundary term and no terminal constraint ($\Omega=\mathbb R$) the
+  time-dependent equation EQ(hj)
+  can be solved for every window. Insert $V_\vartheta=\tfrac12P_\vartheta\,q^2$: by EQ(quadH),
+  $\tfrac12(\partial_\vartheta P_\vartheta)\,q^2=-\big(\tfrac{P_\vartheta^2}{2m}-\tfrac\kappa2\big)q^2$, the Riccati differential
+  equation $\partial_\vartheta P_\vartheta=\kappa-P_\vartheta^2/m$, started at the weight $P_0$ of $W$. For the scaled candidate
+  $W=cV$ of Section&nbsp;SEC(sec-stationary), $P_0=c\sqrt{m\kappa}$. Divided by $\sqrt{m\kappa}$, the equation reads
+  $\partial_\vartheta\big(P_\vartheta/\sqrt{m\kappa}\big)=\omega\big(1-P_\vartheta^2/(m\kappa)\big)$, the differential equation of
+  $\tanh$, and its solution from the value $c$ is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(finitewindow)" aria-hidden="true"></span>$$
+V_\vartheta(q)=\tfrac12\sqrt{m\kappa}\;\frac{c+\tanh\omega\vartheta}{1+c\tanh\omega\vartheta}\;q^2 .
+\tag{EQDEF(finitewindow)}
+$$
+</div>
+
+<ul>
+  <li>$c=0$ (no boundary term): $V_\vartheta=\tfrac12\sqrt{m\kappa}\,\tanh(\omega\vartheta)\,q^2$, which grows with $\vartheta$
+    and tends to EQ(hilltopV) as $\vartheta\to\infty$;</li>
+  <li>$c=1$: $V_\vartheta=V$ for every $\vartheta$: the boundary term has already supplied the infinite tail. With a
+    terminal interval $\Omega=[-r,r]$ this holds only where the path $q\,e^{-\omega t}$ of the rule (step&nbsp;6) ends in
+    $\Omega$, i.e. for $|q|\le r\,e^{\omega\vartheta}$ (Section&nbsp;SEC(sec-stationary)); farther out the optimal endpoint is
+    pushed to $\pm r$ and $V_\vartheta&gt;V$. For $m=\kappa=1$, $r=\tfrac12$ and $\vartheta=0.1$, the action of the extremal
+    from $q=1$ to $r$ in time $\vartheta$, plus $V(r)$, gives $V_\vartheta(1)=1.404$ against $V(1)=0.5$,
+    and its initial velocity gives a first move $p/m=\dot q(0)=-5.04$ against the rule&rsquo;s $-\omega q=-1$;</li>
+  <li>$c&gt;1$: $V_\vartheta$ decreases with $\vartheta$ towards $V$. This is EQ(ctsmonotone), and by EQ(rhcrate) every window
+    length descends at least at the rate $L$, as the certificate $H(q,-W')=\tfrac{c^2-1}{2}\,\kappa q^2&gt;0$ promised;</li>
+  <li>$c&lt;1$: $V_\vartheta$ increases with $\vartheta$ for every window: the failure of EQ(cert) at $\vartheta=0$ propagates,
+    and the receding loop descends more slowly than $L$ although it converges. Along it $v^*_\vartheta=-P_\vartheta q/m$,
+    so $\dot V_\vartheta=-P_\vartheta^2q^2/m=-\beta_\vartheta\,L(q,v^*_\vartheta)$ with
+    $\beta_\vartheta=2P_\vartheta^2/(P_\vartheta^2+m\kappa)&lt;1$. For $0&lt;c&lt;1$, $\beta_\vartheta\ge2c^2/(1+c^2)$ for
+    every window (for $c=0$, $\beta_\vartheta&gt;0$ once $\vartheta&gt;0$), so $V_\vartheta$ remains a Lyapunov function of
+    the loop.</li>
+</ul>
+
+<h3 id="sec-riccati">SECNUM Quadratic Lagrangians: the stable manifold and the boundary term</h3>
+
+<p>
+  The structure of the hilltop is general. For $L=\tfrac12q^\top Qq+\tfrac12v^\top Rv$, Hamilton&rsquo;s equations
+  EQ(hamilton) are linear, $\tfrac{d}{dt}(q,p)=\begin{pmatrix}0&amp;R^{-1}\\Q&amp;0\end{pmatrix}(q,p)$, with eigenvalues in
+  pairs $\pm\sigma$. The Riccati solution $P$ ($PR^{-1}P=Q$) is such that the graph $p=-Pq$ is the stable invariant subspace
+  of this <strong>Hamiltonian matrix</strong>: $\begin{pmatrix}0&amp;R^{-1}\\Q&amp;0\end{pmatrix}\binom{I}{-P}=\binom{I}{-P}(-R^{-1}P)$,
+  and $-R^{-1}P$ is the stable closed loop. This is how the Riccati equation is solved numerically
+  (<a href="#ref-laub1979">Laub, 1979</a>). The remaining action $\tfrac12q^\top Pq$ is the generating function of that
+  Lagrangian subspace, and EQ(stationary) is the time-independent Hamilton&ndash;Jacobi equation at <strong>zero
+  energy</strong>.
+</p>
+
+<p>
+  <strong>What the boundary term does.</strong> The transversality condition in EQ(hamilton) prescribes the momentum with
+  which a finite path must arrive. In this picture $W$ tells the finite path <strong>how to join the infinite-time stable
+  manifold</strong>. If $W=V_\infty$ exactly and no constraint is active along the path, the finite-window path lies on the
+  manifold and the window length is irrelevant ($c=1$ in EQ(finitewindow)). The terminal region $\Omega$ restricts where
+  the endpoint may lie.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- DISCRETIZATION AND EXACTNESS -->
+<!-- ================================================================== -->
+<section id="sec-discrete">
+<h2>SECNUM Back to Steps: Discretization and Exactness</h2>
+
+<p>
+  Section&nbsp;SEC(sec-proof) proved descent for any discrete Lagrangian; Sections&nbsp;SEC(sec-hj) and SEC(sec-extremals)
+  solved the continuous problem. This section brings the two together: which discrete Lagrangian reproduces the continuous
+  problem, what momentum a computed path carries, and when one step is already exact.
+</p>
+
+<h3 id="sec-ld">SECNUM The exact discrete Lagrangian and discrete momenta</h3>
+
+<p>
+  The continuous problem over one step defines a distinguished discrete Lagrangian, the <strong>exact discrete
+  Lagrangian</strong>:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(LdE)" aria-hidden="true"></span>$$
+L_d^{E}(q,q')=\min\Big\{\int_0^{h}L\big(q(t),\dot q(t)\big)\,dt\ :\ q(0)=q,\ q(h)=q'\Big\}.
+\tag{EQDEF(LdE)}
+$$
+</div>
+
+<p>
+  By Section&nbsp;SEC(sec-characteristics) the minimizer is an extremal (for an $L$ jointly convex in $(q,v)$, the extremal
+  joining the two points), so $L_d^E(q,q')=\mathcal S(q,0;q',h)$, and its derivatives are read off $d\mathcal S$:
+  $\partial_1L_d^E=-p$ at the start of the step and $\partial_2L_d^E=p$ at its end. For any other $L_d$ these relations
+  <em>define</em> the discrete momenta, through the <strong>discrete Legendre transforms</strong>
+  (<a href="#ref-marsden2001">Marsden &amp; West, 2001</a>, who write $D_1$, $D_2$ for $\partial_1$, $\partial_2$, the
+  derivatives in the first and second argument):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(dlegendre)" aria-hidden="true"></span>$$
+p_j=-\partial_1L_d(q_j,q_{j+1}),\qquad p_{j+1}=\partial_2L_d(q_j,q_{j+1}).
+\tag{EQDEF(dlegendre)}
+$$
+</div>
+
+<p>
+  <strong>For the example.</strong> The extremal joining $q$ to $q'$ in time $h$ is
+  $q(t)=\big[q\sinh\omega(h-t)+q'\sinh\omega t\big]/\sinh\omega h$ (step&nbsp;2 of Section&nbsp;SEC(sec-scalar)). Along any
+  extremal of EQ(example), $L=\tfrac12\big(m\dot q^2+\kappa q^2\big)=\tfrac12\tfrac{d}{dt}(mq\dot q)$ because $m\ddot q=\kappa q$,
+  so the action of the step is $\tfrac12\big[mq\dot q\big]_0^h$. Inserting the extremal and $m\omega=\sqrt{m\kappa}$,
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(LdEexample)" aria-hidden="true"></span>$$
+L_d^E(q,q')=\frac{\sqrt{m\kappa}}{2\sinh\omega h}\Big[(q^2+q'^2)\cosh\omega h-2qq'\Big].
+\tag{EQDEF(LdEexample)}
+$$
+</div>
+
+<p>
+  The rectangle rule EQ(rect) is instead a one-point quadrature of the same integral.
+</p>
+
+<div class="definition">
+  <strong>Why the distinction matters.</strong> With $L_d^E$ the discrete problem is the continuous one,
+  sampled exactly; any other $L_d$ (rectangle rule, midpoint rule, &hellip;) is an approximation whose
+  error vanishes as $h\to0$ but is not zero for the step actually used. Section&nbsp;SEC(sec-exactness) shows that the
+  &ldquo;one step is exact&rdquo; statement depends on this choice, though a nonzero error need not break it: with the
+  continuous-time Riccati weight it holds for $L_d^E$ and for the midpoint rule, but not for the rectangle rule.
+  Section&nbsp;SEC(sec-numeric) shows numerically what goes wrong with the rectangle rule.
+</div>
+
+<h3 id="sec-stationarity">SECNUM The momentum of a computed path</h3>
+
+<p>
+  Differentiate the recursion EQ(bellman) at its minimizer $q'=q^+$, assuming no constraint is active there and the
+  functions are differentiable. Stationarity in $q'$ gives, by EQ(dlegendre),
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(dstationarity)" aria-hidden="true"></span>$$
+\partial_2L_d(q,q^+)+\nabla V_{N-1}(q^+)=0
+\quad\Longleftrightarrow\quad
+p^+=-\nabla V_{N-1}(q^+),
+\tag{EQDEF(dstationarity)}
+$$
+</div>
+
+<p>
+  and the envelope theorem gives $\nabla V_N(q)=\partial_1L_d(q,q^+)=-p$ at the start. Applied at every node of a computed
+  path, where node $j$ has $N-j$ steps to go, this is the discrete form of EQ(pdef):
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(dmomentum)" aria-hidden="true"></span>$$
+p_j=-\nabla V_{N-j}(q_j),\qquad j=0,\dots,N.
+\tag{EQDEF(dmomentum)}
+$$
+</div>
+
+<p>
+  Matching the two expressions for $p_j$ at an interior node, from the step before and the step after, is the discrete
+  Euler&ndash;Lagrange equation $\partial_2L_d(q_{j-1},q_j)+\partial_1L_d(q_j,q_{j+1})=0$. The last node lies in $\Omega$,
+  where $V_0=W$, so
+  $p_N=-\nabla W(q_N)$: the final momentum is fixed by the slope of the boundary term, the discrete form of the
+  transversality condition in EQ(hamilton). For the one-step window EQ(onestep) it reads $\partial_2L_d(q,q^+)+\nabla W(q^+)=0$.
+  Section&nbsp;SEC(sec-kkt) adds active constraints, and Section&nbsp;SEC(sec-so-discrete) finds EQ(dmomentum) again as the
+  multipliers of a multiple-shooting solver.
+</p>
+
+<h3 id="sec-exactness">SECNUM Exactness is a fixed point</h3>
+
+<p>
+  When does a short window already give the infinite-time optimum? By EQ(bellman), $V_N=\mathcal B^NV_0$. Without a terminal
+  constraint ($\Omega=\mathbb R^n$, so $V_0=W$), $V_N=W$ for every $N$ if and only if
+  $\mathcal BW=W$ (if: by induction; only if: take $N=1$). With a terminal region, $V_0\ge W$, so $\mathcal BW=W$ and the
+  monotonicity of $\mathcal B$ give $V_N\ge W$, while a chain of $N$ minimizing steps of $\mathcal BW$ costs exactly $W(q)$,
+  by telescoping. Hence $V_N=W$ exactly at the points from which such a chain ends in $\Omega$ (a path that attains $W(q)$
+  must be one, because each step $q_j\to q_{j+1}$ costs at least $W(q_j)-W(q_{j+1})$). If the minimizer keeps $\Omega$
+  invariant (for instance $\Omega$ a sublevel set of $W$, since $W(q^+)=W(q)-L_d(q,q^+)\le W(q)$), these points include
+  $\Omega$ and form a set that grows with $N$. Elsewhere the constraint $q_N\in\Omega$ binds and $V_N&gt;W$. For example,
+  with $L_d^E$, $m=\kappa=1$, $h=0.1$, its fixed point $W=\tfrac12q^2$ (first case below) and
+  $\Omega=[-\tfrac12,\tfrac12]$: $V_1(1)=1.404$, and $V_N(1)=W(1)=0.5$ only from $N=7$, the first $N$ with
+  $e^{-Nh}\le\tfrac12$. Where the terminal constraint is inactive, one step is exact exactly when $W$ is a <strong>fixed
+  point of the Bellman operator</strong> of the chosen $L_d$, and a fixed point for one discrete Lagrangian need not be one
+  for another.
+</p>
+
+<ul>
+  <li><strong>Exact discrete Lagrangian.</strong> With $L_d^E$, the operator $\mathcal B$ is the continuous problem over one
+    step: by EQ(LdE), $\min_{q'}\{L_d^E(q,q')+W(q')\}$ minimizes $\int_0^hL\,dt+W\big(q(h)\big)$ over all paths from $q$. The
+    principle of optimality in continuous time therefore makes $V_\infty$ a fixed point, and one step is exact with
+    $W=V_\infty$. For a quadratic Lagrangian, with $W=\tfrac12q^\top Pq$, $P$ the Riccati solution of
+    Section&nbsp;SEC(sec-stationary), and no constraint active: $V_1=W$, the step is $q^+=e^{-hR^{-1}P}q$, the exact sample of
+    the flow of the LQR law $v=-R^{-1}Pq$, and EQ(terminal) holds with equality along that flow.</li>
+  <li><strong>Midpoint rule.</strong> The midpoint rule $L_d(q,q')=h\,L\big(q_{1/2},\tfrac{q'-q}{h}\big)$,
+    $q_{1/2}=\tfrac12(q+q')$, is only an approximation of $L_d^E$, yet for a quadratic Lagrangian $\tfrac12q^\top Pq$ is a
+    fixed point of its Bellman operator too. Write $v=(q'-q)/h$. For a quadratic $W=\tfrac12q^\top Xq$ the increment over the
+    step is exactly the slope at the midpoint times the step,
+    $W(q')-W(q)=\tfrac12(q'-q)^\top X(q'+q)=h\,\nabla W(q_{1/2})\cdot v$, so the midpoint analogue of the expansion
+    EQ(expansion) holds with no remainder:
+    $$L_d(q,q')+W(q')=W(q)+h\big[L(q_{1/2},v)+\nabla W(q_{1/2})\cdot v\big].$$
+    By EQ(legendre) and EQ(quadH) the bracket is at least $-H(q_{1/2},-Xq_{1/2})$, with equality only at
+    $v=-R^{-1}Xq_{1/2}$. For $X=P$ this bound is $0$ by EQ(stationary), whatever $q'$ is, and the step
+    $q^+=\big(I+\tfrac h2R^{-1}P\big)^{-1}\big(I-\tfrac h2R^{-1}P\big)q$ attains it (the inverse exists: $R^{-1}P$ is similar
+    to $R^{-1/2}PR^{-1/2}\succ0$, so its eigenvalues are positive). Hence, with no constraint active, $V_1=W$ for every $h$
+    and EQ(terminal) holds with equality along the step; but the step is this Cayley map, the implicit-midpoint step of the
+    LQR flow, and not its exact sample $e^{-hR^{-1}P}q$.</li>
+  <li><strong>Rectangle rule.</strong> The rectangle rule EQ(rect) for a quadratic Lagrangian,
+    $L_d=\tfrac1{2h}(q'-q)^\top R\,(q'-q)+\tfrac h2q^\top Qq$, maps quadratics to quadratics. With $W=\tfrac12q^\top Xq$, the
+    stationarity condition $\tfrac Rh(q^+-q)+Xq^+=0$ gives $q^+=\big(\tfrac Rh+X\big)^{-1}\tfrac Rh\,q$, and substituting back,
+    <span class="eq-anchor" id="eq-EQDEF(riccatimap)" aria-hidden="true"></span>$$\mathcal B\big(\tfrac12q^\top Xq\big)=\tfrac12q^\top \mathcal R_h(X)\,q,\qquad \mathcal R_h(X)=hQ+\tfrac Rh-\tfrac Rh\Big(\tfrac Rh+X\Big)^{-1}\tfrac Rh ,\tag{EQDEF(riccatimap)}$$
+    the one-step Riccati map. The rectangle rule is the discrete LQ problem $q'=q+hv$ with stage cost
+    $\tfrac h2(q^\top Qq+v^\top Rv)$, so the fixed point of $\mathcal R_h$ is the solution $P_d$ of its discrete algebraic Riccati
+    equation (<a href="#ref-anderson1990">Anderson &amp; Moore, 1990</a>), and $P_d\neq P$.</li>
+</ul>
+
+<p>
+  <strong>The threshold.</strong> By EQ(V1V0) and its converse, $W=\tfrac12q^\top Xq$ satisfies EQ(terminal) if and only if
+  $\mathcal R_h(X)\preceq X$. The map $\mathcal R_h$ is monotone ($X_a\preceq X_b$ implies
+  $\mathcal R_h(X_a)\preceq\mathcal R_h(X_b)$, the matrix form of the monotonicity of $\mathcal B$), so
+  $\mathcal R_h(X)\preceq X$ gives $\mathcal R_h^{k+1}(X)\preceq\mathcal R_h^k(X)$ for every $k$. The sequence decreases
+  and is bounded below by $hQ$, so it converges to a fixed point, and $P_d$ is the only positive-definite one. Hence
+  $P_d=\lim_k\mathcal R_h^k(X)\preceq X$, and the scaled weight $W=\tfrac{c}{2}q^\top Pq$ can satisfy EQ(terminal) only if
+  $cP\succeq P_d$, i.e. $c\ge\lambda_{\max}(P^{-1}P_d)$. This is necessary in general. For $\dot q=v$ with the rectangle rule
+  it is also sufficient, in any dimension: in the coordinates $R^{1/2}q$ the matrices $P$, $P_d$ and $\mathcal R_h(cP)$ are all
+  functions of $R^{-1/2}QR^{-1/2}$, so the condition splits into scalar ones. For general plants and discretizations only
+  necessity holds. In the scalar case ($Q=\kappa$, $R=m$) $\mathcal R_h(X)=h\kappa+{mX/(m+hX)}$, whose fixed point solves
+  $X^2-h\kappa X-m\kappa=0$:
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(Pd)" aria-hidden="true"></span>$$
+P_d=\tfrac12\Big(h\kappa+\sqrt{h^2\kappa^2+4m\kappa}\Big),
+\tag{EQDEF(Pd)}
+$$
+</div>
+
+<p>
+  that is $P_d=\tfrac12\big(h+\sqrt{h^2+4}\big)$ for $m=\kappa=1$, against $P=\sqrt{m\kappa}=1$. There $\mathcal R_h(X)-X$ decreases
+  in $X$, so $c\ge P_d/P$ is also enough: for $m=\kappa=1$ the threshold $P_d/P$ is $1.05125$ at $h=0.1$ and $1.28078$ at
+  $h=0.5$.
+  (With an active constraint the fixed point is the remaining action of the constrained problem;
+  Section&nbsp;SEC(sec-speedlimit).)
+</p>
+
+<div class="insight">
+  <strong>Practical consequence.</strong> Pairing a rectangle-rule $L_d$ with the continuous-time Riccati
+  weight is a natural, and wrong, shortcut: the state still converges, but the Lyapunov certificate
+  EQ(descent) fails, at every step of the example below.
+</div>
+
+<h3 id="sec-numeric">SECNUM A worked numerical example</h3>
+
+<p>
+  This example checks the fixed-point statements of Section&nbsp;SEC(sec-exactness) and step&nbsp;4 of the candidate proof of
+  Section&nbsp;SEC(sec-descent). Take the example EQ(example) with $m=\kappa =1$, so $L=\tfrac12 v^2+\tfrac12 q^2$, step $h=0.1$,
+  start at $q_0=1$, no constraints. The continuous-time Riccati solution is $P=1$, so the &ldquo;textbook&rdquo; boundary term
+  is $W=\tfrac12q^2$.
+</p>
+
+<h4>Case A: exact discrete Lagrangian EQ(LdEexample), $W=\tfrac12q^2$</h4>
+
+<table>
+  <tr><th>$k$</th><th>$q_k$</th><th>$q_{k+1}$</th><th>$V_1(q_k)$</th><th>$W(q_k)$</th><th>$L_d(q_k,q_{k+1})$</th><th>$\Delta V_1$</th></tr>
+  <tr><td>0</td><td>1.000000</td><td>0.904837</td><td>0.500000</td><td>0.500000</td><td>0.090635</td><td>&minus;0.090635</td></tr>
+  <tr><td>1</td><td>0.904837</td><td>0.818731</td><td>0.409365</td><td>0.409365</td><td>0.074205</td><td>&minus;0.074205</td></tr>
+  <tr><td>2</td><td>0.818731</td><td>0.740818</td><td>0.335160</td><td>0.335160</td><td>0.060754</td><td>&minus;0.060754</td></tr>
+  <tr><td>3</td><td>0.740818</td><td>0.670320</td><td>0.274406</td><td>0.274406</td><td>0.049741</td><td>&minus;0.049741</td></tr>
+</table>
+
+<p>
+  Each step multiplies $q$ by $e^{-0.1}=0.904837$, exactly the continuous LQR flow $q(t)=e^{-t}$.
+  $V_1=W$ and $\Delta V_1=-L_d$ hold <em>with equality</em>: this is the discrete trace of the stationary
+  Hamilton&ndash;Jacobi equation EQ(stationary).
+</p>
+
+<h4>Case B: rectangle rule $L_d=\tfrac{1}{2h}(q'-q)^2+\tfrac h2q^2$</h4>
+
+<table>
+  <tr><th>Weight</th><th>$k$</th><th>$q_k$</th><th>$V_1(q_k)$</th><th>$W(q_k)$</th><th>$\Delta V_1$</th><th>$-L_d$</th><th>EQ(descent) holds?</th></tr>
+  <tr><td rowspan="2">$W=\tfrac12q^2$</td><td>0</td><td>1.000000</td><td>0.504545</td><td>0.500000</td><td>&minus;0.087566</td><td>&minus;0.091322</td><td><strong>no</strong></td></tr>
+  <tr><td>1</td><td>0.909091</td><td>0.416980</td><td>0.413223</td><td>&minus;0.072368</td><td>&minus;0.075473</td><td><strong>no</strong></td></tr>
+  <tr><td rowspan="2">$W=1.2\cdot\tfrac12q^2$</td><td>0</td><td>1.000000</td><td>0.585714</td><td>0.600000</td><td>&minus;0.118786</td><td>&minus;0.107398</td><td>yes</td></tr>
+  <tr><td>1</td><td>0.892857</td><td>0.466928</td><td>0.478316</td><td>&minus;0.094696</td><td>&minus;0.085617</td><td>yes</td></tr>
+</table>
+
+<div class="insight">
+  <strong>Reading the table.</strong> With the textbook weight, $V_1&gt;W$: the one-step condition EQ(V1V0) fails, and
+  the remaining action drops by <em>less</em> than the action spent. The state still converges
+  ($q\mapsto 0.909\,q$), and $V_1$ still falls at every step (it is quadratic and the loop is linear), so it remains a
+  Lyapunov function of this loop; what is lost is the certificate EQ(descent), a drop of at least
+  the action spent. Inflating the weight by 20% (above the threshold
+  $1.05125$) restores every inequality. Exactness is a property of the <em>pair</em> $(L_d,W)$, not of
+  $W$ alone: the rule&rsquo;s <em>argmin</em> is a perfectly good controller, its <em>certificate</em> fails. This is the
+  discrete mirror of the scaled candidates of Section&nbsp;SEC(sec-stationary), with the discretization error in the role of
+  $c&lt;1$.
+</div>
+
+<h3 id="sec-split">SECNUM Window and tail</h3>
+
+<p>
+  Section&nbsp;SEC(sec-onestep) said that the window length moves the cut between the computed part of the remaining action
+  (the window) and the estimated part (the tail $W$), while the certificate stays the same. With an exact pair,
+  $W=V_\infty$ for the discrete problem and no active constraint, the fixed-point property gives $V_N=V_\infty$ for every
+  $N$: only the cut moves. With an inexact pair the total itself changes with $N$. If the pair passes the one-step test
+  EQ(terminal), the total can only fall, by EQ(monotone). If it fails EQ(terminal), then $V_1&gt;W$ somewhere on $\Omega$
+  (Section&nbsp;SEC(sec-terminal)), and EQ(monotone) fails already at $N=1$. The textbook weight of
+  Section&nbsp;SEC(sec-numeric) is such a pair, with no terminal region: by EQ(riccatimap),
+  $V_1=\tfrac12\mathcal R_h(1)\,q^2$ with $\mathcal R_h(1)=1+h^2/(1+h)&gt;1$, so $V_1\ge V_0$ everywhere, and the induction
+  of Section&nbsp;SEC(sec-monotone) with the inequality reversed gives $V_{N+1}=\mathcal BV_N\ge\mathcal BV_{N-1}=V_N$: the
+  total rises with $N$, the discrete mirror of $c&lt;1$ in EQ(finitewindow). A failed EQ(terminal) does not fix the
+  direction in general, because $V_1-V_0$ need not have one sign: with a terminal region, $V_1&lt;V_0=+\infty$ on
+  $\mathcal X_1\setminus\Omega$, and in the matrix case of Section&nbsp;SEC(sec-exactness) a $c$ between the scalar
+  thresholds of two eigendirections of $R^{-1/2}QR^{-1/2}$ makes $V_N$ fall in one of them and rise in the other. The
+  table shows the exact pair and the certified inexact pair of Section&nbsp;SEC(sec-numeric) (start $q_0=1$, $h=0.1$):
+</p>
+
+<table>
+  <tr><th rowspan="2">$N$</th><th colspan="3">Exact $L_d^E$, $W=\tfrac12q^2$</th><th colspan="3">Rectangle rule, $W=1.2\cdot\tfrac12q^2$</th></tr>
+  <tr><th>$V_N(q_0)$</th><th>window</th><th>tail $W(q_N)$</th><th>$V_N(q_0)$</th><th>window</th><th>tail $W(q_N)$</th></tr>
+  <tr><td>1</td><td>0.5000</td><td>0.0906</td><td>0.4094</td><td>0.5857</td><td>0.1074</td><td>0.4783</td></tr>
+  <tr><td>2</td><td>0.5000</td><td>0.1648</td><td>0.3352</td><td>0.5743</td><td>0.1910</td><td>0.3833</td></tr>
+  <tr><td>5</td><td>0.5000</td><td>0.3161</td><td>0.1839</td><td>0.5518</td><td>0.3503</td><td>0.2015</td></tr>
+  <tr><td>10</td><td>0.5000</td><td>0.4323</td><td>0.0677</td><td>0.5351</td><td>0.4633</td><td>0.0718</td></tr>
+  <tr><td>20</td><td>0.5000</td><td>0.4908</td><td>0.0092</td><td>0.5269</td><td>0.5173</td><td>0.0096</td></tr>
+</table>
+
+<p>
+  In the exact column the total never moves; in the inexact one it falls towards the discrete-Riccati value
+  $P_d/2=0.5256$ of EQ(Pd), the true remaining action of the rectangle-rule problem, because the inflated $W$ over-estimates the tail
+  and a longer window replaces more of the estimate by computation. With the textbook weight $W=\tfrac12q^2$, which
+  under-estimates the tail, the same replacement raises the total: $V_N(q_0)=\tfrac12\mathcal R_h^N(1)$ increases from
+  $V_1(q_0)=0.5045$ (Section&nbsp;SEC(sec-numeric)) towards the same $0.5256$, by the argument of
+  Section&nbsp;SEC(sec-exactness) with the inequalities reversed and the bound $\mathcal R_h^N(1)\le\mathcal R_h^N(P_d)=P_d$.
+  Section&nbsp;SEC(sec-parallel) compares this split with the
+  split of power among the levels of a task hierarchy.
+</p>
+</section>

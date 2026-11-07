@@ -1,0 +1,325 @@
+
+<!-- ================================================================== -->
+<!-- POWER -->
+<!-- ================================================================== -->
+<section id="sec-power">
+<h2>SECNUM Power, Ports and Energy Tanks</h2>
+
+<p>
+  Sections&nbsp;SEC(sec-hierarchy) and SEC(sec-ineq-hier) attributed forces to tasks in a basis that depends on the priority order
+  and on the active set. This section asks which power flows survive that choice, and what this means for energy tanks.
+</p>
+
+<h3 id="sec-invariance">SECNUM Total power is invariant</h3>
+
+<p>
+  Combine EQ(Jbar) and EQ(forcebasis): the power injected through the task channel is
+</p>
+
+<div class="equation-block">
+<span class="eq-anchor" id="eq-EQDEF(power)" aria-hidden="true"></span>$$
+\tau_x^\top\dot q=F^\top \zeta=\lambda^\top\dot x ,
+\tag{EQDEF(power)}
+$$
+</div>
+
+<p>
+  because $\tau_x^\top\dot q=F^\top\bar J\dot q=F^\top\zeta$ and $F^\top \zeta=\lambda^\top\Theta\,\zeta=\lambda^\top\dot x$. This is the
+  pairing of a covector with a velocity (Section&nbsp;SEC(sec-covectors)): the total is the same in every basis and for every
+  priority order. Its split into levels, $F_i^\top \zeta_i$, is not. In the example of Section&nbsp;SEC(sec-forces) the total is
+  $-0.391$ in both orders, while the per-level powers are $(3.057,\,-3.416,\,-0.032)$ for tasks $(1,2,3)$ in the order
+  $1\succ2\succ3$, and $(0.033,\,-0.446,\,0.022)$ for the same tasks in the reversed order.
+</p>
+
+<h3 id="sec-ineq-power">SECNUM Power with unilateral forces and at switches</h3>
+
+<p>
+  Three statements, each checked on the examples of Sections&nbsp;SEC(sec-unilateral) and SEC(sec-ineq-switch):
+</p>
+<ul>
+  <li><strong>Totals are continuous, attributions are not.</strong> In the constraint view, for a feasible stack, the torque, and with it the
+    total power EQ(power), is continuous across activation and deactivation. The levels above the switching level keep
+    their power; the switching level and the levels below exchange it by re-attribution ($-89.066$ on the last level
+    becomes $-13.476-75.590$ in the example).</li>
+  <li><strong>The power of a unilateral force has no sign.</strong> It vanishes on a persistent contact, and it is positive
+    for an active, feedback-bounded inequality task whose coordinate recedes ($+0.805$ in the example).</li>
+  <li><strong>In the impressed view the total jumps as well</strong>, because the torque does: it changes by
+    $\Delta\tau_x^\top\dot q$, nonzero in general, unless the prescribed forces are re-mapped through
+    EQ(forcebasis) at the switch (at a deactivation this also needs the stacked multiplier of the leaving
+    row to be zero, Section&nbsp;SEC(sec-ineq-switch)). In the first example of Section&nbsp;SEC(sec-ineq-switch), with $F_1$ and $F_3$ held and $F_2=0$ at the
+    activation, the level powers are $-10.024$, $0$ and $-75.590$: the total $-99.090$ becomes $-10.024-75.590$, a jump of
+    $+13.476$, which is minus the power $-13.476$ of the re-mapped $F_2=-11.501$.</li>
+</ul>
+
+<h3 id="sec-tanks">SECNUM Consequences for tanks</h3>
+
+<p>
+  Energy tanks make a controller passive by routing every non-passive power flow through a storage element
+  that must stay positive (<a href="#ref-dietrich2017">Dietrich et al., 2017</a>; <a href="#ref-garofalo2018">Garofalo &amp; Ott, 2018</a>).
+  Sections&nbsp;SEC(sec-invariance) and SEC(sec-ineq-power) say what such a tank observes:
+</p>
+
+<ul>
+  <li>a <strong>single tank</strong> on the total task port sees $\tau_x^\top\dot q=\lambda^\top\dot x=F^\top \zeta$
+    EQ(power), which for a given task torque $\tau_x$ does not depend on the priority order used to attribute it. In the
+    constraint view with a feasible stack the torque itself is the same for every order (Section&nbsp;SEC(sec-lexi)) and
+    continuous across active-set switches (Section&nbsp;SEC(sec-ineq-switch)), and so is this flow. In the impressed view,
+    with prescribed $F_i$, the torque $\bar J^\top F$, and with it the flow, in general changes with the order and jumps at a
+    switch, because $\bar J$ does, unless the forces are re-mapped through EQ(forcebasis) (at a deactivation only if the
+    stacked multiplier of the leaving row is zero, Section&nbsp;SEC(sec-ineq-switch));</li>
+  <li><strong>per-level tanks</strong> see $F_i^\top \zeta_i$: flows that depend on the order and jump when the active
+    set changes, even when the torque does not. A level can appear with a nonzero decoupled force and zero multiplier
+    ($F_2=-11.50$ in Section&nbsp;SEC(sec-ineq-switch)), and an inequality task&rsquo;s own power can be positive.</li>
+</ul>
+
+<p>
+  <strong>Chattering.</strong> In discrete time an active set can toggle from one sample to the next near a bound. Every toggle
+  re-attributes power at and below the switching level even when the torque barely changes, so per-level tanks would see
+  spurious exchanges, and a single tank on the total port would not. Hysteresis in the activation, or a bound placed at the
+  velocity or position level instead of the acceleration level, are natural remedies. Tanks for strict hierarchies exist
+  (<a href="#ref-dietrich2017">Dietrich et al., 2017</a>), but we know of no analysis of tank bookkeeping across inequality
+  active-set switches.
+</p>
+
+<div class="insight">
+  <strong>Design question this raises.</strong> If per-level tanks are used (to make each level individually
+  passive), the bookkeeping at switches must transfer energy between levels consistently with the change of
+  basis EQ(forcebasis): at an activation or deactivation at level $i$ only level $i$ and the levels below are affected, and the
+  transfer must also absorb the power of unilateral forces, which has no sign. How to do that while preserving strict
+  priority, and without chattering, is, to our knowledge, not settled in general; it is the most concrete open problem
+  suggested by this viewpoint.
+</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- WINDOWS AND PRIORITIES -->
+<!-- ================================================================== -->
+<section id="sec-mpc">
+<h2>SECNUM Windows, Priorities and Whole-Body MPC</h2>
+
+<p>
+  Part&nbsp;I shrank a receding window to an instant; the preceding sections split one instant among priority levels. This
+  section puts the two side by side.
+</p>
+
+<h3 id="sec-mpc-limit">SECNUM Is whole-body control the zero-window limit of whole-body MPC?</h3>
+
+<p>
+  Parts&nbsp;I and II give a qualified answer.
+</p>
+
+<ul>
+  <li><strong>With an energy-type boundary term, only if the stiffness is put in by hand.</strong> The torque enters the
+    $\dot W$ of EQ(energyW) only through the power $\dot q^\top\tau$, so the infinitesimal rule EQ(centred) adds pure damping,
+    $-R^{-1}\dot q$, to the torque on which the stage cost is centred
+    (Sections&nbsp;SEC(sec-certificate)&ndash;SEC(sec-strict)). A task-error penalty in $\ell_0$ does not depend on $\tau$, so
+    it drops out of the argmin. The stiffness it gives a whole-body MPC over a finite window is therefore lost in the
+    zero-window limit. The penalty then enters only the certificate, which it violates at rest away from the target
+    (Section&nbsp;SEC(sec-strict)). Centred on $\tau_{\rm imp}=g-\nabla U_s$, with $U_s$ the potential in $W$, the rule is
+    the passivity-based law with natural inertia of Section&nbsp;SEC(sec-certificate). Its stiffness comes from the centring,
+    not from the minimization, and the energy certifies only the damping EQ(defectE). Under strict priority the centring
+    torque is in general not of this form, and no single $W$ of the form EQ(energyW) certifies the result
+    (Sections&nbsp;SEC(sec-leak) and SEC(sec-cascade)). The minimization itself produces stiffness only with a $W$ that has
+    position&ndash;velocity cross terms (Section&nbsp;SEC(sec-robot)), or with a finite window. In the latter case the
+    resulting gains depend on how the torque is held over the window (zero-order hold, impulse, or time-varying), not only
+    on the window length. Take the one-degree-of-freedom setup of Section&nbsp;SEC(sec-gauss-free): mass $M=2$&nbsp;kg,
+    $W=\tfrac12Mv^2+\tfrac12K_eq^2$ with $K_e=30$&nbsp;N/m, Gauss&rsquo;s weight with $T_0=0.1$&nbsp;s centred on zero torque
+    ($\tau_{\rm imp}=0$, so the spring sits only in $W$ and the infinitesimal rule $\tau=-Mv/T_0$ has no stiffness), no other
+    stage cost, window $\vartheta=10$&nbsp;ms. With the torque held constant over the
+    window, the window problem is a scalar quadratic in the torque, and its minimizer has the first-instant stiffness
+    $K_e\vartheta/{\big[2\big(T_0+\vartheta+K_e\vartheta^3/(4M)\big)\big]}=1.36$&nbsp;N/m. With the optimal time-varying torque, the window is
+    solved by the Riccati differential equation that EQ(hj) becomes in phase space for a quadratic boundary term (as in
+    Section&nbsp;SEC(sec-scalar)), started at $P_0=\mathrm{diag}(K_e,M)$, and the first-instant stiffness is $(P_\vartheta)_{12}/T_0=2.86$&nbsp;N/m.</li>
+  <li><strong>With the value function of a longer horizon as $W$, yes in spirit.</strong> A one-step rule
+    whose boundary term is the value function of a longer-horizon problem is the construction behind
+    value-function-based whole-body control in cascaded MPC (<a href="#ref-li2025">Li &amp; Wensing, 2025</a>). With a control
+    Lyapunov function in that role, the one-step rule is a pointwise controller built on that function, the kind of law
+    that <a href="#ref-primbs2000">Primbs et al. (2000)</a> generalize to receding horizons
+    (Section&nbsp;SEC(sec-allwindows)). In continuous time it is the infinitesimal-window rule EQ(rule), the zero-window
+    end of the receding window that keeps the function as boundary term (Section&nbsp;SEC(sec-infinitesimal)), the
+    terminal-cost scheme of <a href="#ref-chen1998">Chen &amp; Allg&ouml;wer (1998)</a> and
+    <a href="#ref-jadbabaie2001">Jadbabaie et al. (2001)</a>. Primbs et al. generalize by a different construction. In their
+    window problem the control Lyapunov function enters as constraints, not as a boundary term: a decrease condition on the
+    first move, and an end-of-window condition that its value at the end of the window not exceed its value at the end of
+    the path the pointwise min-norm controller would follow over the same window. As the window shrinks to zero their
+    scheme reduces to pointwise min-norm control, which prescribes a rate at which $W$ must decrease and takes the
+    least-norm velocity that achieves it; under further conditions it approaches optimal control as the window grows
+    without bound. The rule EQ(rule) is of that kind, with $L$ in place of the norm and with the rate it delivers itself:
+    for every $v\in\mathcal V(q)$ with $\nabla W\cdot v\le\nabla W\cdot v^*$, minimality of $v^*$ gives
+    $L(q,v)\ge L(q,v^*)+\nabla W\cdot(v^*-v)\ge L(q,v^*)$. The two zero-window ends therefore agree where the prescribed
+    rate equals $-\nabla W\cdot v^*$, and need not agree elsewhere.</li>
+  <li><strong>Multipliers.</strong> In a multiple-shooting transcription the defect multipliers are discrete
+    momenta (Section&nbsp;SEC(sec-so-discrete)), and the first torque equals the first velocity momentum over $T_0$: exactly in
+    continuous time; in discrete time, exactly under symplectic Euler when neither $b$ nor the stage cost depends on $v$,
+    $T_0\tau_0=\pi_{v,0}=-\nabla_vV_N(z_0)$ with $\pi_0$ the multiplier of the initial value; as the mean
+    $T_0\tau_0=\tfrac12(\pi_{v,0}+\pi_{v,1})$ under zero-order hold with constant $M$ and $b$; and to $O(h)$ otherwise
+    (Section&nbsp;SEC(sec-gauss-free)). The mean is why the held-torque stiffness above is about half the time-varying one. Per unit initial
+    displacement, the velocity momentum of the held window gives $-\pi_{v,0}/T_0=2.864$&nbsp;N/m at its start, essentially the
+    time-varying first-instant value 2.86&nbsp;N/m, and $-\pi_{v,1}/T_0=-0.136$&nbsp;N/m at its end; the held torque takes their
+    mean, 1.36&nbsp;N/m.</li>
+</ul>
+
+<h3 id="sec-parallel">SECNUM Invariant versus attributed: windows and priorities</h3>
+
+<p>
+  Two design choices in this document leave a certificate-level quantity untouched and redistribute something
+  else. The parallel is structural, not a theorem; this subsection states what is exact and where it stops.
+</p>
+
+<p>
+  <strong>Window length.</strong> With an exact pair, $W=V_\infty$ for the discrete problem and no active constraint, the
+  fixed-point property of Section&nbsp;SEC(sec-exactness) gives $V_N=V_\infty$ for every $N$: the window length only moves the cut
+  between the computed part of the remaining action (the window) and the estimated part (the tail $W$). With an inexact pair
+  that passes the one-step test EQ(terminal) the total itself changes with $N$, downward by EQ(monotone), while the
+  certificate $(W,\Omega)$ stays the same; a pair that fails EQ(terminal) has no certificate to keep, and its total can rise
+  with $N$ instead (the textbook weight of Section&nbsp;SEC(sec-split)). The table of
+  Section&nbsp;SEC(sec-split) shows both: $V_N(q_0)=0.5000$ for every $N$ with the exact pair, against $0.5857$ at $N=1$ falling
+  to $0.5269$ at $N=20$ (towards $P_d/2=0.5256$) with the inflated rectangle-rule pair.
+</p>
+
+<p>
+  <strong>Priority order.</strong> For a given task torque $\tau_x$ (in either view), every priority order gives the same total power
+  EQ(power), and only its split among levels changes (Section&nbsp;SEC(sec-invariance)). In the constraint view with a
+  feasible stack the torque itself does not depend on the order, with or without active inequality rows: the stack is then a
+  single QP (Section&nbsp;SEC(sec-lexi)), whose solution, and with it the active set, is the same for every order. The order is then a
+  pure change of basis, and an active-set switch only re-attributes forces and power at and below the switching level, with
+  the torque continuous (Sections&nbsp;SEC(sec-ineq-switch) and SEC(sec-ineq-power)). Under a conflict, that is, when the tasks cannot all be met at once
+  (incompatible targets at a singularity of the stack, Section&nbsp;SEC(sec-consistency), or an inequality bound that cannot be held
+  together with the other tasks, Section&nbsp;SEC(sec-soft)), or in the impressed view where each level&rsquo;s force is prescribed,
+  the order can change the torque and the motion.
+</p>
+
+<table>
+  <tr><th></th><th>Window length $N$ (pair passing EQ(terminal))</th><th>Priority order</th></tr>
+  <tr><td>Left unchanged</td><td>Certificate ingredients $(W,\Omega)$ and the descent inequality EQ(descent)</td><td>Total power through the task port EQ(power)</td></tr>
+  <tr><td>Redistributed</td><td>Remaining action between window and tail</td><td>Forces and power among levels</td></tr>
+  <tr><td>Pure redistribution when</td><td>$W=V_\infty$ and no active constraint: $V_N=V_\infty$</td><td>Constraint view, feasible stack: same torque</td></tr>
+  <tr><td>Otherwise</td><td>$V_N$ does not increase with $N$, by EQ(monotone); the closed-loop path changes</td><td>The torque and the motion can change</td></tr>
+  <tr><td>Tempting misreading</td><td>&ldquo;A longer window pays less action&rdquo; (false in Section&nbsp;SEC(sec-robot-results))</td><td>&ldquo;$F_i$ is <em>the</em> force on task $i$&rdquo; (basis-dependent)</td></tr>
+  <tr><td>What an argument can rely on</td><td>$(W,\Omega)$, whichever $N$</td><td>The total port power (one tank), whichever order, for a given torque</td></tr>
+</table>
+
+<p>
+  The parallel stops at the level of structure. The window length moves a cut in time, the priority order a cut among
+  task coordinates, and nothing in the window problem plays the role of the non-integrable projections that prevent a
+  single energy certificate for a strict hierarchy (Section&nbsp;SEC(sec-leak)).
+</p>
+
+<h3 id="sec-cascade">SECNUM Toward hierarchical certificates</h3>
+
+<p>
+  For hierarchical natural-inertia controllers the value-function construction of Section&nbsp;SEC(sec-mpc-limit) meets the
+  obstacle of Section&nbsp;SEC(sec-leak): there is no $W$ of the form EQ(energyW) for a strict hierarchy, and no general
+  construction of a strict one is known to us. A hierarchical receding-horizon certificate would therefore most naturally be
+  cascaded level by level: a boundary term per level in the decoupled coordinates $\zeta_i$, with the Coriolis couplings
+  $\bar C_{ij}$ of Section&nbsp;SEC(sec-consistency) treated as interconnection terms, as the level-by-level stability analyses
+  cited in Section&nbsp;SEC(sec-leak) do. Whether per-level descent defects can be made to add up, and how the per-level
+  power of Section&nbsp;SEC(sec-power) enters them at active-set switches, is open.
+</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- OUTLOOK -->
+<!-- ================================================================== -->
+<section id="sec-outlook">
+<h2>SECNUM Floating Base and Contacts (Outlook)</h2>
+
+<p>
+  For a floating-base robot the reading needs one more constraint. Six coordinates give the pose of the base; write
+  $(\cdot)_{\rm base}$ for the six base rows of a vector and $M_{\rm base}$ for those of $M$. With $J_c$ the Jacobian of the
+  closed contacts and $f_c$ their wrenches, the equations of motion are $M\ddot q+b=\tau+J_c^\top f_c$, and the base is
+  unactuated, $\tau_{\rm base}=0$. The impressed torque must then be a joint torque too, $(\tau_{\rm imp})_{\rm base}=0$:
+  gravity can be compensated in the joint rows only, and the weight has to be carried by $f_c$. The base rows
+  $$\big(M\ddot q+b-J_c^\top f_c\big)_{\rm base}=0$$
+  are the Newton&ndash;Euler equations of the whole robot. In inertially decoupled coordinates that separate the centroidal
+  dynamics from the joint dynamics (<a href="#ref-garofalo2015">Garofalo et al., 2015</a>) they say that only gravity and the
+  contact wrenches change the centroidal momentum, which is the statement behind momentum-based whole-body control (in the
+  decoupled velocity coordinates the angular part still keeps Coriolis coupling with the joints).
+</p>
+
+<p>
+  The Gauss problems of Sections&nbsp;SEC(sec-gauss-task)&ndash;SEC(sec-unilateral) do not contain these rows. With the contacts as rows
+  (Section&nbsp;SEC(sec-gauss-dual), multipliers $\lambda_c$) the correction is $\tau_c=J^\top\lambda+J_c^\top\lambda_c$. Read with
+  $f_c=\lambda_c$, it asks the actuators for the base rows $(J^\top\lambda)_{\rm base}$, which do not vanish in general: a task
+  expressed in the world frame, such as a hand position, depends on the pose of the base. The base rows therefore enter
+  Gauss&rsquo;s problem as constraints, with $f_c$ as an additional unknown and $\lambda_{\rm base}$ as their multiplier.
+  Stationarity in $\ddot q$ gives
+  $M(\ddot q-\ddot q_{\rm free})=J^\top\lambda+J_c^\top\lambda_c+M_{\rm base}^\top\lambda_{\rm base}$, and stationarity in
+  $f_c$ makes $\lambda_{\rm base}$ orthogonal to every base wrench the contacts can exert,
+  $\lambda_{\rm base}^\top(J_c^\top f)_{\rm base}=0$ for all $f$. Two cases follow.
+</p>
+<ul>
+  <li><strong>The contacts can exert any base wrench</strong> (as equalities: one foot or both feet flat on the ground, or
+    three point contacts not on one line). Then $\lambda_{\rm base}=0$, and the motion and the multipliers are those of the
+    stack without the base rows. Their reading changes. The contact wrench is $f_c=\lambda_c+\Delta f_c$, with
+    $(J_c^\top\Delta f_c)_{\rm base}=(J^\top\lambda)_{\rm base}$ and $\Delta f_c$ unique up to internal forces, and the
+    actuators add $J^\top\lambda-J_c^\top\Delta f_c$ to $\tau_{\rm imp}$, not $J^\top\lambda$. On persistent contacts
+    ($J_c\dot q=0$) the difference does no work, so EQ(power) still gives the power that the
+    actuators inject on top of $\tau_{\rm imp}$.</li>
+  <li><strong>They cannot</strong> (one or two point contacts, a line contact, flight). Then the base rows bind, in general,
+    in the directions of base wrench that the contacts cannot exert, and the task multipliers $\lambda$ change. In those directions the
+    base rows are equality rows like a task&rsquo;s, with their Jacobian taken from $M_{\rm base}$ and, in place of a task
+    velocity, the momentum $(M\dot q)_{\rm base}$ conjugate to the base coordinates, the total momentum of the robot. Placed
+    at the top of the stack with the contact rows, they make Sections&nbsp;SEC(sec-hierarchy)&ndash;SEC(sec-power) apply to the enlarged stack, and
+    on persistent contacts the power that the actuators inject on top of $\tau_{\rm imp}$ is
+    $\lambda^\top\dot x+\lambda_{\rm base}^\top(M\dot q)_{\rm base}$, not $\lambda^\top\dot x$.</li>
+</ul>
+
+<p>
+  In both cases the sign and friction-cone conditions below bind $f_c$, not $\lambda_c$. The contact wrenches are the
+  multipliers of the contact constraints in the plant&rsquo;s own Gauss principle (of a contact that slides with friction,
+  only $f_n$ is; see &ldquo;Contact modes&rdquo; below), with the applied joint torque as the
+  impressed torque. They are constraint forces supplied by the environment, not by the actuators, yet the Gauss
+  function EQ(gaussfn) counts them: they are part of $\tau_c=M(\ddot q-\ddot q_{\rm free})$, as
+  the unilateral forces of EQ(unikkt) are. The centroidal momentum, finally, is part of the
+  mechanical momentum $M\dot q$, not of the costate momentum $\pi=-\nabla_zV$ of Section&nbsp;SEC(sec-second-order). The two coincide (up to
+  sign, $\pi_v=-Mv$ with $v=\dot q$ along solutions) for the infinitesimal window, where $\pi=-\nabla_zW$, when $W$ is of
+  energy type EQ(energyW), which certifies only damping (Section&nbsp;SEC(sec-strict)). Over a finite window
+  $V_\vartheta$ is in general not of energy type: in the example of Section&nbsp;SEC(sec-mpc-limit), $\pi_v=-\nabla_vV_\vartheta$ has the
+  position component $-(P_\vartheta)_{12}\,q$ that gives the stiffness there.
+</p>
+
+<p>A contact is an inequality constraint with three parts.</p>
+<ul>
+  <li><strong>Normal complementarity.</strong> Gap $x_c\ge0$, normal force $f_n\ge0$, $f_nx_c=0$ (Signorini), imposed on a closed
+    contact at the velocity level (Moreau) or the acceleration level (Gauss) as in Section&nbsp;SEC(sec-unilateral). Persistent
+    contacts do no work; with Moreau&rsquo;s impact law, impacts lose energy for restitution coefficients up to one
+    (<a href="#ref-moreau1988">Moreau, 1988</a>; <a href="#ref-brogliato2016">Brogliato, 2016</a>), a property of that law, not of
+    every restitution model.</li>
+  <li><strong>Friction.</strong> Coulomb&rsquo;s law $\|f_t\|\le\mu_cf_n$, with tangential force $f_t$ and friction coefficient
+    $\mu_c$, is a second-order cone, not a polyhedron; QP-based controllers replace it by an inscribed pyramid, that is, by
+    more linear inequality rows. Sticking contacts do no work; a sliding contact with $f_t=-\mu_cf_n\,v_t/\|v_t\|$ dissipates
+    the power $\mu_cf_n\|v_t\|\ge0$.</li>
+  <li><strong>Contact modes.</strong> A mode says which contacts are closed and which of them stick or slide. In a mode
+    without frictional sliding (every closed contact frictionless, or sticking with its force in the friction cone) the
+    active contact constraints are ideal: their forces lie in the span of the transposed constrained rows, as in
+    EQ(unikkt). Sections&nbsp;SEC(sec-hierarchy), SEC(sec-ineq-hier) and SEC(sec-power) then apply to them verbatim:
+    EQ(forcebasis)&ndash;EQ(power), the attribution rules and the sign caveats. On a floating base the stack is the one
+    described above (the contact rows, the base rows where they bind, and the tasks), with $f_c$ and the actuator power read
+    as stated there. A contact that slides with friction is not ideal. For a point contact, write $J_n$ and $J_t$ for the
+    normal and tangential rows of its Jacobian $J_c$, $v_t=J_t\dot q$ and $\hat v_t=v_t/\|v_t\|$. Only the normal
+    acceleration $J_n\ddot q$ is constrained, while the force $(J_n-\mu_c\hat v_t^\top J_t)^\top f_n$ is not in the span of
+    $J_n^\top$, so Gauss&rsquo;s principle EQ(gauss), which would apply $J_n^\top f_n$, no longer yields the motion. The
+    friction torque $-\mu_cJ_t^\top\hat v_t\,f_n$ can be booked as impressed instead, but it depends on the multiplier $f_n$,
+    so the free acceleration in EQ(gauss) is no longer given. Eliminating $\ddot q$ maps the multipliers to the constrained
+    accelerations through $JM^{-1}\tilde J^\top$, where $\tilde J$ is $J$ with each sliding row $J_n$ replaced by
+    $J_n-\mu_c\hat v_t^\top J_t$. This matrix takes the place of the mobility $JM^{-1}J^\top$ of EQ(ldl), and it is not
+    symmetric once another row is active. For a single sliding contact and no other rows it is the scalar
+    $J_nM^{-1}(J_n-\mu_c\hat v_t^\top J_t)^\top$, which can be negative when $\mu_c$ is large; the contact problem then has
+    no solution or two (Painlev&eacute;&rsquo;s paradox; <a href="#ref-brogliato2016">Brogliato, 2016</a>). When the
+    multipliers exist, EQ(forcebasis)&ndash;EQ(power) hold only for the ideal part $J^\top\lambda$ of the constraint torque.
+    The friction torque, booked as impressed, is attributed to no level, and its power $-\mu_cf_n\|v_t\|$ is missing from
+    $\lambda^\top\dot x$ in EQ(power), to which the sliding row contributes $f_nJ_n\dot q=0$. Opening a frictionless or
+    sticking contact (by the cone, its tangential force vanishes with $f_n$) and closing a frictionless one without impact
+    are active-set switches in the sense of Section&nbsp;SEC(sec-ineq-switch); across them the torque stays continuous only
+    in the constraint view. Stick&ndash;slip transitions and the closing of a frictional contact are not. A frictional
+    contact that closes without impact generally starts by sliding. At the onset of slip the tangential rows leave the
+    active set with their multiplier on the boundary of the cone, not at zero. At a slip-to-stick transition the friction
+    force in general jumps from the boundary of the cone into its interior (for a block that slides to rest on a level
+    floor with no tangential load, from $\mu_c$ times its weight to zero), so the contact force and, in the constraint
+    view, the torque jump without any impact.</li>
+</ul>
+<p>
+  A careful treatment of frictional sliding, impacts, friction-cone switching and tank bookkeeping across contact modes is left for later.
+</p>
+</section>
