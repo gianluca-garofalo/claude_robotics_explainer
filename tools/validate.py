@@ -290,10 +290,11 @@ def ledger_findings(run: Path, rep: Report) -> None:
         return
     ids = set()
     for name in ("presentation-reviewer", "linear-reader"):
-        try:
-            ids |= {f.get("id") for _, f in _items(_load(run / "review" / f"{name}.json").get("findings"))}
-        except (FileNotFoundError, json.JSONDecodeError, AttributeError):
-            continue
+        for rp in sorted((run / "review").glob(f"{name}.json")) + sorted((run / "review").glob(f"{name}.round*.json")):
+            try:
+                ids |= {f.get("id") for _, f in _items(_load(rp).get("findings"))}
+            except (json.JSONDecodeError, AttributeError):
+                continue
     for i, sym in _items(ledger.get("symbols") if isinstance(ledger, dict) else None):
         fid = sym.get("finding")
         if isinstance(fid, str) and fid.strip() and fid not in ids:
