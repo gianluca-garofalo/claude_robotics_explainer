@@ -22,14 +22,19 @@ released first: `related_series`).
 For each series write `series_plan/series.<slug>.v2.json` (schema 2: the fields `tools/series.py validate` checks,
 plus `story_beat`, `outline`, `target_viewer`, `difficulty`, `entry_point` and `material.notes` for the producer) and
 write `series_plan/PLAN.md` for the owner: the story spine of each series in a paragraph, the episode list (short title,
-hook, takeaway, what it builds on, length), what was left out and why, the prerequisite graph, the release order,
-and the open questions. Then run `python3 tools/series.py validate runs/<run>/series_plan/series.<slug>.v2.json`
+hook, takeaway, what it builds on, length and the ideas it teaches), what was left out and why, what moved between
+episodes to fit the idea budget, the prerequisite graph, the release order, and the open questions. Then run `python3 tools/series.py validate runs/<run>/series_plan/series.<slug>.v2.json`
 until it reports no error, and read every warning.
 
 Rules that make an episode work (the red team will check them):
 - Watchable alone: everything an episode uses from an earlier one is recapped in it (`recap`: title starting
   "Recap", `from`, `seconds`, `card`, `restates`); at most a soft pointer by title, never "you must have watched".
-- Not overloaded: about three new ideas per episode at most; split or cut rather than rush.
+- Not overloaded: declare every episode's `ideas` (brief.md, "The idea budget": every concept, claim and starred
+  result, with `uses`), at most two starred results; set `length_min` from the range `validate` prints. When
+  `validate` says an episode is over-packed, leave to the explainer the ideas it names for a cut (nothing later
+  builds on them: the coherence principle), move what later episodes need to the neighbouring episode it names (they
+  keep their ids; update that episode's recap, teaser and takeaway), or split the episode; never squeeze. Do not
+  under-declare to fit: the red team and the video's own pacing check compare the declarations with what is said.
 - Faithful: every equation, claim and number on the takeaway and recap cards matches the explainer; every number an
   episode will show is printed by a script in `code/` (name it in `material.scripts`) or is a closed form of the
   explainer. Mark scripts the series source lacks.

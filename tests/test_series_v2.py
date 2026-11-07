@@ -61,6 +61,144 @@ class Validate(unittest.TestCase):
             with self.subTest(rule=needle):
                 self.assertTrue(any(needle in e for e in self.errors(edit)), self.errors(edit))
 
+    def test_idea_rules(self):
+        cases = {
+            "ideas is required": lambda d: d["episodes"][0].pop("ideas"),
+            "a later episode": lambda d: d["episodes"][0]["ideas"][0].update(uses=["hj-certificate"]),
+            "no episode declares": lambda d: d["episodes"][0]["ideas"][0].update(uses=["nowhere"]),
+            "only a concept": lambda d: d["episodes"][0]["ideas"][5].update(pretraining=True),
+            "unique in the series": lambda d: d["episodes"][1]["ideas"].append(
+                {"id": "descent", "kind": "claim", "text": "again"}),
+            "never lower it": lambda d: d["episodes"][0]["ideas"][5].update(seconds=30),
+            "kind must be": lambda d: d["episodes"][0]["ideas"][5].update(kind="theorem"),
+        }
+        for needle, edit in cases.items():
+            with self.subTest(rule=needle):
+                self.assertTrue(any(needle in e for e in self.errors(edit)), self.errors(edit))
+
+    def test_story_order_chains_and_outline(self):
+        def chain(d):
+            d["episodes"][0]["ideas"].append({"id": "chained", "kind": "claim", "follows": "feasible", "text": "x"})
+        self.assertTrue(any("a chain is a derivation" in e for e in self.errors(chain)))
+
+        def three(d):
+            d["episodes"][0]["ideas"].append({"id": "third", "kind": "claim", "follows": "descent", "text": "x"})
+        self.assertTrue(any("3 consequences follow 'descent'" in e for e in self.errors(three)))
+
+        def circle(d):
+            d["episodes"][0]["ideas"][1]["uses"] = ["remaining-action"]           # remaining-action uses it too
+        self.assertTrue(any("in a circle" in e for e in self.errors(circle)))
+        d = copy.deepcopy(self.data)
+        d["episodes"][0]["ideas"][5]["uses"].append("exact-step")              # declared after the descent
+        self.assertTrue(any("declared later" in w for w in S.validate_v2(d)[1]))
+        d = copy.deepcopy(self.data)
+        d["episodes"][0]["outline"] = d["episodes"][0]["outline"][:3]          # beats that squeeze the ideas
+        self.assertTrue(any("squeezes" in w for w in S.validate_v2(d)[1]))
+        d["episodes"][0]["outline"].append({"beat": "more", "min": 9.0})
+        self.assertTrue(any("plans more" in w for w in S.validate_v2(d)[1]))
+
+    def test_recap_ideas_come_from_its_episodes(self):
+        def ok(d):
+            d["episodes"][1]["recap"][0]["ideas"] = ["descent", "certificate-pair"]
+        self.assertEqual(self.errors(ok), [])
+
+        def stale(d):
+            d["episodes"][1]["recap"][0]["ideas"] = ["descent", "only-one-push"]
+        self.assertTrue(any("only-one-push" in e and "do not teach" in e for e in self.errors(stale)))
+
+    def test_an_overpacked_episode_fails_and_says_what_to_move_where(self):
+        def third_star(d):
+            d["episodes"][0]["ideas"] += [
+                {"id": "recursion", "kind": "star", "uses": ["remaining-action"], "text": "the recursion"},
+                {"id": "monotone", "kind": "claim", "uses": ["recursion"], "text": "longer windows never cost more"}]
+            d["episodes"][1]["ideas"][7]["uses"].append("recursion")          # the next episode builds on it
+        errs = self.errors(third_star)
+        over = [e for e in errs if "episode 1" in e and "over-packed" in e]
+        self.assertEqual(len(over), 1, errs)
+        moved = over[0].split("to episode 2,")[1].split("(then")[0]
+        self.assertIn("recursion", moved)
+        self.assertIn("monotone", moved)                                     # what builds on it moves with it
+        self.assertNotIn("descent", moved)
+
+        def many_claims(d):
+            d["episodes"][0]["ideas"] += [{"id": f"aside-{k}", "kind": "claim", "uses": ["descent"],
+                                           "text": f"aside {k}"} for k in range(5)]
+        over = [e for e in self.errors(many_claims) if "over-packed" in e]
+        self.assertTrue(over and "aside-4" in over[0], over)
+        d = copy.deepcopy(self.data)
+        many_claims(d)
+        sug = S.IB.suggest_moves(d["episodes"], 1, S.IB.settings())
+        self.assertEqual(sug["to"], 2)
+        self.assertTrue(sug["fits"])
+        self.assertFalse(S.IB.overpacked([i for i in d["episodes"][0]["ideas"] if i["id"] not in sug["move"]],
+                                         S.IB.settings()))
+
+    def test_an_overpacked_episode_may_leave_material_to_the_explainer(self):
+        d = copy.deepcopy(self.data)
+        d["episodes"][0]["ideas"] += [{"id": f"aside-{k}", "kind": "claim", "uses": ["descent"], "text": f"aside {k}"}
+                                      for k in range(3)]
+        d["episodes"][1]["ideas"][0]["uses"] = ["aside-0"]                     # a later episode builds on this one
+        cfg = S.IB.settings()
+        cut = S.IB.suggest_cut(d["episodes"], 1, cfg)
+        self.assertTrue(cut["fits"])
+        ep1 = {i["id"]: i for i in d["episodes"][0]["ideas"]}
+        for x in cut["cut"]:
+            self.assertNotEqual(ep1[x]["kind"], "star")
+            self.assertFalse(ep1[x].get("example"))
+        self.assertNotIn("aside-0", cut["cut"])
+        self.assertNotIn("remaining-action", cut["cut"])                        # the hilltop builds on it
+        over = [e for e in S.validate_v2(d)[0] if "over-packed" in e]
+        self.assertTrue(over and "leave to the explainer" in over[0], over)
+        self.assertTrue(any(ep1[x]["kind"] == "claim" and not ep1[x].get("follows") for x in cut["cut"]))
+
+    def test_a_lone_consequence_is_not_the_cut_when_a_claim_group_exists(self):
+        d = copy.deepcopy(self.data)
+        ep = d["episodes"][0]
+        ep["ideas"] += [{"id": "aside", "kind": "claim", "uses": ["descent"], "text": "a claim of its own"},
+                        {"id": "so-what", "kind": "claim", "follows": "aside", "text": "its consequence"},
+                        {"id": "lone", "kind": "claim", "follows": "certificate-pair", "text": "a consequence"}]
+        ep["ideas"][0]["seconds"] = 60                                          # just over the cap
+        cfg = S.IB.settings()
+        self.assertTrue(S.IB.overpacked(ep["ideas"], cfg))
+        cut = S.IB.suggest_cut(d["episodes"], 1, cfg)
+        ideas = {i["id"]: i for i in ep["ideas"]}
+        self.assertNotIn("lone", cut["cut"])                                    # a cheap "so what" is not the cut
+        self.assertTrue(any(ideas[x]["kind"] == "claim" and not ideas[x].get("follows") for x in cut["cut"]))
+
+    def test_length_follows_from_the_ideas(self):
+        d = copy.deepcopy(self.data)
+        d["episodes"][0]["length_min"] = 7
+        self.assertTrue(any("length_min 7" in w for w in S.validate_v2(d)[1]))
+        cfg = S.IB.settings()
+        fewer = S.IB.estimate(d["episodes"][0]["ideas"][:6], cfg)
+        more = S.IB.estimate(d["episodes"][0]["ideas"], cfg)
+        self.assertLess(fewer["hi_s"], more["lo_s"])                         # every idea costs time
+
+    def test_a_slow_reading_of_the_derivations_cannot_slip_past_the_cap(self):
+        cfg = S.IB.settings()
+        f = 1 + cfg["slow_extra"]
+        self.assertAlmostEqual(S.IB.idea_seconds({"id": "a", "kind": "star", "text": "x"}, cfg)[0], 75 * f)
+        self.assertAlmostEqual(S.IB.idea_seconds({"id": "b", "kind": "claim", "follows": "a", "text": "y"}, cfg)[0],
+                               10 * f)                                        # argued in a slow block
+        self.assertEqual(S.IB.idea_seconds({"id": "c", "kind": "concept", "text": "z"}, cfg), (35.0, 35.0))  # base rate
+        self.assertFalse([e for e in self.errors(lambda d: d["episodes"][0]["ideas"][5].update(seconds=80))
+                          if "never lower" in e])                            # seconds are written at the ordinary pace
+        ideas = copy.deepcopy(self.data["episodes"][0]["ideas"])
+        ideas.append({"id": "one-more", "kind": "claim", "uses": ["descent"], "text": "one more result"})
+        self.assertFalse(S.IB.overpacked(ideas, dict(cfg, slow_extra=0.0)))   # it would fit at the ordinary pace
+        self.assertTrue(S.IB.overpacked(ideas, cfg))                          # but not read as the house reads it
+
+    def test_validate_cli_prints_the_budget_and_fails_an_overpacked_plan(self):
+        r = series_cli("validate", str(make_series(self.tmp / "ok", approve=False)))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("budget", r.stdout)
+
+        def over(d):
+            d["episodes"][0]["ideas"].append({"id": "recursion", "kind": "star", "text": "the recursion"})
+        r = series_cli("validate", str(make_series(self.tmp / "over", approve=False, edit=over)))
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("recursion", r.stdout)
+
     def test_plan_hash_ignores_the_explainer_bytes(self):
         d = copy.deepcopy(self.data)
         d["explainer_sha256"] = "0" * 64
@@ -217,6 +355,9 @@ class Start(unittest.TestCase):
         brief = (run / "video" / "episode.md").read_text()
         for value in (plan_ep["title"], plan_ep["hook"], plan_ep["recap"][0]["title"]):   # the brief is the plan's
             self.assertIn(value, brief)
+        for idea in plan_ep["ideas"]:                                  # and so is the idea budget
+            self.assertIn(idea["id"], brief)
+        self.assertEqual([i["id"] for i in ep["ideas"]], [i["id"] for i in plan_ep["ideas"]])
         self.assertTrue((run / "video" / "data" / "hilltop_samples.csv").exists())   # data/ of the source
 
 

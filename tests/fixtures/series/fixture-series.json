@@ -24,6 +24,90 @@
    "kind": "first",
    "hook": "A predictive controller plans a few steps ahead, takes only the first step, and throws the rest of the plan away. Then it plans again from wherever it landed. Why should that ever settle down? The answer is a number the controller computes anyway: the cost still to pay. And you'll see a controller that converges every time while the textbook proof of its stability fails at every step.",
    "length_min": 11,
+   "ideas": [
+    {
+     "id": "receding-window",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "plan N steps ahead, apply the first, plan again"
+    },
+    {
+     "id": "step-cost",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the cost of one step, a Lagrangian; summed, the action"
+    },
+    {
+     "id": "boundary-term",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the boundary term W paid at the end of the window"
+    },
+    {
+     "id": "terminal-region",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the region where the window must end"
+    },
+    {
+     "id": "remaining-action",
+     "kind": "concept",
+     "pretraining": true,
+     "uses": [
+      "step-cost",
+      "boundary-term"
+     ],
+     "text": "the least cost still to pay from here, V_N"
+    },
+    {
+     "id": "descent",
+     "kind": "star",
+     "uses": [
+      "remaining-action",
+      "receding-window",
+      "terminal-region"
+     ],
+     "text": "if W falls along a reference motion at least as fast as cost is spent, V_N falls by at least each step's cost"
+    },
+    {
+     "id": "feasible",
+     "kind": "claim",
+     "follows": "descent",
+     "text": "the shifted plan stays feasible"
+    },
+    {
+     "id": "stable",
+     "kind": "claim",
+     "follows": "descent",
+     "text": "with the usual bounds the target is asymptotically stable"
+    },
+    {
+     "id": "window-free",
+     "kind": "claim",
+     "uses": [
+      "descent"
+     ],
+     "text": "the proof never used the window length N"
+    },
+    {
+     "id": "exact-step",
+     "kind": "claim",
+     "example": true,
+     "uses": [
+      "descent"
+     ],
+     "text": "with the step's cost computed exactly, V_1 = W and the drop equals the step cost (N = 1, the toy)"
+    },
+    {
+     "id": "certificate-pair",
+     "kind": "star",
+     "uses": [
+      "descent",
+      "exact-step"
+     ],
+     "text": "the certificate belongs to the pair of step cost and boundary term, not to the controller"
+    }
+   ],
    "sections": [
     "1",
     "1.1",
@@ -101,6 +185,85 @@
    "kind": "finale",
    "hook": "Here is a ball on a hill. I want it to stay on top: not held there, but arriving there, rolling, and stopping exactly on the summit. Of all the ways to push it, only one works. By the end of this video you will see what finds that one push: the remaining action, the cost still to be paid from here on.",
    "length_min": 11,
+   "ideas": [
+    {
+     "id": "hilltop-cost",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the cost read as kinetic minus potential energy on a hilltop"
+    },
+    {
+     "id": "stable-manifold",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the one curve of pushes that arrives at the summit"
+    },
+    {
+     "id": "momentum",
+     "kind": "concept",
+     "pretraining": true,
+     "uses": [
+      "remaining-action"
+     ],
+     "text": "the momentum p = -V'"
+    },
+    {
+     "id": "hamiltonian",
+     "kind": "concept",
+     "pretraining": true,
+     "text": "the energy H(q, p), zero on the arriving curve"
+    },
+    {
+     "id": "only-one-push",
+     "kind": "star",
+     "uses": [
+      "hilltop-cost",
+      "stable-manifold",
+      "momentum",
+      "hamiltonian"
+     ],
+     "text": "only the zero-energy push arrives, and the remaining action generates it: p = -V', H(q, -V') = 0"
+    },
+    {
+     "id": "v-rate",
+     "kind": "claim",
+     "follows": "only-one-push",
+     "text": "along it the remaining action falls at the rate of the cost"
+    },
+    {
+     "id": "legendre",
+     "kind": "concept",
+     "uses": [
+      "hamiltonian"
+     ],
+     "text": "the Legendre transform from cost to energy"
+    },
+    {
+     "id": "hj-certificate",
+     "kind": "star",
+     "uses": [
+      "descent",
+      "legendre",
+      "hamiltonian"
+     ],
+     "text": "shrinking the window: W is certified wherever H(q, -grad W) >= 0"
+    },
+    {
+     "id": "scaled-candidates",
+     "kind": "claim",
+     "uses": [
+      "hj-certificate"
+     ],
+     "text": "W = cV is certified for c >= 1"
+    },
+    {
+     "id": "speed-limit",
+     "kind": "claim",
+     "side": true,
+     "text": "a speed limit changes which boundary term is exact",
+     "follows": "hj-certificate"
+    }
+   ],
    "sections": [
     "3",
     "3.1",

@@ -41,6 +41,19 @@ those words are said (v6), never seconds before them.
 "picture" (v6, optional, per scene; once one scene has it, all should): "faithful" (drawn to the scale of the numbers
 it carries: a graph, a number line, bars to scale) or "schematic" (an illustration: the hook's 2-D path, a title beat),
 which shows no numbers (check_engagement.py warns at a live readout with digits or a decimal on it).
+"ideas" (v7, the pacing rules of config/video.json "pacing"; tools/video/check_pacing.py): the idea units of the video
+where they land, in order, e.g. {"id": "descent", "kind": "star", "scene": "ShiftedPlan", "bookmark": "descent",
+"shows": "V_N(q^+)"}. "kind": "concept", "claim" or "star" (the episode's ideas of the series plan, by the same "id":
+episode.json "ideas"; a claim that is a step of a planned idea gives its id in "of"), or one of the consolidation units
+"restatement" (a starred result again in plain words, "of": its id), "summary" (the end of a chapter), "roadmap"
+(after the title beat), "recap" (before the outro), "prompt" (a think prompt; "main": true for the one that says
+"pause here if you like"). "scene": the scene class; "bookmark": the <bookmark mark='...'/> at the start of the sentence
+that states it, or "says": words of that sentence (as metaphor_resets). Optional: "shows" (the start of the on-screen
+text or equation that carries it: the picture comes first, rule P14), "text", "pretraining" (concepts named in the
+pretraining segment), "example" and "side" (claims), "follows" (a claim that follows at once from another idea).
+"glossary" (v7, optional): the episode's own technical terms ("one-step bill", "end region"), which the pacing check
+counts as new concepts and terms at their first mention, besides config/video.json pacing.glossary and
+engagement.jargon.
 """
 from __future__ import annotations
 
@@ -54,6 +67,7 @@ NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ROLES = ("hook", "context", "recap", "body", "outro")
 MUSIC_MODES = ("bed", "low", "off")
 PICTURES = ("faithful", "schematic")             # v6: what a scene's picture claims (check_engagement.py "picture")
+IDEA_KINDS = ("concept", "claim", "star", "restatement", "summary", "roadmap", "recap", "prompt")   # v7, check_pacing
 THUMB_LAYOUTS = ("panel", "picture")
 
 
@@ -185,6 +199,7 @@ def problems(run: Path, plan: dict | None = None) -> list[str]:
                     out.append(f"plan.json: {where} {text!r}: {f['rule']} '{f['match']}' (the video is self-contained)")
     except ImportError:
         pass
+    out += idea_problems(run, plan, seen)
     meta = plan.get("metaphor")
     if meta is not None and not (isinstance(meta, dict) and isinstance(meta.get("label"), str) and meta["label"].strip()
                                  and len(meta["label"]) <= 40):
@@ -200,4 +215,59 @@ def problems(run: Path, plan: dict | None = None) -> list[str]:
         out.append("plan.json: thumbnail text must be 1-40 characters (four words or fewer reads best)")
     elif th.get("layout", "panel") not in THUMB_LAYOUTS:
         out.append(f"plan.json: thumbnail layout must be one of {', '.join(THUMB_LAYOUTS)}")
+    return out
+
+
+def idea_problems(run: Path, plan: dict, classes: set) -> list[str]:
+    """(v7) What is wrong with plan.json "ideas" and "glossary" (the declarations tools/video/check_pacing.py reads)."""
+    out = []
+    gl = plan.get("glossary")
+    if gl is not None and not (isinstance(gl, list) and all(isinstance(t, str) and 0 < len(t.strip()) <= 60 for t in gl)):
+        out.append("plan.json: glossary must be a list of terms (1-60 characters each)")
+    ideas = plan.get("ideas")
+    if ideas is None:
+        return out
+    if not isinstance(ideas, list):
+        return out + ["plan.json: ideas must be a list of the video's idea units (kind, scene, bookmark or says)"]
+    ids = {i.get("id") for i in ideas if isinstance(i, dict) and isinstance(i.get("id"), str)}
+    scene_files = {s.get("class"): s.get("file") for s in plan.get("scenes", []) if isinstance(s, dict)}
+    for k, i in enumerate(ideas):
+        w = f"plan.json: ideas[{k}]"
+        if not isinstance(i, dict):
+            out.append(f"{w} must be an object")
+            continue
+        kind = i.get("kind")
+        if kind not in IDEA_KINDS:
+            out.append(f"{w}: kind must be one of {', '.join(IDEA_KINDS)}")
+            continue
+        if kind in ("concept", "claim", "star") and not (isinstance(i.get("id"), str) and re.fullmatch(
+                r"[a-z0-9]+(?:-[a-z0-9]+)*", i["id"])):
+            out.append(f"{w}: a {kind} needs its kebab-case id (the series plan's id of the idea)")
+        if i.get("scene") not in classes:
+            out.append(f"{w}: scene must be a scene class of the plan")
+        mark, says = i.get("bookmark"), i.get("says")
+        if (mark is None) == (says is None):
+            out.append(f"{w}: give either \"bookmark\" (the mark at the start of its sentence) or \"says\" (words of "
+                       "that sentence), not both")
+        elif mark is not None:
+            f = run / "video" / "scenes" / str(scene_files.get(i.get("scene"), ""))
+            if not (isinstance(mark, str) and NAME_RE.match(mark)):
+                out.append(f"{w}: bookmark must be a bookmark name")
+            elif f.is_file() and not re.search(r"mark\s*=\s*['\"]" + re.escape(mark) + r"['\"]", f.read_text(
+                    encoding="utf-8")):
+                out.append(f"{w}: bookmark {mark!r} is not in {f.name}")
+        elif not (isinstance(says, str) and 0 < len(says.strip()) <= 160):
+            out.append(f"{w}: says must be 1-160 characters of the sentence")
+        if kind == "restatement" and i.get("of") not in ids:
+            out.append(f"{w}: a restatement names the starred result it restates in \"of\"")
+        if i.get("of") is not None and kind not in ("restatement", "claim"):
+            out.append(f"{w}: only a restatement or a claim (a step of a planned idea) has \"of\"")
+        if i.get("main") and kind != "prompt":
+            out.append(f"{w}: only a think prompt can be the main one")
+        if i.get("pretraining") and kind != "concept":
+            out.append(f"{w}: only a concept belongs to the pretraining segment")
+        if (i.get("example") or i.get("side") or i.get("follows")) and kind != "claim":
+            out.append(f"{w}: example, side and follows are for claims")
+        if i.get("shows") is not None and not (isinstance(i["shows"], str) and 0 < len(i["shows"].strip()) <= 80):
+            out.append(f"{w}: shows must be the start of the on-screen text or equation (1-80 characters)")
     return out

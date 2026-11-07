@@ -258,7 +258,8 @@ def check_run(run: Path, stage: str, cfg: dict, fd: Findings) -> dict:
     for f in sorted((run / "video" / "scenes").glob("*.py")):
         if f.name in HELPERS:
             continue
-        for i, (_, text) in enumerate(VS.blocks(f)):
+        for i, (key, text) in enumerate(VS.blocks(f)):
+            text = VS.spoken(text) if key else text        # the pacing markup ([pause 2.5]) is not a spoken number
             if text:
                 where = f"{f.name}, block {i + 1}"
                 check_spoken(text, "narration", where, cfg, fd)

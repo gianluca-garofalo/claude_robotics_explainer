@@ -26,7 +26,7 @@ and the caption on screen; the captions with their times; the segments), the con
 Extract any other moment with `ffmpeg -ss <t> -i <video> -frames:v 1 runs/<run>/review/final_cut/extra/t<t>.jpg`
 (several frames a few tenths of a second apart show motion). The deterministic reports are in
 `review/design/final/` (`check_design.md`, `check_reading.md`, `check_numbers.md`, `check_selfcontained.md`,
-`check_series.md`, `check_engagement.md`, `check_script.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
+`check_series.md`, `check_engagement.md`, `check_script.md`, `check_pacing.md`): confirm or dismiss what they say with what you see, and look for what they cannot see.
 
 Go through every contact sheet in order (Read the JPG files), then open single frames wherever something looks off.
 For each item, report findings with the time:
@@ -84,10 +84,23 @@ For each item, report findings with the time:
     and a closing question that is only spoken: findings with the fix. v6: a refill that comes before the sentence
     that announces it (the report says by how many seconds), a number on a picture the plan calls schematic, and a
     closing question whose on-screen words differ from the spoken ones: findings with the fix.
-11. SoME rubric: score the cut 1-5 on **motivation**, **clarity**, **novelty** and **memorability**, each with
+11. Pacing (v7; `review/design/final/check_pacing.md` from `python3 tools/video/check_pacing.py runs/<run> --stage
+    final`, measured on the narration stem and the word timings): watch it as a newcomer at normal speed. Audit the
+    idea declarations (`plan.json` "ideas") against what you hear: the detectors see new words, symbols and numbers,
+    not how many things a passage asks the viewer to hold at once, so an undeclared result or a step that needs its
+    own explanation is `major`, and so is a result the series plan does not budget. Listen to every starred result:
+    at least 2.5 s of held picture and silence after it (P6, an error below), then its plain-words restatement; no
+    stretch over 90 s without a pause of 1.5 s (P7, an error); the derivations and arguments read as slow blocks
+    (`[slow]`, -15 %) and the rest at the base rate, with no block or sentence that drags (prosody below -20 %, an
+    error; a whole block below -15 %, a finding) and no starred result or think prompt rushed in an ordinary block.
+    Check the roadmap, the chapter summaries, the recap before the outro, the think prompts and their silence, numbers
+    (at most three in 20 s, each on screen as it is said), each new label or equation on screen before its words, and
+    the pause after each block (a median of 0.6 s or more, and never shorter than the pauses between sentences). Say
+    where you lost the thread, with the time: that is the finding that matters most.
+12. SoME rubric: score the cut 1-5 on **motivation**, **clarity**, **novelty** and **memorability**, each with
     evidence (time and frame), as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` in the report and a
     table in the `.md`. A score of 2 or less on motivation or memorability is also a `major` finding.
-12. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`; `review/design/final/check_script.md` from
+13. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`; `review/design/final/check_script.md` from
     `python3 tools/video/check_script.py runs/<run> --stage final`: the pace and the pauses over 0.7 s inside a
     sentence, from the narration's word timings): listen to the narration (`video/voice/` or the final video's audio)
     with the captions, and score the ten criteria 1-5 with evidence (a quote and `time_s`): ear, rhythm, one idea per

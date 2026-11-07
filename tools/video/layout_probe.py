@@ -13,10 +13,18 @@ The JSON written to --probe-out holds, in scene seconds:
               subsampled polyline with stroke width, colours and opacities; the number of visible top-level elements
   timeline    every text item's visibility and position changes, sampled at up to --fps-max frames per second;
               for live items (readouts with updaters) also "values": [t, text shown] whenever the text changes
-  voiceovers  start, duration and words of each manim-voiceover block; sections from next_section()
+  voiceovers  start, duration and words of each manim-voiceover block, its text without bookmarks and pacing markup;
+              (v7) "raw": the text with its markup ([pause S], [slow]) when it has any, "bookmarks": {mark: scene
+              time}, "timings": [[word, seconds after the block start, seconds the word lasts or null, its index
+              among the block's words]] from the voice's word timings (estimated for silent drafts, with the planned
+              pauses in place; a word the voice reported no timing for is missing), so
+              tools/video/check_pacing.py can place every sentence, pause and declared idea; sections from
+              next_section()
   plays       every play() call: start, end and the class names of its leaf animations (AnimationGroup, Succession
               and LaggedStart unpacked; ".animate" builders as "animate"), so tools/video/check_engagement.py can
-              tell motion that changes the picture's content from emphasis alone (Indicate, Circumscribe, ...)
+              tell motion that changes the picture's content from emphasis alone (Indicate, Circumscribe, ...); a
+              plain wait is left out, a planned hold (common.py Hold: beat(), the pause after a narration block) is
+              logged as "Hold"
   metaphor    (v5) every object marked ra_role="metaphor" (common.py meter()): its value (ra_value(), the number the
               bar shows, with or without a readout) and vmax, as "values": [t, value] whenever it changes by more
               than 1e-4 and "visible": [t, 0|1], sampled like the timeline, so the checks can tell a meter that
@@ -44,6 +52,8 @@ _EQ_IDS = iter(range(1, 10 ** 12))
 OUT: Path | None = None
 INTERVAL, FPS_MAX = 1.0, 15.0
 MAX_POINTS = 40
+MARKUP = re.compile(r"\[(?:pause\s+\d+(?:\.\d+)?\s*s?|slow)\]", re.I)   # templates/manim/voice.py MARKUP
+TICKS = 10_000_000                                                  # manim-voiceover's audio offset resolution
 
 
 def _r(x: float, n: int = 3) -> float:
@@ -481,10 +491,34 @@ def install() -> None:
         def add_vo(self, text, *a, **kw):
             t0 = now(self)
             tracker = orig_vo(self, text, *a, **kw)
-            clean = " ".join(remove_bookmarks(text).split())
-            log_for(self).voiceovers.append({"start": _r(t0), "duration": _r(tracker.duration),
-                                             "words": len(re.findall(r"[\w'’-]+", clean)), "text": clean[:500]})
+            raw = " ".join(remove_bookmarks(text).split())
+            clean = " ".join(MARKUP.sub(" ", raw).split())
+            entry = {"start": _r(t0), "duration": _r(tracker.duration),
+                     "words": len(re.findall(r"[\w'’-]+", clean)), "text": clean[:500]}
+            if clean != raw:
+                entry["raw"] = raw[:2000]
+            marks = getattr(tracker, "bookmark_times", None) or {}
+            if marks:
+                entry["bookmarks"] = {k: _r(v) for k, v in marks.items()}
+            entry["timings"] = word_timings(tracker, remove_bookmarks(text))
+            log_for(self).voiceovers.append(entry)
             return tracker
+
+        def word_timings(tracker, raw):
+            """[[word, start, length or None, word index]] of a block, seconds after its start (one entry per word
+            with a timing: the bracketing boundaries bookmark_safe() adds are left out)."""
+            masked = MARKUP.sub(lambda m: " " * len(m.group()), raw)
+            index = {m.start(): i for i, m in enumerate(re.finditer(r"\S+", masked))}
+            by_offset = {}
+            for b in (getattr(tracker, "data", None) or {}).get("word_boundaries") or []:
+                off = int(b.get("text_offset", -1))
+                word = str(b.get("text", ""))
+                if off not in index or not word.strip():
+                    continue
+                d = b.get("duration_milliseconds")
+                by_offset[off] = [word, _r(b.get("audio_offset", 0) / TICKS), None if d is None else _r(d / 1000.0),
+                                  index[off]]
+            return [by_offset[k] for k in sorted(by_offset)][:3000]
 
         VoiceoverScene._add_voiceover_text = add_vo
     except ImportError:

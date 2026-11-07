@@ -65,6 +65,13 @@ an empty frame, notation read aloud and persistent slide titles. These checks me
   outro         (v5) the last narration block must end outro_tail_min_s or more before the end of the video (music and
                 picture after the last word; the end screen needs them); a question asked in the outro narration
                 must also be on screen (a text with "?" visible in the outro), so it stays when the voice stops
+  holds         (v7, rule P19 of config/video.json "pacing") a planned pause is consolidation time, not a frozen
+                picture: a "[pause S]" inside a narration block (the layout log's "raw" text and word timings) is not
+                narration for the motion budget, and a hold of the picture between blocks (common.py Hold: beat(),
+                the pause after a block; the layout log's plays) is not dead air, up to hold_exempt_s, or
+                hold_exempt_restated_s when the next block restates the result (a plan.json idea of kind
+                restatement). At the final stage before assembly, the silence warning counts on the off-beat swells
+                that assembly adds (music.off_beat_swell_s), as the draft stage does
 Writes <out>/check_engagement.json and .md (default review/design/<stage>/); exit status 1 when there is an error
 (the gate reports them; they block it only when engagement.errors_block_gate is true). Frames need ffmpeg and numpy;
 without them the frame checks are skipped with a note.
@@ -105,6 +112,7 @@ DEFAULTS = {
     "thumbnail_picture_bold_min": 0.08, "thumbnail_bold_delta": 40,
     "metaphor_rise_tol": 0.02, "metaphor_reset_margin_s": 2.0, "metaphor_static_min_share": 0.5,
     "blank_end_grace_s": 1.0, "outro_tail_min_s": 1.5,
+    "hold_exempt_s": 4.0, "hold_exempt_restated_s": 8.0,
 }
 TRANSFORMS = {"Transform", "ReplacementTransform", "TransformMatchingTex", "TransformMatchingShapes",
               "TransformFromCopy", "FadeTransform", "FadeTransformPieces", "ClockwiseTransform",
@@ -303,6 +311,63 @@ def scene_log(folder: Path, cls: str) -> tuple[dict, Path | None]:
 
 def spans(log: dict) -> list[tuple[float, float]]:
     return [(v["start"], v["start"] + v.get("duration", 0.0)) for v in log.get("voiceovers", [])]
+
+
+def planned_pauses(log: dict, cap: float) -> list[tuple[float, float]]:
+    """(v7) The planned pauses inside narration blocks, in scene seconds: [(start, end)] for every "[pause S]" (and
+    ellipsis) of a block's "raw" text, placed before the word it precedes by the block's word timings; pauses longer
+    than cap are left out (they are not exempt)."""
+    out = []
+    for v in log.get("voiceovers", []):
+        raw, tim = v.get("raw"), v.get("timings") or []
+        if not raw or not tim:
+            continue
+        start = {(e[3] if len(e) > 3 else k): float(e[1]) for k, e in enumerate(tim)}   # word index -> its start
+        for n, sec in VS.VOICE.pause_plan(raw, 0.7).items():
+            if n in start and 0 < sec <= cap:
+                t1 = float(v["start"]) + start[n]
+                out.append((max(float(v["start"]), t1 - sec), t1))
+    return out
+
+
+def minus(spans_: list[tuple[float, float]], holes: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """The spans with the holes cut out."""
+    out = []
+    for a, b in spans_:
+        cur = [(a, b)]
+        for h0, h1 in holes:
+            nxt = []
+            for x, y in cur:
+                if h1 <= x or h0 >= y:
+                    nxt.append((x, y))
+                    continue
+                if x < h0:
+                    nxt.append((x, h0))
+                if h1 < y:
+                    nxt.append((h1, y))
+            cur = nxt
+        out += cur
+    return out
+
+
+def holds(log: dict) -> list[tuple[float, float]]:
+    """(v7) The planned holds of the picture (plays of common.py Hold: beat(), the pause after a block)."""
+    return [(float(p["start"]), float(p["end"])) for p in log.get("plays") or [] if "Hold" in (p.get("anims") or [])]
+
+
+def restates(scene: dict, block: dict | None, plan: dict) -> bool:
+    """Whether a narration block restates a result (a plan.json idea of kind restatement in this scene, said in it)."""
+    if not block:
+        return False
+    text = " ".join(str(block.get("text", "")).lower().split())
+    for i in plan.get("ideas") or []:
+        if not isinstance(i, dict) or i.get("kind") != "restatement" or i.get("scene") != scene.get("class"):
+            continue
+        if i.get("says") and " ".join(str(i["says"]).lower().split()) in text:
+            return True
+        if i.get("bookmark") and i["bookmark"] in (block.get("bookmarks") or {}):
+            return True
+    return False
 
 
 def visible_time(item: dict, end: float) -> float:
@@ -505,7 +570,7 @@ def off_beat_fill_s(run: Path, stage: str) -> float:
     if stage == "final":
         stamp = run / "video" / "final" / "music.json"
         if not stamp.exists():
-            return 0.0
+            return fill                      # v7: checked before assembly, which adds the swells (finish-video step 4)
         if "off_beats" not in (json.loads(stamp.read_text(encoding="utf-8")).get("events") or {}):
             return 0.0
     return fill
@@ -590,8 +655,12 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
         tokens_total += len(toks)
         address_total += st["narration"]["address"]
         questions += text.count("?")
-        sp = spans(log)
-        narr_s += sum(b - a for a, b in sp)
+        sp_all = spans(log)
+        narr_s += sum(b - a for a, b in sp_all)
+        planned = planned_pauses(log, cfg["hold_exempt_s"])        # v7 (P19): planned pauses are not narration
+        sp = minus(sp_all, planned) if planned else sp_all
+        if planned:
+            st["planned_pauses_s"] = round(sum(b - a for a, b in planned), 1)
         if words >= 50 and len(toks) * cfg["notation_words_per_token"] > words:
             fd.add("narration", "warning", cls, f"{len(toks)} spoken symbols in {words} words ({', '.join(sorted(set(toks))[:6])}"
                    f"): say meanings, let the coloured equation carry the symbols")
@@ -667,7 +736,9 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
         st["longest_frozen_narrated_s"] = round(worst, 2)
         # beats and dead air: gaps between narration blocks
         mode = music_mode(s)
-        for (a0, a1), (b0, _) in zip(sp, sp[1:]):
+        held = holds(log)
+        vos = log.get("voiceovers", [])
+        for k, ((a0, a1), (b0, _)) in enumerate(zip(sp_all, sp_all[1:])):
             gap = b0 - a1
             if gap < min(cfg["beat_min_s"], cfg["dead_air_s"]):
                 continue
@@ -675,10 +746,14 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
             if role in ("body", "recap") and gap >= cfg["beat_min_s"] and (share >= cfg["beat_min_moving"]
                                                                           or mode != "off"):
                 beats += 1
+            hold = sum(overlap(h, [(a1, b0)]) for h in held)          # v7 (P19): a planned hold is not dead air
+            cap = cfg["hold_exempt_restated_s"] if restates(s, vos[k + 1] if k + 1 < len(vos) else None, plan) \
+                else cfg["hold_exempt_s"]
+            exempt = hold >= 0.8 * gap and gap <= cap
             if gap >= cfg["silence_off_max_s"] and mode == "off" and not (fill_s and gap >= fill_s):
                 fd.add("silence", "warning", cls, f"{gap:.1f} s of digital silence ({a1:.1f}-{b0:.1f} s): the "
                        "scene's music is off; give it \"low\" music or shorten the pause", t=a1)
-            elif gap >= cfg["dead_air_s"] and share < cfg["dead_air_max_moving"] and mode == "off":
+            elif gap >= cfg["dead_air_s"] and share < cfg["dead_air_max_moving"] and mode == "off" and not exempt:
                 fd.add("beats", "warning", cls, f"{gap:.1f} s of silence with a still picture and no music "
                        f"({a1:.1f}-{b0:.1f} s): dead air; move something or give the scene music", t=a1)
     # video-level

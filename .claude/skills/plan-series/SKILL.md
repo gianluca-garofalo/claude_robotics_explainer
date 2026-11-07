@@ -26,10 +26,15 @@ team) or `required` (the owner approves each plan once before any episode).
    scripts the episodes write in their run's `code/`, never from memory.
 2. **Curate.** Start one `series-curator` subagent with the planning run path (and the focus, if the user gave one).
    It writes `series_plan/series.<slug>.v2.json` (one per series; it may propose two) and `series_plan/PLAN.md`, and
-   runs `python3 tools/series.py validate` on each until it reports no error.
+   runs `python3 tools/series.py validate` on each until it reports no error. Every episode declares its `ideas`
+   (concepts, claims and starred results, each with its budget: brief.md, "The idea budget"); `validate` prints what
+   each episode needs, and an over-packed episode is an error that names the ideas to move and the neighbouring
+   episode to move them to, and the ideas that could be left to the explainer instead (nothing later builds on them).
+   The length follows from the ideas: set `length_min` from the printed range.
 3. **Red team.** Start one `series-red-team` subagent with only the run path. It checks every episode (watchable alone,
-   about three new ideas at most, faithful to the mathematics, every number from a script, the prerequisite graph) and
-   writes `review/series_plan/series-red-team.json`. `python3 tools/validate.py runs/<run>` must be clean.
+   the idea declarations honest and within budget, faithful to the mathematics, every number from a script, the
+   prerequisite graph) and writes `review/series_plan/series-red-team.json`. `python3 tools/validate.py runs/<run>`
+   must be clean.
 4. **Verify.** For every `blocker` or `major` finding, a `finding-verifier` subagent (in parallel) writes
    `review/series_plan/verify/<id>.json`.
 5. **Merge and fix.** `python3 tools/merge_reviews.py runs/<run> --set series_plan`; resume the curator with the
@@ -54,6 +59,12 @@ subagents)"`, and tell the owner (with approval `required`, they decide whether 
 
 ## Gotchas
 
+- Scope is set here, not in the video (owner, 2026-11-07): episode 1 v6 was hard to follow because its plan gave it
+  seven beats, three starred results and about 25 concepts in a fixed 10 minutes. The idea budget makes the cut a
+  consequence of the plan: never squeeze an over-packed episode by talking faster or trimming its pauses. Leave to
+  the explainer the ideas `validate` names for a cut (nothing later builds on them: the coherence principle); move
+  what later episodes need to the neighbour `validate` names (with the ideas that build on them); or split the
+  episode.
 - Episodes are not sections: `material.section_ids` are sources; `tools/video/plan.py` accepts any heading of the
   explainer as a scene's source.
 - A must prerequisite means the episode uses that result as a premise; it needs a recap in the episode. Helpful ones do

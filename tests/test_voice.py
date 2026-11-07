@@ -270,7 +270,8 @@ class Choice(unittest.TestCase):
         self.assertEqual((a["voice"], a["retries"], a["min_wpm"]), (hd, 3, 110))
         self.assertIn(f'<voice name="{hd}">', voice.azure_ssml("Hello there.", hd))
         self.assertEqual(voice.DEFAULT_AZURE_VOICE, hd)
-        self.assertEqual(voice.azure_settings({})["min_rate_pct"], -30)
+        floor = voice.azure_settings({"azure": {"min_rate_pct": -35, "slow_rate_pct": -40}})       # the owner's rule
+        self.assertGreaterEqual(min(floor["min_rate_pct"], floor["slow_rate_pct"]), voice.RATE_FLOOR_PCT)
         self.assertNotIn("silence", json.dumps(voice.azure_ssml("One... two.", hd, -8)))
 
     def test_voice_anomaly(self):

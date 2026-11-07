@@ -16,7 +16,10 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
 
 1. **Storyboard first** (`video/storyboard.md`, template in [storyboard.md](storyboard.md)). A video is not a walk
    through the explainer's sections: choose less, and different, material that tells one story for a viewer, at the
-   depth a video can carry (about three new ideas), and say what is left out. Scenes of one idea each, 30 to 120 s;
+   depth a video can carry, and say what is left out. A series episode teaches the ideas of its plan entry and no
+   more (`video/episode.md`, "Ideas": their budget sets the length); a result the plan does not list goes back to the
+   series plan (`tools/series.py validate`), never into the video. The storyboard's pacing plan places each idea,
+   the roadmap, the summaries, the restatements, the think prompts, the recap and every planned pause (see "Pacing"). Scenes of one idea each, 30 to 120 s;
    the opening hook (a full, moving picture from the first frame, music from 0 s, narration by 3 s, the question by 15
    s, then the stakes; no channel card (a title beat of about 4-6 s after the hook, with the "Episode n of N" lower
    third, is allowed); the body by 45 s; its first frame, first line, question, stakes and the picture the thumbnail
@@ -50,6 +53,10 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
    three words; `layout` `picture` for a frame-first thumbnail with the title in a top band, keeping the top fifth of
    that frame empty, or `panel` with nothing where the title goes, the left half). `python3
    tools/ci/scene_matrix.py runs/<run>` must accept it; `check_series.py` warns about the opening and the packaging.
+   v7: `ideas`, every idea unit where it lands (the plan's concepts, claims and starred results by their ids, and the
+   roadmap, summaries, restatements, think prompts and recap), each with its `scene` and the `bookmark` at the start of
+   the sentence that states it (or `says`), and `shows` for the picture that carries it; `glossary` for the episode's
+   own terms. `tools/video/check_pacing.py` measures the rules on them.
 6. **Draft check:** `bash tools/render_video.sh runs/<run> --check` (every scene at -ql, silent, with captions and
    layout logs), then
    `python3 tools/video/check_design.py runs/<run> --stage draft`,
@@ -58,7 +65,10 @@ thumbnail, the final-cut review and the upload happen in GitHub Actions; nothing
    `python3 tools/video/check_selfcontained.py runs/<run> --stage draft` and
    `python3 tools/video/check_series.py runs/<run> --stage draft` and
    `python3 tools/video/check_engagement.py runs/<run> --stage draft` and
-   `python3 tools/video/check_script.py runs/<run> --stage draft`. Fix every error; read the warnings (spacing,
+   `python3 tools/video/check_script.py runs/<run> --stage draft` and
+   `python3 tools/video/check_pacing.py runs/<run> --stage draft` (silent drafts keep the planned pauses, so the
+   draft timeline is the final one). Fix every error (the pacing errors: under 2.5 s of silence after a starred
+   result, a stretch over 90 s without a 1.5 s pause, a rate below -20 %); read the warnings (spacing,
    space use, motion, recall load, opening and ending, series beats, and the engagement report: frozen frames under
    narration, transforms, fades to empty, spoken symbols, slide titles, beats, the metaphor; and the spoken-script
    report: pause marks, contractions, connectives, rhythm, stock phrases, hype).
@@ -129,12 +139,52 @@ slide deck; the storyboard's craft plan and these helpers in `common.py` avoid t
   out of that scene.
 - **No empty frame inside a scene (v5).** Transform the last picture into the next, or keep the meter on screen,
   instead of clearing the frame (v4's outro went blank for 0.3 s between the meter and the card).
-- **Pacing.** After each key reveal, a `beat(self, 2.0)`: no words, the picture holds (or one slow push-in,
-  `push=1.04`) while the music swells; music-off scenes get a "low" swell in pauses of 1.8 s or more
-  (`config/channel.json` music.off_beat_swell_s), so a beat is never digital silence. One pause-and-ponder
-  question; a "so what" sentence after every boxed result. Inside a block, write "..." where a spoken pause belongs
-  (Azure makes it a break of 0.7 s and places its other pauses itself; Piper also adds 0.45 s after a question and
-  0.25 s after other sentences).
+- **Pacing (v7, the owner's pacing rules: `config/video.json` "pacing", `tools/video/check_pacing.py`).** Episode 1
+  v6 ran at an ordinary 150 words per minute and was still hard to follow: too many ideas, and no time to take them
+  in (2.2 s after its starred results, a median 0.26 s between blocks, 131 s without a pause). Time comes from
+  pauses, and from reading the derivations and arguments slowly as whole blocks, never from slowing single sentences:
+  - **Planned pauses are markup in the narration.** `[pause 2.5]` between two sentences of a block is an Azure
+    `<break>` (at most `voice.azure.max_break_ms`, 4 s); `[pause S]` after a block's last word is a hold of the
+    picture after the block (any length; `RAScene` plays a `Hold`), and every block ends with
+    `voice.block_end_pause_s` (0.75 s) unless it ends with its own tag (`[pause 0]`: the next block follows at once).
+    A pause longer than 4 s ends the block. The audio is never padded or spliced. Captions, word counts and the
+    checks never see the markup. Prefer a hold for the long pauses (2.5 s and more: after a starred result, after a
+    think prompt, at a chapter end): end the block there with `[pause 3]` and start the next block with the
+    restatement or the answer. A hold is exact; Azure HD stretches a long break by seconds now and then (measured
+    2026-11-07; the take check retakes it, at the cost of more takes). Keep breaks inside a block to about 2 s. The
+    checks count a pause as a break in the flow from 1.5 s, and Azure returns a 1.5 s break as 1.46-1.76 s: so
+    `[pause 2]` for a stretch break inside a block, `[pause 1.5]` only as a hold at a block end.
+  - **After a starred result: at least 2.5 s of silence (3 s intended; an error below 2.5 s), then its plain-words
+    restatement** within 10 s ("In words: ..."), declared in `plan.json` (`kind` `restatement`, `of`): the starred
+    result's block ends with `[pause 3]`, and the picture holds still in it (no new label or equation). After other
+    results 1.5 s (`[pause 1.8]` inside the block, or `[pause 1.5]` at its end); after a concept named in the
+    pretraining segment 0.8 s; at a chapter turn 1-1.5 s.
+  - **Slow blocks.** A derivation or an argument (the steps that lead to a result, the result itself, its "so
+    what") is a slow block: `[slow]` before its first word, and Azure reads the whole block at
+    `voice.azure.slow_rate_pct` (-15 %); everything else (the hook, the title beat, recaps, pictures described,
+    transitions, the outro) stays at the base rate (-8 %). The owner chose this by ear on 2026-11-07, over slowing the
+    key sentences alone, so `[key]` is retired: a starred result or think prompt that should be read slowly sits in
+    its derivation's slow block, or in a slow block of its own (end the block before it; the holds around a block
+    mark it off as well). Keep slow blocks to the derivations, at most two-thirds of the body's narration (P10 warns
+    above it): the contrast with the rest is the only rate signal left. A slow block lasts about 8 % longer: plan its
+    stretch breaks by time (P7), and the idea budget already counts the slower reading. Never anything below -20 %
+    (an error). A block the pace cap cannot fix
+    (breaks, then -15 %, where a slow block already starts) is flagged "rewrite" in the manifest: shorten it.
+  - **Structure:** a roadmap within 20 s after the title beat; a one-sentence summary at the end of every body chapter
+    over 90 s (chapters of 60-120 s); a think prompt every four minutes of body, the main one saying "pause here if you
+    like", followed by 3.5-4 s of held picture, its answer in the next block; a recap of about 20 s before the outro.
+    Open a recap of an earlier episode, and the end recap, with the question it answers ("Last time: what did one
+    step of planning do to the bill?"), the picture held 2-3 s, then the card: recalling beats re-reading
+    (retrieval practice; about 4 s per recap).
+  - **The picture comes first:** each new label or equation is on screen no later than its words (at most 1.5 s after
+    them), and a new equation is held max(3 s, 1 s per new symbol + 0.3 s per familiar one), at most 6 s, before the
+    next idea; a longer one gets a restatement under the hold.
+  - After the other key reveals (not a starred result: its block ends with `[pause 3]`) a `beat(self, 2.0)` (a
+    `Hold`: no words, the picture still or one slow push-in, `push=1.04`) while the music swells; music-off scenes get a "low" swell in pauses of 1.8 s or more
+    (`config/channel.json` music.off_beat_swell_s), so a beat is never digital silence. Holds of up to 4 s (8 s with a
+    restatement) are exempt from the frozen-picture warnings. A "so what" sentence after every boxed result. An
+    ellipsis inside a block still makes a 0.7 s break; Piper (the keyless voice) renders no planned pause inside a
+    block.
 - **Text economy.** No persistent slide titles (the chapter list names the chapter); at most about 25 words and terms
   on screen; on-screen sentences only for the takeaway.
 - **Camera moves** (`MovingCameraScene`) are not supported yet: `layout_probe.py` and `check_design.py` read object
@@ -164,8 +214,8 @@ spoken-script.md gives the source and scale anchors for each:
 - at the final stage, the pace, and pauses over 0.7 s inside a sentence, from the narration's word timings.
 
 It reports and does not block (`script.errors_block_gate`). The voice (Azure) places its own pauses at commas and
-sentence ends, so an ellipsis ("...") is the only planned pause the narration writes. The voice turns it into a break
-of `voice.azure.ellipsis_pause_s`.
+sentence ends; the narration plans the others with `[pause S]` (see "Pacing"); an ellipsis ("...") still becomes a
+break of `voice.azure.ellipsis_pause_s`. A planned pause is never reported as a stumble.
 
 ## Self-contained video (house rule; tools/video/check_selfcontained.py fails the gate otherwise)
 

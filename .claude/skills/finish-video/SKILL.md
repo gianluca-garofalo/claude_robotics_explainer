@@ -33,8 +33,10 @@ Studio. The steps are the same as the workflow's render, final and final-cut job
    the voice; -14 LUFS with the true peak at most -1 dBTP measured after encoding; stings in pauses of the narration and ducked,
    no music element above -12 dB relative to the voice while it speaks: read the "audio:" line it prints), `python3 tools/video/thumbnail.py runs/<run>`, `python3 tools/video/metadata.py runs/<run>` (links as
    `config/channel.json` sets them; off by default), then `check_design.py --stage final --no-frames` again (the
-   thumbnail at 168 x 94), `check_selfcontained.py`, `check_numbers.py` and, for an episode, `check_series.py`, each
-   with `runs/<run> --stage final`.
+   thumbnail at 168 x 94), `check_selfcontained.py`, `check_numbers.py`, `check_pacing.py` (the pacing rules measured
+   on the narration stem `video/final/narration.wav` and the word timings; its errors, under 2.5 s of silence after a
+   starred result, a stretch over 90 s without a pause or a rate below -20 %, send the run back to stage 8) and, for
+   an episode, `check_series.py`, each with `runs/<run> --stage final`.
 6. **Final gates.** `python3 tools/gate.py runs/<run> --stage final --require-links`.
 7. **Final-cut review.** Invoke the `final-cut-review` skill on the run: frames and contact sheets, an independent
    `final-cut-reviewer` subagent, a `finding-verifier` subagent for every blocker and major finding, the merge, then

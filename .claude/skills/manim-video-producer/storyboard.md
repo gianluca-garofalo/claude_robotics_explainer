@@ -38,9 +38,10 @@ number line or as the graph of its bill), and no numbers on a schematic picture.
 - Picture before formula (for each new equation: the picture shown first, and for how long):
 - Which object becomes which (the transforms: path segment -> cost term, bar -> symbol, line -> next line):
 - Colours by quantity (each quantity's colour, the same in pictures, bars and equations):
-- Pause-and-ponder (the one question the viewer is asked to think about, and the beat after it):
-- Planned beats (2-3 pauses of 1.5-3 s without words right after the key reveals, the picture still or one slow
-  push-in, music swelling; `beat()`):
+- Think prompts (v7: one per four minutes of body; for each, the question, the scene, the silence after it (3.5 s; 4 s
+  for the main one, which says "pause here if you like") with the picture held, and the block where the answer comes):
+- Planned beats (`beat()` right after the key reveals other than the starred results, whose blocks end with
+  `[pause 3]`; the picture still or one slow push-in, music swelling):
 - What moves under every narration block (one line per block: the content that changes, not a highlight):
 - New terms (each technical term, the block that introduces it, and its picture; at most two per block):
 - Picture fidelity (for each picture with numbers: its dimension and scale match the maths; which pictures are
@@ -52,6 +53,33 @@ number line or as the graph of its bill), and no numbers on a schematic picture.
 - Spoken script (spoken-script.md; after the rewrite pass): the everyday analogy and where it comes back; the
   signposts and re-engagement points (every 2-3 min); each required phrase (meter resets, title beat, teaser) as
   worded for its scene; the "Spoken script" scores (1-5, ten criteria) go in `video/README.md`:
+
+## The pacing plan (v7: config/video.json "pacing", tools/video/check_pacing.py; fill every field)
+
+- Ideas (the episode's ideas from `video/episode.md` "Ideas", in order: each concept, claim and starred result with
+  its id, the scene and the bookmark where it lands, and the picture that carries it; `plan.json` "ideas"). No result
+  the plan does not list; at most two starred results, at least 90 s apart; claims at least 20 s apart (after a
+  starred result, counted from the end of its hold):
+- Runtime from the ideas (the brief's range) and the sum of the scene lengths below:
+- Pretraining segment (if any: the at most five concepts named before the first starred result, each on its own object
+  as it is named and followed by `[pause 0.8]`, then a one-sentence summary and `[pause 2]`; the equation that combines
+  them only after the summary):
+- Roadmap (the sentence after the title beat, within 20 s: the three or so moves of the episode):
+- Chapter summaries (one sentence at the end of each body chapter over 90 s; chapters 60-120 s):
+- Restatements (for each starred result, the plain-words sentence within 10 s after its hold, worded the same in the
+  recap):
+- Recap (about 20 s before the outro; it opens with the question it answers, the picture held 2-3 s, then the card;
+  so do the recaps of earlier episodes):
+- Pause plan (every planned pause: after which sentence, how long, and how: `[pause S]` inside a block (an Azure break,
+  at most 4 s; `[pause 2]` for a stretch break), `[pause S]` after a block's last word (a hold of the picture), or
+  `beat()`; 3 s held after each starred result (end its block with `[pause 3]`), 1.5 s after other results
+  (`[pause 1.8]` inside a block, `[pause 1.5]` at its end), 1-1.5 s at chapter ends, 0.75 s after every other block by
+  default; no stretch of more than 45 s without a pause of 1.5 s):
+- Slow blocks (`[slow]` before the first word: the whole block read at -15 %; each derivation or argument, with its
+  result and the step just before it; a think prompt or definition that should be read slowly gets a slow block of
+  its own; the hook, title beat, recaps and outro stay at the base rate; at most two-thirds of the body's
+  narration):
+- Numbers (at most three spoken in any 20 s, each on screen while it is said; the rest shown, not said):
 
 ## What this video leaves out of the explainer, and why
 
@@ -74,9 +102,10 @@ number line or as the graph of its bill), and no numbers on a schematic picture.
 - End card: <the one equation or sentence to remember>
 
 Voice-over, one block per `with self.voiceover(text="...")`, literal text, `<bookmark mark='x'/>` where an animation
-must start on a word:
+must start on a word or where an idea lands, `[pause S]` for a planned pause, `[slow]` first for a derivation or an
+argument:
 
-> 1. One idea per scene. `<bookmark mark='law'/>` Here is the equation that carries it.
+> 1. [slow] One idea per scene. `<bookmark mark='law'/>`Here is the equation that carries it. [pause 3]
 > 2. ...
 > 3. (end card) ...
 

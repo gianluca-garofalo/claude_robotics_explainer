@@ -13,7 +13,12 @@ Audio already in video/voice/ (your own recordings) is kept; a file this tool ma
 The service is --service, else $VOICE_SERVICE, else "voice.service" in config/channel.json (piper: offline, no key).
 Piper needs its voice model (./setup.sh downloads it; the CI image has it): without it the tool stops and says how to
 get it, and never uses another voice instead. The manifest records the service, the Piper voice model and whether the
-word timings are measured or estimated. Exit status 1 when a block's text is not a literal or synthesis fails.
+word timings are measured or estimated, and for Azure how each block was paced (v7: "applied_rate_pct", "pace" ok |
+breaks | slowed | rewrite, "pace_break_s", "speech_wpm" with the planned pauses left out, "slowest_rate_pct",
+"slow" and "slow_rate_pct" for a block marked [slow], and "pauses": each planned pause, planned and measured). The
+pacing markup ([pause S], [slow]) is checked before any synthesis (a pause inside a block longer than
+voice.azure.max_break_ms, or the retired [key], stops the tool with the fix). Exit status 1 when a block's text is not
+a literal, its markup cannot be voiced, or synthesis fails.
 """
 from __future__ import annotations
 
@@ -30,6 +35,9 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 import voice_script as VS  # noqa: E402
+
+MADE = ("applied_rate_pct", "takes", "fault", "pace", "pace_break_s", "speech_wpm", "slowest_rate_pct", "slow",
+        "slow_rate_pct", "pauses")
 
 
 def main() -> int:
@@ -57,6 +65,11 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(REPO / "templates" / "manim"))
     import voice  # the repository's copy, never the run's
+    max_break = voice.azure_settings(channel.get("voice", {}))["max_break_ms"] / 1000.0 if service == "azure" else None
+    bad = [f"block {k}: {p}" for k, t in blocks.items() for p in voice.markup_problems(t, max_break)]
+    if bad:
+        print("\n".join(f"error: {b}" for b in bad), file=sys.stderr)
+        return 1
 
     def existing(key):
         return next((out / f"{key}{s}" for s in voice.AUDIO_SUFFIXES if (out / f"{key}{s}").exists()), None)
@@ -116,11 +129,9 @@ def main() -> int:
                                        "seconds": round(voice.audio_duration(dst), 3)}
             if key in todo:                    # how the service made it: the prosody rate applied, the takes
                 made = data.get("input_data") or {}
-                manifest["blocks"][key].update({k: made[k] for k in ("applied_rate_pct", "takes", "fault")
-                                                if k in made})
+                manifest["blocks"][key].update({k: made[k] for k in MADE if k in made})
             elif made_earlier(key, dst):
-                manifest["blocks"][key].update({k: old_blocks[key][k] for k in ("applied_rate_pct", "takes", "fault")
-                                                if k in old_blocks[key]})
+                manifest["blocks"][key].update({k: old_blocks[key][k] for k in MADE if k in old_blocks[key]})
     sources = [b["source"] for b in manifest["blocks"].values()]
     manifest["sources"] = {x: sources.count(x) for x in sorted(set(sources))}
     write_json(out / "manifest.json", manifest)

@@ -248,7 +248,7 @@ def load_data(default_name, here):
 
 
 # Narration and branding (voice.py sits next to this file)
-from voice import channel_config, speech_service  # noqa: E402,F401
+from voice import block_end_pause, channel_config, speech_service, strip_markup  # noqa: E402,F401
 
 CHANNEL = channel_config(os.path.dirname(os.path.abspath(__file__))).get("channel_name", "Remaining Action")
 
@@ -575,15 +575,26 @@ def carry_over(scene, *keep, run_time=0.6):
     return list(keep)
 
 
+class Hold(Wait):
+    """A planned hold of the picture (v7): a beat after a reveal, think time after a prompt, the pause after a
+    narration block. It plays like Wait; layout_probe.py logs it as "Hold", so check_engagement.py exempts it from
+    the frozen-picture warnings (a hold of up to 4 s, or 8 s with a restatement: rule P19) and
+    check_pacing.py counts it as consolidation time."""
+
+    def __init__(self, run_time=1.0, **kwargs):
+        super().__init__(run_time=run_time, **kwargs)
+
+
 def beat(scene, seconds=2.0, *mobs, push=1.0):
     """A planned pause right after a reveal: `seconds` without words, so the result can sink in. The music swells in
     it (give the scene "low" music: in a scene whose music is "off" a beat is digital silence, which
     check_engagement.py reports). With `push` > 1, the first of `mobs` grows slowly by that factor and settles back
-    (a calm push-in, one smooth move); by default the picture holds still: a beat needs no flashing."""
+    (a calm push-in, one smooth move); by default the picture holds still (a Hold): a beat needs no flashing. A pause
+    longer than one Azure break (voice.azure.max_break_ms) is a beat between two narration blocks, never audio."""
     if mobs and push and push != 1.0:
         scene.play(mobs[0].animate.scale(push), rate_func=there_and_back, run_time=seconds)
-    else:
-        scene.wait(seconds)
+    elif seconds > 0:
+        scene.play(Hold(seconds))
 
 
 class BudgetBars(VGroup):
@@ -625,6 +636,7 @@ def budget_bars(before, after, x_before, x_after, base_y=-1.9, scale=1.0, width=
 # Reading holds (reading_model.py sits next to this file; constants in config/video.json "reading")
 import reading_model as _RM  # noqa: E402
 from manim_voiceover import VoiceoverScene  # noqa: E402
+from manim_voiceover.helper import remove_bookmarks as _remove_bookmarks  # noqa: E402
 
 READING = _RM.load(os.path.dirname(os.path.abspath(__file__)))
 _TEXTS = (Text, MarkupText, Paragraph, SingleStringMathTex, DecimalNumber)
@@ -676,7 +688,28 @@ class RAScene(VoiceoverScene):
         super().setup()
         self._shown, self._in_play = {}, False
         import inspect
-        self.set_speech_service(speech_service(os.path.dirname(os.path.abspath(inspect.getfile(type(self))))))
+        here = os.path.dirname(os.path.abspath(inspect.getfile(type(self))))
+        self.set_speech_service(speech_service(here))
+        self._block_end_s = float((channel_config(here).get("voice") or {}).get("block_end_pause_s", 0.75) or 0.0)
+
+    def _add_voiceover_text(self, text, service_kwargs, subcaption=None, max_subcaption_len=70, subcaption_buff=0.1):
+        """Captions never show the pacing markup ([pause S], [slow]): the subcaption is the spoken text."""
+        if subcaption is None:
+            subcaption = strip_markup(_remove_bookmarks(text))
+        return super()._add_voiceover_text(text, service_kwargs, subcaption, max_subcaption_len, subcaption_buff)
+
+    def wait_for_voiceover(self):
+        """After a narration block, the picture holds for the block's pause (v7): its final "[pause S]", else
+        voice.block_end_pause_s of config/channel.json; "[pause 0]" for none. A scene wait (a Hold), never audio: the
+        voice drops a break at the end of its audio, and the narration is never padded."""
+        super().wait_for_voiceover()
+        tr = getattr(self, "current_tracker", None)
+        if tr is None or getattr(tr, "_ra_held", False):
+            return
+        tr._ra_held = True
+        hold = block_end_pause(tr.data.get("input_text", ""), self._block_end_s)
+        if hold >= 1 / config["frame_rate"]:
+            self.play(Hold(hold))
 
     def _now(self):
         return float(self.renderer.time)

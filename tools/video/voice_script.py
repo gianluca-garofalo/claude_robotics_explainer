@@ -4,24 +4,45 @@
 Usage:
   python3 tools/video/voice_script.py runs/<run>      # writes video/voice/SCRIPT.md and prints it
 
-Each `self.voiceover(text="...")` string literal in video/scenes/*.py becomes one line: its block key, the scene and
-the text to read (bookmarks removed). Record each block as video/voice/<key>.wav (or .mp3, .m4a, .flac, .ogg), then
-render with VOICE_SERVICE=recorded (or set "voice": {"service": "recorded"} in config/channel.json). The key is the
-same one templates/manim/voice.py computes, so a changed sentence needs a new recording and an unchanged one does not.
+Each `self.voiceover(text="...")` string literal in video/scenes/*.py becomes one line: its block key, the scene and the
+text to read (bookmarks removed; the pacing markup stays as a direction: "[pause 2]" is a two-second pause, "[slow]" a
+block to read slowly as a whole, a derivation or an argument). Record each block as video/voice/<key>.wav (or .mp3,
+.m4a, .flac, .ogg), then render with VOICE_SERVICE=recorded (or set "voice": {"service": "recorded"} in
+config/channel.json). The key is the same one templates/manim/voice.py computes, so a changed sentence (or a changed
+pause) needs a new recording and an unchanged one does not. The checks read the narration through blocks_by_class(),
+without the markup (spoken()); tools/video/check_pacing.py reads it with the markup (markup=True).
 """
 from __future__ import annotations
 
 import argparse
 import ast
 import hashlib
+import importlib.util
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _common import rel, resolve_run  # noqa: E402
+from _common import REPO, rel, resolve_run  # noqa: E402
 
 BOOKMARK = re.compile(r"<bookmark\s*mark\s*=['\"]\w*[\"']\s*/>")   # as manim_voiceover.helper.remove_bookmarks
+
+
+def _voice():
+    """templates/manim/voice.py (the repository's copy, loaded by path: no scene folder on sys.path), for its pacing
+    markup helpers (strip_markup, planned_pauses, pause_plan, slow_block, markup_problems)."""
+    spec = importlib.util.spec_from_file_location("ra_template_voice", REPO / "templates" / "manim" / "voice.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+VOICE = _voice()
+
+
+def spoken(text: str) -> str:
+    """A block as it is heard: bookmarks and pacing markup removed, spaces normalised."""
+    return VOICE.strip_markup(BOOKMARK.sub("", text))
 
 
 def key(text: str) -> str:
@@ -43,8 +64,9 @@ def blocks(path: Path):
                     yield key(text), " ".join(BOOKMARK.sub("", text).split())
 
 
-def blocks_by_class(path: Path) -> dict[str, list[str]]:
-    """{scene class: [narration text, ...]} in source order (literal texts, bookmarks removed; computed texts skipped)."""
+def blocks_by_class(path: Path, markup: bool = False) -> dict[str, list[str]]:
+    """{scene class: [narration text, ...]} in source order (literal texts, bookmarks removed; computed texts skipped).
+    The pacing markup is removed too, unless markup=True (then key() of a text is its block key)."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     out = {}
     for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
@@ -54,10 +76,11 @@ def blocks_by_class(path: Path) -> dict[str, list[str]]:
                 for kw in node.keywords:
                     if kw.arg == "text":
                         try:
-                            found.append((node.lineno, " ".join(BOOKMARK.sub("", ast.literal_eval(kw.value)).split())))
+                            text = " ".join(BOOKMARK.sub("", ast.literal_eval(kw.value)).split())
                         except ValueError:
-                            pass
-        out[cls.name] = [t for _, t in sorted(found)]
+                            continue
+                        found.append((node.lineno, node.col_offset, text if markup else spoken(text)))
+        out[cls.name] = [t for _, _, t in sorted(found)]
     return out
 
 

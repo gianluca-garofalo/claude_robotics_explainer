@@ -19,6 +19,11 @@ Two tools enforce the standard:
   and final stages);
 - the reviewers score the ten criteria below, 1 to 5, with a quote and a time as evidence.
 
+Pauses are part of the script (v7, the pacing rules; SKILL.md "Pacing"): write `[pause S]` where the listener needs
+time (3 s after a starred result, 1.5 s after other results, at chapter ends), and `[slow]` before the first word
+of a derivation or an argument, which the voice then reads as a whole at -15 %. They are directions to the voice and
+to the scene, never read aloud, never in the captions; a planned pause is not a stumble (criterion 9).
+
 Sources:
 - **INSPIRATION** is the research note on successful channels behind the craft rules. Its rule table numbers the
   rules: rule 7 says narration speaks meanings conversationally, rule 8 covers designed pauses and re-engagement,

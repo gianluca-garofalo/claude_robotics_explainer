@@ -20,7 +20,7 @@ thresholds in `config/video.json`, `video/storyboard.md` and `video/plan.json`.
 Inputs, made by the deterministic tools (rerun them if they are missing or older than the renders):
 `python3 tools/video/check_design.py runs/<run> --stage draft`, `python3 tools/video/check_reading.py runs/<run>
 --stage draft` and `python3 tools/video/check_engagement.py runs/<run> --stage draft` and `python3 tools/video/check_script.py runs/<run>
---stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
+--stage draft` and `python3 tools/video/check_pacing.py runs/<run> --stage draft` write `review/design/draft/`: the findings (`check_design.md`, `check_reading.md`), one frame at the end
 of every animation and every few seconds (`frames/<Class>/t<seconds>.png`) and a contact sheet per scene
 (`<Class>-sheet.jpg`). The renders are `video/checks/<Class>_ql.mp4`; extract other frames with
 `ffmpeg -ss <t> -i <file> -frames:v 1 <png>` into `review/video/frames/` when you need them.
@@ -90,7 +90,7 @@ Do this, looking at the images (Read the PNG and JPG files), scene by scene:
     each idea before its formula; "which object becomes which" (a path segment flying into the cost term, a bar
     turning into its symbol); one quantity, one colour, in pictures, bars and equations (`config/video.json`
     "quantities", `ceq()`); the misconception voiced and refuted; a "so what" sentence after every boxed result; 2-3
-    planned pauses after the reveals (`beat()`) and one pause-and-ponder prompt; an everyday analogy or real-world
+    planned pauses after the reveals (`beat()`) and the think prompts (item 14); an everyday analogy or real-world
     anchor in the first 90 s. Missing metaphor, formula before picture for the central argument, or a frozen frame
     over 12 s of narration is `major`. v4: emphasis (`Indicate`, `Circumscribe`, `pulse()`) is not motion: a
     stretch where only highlights move counts as frozen (`check_engagement.md` reports narration over emphasis
@@ -109,12 +109,24 @@ Do this, looking at the images (Read the PNG and JPG files), scene by scene:
     finding; a declared refill whose sentence is a stock phrase that is not true there ("start again from the same
     point" at a new point) is a finding; an equation built from its pieces is now in the design and reading-time
     reports like any text, so judge their warnings on it.
-14. SoME rubric (the Summer of Math Exposition criteria): score the draft 1-5 on **motivation** (why should a viewer
+14. Pacing (v7; `review/design/draft/check_pacing.md`, rules P1-P20 of `config/video.json` "pacing"): can a viewer
+    keep up? First audit the declarations, because the budget rests on them: read the narration and list the concepts,
+    claims and starred results you hear; a result said but not declared in `plan.json` "ideas" (the report's
+    "possible undeclared claim" lines are candidates), a claim marked as a step (`of`) that needs its own explanation,
+    or a result the series plan (`episode.json` "ideas") does not budget is `major`. Then: at most two starred
+    results, each followed by its hold (2.5 s or more; the report's P6 errors) and a plain-words restatement; no
+    stretch over 90 s without a pause (P7 errors); the roadmap after the title beat, a summary at the end of each long
+    chapter, a recap before the outro; think prompts with their held silence and the answer in a later block; each
+    new label or equation on screen no later than its words (P14) and held before the next idea (P13); the pretraining
+    segment's concepts each on its own object; each derivation or argument marked `[slow]` in the narration, and
+    nothing else (P10). Confirm or dismiss each warning against the frames and the storyboard's
+    pacing plan; a P6 or P7 error, or more than two starred results, is `major`.
+15. SoME rubric (the Summer of Math Exposition criteria): score the draft 1-5 on **motivation** (why should a viewer
     care, by when), **clarity** (can a viewer follow each step from the picture), **novelty** (a view the viewer has
     not seen elsewhere), **memorability** (one image or sentence they will keep), each with evidence (frame file and
     time). Put them in the report as `"rubric": {"motivation": {"score": n, "evidence": "..."}, ...}` and in the
     `.md`. A score of 2 or less on motivation or memorability is also a `major` finding with the fix.
-15. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`, and
+16. Spoken script (`.claude/skills/manim-video-producer/spoken-script.md`, and
     `review/design/draft/check_script.md` from `python3 tools/video/check_script.py runs/<run> --stage draft`): read
     the narration aloud, scene by scene, in order (the voiceover strings of `video/scenes/*.py`;
     `python3 tools/video/voice_script.py runs/<run>` lists them), and score the ten criteria 1-5 with evidence (a

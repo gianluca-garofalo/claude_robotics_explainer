@@ -16,12 +16,16 @@ A series is a story told with material selected from an explainer, not a walk th
 series-planner skill (/plan-series) designs one or more series, an independent red team checks every episode, and
 `write` stores series/<slug>/series.json (schema 2: episodes with kind first|middle|finale, short_title, hook,
 takeaway {sentence, tex}, prerequisites {must, helpful} (backward only; {"series", "episode"} for an episode of a
-series released earlier), recap, series_context, teaser, length_min, material.section_ids as sources, plan_sentence,
-playlist_description). `validate` checks all of it. Plan approval follows config/pipeline.json
-"series"."plan_approval": with "required" `start` refuses a plan the owner has not approved, or one changed since
-(the approval is recorded in series.json as "plan_approval" with the plan's hash, by tools/human/approve_series.py;
-`--require-approval` asks for it whatever the setting); with "optional" (the owner's choice since 2026-11-01: they
-approve only the finished video) `start` notes that no approval is needed and goes on.
+series released earlier), recap, series_context, teaser, length_min, ideas, material.section_ids as sources,
+plan_sentence, playlist_description). `validate` checks all of it. ideas (v7, the pacing rules): every concept, claim
+and starred result the episode teaches, each with its budget (tools/video/idea_budget.py); the episode's length follows
+from them (about 75-90 s per key idea, 8 % more for its derivation read as a slow block, plus consolidation), and an
+over-packed episode (more than two starred results, or ideas that need more than pacing.plan.episode_max_min) fails
+validation with what to move to a neighbouring episode. `validate` and `write` print every episode's budget. Plan
+approval follows config/pipeline.json "series"."plan_approval": with "required" `start` refuses a plan the owner has not
+approved, or one changed since (the approval is recorded in series.json as "plan_approval" with the plan's hash, by
+tools/human/approve_series.py; `--require-approval` asks for it whatever the setting); with "optional" (the owner's
+choice since 2026-11-01: they approve only the finished video) `start` notes that no approval is needed and goes on.
 
 The source of a series is a folder with explainer.html and, optionally, code/ (scripts, checks.toml, logs/) and
 data/ (sources/<name>/). start creates runs/<date>-<series>-epNN-<slug>/ with the explainer and companion code copied
@@ -45,8 +49,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
 from _common import (CONFIG, REPO, SLUG_RE, TEMPLATES, die, load_json, parse_date, rel, sha256_file,  # noqa: E402
                      today_local, utc_now, write_json)
+import idea_budget as IB  # noqa: E402
 
 CLASS_RE = re.compile(r"^class ([A-Za-z_][A-Za-z0-9_]*)\([A-Za-z0-9_.]*Scene\):", re.M)
 DONE = {"published", "staged"}          # in the ledger: start refuses the episode again
@@ -455,6 +461,9 @@ def validate_v2(data: dict, repo: Path = REPO) -> tuple[list[str], list[str]]:
         for sc_ in mat.get("scripts", []) or []:
             if (src / "code").exists() and not (src / "code" / sc_).exists():
                 warns.append(f"{w}: script {sc_} is not in the series source's code/: sync it before producing")
+    e2, w2, _ = IB.check_series(eps, IB.settings())     # the idea budget: an over-packed episode fails here
+    errs += e2
+    warns += w2
     order = {i + 1: [r for r in ((e.get("prerequisites") or {}).get("must", []) +
                                  (e.get("prerequisites") or {}).get("helpful", [])) if isinstance(r, int)]
              for i, e in enumerate(eps) if isinstance(e, dict)}
@@ -487,9 +496,24 @@ def load_any(arg: str) -> tuple[Path, dict]:
     return p, json.loads(p.read_text(encoding="utf-8"))
 
 
+def budget(data: dict) -> list[str]:
+    """The idea budget of every episode (tools/video/idea_budget.py), as lines for the planner."""
+    eps = [e for e in data.get("episodes") or [] if isinstance(e, dict)]
+    cfg = IB.settings()
+    _, _, est = IB.check_series(eps, cfg)
+    if not est:
+        return []
+    return ["budget: what each episode's ideas need (pacing.plan of config/video.json: 75-90 s per key idea, "
+            f"{100 * float(cfg.get('slow_extra') or 0):g} % more for the slow reading of the derivations, concepts, "
+            f"consequences, consolidation and the fixed beats; at most {float(cfg['episode_max_min']):g} min)"] + \
+        ["  " + line for line in IB.table(eps, est, cfg)]
+
+
 def cmd_validate(a) -> int:
     p, data = load_any(a.series)
     errs, warns = validate_v2(data)
+    for line in budget(data):
+        print(line)
     for w_ in warns:
         print(f"warning {w_}")
     for e_ in errs:
@@ -521,6 +545,8 @@ def cmd_write(a) -> int:
     src = Path(a.proposal)
     data = json.loads(src.read_text(encoding="utf-8"))
     errs, warns = validate_v2(data)
+    for line in budget(data):
+        print(line)
     for w_ in warns:
         print(f"warning {w_}")
     if errs:
@@ -695,6 +721,21 @@ def brief(sp: Path, s: dict, ep: dict, kept: Path | None, fresh: bool, source_co
                      f"{rc.get('restates', '')}")
     lines += ["", "## Outline", ""]
     lines += [f"- {b.get('beat')} ({b.get('min', '?')} min)" for b in ep.get("outline") or []]
+    ideas = [i for i in ep.get("ideas") or [] if isinstance(i, dict)]
+    if ideas:
+        cfg = IB.settings()
+        est = IB.estimate(ideas, cfg, IB.recap_seconds(ep))
+        lines += ["", "## Ideas (the budget: declare each in `video/plan.json` \"ideas\" where it lands)", "",
+                  f"The ideas need {est['lo_s'] / 60:.1f}-{est['hi_s'] / 60:.1f} min with consolidation and the fixed "
+                  "beats (tools/video/idea_budget.py). Teach these and no more: a new starred result or claim goes "
+                  "back to the series plan, never into the video.", ""]
+        for i in ideas:
+            lo, hi = IB.idea_seconds(i, cfg)
+            extra = [f"uses {', '.join(i['uses'])}"] if i.get("uses") else []
+            extra += [f"follows {i['follows']}"] if i.get("follows") else []
+            extra += [x for x in ("pretraining", "example", "side") if i.get(x)]
+            lines.append(f"- `{i.get('id')}` ({i.get('kind')}, {lo:g}" + (f"-{hi:g}" if hi != lo else "") + " s"
+                         + (f"; {'; '.join(extra)}" if extra else "") + f"): {i.get('text', '')}")
     lines += [""] + HOUSE_RULES
     return "\n".join(lines).rstrip() + "\n"
 
@@ -779,6 +820,7 @@ def cmd_start(a) -> int:
         "sections": ep.get("sections", []), "section_ids": mat.get("section_ids", ep.get("section_ids", [])),
         "prerequisites": ctx["prerequisites"], "playlist": pl, "plan_sha256": plan_hash(s),
         "plan_approval": {"required": appr["required"], "approved": appr["approved"], "detail": appr["detail"]},
+        "ideas": ep.get("ideas") or [],
         "scenes_from_plan": [] if fresh else scene_list(sp, ep), "fresh": fresh, "chosen_by": a.by,
         "selected_at": utc_now(), "rule": "tools/series.py start"})
     print(rel(run))

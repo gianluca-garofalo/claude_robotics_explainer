@@ -196,7 +196,8 @@ def collect(run: Path, stage: str) -> list[dict]:
     for f in sorted((run / "video" / "scenes").glob("*.py")):
         if f.name in HELPERS:
             continue
-        for i, (_, text) in enumerate(VS.blocks(f)):
+        for i, (key, text) in enumerate(VS.blocks(f)):
+            text = VS.spoken(text) if key else text        # without the pacing markup, as it is heard
             if text:
                 items.append({"source": "narration", "where": f"{f.name}, block {i + 1}", "text": text,
                               "kind": "plain", "order": (order.get(f.name, 999), 1, i)})

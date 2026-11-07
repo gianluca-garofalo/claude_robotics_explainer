@@ -33,9 +33,13 @@ the reviewers score (.claude/skills/manim-video-producer/spoken-script.md) cover
   hype          words of hype_words (amazing, incredible, mind-blowing, obviously ...): a calm, honest register
   pace (final)  words per minute of each block and of the whole narration (video/voice/manifest.json): outside
                 wpm_min..wpm_max overall is a warning, a block outside block_wpm_min..block_wpm_max too
-  mid pauses    (final) a pause longer than mid_pause_max_s inside a sentence (not after . ? ! or an ellipsis, the
-                planned beat): from the word timings with durations (Azure), else from the audio's silences
-                (ffmpeg silencedetect at silence_db) placed with the estimated timings (Piper, recordings)
+  mid pauses    (final) a pause longer than mid_pause_max_s inside a sentence (not after . ? ! or an ellipsis, and
+                not where the narration plans one with "[pause S]"): from the word timings with durations (Azure),
+                else from the audio's silences (ffmpeg silencedetect at silence_db) placed with the estimated timings
+                (Piper, recordings); the report gives the longest pause measured inside a sentence, over the limit or
+                not (v7: it used to print 0.0 s when none was over)
+The narration is read without its pacing markup ([pause S], [slow]: templates/manim/voice.py); the planned pauses and
+slow blocks are checked by tools/video/check_pacing.py.
 Writes <out>/check_script.json and .md; the JSON records the SHA-256 of every scene file read, so tools/gate.py can
 tell a stale report. Exit status 1 when there is an error (the gate reports it; it blocks only when
 script.errors_block_gate is true).
@@ -219,15 +223,16 @@ def narration(run: Path) -> list[dict]:
     for f in sorted(scenes_dir.glob("*.py")):
         if f.name in ("common.py", "voice.py", "reading_model.py"):
             continue
-        for cls, blocks in VS.blocks_by_class(f).items():
+        for cls, blocks in VS.blocks_by_class(f, markup=True).items():
             if blocks:
                 by_class[cls] = (f, blocks)
     out = []
     order = [s for s in plan.get("scenes", []) if s.get("class") in by_class] if plan.get("scenes") else \
         [{"class": c} for c in by_class]
     for s in order:
-        f, blocks = by_class[s["class"]]
-        out.append({"class": s["class"], "file": f.name, "role": s.get("role", "body"), "blocks": blocks,
+        f, raws = by_class[s["class"]]
+        out.append({"class": s["class"], "file": f.name, "role": s.get("role", "body"),
+                    "blocks": [VS.spoken(t) for t in raws], "raw": raws,
                     "resets": [r.get("says", "") for r in s.get("metaphor_resets", []) if r.get("says")]})
     return out
 
@@ -257,31 +262,50 @@ def silences(audio: Path, db: float, min_s: float) -> list[tuple[float, float]]:
     return list(zip(starts, ends))
 
 
-def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict) -> tuple[list[dict], str]:
-    """Pauses longer than mid_pause_max_s inside a sentence of one block: [{"after", "pause_s", "at_s"}], and how
-    they were measured ("reported" word durations, or "silences" of the audio placed with estimated timings)."""
+def planned_offsets(raw: str, cfg: dict) -> list[int]:
+    """Character offsets (in the block's text, bookmarks removed) of the words before which the narration plans a
+    pause ("[pause S]", an ellipsis): a gap there is meant, not a stumble."""
+    starts = VS.VOICE._word_starts(raw)
+    return sorted(starts[n] for n in VS.VOICE.pause_plan(raw, cfg.get("ellipsis_pause_s", 0.7)) if n < len(starts))
+
+
+def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict, planned: list[int] | None = None) \
+        -> tuple[list[dict], str, float]:
+    """Pauses longer than mid_pause_max_s inside a sentence of one block: [{"after", "pause_s", "at_s"}], how they were
+    measured ("reported" word durations, or "silences" of the audio placed with estimated timings) and the longest
+    pause inside a sentence measured (0.0 when there is none). planned: offsets of words a planned pause precedes."""
     words_ = [b for b in bounds if re.search(r"\w", str(b.get("text", "")))]
+    planned = planned or []
     tick = 10_000_000
-    found = []
+    found, longest = [], 0.0
+
+    def is_planned(a, b):
+        return any(a.get("text_offset", -1) < o <= b.get("text_offset", -1) for o in planned)
     if words_ and all("duration_milliseconds" in b for b in words_):
         for a, b in zip(words_, words_[1:]):
             end_a = a["audio_offset"] / tick + a["duration_milliseconds"] / 1000.0
             gap = b["audio_offset"] / tick - end_a
-            if gap > cfg["mid_pause_max_s"] and not _ends_sentence(a["text"]):
+            if _ends_sentence(a["text"]) or is_planned(a, b):
+                continue
+            longest = max(longest, gap)
+            if gap > cfg["mid_pause_max_s"]:
                 found.append({"after": a["text"], "pause_s": round(gap, 2), "at_s": round(end_a, 2)})
-        return found, "reported"
+        return found, "reported", round(longest, 2)
     if audio is None or not words_:
-        return [], "none"
-    for s0, s1 in silences(audio, cfg["silence_db"], cfg["mid_pause_max_s"]):
+        return [], "none", 0.0
+    for s0, s1 in silences(audio, cfg["silence_db"], min(0.25, cfg["mid_pause_max_s"])):
         if s0 <= 0.05:
             continue                                   # leading silence
         prev = [b for b in words_ if b["audio_offset"] / tick <= s0]
         nxt = [b for b in words_ if b["audio_offset"] / tick >= s1 - 0.15]
         if not prev or not nxt:
             continue                                   # trailing silence
-        if not _ends_sentence(prev[-1]["text"]):
+        if _ends_sentence(prev[-1]["text"]) or is_planned(prev[-1], nxt[0]):
+            continue
+        longest = max(longest, s1 - s0)
+        if s1 - s0 > cfg["mid_pause_max_s"]:
             found.append({"after": prev[-1]["text"], "pause_s": round(s1 - s0, 2), "at_s": round(s0, 2)})
-    return found, "silences"
+    return found, "silences", round(longest, 2)
 
 
 def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict | None:
@@ -294,11 +318,11 @@ def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict 
         return None
     man = json.loads(man_p.read_text(encoding="utf-8"))
     blocks = man.get("blocks", {})
-    total_w, total_s, per_scene, pauses, how = 0, 0.0, {}, [], set()
+    total_w, total_s, per_scene, pauses, how, longest = 0, 0.0, {}, [], set(), 0.0
     for sc in scenes:
         sw, ss = 0, 0.0
-        for text in sc["blocks"]:
-            key = VS.key(text)
+        for text, raw in zip(sc["blocks"], sc.get("raw") or sc["blocks"]):
+            key = VS.key(raw)
             b = blocks.get(key)
             if not b:
                 fd.add("pace", "warning", sc["class"], f"no audio for block {key} ({text[:50]!r}): stale narration")
@@ -314,8 +338,10 @@ def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict 
             tp = vdir / f"{key}.timings.json"
             audio = vdir / b["file"] if b.get("file") else None
             bounds = json.loads(tp.read_text(encoding="utf-8")) if tp.exists() else []
-            found, method = mid_pauses(bounds, audio if audio and audio.exists() else None, cfg)
+            found, method, worst = mid_pauses(bounds, audio if audio and audio.exists() else None, cfg,
+                                              planned_offsets(raw, cfg))
             how.add(method)
+            longest = max(longest, worst)
             for p in found:
                 sev = "error" if p["pause_s"] > cfg["mid_pause_error_s"] else "warning"
                 fd.add("mid pause", sev, sc["class"], f"{p['pause_s']:.2f} s pause after {p['after']!r} inside a "
@@ -329,7 +355,7 @@ def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict 
                f"{cfg['wpm_max']:.0f})")
     return {"service": man.get("service"), "voice": man.get("voice_model") or man.get("voice"),
             "seconds": round(total_s, 1), "wpm": round(wpm) if wpm else None, "wpm_by_scene": per_scene,
-            "mid_pauses": len(pauses), "longest_mid_pause_s": max((p["pause_s"] for p in pauses), default=0.0),
+            "mid_pauses": len(pauses), "longest_mid_pause_s": longest,
             "pause_method": sorted(how - {"none"}) or ["none"]}
 
 
@@ -432,8 +458,9 @@ def report_md(stage: str, fd: Findings, stats: dict) -> str:
     a = stats.get("audio")
     if a:
         md.append(f"- audio ({a['service']} {a.get('voice') or ''}): {a['seconds']} s, {a['wpm']} words per minute; "
-                  f"mid-sentence pauses over the limit: {a['mid_pauses']} (longest {a['longest_mid_pause_s']} s; "
-                  f"measured from {', '.join(a['pause_method'])})")
+                  f"mid-sentence pauses over the limit: {a['mid_pauses']}; the longest pause inside a sentence: "
+                  f"{a['longest_mid_pause_s']} s (planned pauses left out; measured from "
+                  f"{', '.join(a['pause_method'])})")
     md += ["", "| Scene | Words | Pause punct /100 | Contractions /100 | Connectives /100 | Sentence mean / spread | "
            "Short runs |" + (" wpm |" if a else ""), "|---|---|---|---|---|---|---|" + ("---|" if a else "")]
     for c, v in stats["scenes"].items():

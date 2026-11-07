@@ -174,6 +174,26 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
         return (not block) or (not errs and not stale), detail
     g.guard(f"spoken script: pauses, rhythm, contractions, stock phrases ({stage})", script)
 
+    def pacing():
+        p = run / "review" / "design" / stage / "check_pacing.json"
+        block = bool(_json_or_empty(CONFIG / "video.json").get("pacing", {}).get("errors_block_gate", False))
+        if not p.exists():
+            return not block, (f"not run (tools/video/check_pacing.py {rel(run)} --stage {stage}; reported, not "
+                               "blocking unless pacing.errors_block_gate)")
+        r = _json(p)
+        stale = [n for n in names if (r.get("layout_sha256") or {}).get(n) != (
+            sha256_file(folder / f"{n}.layout.json") if (folder / f"{n}.layout.json").exists() else None)]
+        st = r.get("stats", {})
+        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
+        detail = (f"{errs} error(s), {warns} warning(s); longest stretch without a pause "
+                  f"{st.get('longest_stretch_s', '-')} s, pauses {st.get('pause_share', '-')} of the body, declared "
+                  f"ideas {st.get('declared') or 'none'} (review/design/{stage}/check_pacing.md"
+                  + ("" if block else "; reported, not blocking: pacing.errors_block_gate") + ")")
+        if stale:
+            detail = f"not run on the current {stage} renders of {stale[:3]}; " + detail
+        return (not block) or (not errs and not stale), detail
+    g.guard(f"pacing: ideas per minute, pauses, holds (rules P1-P20; {stage})", pacing)
+
 
 def scene_urls(run: Path) -> list[str]:
     """Scene files of the run that hold a URL (a fetched asset is third-party media) or load an image from anywhere

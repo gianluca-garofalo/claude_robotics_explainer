@@ -50,6 +50,12 @@ paths:
   bowl or a ghost meter. No empty frame inside a scene; the outro keeps 1.5 s after its last word and shows any
   question it asks. v6: the refill comes as or after its words; each scene's `plan.json` "picture" is faithful or
   schematic, and a schematic one shows no numbers (`meter(..., show_value=False)`).
+- Pacing (v7, `tools/video/check_pacing.py`): planned pauses are narration markup, `[pause S]` (an Azure break inside
+  a block, at most 4 s; after the block's last word a hold of the picture, any length), and `[slow]` before the first
+  word of a derivation or an argument (the whole block at -15 %; `[key]` is retired); every block ends with a 0.75 s
+  hold unless it ends with its own `[pause S]`. Never pad or splice
+  audio, never wait out a pause with `self.wait()` inside a voiceover block. Declare each idea where it lands in
+  `plan.json` "ideas" (a `<bookmark>` at the start of its sentence).
 - Emphasis is not motion (v4): `Indicate`, `Circumscribe`, `Flash`, `pulse()` name an object once when the narration
   names it; never loop them to fill time (the check counts narration over emphasis alone as a frozen picture). Beats
   hold still, or make one slow push-in, while the music swells. At most two new technical terms per narration block;

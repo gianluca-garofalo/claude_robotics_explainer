@@ -79,6 +79,9 @@ map, CLOUD-SESSION.md the cloud environment, SETUP-AUTOMATION.md the optional au
   scenes[].picture), no persistent slide titles, narration in meanings
   (`tools/video/check_engagement.py`, thresholds in `config/video.json` "engagement"; reviewers score the SoME rubric:
   motivation, clarity, novelty, memorability).
+- Pacing follows from the ideas: episodes declare them with budgets (`series.json` `ideas`; `series.py validate` fails
+  an over-packed one), videos declare where they land and plan their pauses (`plan.json` `ideas`, `[pause S]`, `[slow]`;
+  `tools/video/check_pacing.py`); cut scope in the plan, never speed up the voice.
 - Reviewers report and write only under `review/`; the writer fixes and records decisions in `review/resolutions.json`.
 - Branding is "Remaining Action" (`config/channel.json`): the name appears on the outro (`outro()`) and the thumbnail
   only; thumbnail and metadata come from the tools.

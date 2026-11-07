@@ -4,7 +4,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 
@@ -144,6 +143,22 @@ class Run(unittest.TestCase):
         self.assertEqual(stats["audio"]["wpm"], 130)
         self.assertEqual(stats["audio"]["pause_method"], ["reported"])
         self.assertTrue(any(x["check"] == "pace" and x["where"] == "narration" for x in fd.items))
+
+    def test_longest_pause_is_reported_and_planned_pauses_are_not_stumbles(self):
+        text = "Every step costs something, [pause 1.5] and the costs pile up. Then the plan ends."
+        self.make([("Hook", [text])])
+        t = [("Every", 0.0), ("step", 0.3), ("costs", 0.6), ("something,", 0.9), ("and", 2.9), ("the", 3.1),
+             ("costs", 3.3), ("pile", 3.6), ("up.", 3.9), ("Then", 5.1), ("the", 5.4), ("plan", 5.6), ("ends.", 6.1)]
+        bounds = [{"audio_offset": int(s * TICK), "text": w, "duration_milliseconds": 250} for w, s in t]
+        raw = " ".join(text.split())
+        for b in bounds:                                   # bookmark_safe() offsets in the block's text
+            b["text_offset"] = raw.index(b["text"], 0 if b is bounds[0] else bounds[bounds.index(b) - 1]["text_offset"] + 1)
+        self.voice(raw, bounds, 6.5)
+        fd, stats = CS.check(self.run, "final", dict(CS.DEFAULTS))
+        self.assertEqual([x for x in fd.items if x["check"] == "mid pause"], [])   # the 1.75 s gap is planned
+        self.assertAlmostEqual(stats["audio"]["longest_mid_pause_s"], 0.25, places=2)  # not 0.0: the true longest
+        self.assertFalse([x for x in fd.items if x["check"] == "pace" and "no audio" in x["detail"]])   # key found
+        self.assertFalse([x for x in fd.items if x["check"] == "pauses" and "[" in x["detail"]])        # no markup
 
     def test_final_without_audio_says_so(self):
         self.make([("Hook", [SPOKEN])])
