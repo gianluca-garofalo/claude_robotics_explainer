@@ -313,8 +313,10 @@ jobs:
         id: start
         run: |
           if [ -z "$SERIES" ] || [ ! -f "series/$SERIES/series.json" ]; then
+            found=""
+            for f in series/*/series.json; do [ -f "$f" ] && found="$found ${f#series/}"; done
             echo "::error::series mode needs the series input: the folder name of a plan committed under series/" \
-              "(found: $(ls series/*/series.json 2>/dev/null | cut -d/ -f2 | tr '\n' ' '))"
+              "(found:${found:- none})" | sed 's#/series.json##g'
             exit 1
           fi
           mkdir -p "$TMPDIR" "$MPLCONFIGDIR"
