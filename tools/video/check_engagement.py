@@ -1,80 +1,12 @@
 #!/usr/bin/env python3
-"""Engagement checks of a run's scenes: motion budget, animation vocabulary, narration style, text economy, beats,
-continuity at cuts and the central visual metaphor (warnings first; thresholds in config/video.json "engagement").
+"""Engagement checks of a run's scenes: motion, cuts, animation vocabulary, narration, titles, beats, the metaphor.
 
 Usage:
-  python3 tools/video/check_engagement.py runs/<run> --stage draft     # video/checks/<Class>_ql.mp4 + layout logs
-  python3 tools/video/check_engagement.py runs/<run> --stage final     # video/renders/<Class>.mp4 + layout logs
-  options: --no-video (skip the frame-based checks), --out DIR
+  python3 tools/video/check_engagement.py runs/<run> --stage draft|final [--no-video] [--out DIR]
 
-Why: an independent review of episode 1 against the 3Blue1Brown bar (2026-11-04) found a narrated slide deck: 42 % of
-the running time frozen while the voice talked, FadeIn used 101 times against one Transform, every chapter fading to
-an empty frame, notation read aloud and persistent slide titles. These checks measure those habits.
-
-  motion        (frames, grayscale 320 x 180 at motion_fps) an interval "moves" when more than motion_min_pixels
-                pixels change by more than motion_pixel_delta levels. Narration over a frozen picture: a warning
-                above frozen_narration_warn_s, an error above frozen_narration_error_s; the moving share of the
-                runtime: a warning below moving_share_warn
-  cuts          (frames) a cut that passes through an almost empty frame (ink below empty_cut_ink of the picture
-                on either side of it): a warning when more than empty_cut_share_warn of the cuts do (carry the
-                objects across instead: common.py carry_over())
-  vocabulary    (scene code) a derivation scene (body or recap with two or more equations) that never transforms an
-                equation (Transform*, TransformMatchingTex, TransformFromCopy, common.py derive()); FadeIn against
-                transforms over the video above fade_ratio_warn; a scene other than the last that fades out
-                everything (FadeOut(Group(*self.mobjects))): continuity, not a fade to empty
-  so what       (scene code) a boxed result (SurroundingRectangle) with no narration block after it in its scene: say
-                the consequence
-  narration     spoken notation (single letters, prime, sub, Greek letter names) above one token per
-                notation_words_per_token words; "you / we / let's" below address_per_100_words per 100 words; fewer
-                than one question per question_every_s seconds of narration
-  titles        a slide title (text in the top band, font size >= title_min_size, near the centre) visible for more
-                than title_max_s in a body or recap scene: show chapter titles briefly or not at all
-  beats         planned pauses: gaps of at least beat_min_s between narration blocks of body scenes with motion in
-                them; fewer than beats_min in the video: a warning. Dead air: a gap of dead_air_s or more with no
-                motion in a scene whose music mode is "off"
-  metaphor      plan.json "metaphor" {"name", "label"}: a text starting with "label" (the meter's readout) visible
-                in the hook, in at least metaphor_body_share_min of the body scenes and in the outro
-  emphasis      (v4) emphasis is not motion. With the layout log's "plays" (layout_probe.py logs every play() and its
-                animations), an interval in which only emphasis animations run (Indicate, Circumscribe, Flash, ...)
-                counts as frozen for the motion budget unless emphasis_counts_as_motion; a scene whose narration runs
-                over emphasis-only plays for more than emphasis_share_warn of its narrated time, an emphasis call inside
-                a loop (keep-alive pulsing) and more than emphasis_per_min_warn emphasis calls per minute are warnings
-  jargon        (v4) a narration block that introduces more than jargon_new_per_block_warn technical terms
-                ("jargon" list) for the first time: one new term at a time, each with its picture
-  silence       (v4) a pause of silence_off_max_s or more between narration blocks of a scene whose music is "off" is
-                digital silence, whatever moves on screen: give the scene "low" music or shorten the pause; a planned
-                beat counts when the picture's content moves or the scene has music
-  thumbnail     (v4, final stage) the thumbnail's picture, outside its text, must stay bold at 168 x 94: the share of
-                pixels whose luminance differs from the background by more than thumbnail_bold_delta is at least
-                thumbnail_picture_bold_min (hairline paths and thin bars vanish at that size)
-  meter moves   (v5) the metaphor's value over time (layout_probe.py logs ra_value() of every ra_role="metaphor"
-                object; older logs: the number in its live readout). With plan.json metaphor "direction" "down" (the
-                default; "any" turns it off) a rise of more than metaphor_rise_tol of the bar inside a scene, or from
-                one scene's last value to the next scene's first, is a warning unless the scene declares it in
-                plan.json scenes[].metaphor_resets [{"says": "<words of the narration block that announces it>",
-                "why": "..."}] and a narration block that contains those words overlaps the rise (refilling the bill
-                with no step paid contradicts "the bill only falls"); a body scene that shows the metaphor for
-                metaphor_static_min_share of its time while its value never changes is a warning (decoration)
-  blank frames  (v5, frames) a frame inside a scene (not its first or last; not the last blank_end_grace_s of the
-                video) with ink below empty_cut_ink: the picture goes empty in the middle of a scene
-  picture       (v6) plan.json scenes[].picture "schematic" (a picture not drawn to the scale of any number: the
-                hook's 2-D path, a title beat) must show no number: a live readout with digits or any text with a
-                decimal is a warning; "faithful" pictures may. Once a plan uses the field, every scene needs it
-  resets (v6)   a declared refill counts only if the meter refills while or after its words are said, not seconds
-                before them (estimated from the words' position in the narration block)
-  outro         (v5) the last narration block must end outro_tail_min_s or more before the end of the video (music and
-                picture after the last word; the end screen needs them); a question asked in the outro narration
-                must also be on screen (a text with "?" visible in the outro), so it stays when the voice stops
-  holds         (v7, rule P19 of config/video.json "pacing") a planned pause is consolidation time, not a frozen
-                picture: a "[pause S]" inside a narration block (the layout log's "raw" text and word timings) is not
-                narration for the motion budget, and a hold of the picture between blocks (common.py Hold: beat(),
-                the pause after a block; the layout log's plays) is not dead air, up to hold_exempt_s, or
-                hold_exempt_restated_s when the next block restates the result (a plan.json idea of kind
-                restatement). At the final stage before assembly, the silence warning counts on the off-beat swells
-                that assembly adds (music.off_beat_swell_s), as the draft stage does
-Writes <out>/check_engagement.json and .md (default review/design/<stage>/); exit status 1 when there is an error
-(the gate reports them; they block it only when engagement.errors_block_gate is true). Frames need ffmpeg and numpy;
-without them the frame checks are skipped with a note.
+Checks: motion, cuts, vocabulary, so what, narration, titles, beats, metaphor, emphasis, jargon, silence, thumbnail,
+meter, blank, picture, outro (thresholds in config/video.json "engagement"; frame checks need ffmpeg and numpy).
+Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -85,12 +17,14 @@ import re
 import shutil
 import subprocess
 import sys
+from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
+import checks  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 DEFAULTS = {
@@ -138,13 +72,7 @@ def settings() -> dict:
     return cfg
 
 
-class Findings:
-    def __init__(self):
-        self.items: list[dict] = []
-
-    def add(self, check: str, severity: str, where: str, detail: str, t: float | None = None):
-        self.items.append({"check": check, "severity": severity, "where": where,
-                           "t": None if t is None else round(t, 1), "detail": detail})
+Findings = partial(checks.Findings, "check", "severity", "where", "detail", "t")
 
 
 # --------------------------------------------------------------------------- frames
@@ -203,8 +131,7 @@ def moving_share(moving: list[bool], dt: float, t0: float, t1: float) -> float:
 
 
 def emphasis_spans(log: dict) -> list[tuple[float, float]] | None:
-    """(start, end) of the play() calls that only emphasise (every animation in EMPHASIS), from the layout log's
-    "plays"; None when the log has no "plays" (made before layout_probe.py logged them)."""
+    """(start, end) of the plays that only emphasise; None for a layout log without plays."""
     if "plays" not in log:
         return None
     return [(p["start"], p["end"]) for p in log["plays"]
@@ -212,7 +139,7 @@ def emphasis_spans(log: dict) -> list[tuple[float, float]] | None:
 
 
 def mask_emphasis(moving: list[bool], spans_: list[tuple[float, float]], dt: float) -> list[bool]:
-    """The moving intervals that are not wholly inside an emphasis-only play: content motion."""
+    """The moving intervals not wholly inside an emphasis-only play."""
     out = list(moving)
     for i in range(len(out)):
         a, b = i * dt, (i + 1) * dt
@@ -227,8 +154,7 @@ def jargon_terms(text: str, terms: list[str]) -> list[str]:
 
 
 def thumbnail_bold(run: Path, cfg: dict) -> dict | None:
-    """Share of the thumbnail's picture (outside its text boxes) that stays bold at 168 x 94: luminance differs from
-    the background by more than thumbnail_bold_delta (0-255). None without the thumbnail or Pillow."""
+    """Share of the thumbnail's picture, outside its text, that stays bold at 168 x 94 (None without it or Pillow)."""
     img_p, meta_p = run / "video" / "final" / "thumbnail.jpg", run / "video" / "final" / "thumbnail.json"
     if not img_p.exists():
         return None
@@ -261,7 +187,7 @@ def _name(node) -> str | None:
 
 
 def vocabulary(path: Path, cls: str) -> dict:
-    """Counts of animation and equation calls in a scene class, fades of everything, boxes without a 'so what'."""
+    """Animation and equation calls of a scene class, fades of everything, boxes without a 'so what' after them."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     node = next((n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls), None)
     counts: dict[str, int] = {}
@@ -301,22 +227,12 @@ def vocabulary(path: Path, cls: str) -> dict:
 
 
 # --------------------------------------------------------------------------- layout logs
-def scene_log(folder: Path, cls: str) -> tuple[dict, Path | None]:
-    lp = folder / f"{cls}.layout.json"
-    if not lp.exists():
-        return {}, None
-    data = json.loads(lp.read_text(encoding="utf-8"))
-    return (data.get("scenes", {}).get(cls) or next(iter(data.get("scenes", {}).values()), {})), lp
-
-
 def spans(log: dict) -> list[tuple[float, float]]:
     return [(v["start"], v["start"] + v.get("duration", 0.0)) for v in log.get("voiceovers", [])]
 
 
 def planned_pauses(log: dict, cap: float) -> list[tuple[float, float]]:
-    """(v7) The planned pauses inside narration blocks, in scene seconds: [(start, end)] for every "[pause S]" (and
-    ellipsis) of a block's "raw" text, placed before the word it precedes by the block's word timings; pauses longer
-    than cap are left out (they are not exempt)."""
+    """(start, end) in scene seconds of each planned pause inside a narration block, up to cap seconds long."""
     out = []
     for v in log.get("voiceovers", []):
         raw, tim = v.get("raw"), v.get("timings") or []
@@ -331,7 +247,6 @@ def planned_pauses(log: dict, cap: float) -> list[tuple[float, float]]:
 
 
 def minus(spans_: list[tuple[float, float]], holes: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    """The spans with the holes cut out."""
     out = []
     for a, b in spans_:
         cur = [(a, b)]
@@ -351,12 +266,12 @@ def minus(spans_: list[tuple[float, float]], holes: list[tuple[float, float]]) -
 
 
 def holds(log: dict) -> list[tuple[float, float]]:
-    """(v7) The planned holds of the picture (plays of common.py Hold: beat(), the pause after a block)."""
+    """The planned holds of the picture (common.py Hold plays)."""
     return [(float(p["start"]), float(p["end"])) for p in log.get("plays") or [] if "Hold" in (p.get("anims") or [])]
 
 
 def restates(scene: dict, block: dict | None, plan: dict) -> bool:
-    """Whether a narration block restates a result (a plan.json idea of kind restatement in this scene, said in it)."""
+    """Whether a narration block says a plan.json restatement of this scene."""
     if not block:
         return False
     text = " ".join(str(block.get("text", "")).lower().split())
@@ -371,14 +286,7 @@ def restates(scene: dict, block: dict | None, plan: dict) -> bool:
 
 
 def visible_time(item: dict, end: float) -> float:
-    total, on = 0.0, None
-    for ev in item.get("events", []):
-        if ev[1] == 1 and on is None:
-            on = ev[0]
-        elif ev[1] == 0 and on is not None:
-            total += ev[0] - on
-            on = None
-    return total + (end - on if on is not None else 0.0)
+    return sum(b - a for a, b in checks.intervals(item.get("events", []), end))
 
 
 def titles(log: dict, cfg: dict) -> list[tuple[str, float]]:
@@ -404,10 +312,7 @@ NUMBER = re.compile(r"=\s*(-?\d[\d,]*(?:\.\d+)?|-?\.\d+)")
 
 
 def metaphor_track(log: dict, label: str | None) -> tuple[list[tuple[float, float]], float | None, float, str]:
-    """(v5) The metaphor's value while it is visible, in scene seconds: [(t, value)], its vmax (None when unknown),
-    the seconds it is visible and the source: "probe" (layout_probe.py "metaphor": ra_value() of the meter, readout
-    or not), "readout" (an older log: the number in the live text that starts with label, "left to pay = 0.552") or
-    "none". With several metaphor objects, the one visible longest."""
+    """(the metaphor's [(t, value)] while visible, its vmax, seconds visible, source: "probe", "readout" or "none")."""
     end = float(log.get("duration") or 0.0)
     best = None
     for ent in log.get("metaphor") or []:
@@ -420,8 +325,8 @@ def metaphor_track(log: dict, label: str | None) -> tuple[list[tuple[float, floa
         shown = sum(b - a for a, b in spans_)
         vals = ent.get("values") or []
         track = []
-        for k, (t, v) in enumerate(vals):              # the value holds until the next sample: keep the samples inside
-            t_next = vals[k + 1][0] if k + 1 < len(vals) else end     # a visible span, and the value a span opens with
+        for k, (t, v) in enumerate(vals):              # a value holds until the next sample
+            t_next = vals[k + 1][0] if k + 1 < len(vals) else end
             for a, b in spans_:
                 if a - 1e-6 <= t < b or (t < a < t_next):
                     track.append((max(float(t), a), float(v)))
@@ -430,8 +335,8 @@ def metaphor_track(log: dict, label: str | None) -> tuple[list[tuple[float, floa
             best = (track, ent.get("vmax"), shown, "probe")
     if best:
         return best
-    if label:                                   # an older log: every live readout of the label (swap_readout()
-        pts, shown = [], 0.0                    # makes a new text item each time), merged in time
+    if label:                                   # a log without "metaphor": the readouts of the label, merged
+        pts, shown = [], 0.0
         for it in log.get("timeline", []):
             own = []
             for t, text in it.get("values") or []:
@@ -448,8 +353,7 @@ def metaphor_track(log: dict, label: str | None) -> tuple[list[tuple[float, floa
 
 
 def rises(track: list[tuple[float, float]], tol: float, gap_s: float = 1.5) -> list[tuple[float, float, float, float]]:
-    """(v5) Stretches in which the value climbs: [(t0, t1, v0, v1)] with v1 - v0 > tol. Consecutive increases are one
-    rise; a dip of more than a tenth of tol, or no increase for more than gap_s seconds (a plateau), ends it."""
+    """[(t0, t1, v0, v1)] where the value climbs by more than tol (a dip or a plateau over gap_s ends a climb)."""
     out, start, peak = [], None, None
     eps = tol / 10
 
@@ -474,8 +378,7 @@ def rises(track: list[tuple[float, float]], tol: float, gap_s: float = 1.5) -> l
 
 
 def phrase_time(block: dict, words: str) -> float | None:
-    """(v6) When a narration block says words, estimated by their position among the block's words (speech is close
-    to uniform within a block): block start + duration x (words before them / all words). None if not said."""
+    """When a narration block says words, from their position among its words (None when it does not)."""
     text = " ".join(str(block.get("text", "")).lower().split())
     k = text.find(" ".join(words.lower().split()))
     if k < 0:
@@ -485,9 +388,7 @@ def phrase_time(block: dict, words: str) -> float | None:
 
 
 def declared(rise: tuple[float, float, float, float], resets: list, log: dict, margin: float) -> dict | None:
-    """The plan.json reset that covers a rise: one whose "says" words are said in a narration block that overlaps the
-    rise (v5), and (v6) not after the rise has begun: the meter may refill while or after the words are said, never
-    seconds before them (episode 1 v5 refilled at a cut, 3.4 s before "start again"). margin seconds of slack."""
+    """The plan.json reset whose words are said in a block overlapping the rise, no later than it begins."""
     for r in resets or []:
         says = str((r or {}).get("says") or "").strip().lower()
         if not says:
@@ -505,8 +406,7 @@ def declared(rise: tuple[float, float, float, float], resets: list, log: dict, m
 
 
 def reset_said_late(rise: tuple[float, float, float, float], resets: list, log: dict, margin: float) -> float | None:
-    """(v6) For a rise no reset covers: how many seconds after its start the declared words are said in an
-    overlapping block (the refill came first), else None."""
+    """For a rise no reset covers: how long after its start an overlapping block says the reset's words."""
     late = None
     for r in resets or []:
         says = str((r or {}).get("says") or "").strip().lower()
@@ -523,9 +423,7 @@ DIGIT = re.compile(r"\d")
 
 
 def numbers_on_schematic(log: dict) -> list[tuple[str, float]]:
-    """(v6) Texts that show a number while the picture is schematic: a live readout with any digit, or any text with
-    a decimal ("left to pay = 0.039"); equations and plain labels ("Episode 1 of 7") are not numbers. [(text, first
-    time shown)]."""
+    """[(text, first shown)] of live readouts with a digit and texts with a decimal: numbers on a schematic picture."""
     out = {}
     for it in log.get("timeline", []):
         if it.get("kind") != "text":
@@ -542,8 +440,7 @@ def numbers_on_schematic(log: dict) -> list[tuple[str, float]]:
 
 def blank_stretches(inks: list[float], dt: float, threshold: float, skip_end_s: float = 0.0) \
         -> list[tuple[float, float]]:
-    """(v5) Interior frames (not the first or the last) whose ink is below threshold, merged: [(t0, t1)] in seconds;
-    the last skip_end_s of the scene are not checked (a final fade)."""
+    """[(t0, t1)] of the frames between the first and the last (or the last skip_end_s) with ink under threshold."""
     n = len(inks)
     last = n - 1 - int(round(skip_end_s / dt)) if skip_end_s else n - 1
     out, start = [], None
@@ -560,9 +457,7 @@ def blank_stretches(inks: list[float], dt: float, threshold: float, skip_end_s: 
 
 
 def off_beat_fill_s(run: Path, stage: str) -> float:
-    """The shortest pause of an "off" scene that the music fills with a "low" swell (tools/video/music.py
-    off_beat_swell_s, default 1.8 s; 0 = none). At the final stage, from the music stamp: a stamp made before v4 has
-    no "off_beats" event list, so its pauses were left silent."""
+    """The shortest pause of an "off" scene that music.py fills with a swell (0 when it does not)."""
     cfg = (load_json(CONFIG / "channel.json").get("music") or {})
     fill = float(cfg.get("off_beat_swell_s", 1.8) or 0.0)
     if not cfg.get("enabled", True):
@@ -570,7 +465,7 @@ def off_beat_fill_s(run: Path, stage: str) -> float:
     if stage == "final":
         stamp = run / "video" / "final" / "music.json"
         if not stamp.exists():
-            return fill                      # v7: checked before assembly, which adds the swells (finish-video step 4)
+            return fill                      # checked before assembly, which adds the swells
         if "off_beats" not in (json.loads(stamp.read_text(encoding="utf-8")).get("events") or {}):
             return 0.0
     return fill
@@ -584,7 +479,7 @@ def music_mode(scene: dict) -> str:
 
 
 # --------------------------------------------------------------------------- the check
-def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Findings, dict]:
+def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[checks.Findings, dict]:
     fd = Findings()
     plan = json.loads((run / "video" / "plan.json").read_text(encoding="utf-8"))
     scenes = plan.get("scenes", [])
@@ -596,18 +491,17 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
     words_total, tokens_total, address_total, questions, narr_s = 0, 0, 0, 0, 0.0
     fade_in, transforms, beats = 0, 0, 0
     narration, blocks_of = {}, {}
-    for f in sorted((run / "video" / "scenes").glob("*.py")):
-        if f.name not in ("common.py", "voice.py", "reading_model.py"):
-            for c, blocks in VS.blocks_by_class(f).items():
-                narration[c] = " ".join(b for b in blocks if b)
-                blocks_of[c] = [b for b in blocks if b]
+    for f in checks.scene_files(run):
+        for c, blocks in VS.blocks_by_class(f).items():
+            narration[c] = " ".join(b for b in blocks if b)
+            blocks_of[c] = [b for b in blocks if b]
     seen_terms: set[str] = set()
     emph_narr_total, narr_total_s = 0.0, 0.0
     last = len(scenes) - 1
     fill_s = off_beat_fill_s(run, stage)
     for i, s in enumerate(scenes):
         cls, role = s["class"], s.get("role") or "body"
-        log, lp = scene_log(folder, cls)
+        log, lp = checks.scene_log(folder, cls)
         if lp is not None:
             stats["layout_sha256"][cls] = sha256_file(lp)
         st = {"role": role, "duration": round(log.get("duration", 0.0), 2)}
@@ -657,7 +551,7 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
         questions += text.count("?")
         sp_all = spans(log)
         narr_s += sum(b - a for a, b in sp_all)
-        planned = planned_pauses(log, cfg["hold_exempt_s"])        # v7 (P19): planned pauses are not narration
+        planned = planned_pauses(log, cfg["hold_exempt_s"])        # P19: planned pauses are not narration
         sp = minus(sp_all, planned) if planned else sp_all
         if planned:
             st["planned_pauses_s"] = round(sum(b - a for a, b in planned), 1)
@@ -677,7 +571,7 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
             track, vmax, shown, source = metaphor_track(log, label)
             if track:
                 meter_tracks.append((cls, role, s, log, track, vmax, shown, source, i))
-        # (v6) what the picture claims: "faithful" (drawn to the scale of its numbers) or "schematic" (no numbers)
+        # what the picture claims: "faithful" (drawn to the scale of its numbers) or "schematic" (no numbers)
         pic = s.get("picture")
         if pic is None:
             undeclared_pictures.append(cls)
@@ -746,7 +640,7 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
             if role in ("body", "recap") and gap >= cfg["beat_min_s"] and (share >= cfg["beat_min_moving"]
                                                                           or mode != "off"):
                 beats += 1
-            hold = sum(overlap(h, [(a1, b0)]) for h in held)          # v7 (P19): a planned hold is not dead air
+            hold = sum(overlap(h, [(a1, b0)]) for h in held)          # P19: a planned hold is not dead air
             cap = cfg["hold_exempt_restated_s"] if restates(s, vos[k + 1] if k + 1 < len(vos) else None, plan) \
                 else cfg["hold_exempt_s"]
             exempt = hold >= 0.8 * gap and gap <= cap
@@ -831,9 +725,8 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[Fin
     return fd, stats
 
 
-def meter_moves(fd: Findings, stats: dict, meta: dict, tracks: list, cfg: dict) -> None:
-    """(v5) The metaphor means one thing: along the path the bill only falls. Rises inside a scene and from one
-    scene to the next need a declared, spoken reset; a body scene's metaphor that never changes is decoration."""
+def meter_moves(fd: checks.Findings, stats: dict, meta: dict, tracks: list, cfg: dict) -> None:
+    """Rises of the metaphor without a declared, spoken reset, and body scenes where it never changes."""
     direction = str(meta.get("direction", "down")).lower()
     n_rises, static = 0, []
     prev = None
@@ -875,14 +768,14 @@ def meter_moves(fd: Findings, stats: dict, meta: dict, tracks: list, cfg: dict) 
                       "sources": sorted({t[7] for t in tracks})}
 
 
-def outro_checks(fd: Findings, stats: dict, scenes: list, folder: Path, cfg: dict) -> None:
-    """(v5) The outro leaves time after the last word, and a question it asks aloud is also on screen."""
+def outro_checks(fd: checks.Findings, stats: dict, scenes: list, folder: Path, cfg: dict) -> None:
+    """Time after the outro's last word, and its spoken question on screen."""
     if not scenes:
         return
     s = scenes[-1]
     if (s.get("role") or "outro") != "outro":
         return
-    log, _ = scene_log(folder, s["class"])
+    log, _ = checks.scene_log(folder, s["class"])
     vos = log.get("voiceovers") or []
     dur = float(log.get("duration") or 0.0)
     if not vos or not dur:
@@ -911,17 +804,10 @@ def main() -> int:
     a = ap.parse_args()
     run = resolve_run(a.run)
     cfg = settings()
-    fd, stats = check(run, a.stage, cfg, use_video=not a.no_video)
-    errs = [x for x in fd.items if x["severity"] == "error"]
-    warns = [x for x in fd.items if x["severity"] == "warning"]
+    fd, s = check(run, a.stage, cfg, use_video=not a.no_video)
+    n_err, n_warn = checks.summary(fd.items).values()
     out = Path(a.out) if a.out else run / "review" / "design" / a.stage
-    out.mkdir(parents=True, exist_ok=True)
-    write_json(out / "check_engagement.json", {
-        "schema_version": 1, "tool": "check_engagement", "stage": a.stage, "checked_at": utc_now(),
-        "passed": not errs, "summary": {"errors": len(errs), "warnings": len(warns)}, "stats": stats,
-        "layout_sha256": stats.pop("layout_sha256"), "findings": fd.items})
-    s = stats
-    md = [f"# Engagement ({a.stage})", "", f"{len(errs)} error(s), {len(warns)} warning(s); thresholds in "
+    md = [f"# Engagement ({a.stage})", "", f"{n_err} error(s), {n_warn} warning(s); thresholds in "
           "config/video.json \"engagement\".", ""]
     if "moving_share" in s:
         md.append(f"- moving share of the runtime: {s['moving_share']:.0%}; longest frozen stretch under narration: "
@@ -948,24 +834,22 @@ def main() -> int:
     if blanks:
         md.append("- empty frames inside scenes: " + "; ".join(f"{c} at {', '.join(f'{a:.2f} s' for a, _ in v)}"
                                                               for c, v in blanks.items()))
-    md += ["", "| Scene | Role | s | moving (content / raw) | longest frozen narrated (s) | emphasis narrated | "
-           "transforms | FadeIn | symbols/words |", "|---|---|---|---|---|---|---|---|---|"]
-    for c, v in s["scenes"].items():
-        cnt = v.get("counts", {})
-        md.append(f"| {c} | {v['role']} | {v['duration']} | {v.get('moving_share', '-')} / "
-                  f"{v.get('moving_share_raw', '-')} | {v.get('longest_frozen_narrated_s', '-')} | "
-                  f"{v.get('emphasis_narrated_share', '-')} | {sum(x for k, x in cnt.items() if k in TRANSFORMS)} | "
-                  f"{cnt.get('FadeIn', 0)} | {v['narration']['notation']}/{v['narration']['words']} |")
+    md += [""] + checks.md_table(
+        ["Scene", "Role", "s", "moving (content / raw)", "longest frozen narrated (s)", "emphasis narrated",
+         "transforms", "FadeIn", "symbols/words"],
+        ([c, v["role"], v["duration"], f"{v.get('moving_share', '-')} / {v.get('moving_share_raw', '-')}",
+          v.get("longest_frozen_narrated_s", "-"), v.get("emphasis_narrated_share", "-"),
+          sum(x for k, x in v.get("counts", {}).items() if k in TRANSFORMS), v.get("counts", {}).get("FadeIn", 0),
+          f"{v['narration']['notation']}/{v['narration']['words']}"] for c, v in s["scenes"].items()))
     if fd.items:
-        md += ["", "| Severity | Check | Where | t (s) | Detail |", "|---|---|---|---|---|"]
-        md += [f"| {x['severity']} | {x['check']} | {x['where']} | {'' if x['t'] is None else x['t']} | "
-               f"{x['detail'].replace('|', '/')} |" for x in fd.items]
-    (out / "check_engagement.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+        md += [""] + checks.md_table(["Severity", "Check", "Where", "t (s)", "Detail"], (
+            [x["severity"], x["check"], x["where"], "" if x["t"] is None else x["t"], x["detail"]] for x in fd.items))
+    checks.write_report(out, "check_engagement", a.stage, fd.items, md, stats=s, layout_sha256=s.pop("layout_sha256"))
     for x in fd.items:
         print(f"{x['severity']} {x['check']} {x['where']}{'' if x['t'] is None else ' t=' + str(x['t']) + 's'}: "
               f"{x['detail']}")
-    print(f"check_engagement ({a.stage}): {len(errs)} error(s), {len(warns)} warning(s); {rel(out / 'check_engagement.md')}")
-    return 1 if errs else 0
+    print(f"check_engagement ({a.stage}): {n_err} error(s), {n_warn} warning(s); {rel(out / 'check_engagement.md')}")
+    return 1 if n_err else 0
 
 
 if __name__ == "__main__":

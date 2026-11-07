@@ -1,53 +1,22 @@
-"""The idea budget: how long an episode needs for what it teaches (rule P18 of config/video.json "pacing").
+#!/usr/bin/env python3
+"""The idea budget: the runtime a video's or an episode's declared ideas need (rule P18).
 
-An episode's length follows from its ideas, not from a fixed target. Every episode of a series plan declares them
-(series.json episodes[].ideas, checked by tools/series.py validate; each video declares where they land in
-video/plan.json "ideas", checked by tools/video/check_pacing.py):
-
-  {"id": "descent", "kind": "star", "text": "the bill drops by at least each step's cost", "uses": ["bill"]}
-
-  kind      "concept" (a new term or symbol the viewer must hold), "claim" (a result that is not starred) or "star"
-            (a boxed or headline result; at most max_stars per episode, at least 90 s apart in the video)
-  id        kebab-case, unique in the series: the same id in plan.json, and when an idea moves to another episode
-  text      what the idea says, in one line
-  uses      ids of the ideas it builds on, in this episode or an earlier one (never a later one)
-  follows   (claims) the id of the idea this one follows from at once: a consequence, said in a sentence or two
-  names     (concepts) the id of an idea already taught that this term only names ("terminal cost" for the end cost):
-            vocabulary, not a new thing to hold
-  pretraining  (concepts) named in the episode's one pretraining segment, before the first starred result
-  example   (claims) the episode's worked-example result (at most max_examples)
-  side      (claims) a side result (at most max_side)
-  seconds   more time than the kind's budget, when the idea needs it (never less)
-
-Budget (pacing.plan; joint pacing recommendation, 2026-11-07): a starred result or a claim of its own (a "key idea")
-75-90 s; a concept 35 s (20 s in the pretraining segment, which allows three per minute: rule P4); a consequence or a
-term that names an idea already taught 10 s (one sentence and its pause; the 20 s between claims of rule P3 is checked
-in the video, where pictures fill it); plus consolidation (per star the 3 s hold and the restatement, per claim a
-pause, per concept a break, a think prompt every 4 minutes, a summary per key idea, the pause after every
-narration block) and the fixed beats (hook, title beat, roadmap, end recap, outro, the recaps of earlier episodes).
-The ideas argued in derivation blocks (slow_roles: starred results, claims and consequences) are read as slow blocks,
-"[slow]" at -15 % (the owner's choice, 2026-11-07), so their time grows by slow_extra (0.08: the ratio of the two
-rates, 92/85; measured 5-8 % on three passages): a slow reading never lets an episode slip past the cap unseen.
-An episode whose ideas need more than episode_max_min, or that has more starred, example or side results than
-allowed, is over-packed: suggest_moves() names what to move to a neighbouring episode, from the declared uses, and
-suggest_cut() what could be left to the explainer instead (ideas nothing later builds on).
-Ideas are declared in story order: an idea that builds on one declared later in the same episode is a warning (the
-viewer would use what has not been taught), ideas that build on each other in a circle an error. A consequence
-follows a starred result or a claim of its own, never another consequence (a chain is a derivation: point it at the
-root, or give the step its own budget), and at most max_consequences_per_idea follow one idea in an episode, so the
-cheap consequence time stays within twice the episode's key ideas. The outline's beat minutes must add up to what the
-ideas need, and a recap's "ideas" (optional) must be taught by the episodes it is from.
+Usage:
+  python3 tools/video/idea_budget.py runs/<run>             # the ideas the run's video is budgeted on
+  python3 tools/video/idea_budget.py series/<slug> <n>      # episode n of a series plan
 """
 from __future__ import annotations
 
+import argparse
 import copy
+import json
 import re
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
-from _common import CONFIG, load_json  # noqa: E402
+from _common import CONFIG, REPO, die, load_json, rel  # noqa: E402
 
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 KINDS = ("concept", "claim", "star")
@@ -76,9 +45,7 @@ def settings() -> dict:
 
 
 def role(idea: dict) -> str:
-    """"star", "key" (a claim with its own explanation), "consequence" (a claim that follows from another idea at
-    once), "term" (a concept that names an idea already taught), "pretraining" (a concept of the pretraining segment)
-    or "concept"."""
+    """star, key (a claim of its own), consequence, term (names an earlier idea), pretraining or concept."""
     k = idea.get("kind")
     if k == "star":
         return "star"
@@ -104,8 +71,7 @@ def role_seconds(idea: dict, cfg: dict) -> tuple[float, float]:
 
 
 def idea_seconds(idea: dict, cfg: dict) -> tuple[float, float]:
-    """(least, most) seconds an idea needs: its role's (role_seconds()), and slow_extra more for the roles argued in
-    slow blocks (slow_roles)."""
+    """(least, most) seconds an idea needs: its role's, and slow_extra more for the roles read in slow blocks."""
     lo, hi = role_seconds(idea, cfg)
     if role(idea) in (cfg.get("slow_roles") or ()):
         f = 1.0 + float(cfg.get("slow_extra") or 0.0)
@@ -114,8 +80,7 @@ def idea_seconds(idea: dict, cfg: dict) -> tuple[float, float]:
 
 
 def estimate(ideas: list[dict], cfg: dict, recap_s: float = 0.0) -> dict:
-    """The runtime an episode's ideas need: {"lo_s", "hi_s", "ideas_s": [lo, hi], "consolidation_s": [lo, hi],
-    "overhead_s", "counts": {role: n}}."""
+    """{"lo_s", "hi_s", "ideas_s", "consolidation_s", "overhead_s", "counts": {role: n}} of a list of ideas."""
     counts = {"star": 0, "key": 0, "consequence": 0, "term": 0, "pretraining": 0, "concept": 0}
     lo = hi = 0.0
     for i in ideas:
@@ -135,6 +100,18 @@ def estimate(ideas: list[dict], cfg: dict, recap_s: float = 0.0) -> dict:
     return {"lo_s": round(overhead + lo + consolidation(lo), 1), "hi_s": round(overhead + hi + consolidation(hi), 1),
             "ideas_s": [lo, hi], "consolidation_s": [round(consolidation(lo), 1), round(consolidation(hi), 1)],
             "overhead_s": overhead, "counts": counts}
+
+
+def budgeted(ideas: list[dict]) -> list[dict]:
+    """The ideas a video's budget counts: concepts, claims and stars, but not a claim that is a step ("of")."""
+    return [i for i in ideas if i.get("kind") in KINDS and not (i.get("kind") == "claim" and i.get("of"))]
+
+
+def planned_ideas(run: Path) -> list[dict]:
+    """The series plan's ideas of a run's episode (episode.json), [] for a standalone run."""
+    ep = run / "episode.json"
+    return [i for i in json.loads(ep.read_text(encoding="utf-8")).get("ideas") or [] if isinstance(i, dict)] \
+        if ep.exists() else []
 
 
 def recap_seconds(ep: dict) -> float:
@@ -169,15 +146,7 @@ def overpacked(ideas: list[dict], cfg: dict, recap_s: float = 0.0) -> list[str]:
 
 
 def suggest_moves(episodes: list[dict], number: int, cfg: dict) -> dict | None:
-    """What to move out of an over-packed episode, from the declared ideas: {"to": episode number, "move": [ids],
-    "fits": bool, "left": estimate of what stays, "there": estimate of the destination with the moved ideas}, or None
-    when the episode has no neighbour or nothing can move.
-
-    The destination is the next episode (the previous one for the last). Stars beyond max_stars move first, those the
-    destination builds on before the others, the later before the earlier; then, while the episode is still over
-    budget, the other ideas no remaining star builds on, again those the destination uses first, the later first. An
-    idea moves with the ideas of its episode that build on it (they cannot stay before it) and with the ideas only it
-    needed."""
+    """What to move from an over-packed episode to a neighbour, with what builds on it and what only it needs."""
     by_num = {e.get("number"): e for e in episodes if isinstance(e, dict)}
     ep = by_num.get(number)
     if not ep or not isinstance(ep.get("ideas"), list):
@@ -259,14 +228,7 @@ def suggest_moves(episodes: list[dict], number: int, cfg: dict) -> dict | None:
 
 
 def suggest_cut(episodes: list[dict], number: int, cfg: dict) -> dict | None:
-    """What an over-packed episode could leave to the explainer instead (rule P18: cut results; the coherence
-    principle: what nothing needs goes): {"cut": [ids], "fits": bool, "left": estimate}, or None. A cut is a leaf
-    group: an idea that no remaining starred result of the episode and nothing in a later episode builds on (its uses,
-    follows, names, recap ideas), with the ideas of the episode that build on it and the prerequisites only the group
-    uses; never a starred result or the worked example. A group made only of consequences (cheap, and usually the
-    "so what") only when there is no other. Among the groups after which even the high estimate fits (else the low
-    one), the one with the fewest ideas, then the larger saving, then the earlier; else the largest saving; and
-    again, until the episode fits."""
+    """What an over-packed episode could leave to the explainer: the smallest groups nothing kept or later needs."""
     by_num = {e.get("number"): e for e in episodes if isinstance(e, dict)}
     ep = by_num.get(number)
     if not ep or not isinstance(ep.get("ideas"), list):
@@ -521,7 +483,7 @@ def _cycle(ideas: list[dict]) -> list[str]:
 
 
 def table(episodes: list[dict], est: dict, cfg: dict) -> list[str]:
-    """The budget of every episode, one line each, for the planner."""
+    """One line per episode: its counts, what its ideas need and its length_min."""
     out = [f"{'ep':>3} {'stars':>5} {'claims':>6} {'conseq':>6} {'concepts':>8}  {'needs (min)':>11}  "
            f"{'length_min':>10}"]
     for e in episodes:
@@ -534,3 +496,48 @@ def table(episodes: list[dict], est: dict, cfg: dict) -> list[str]:
                    f"{c['concept'] + c['pretraining'] + c['term']:>8}  {x['lo_s'] / 60:>5.1f}-{x['hi_s'] / 60:<5.1f}  "
                    f"{e.get('length_min', '-')!s:>10}{flag}")
     return out
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("folder", help="runs/<run>, or series/<slug> with an episode number")
+    ap.add_argument("episode", nargs="?", type=int)
+    a = ap.parse_args()
+    folder = next((p for p in (Path(a.folder), REPO / a.folder) if p.is_dir()), None)
+    if folder is None:
+        die(f"not a folder: {a.folder}")
+    recap = 0.0
+    if (folder / "series.json").exists():
+        if a.episode is None:
+            die("give the episode number: idea_budget.py series/<slug> <n>")
+        ep = next((e for e in load_json(folder / "series.json").get("episodes") or []
+                   if isinstance(e, dict) and e.get("number") == a.episode), None)
+        if ep is None:
+            die(f"{rel(folder)}: no episode {a.episode}")
+        ideas = [i for i in ep.get("ideas") or [] if isinstance(i, dict)]
+        recap, source = recap_seconds(ep), f"episode {a.episode} of {rel(folder / 'series.json')}"
+    elif (folder / "video" / "plan.json").exists() or (folder / "episode.json").exists():
+        ideas, source = planned_ideas(folder), "the series plan (episode.json)"
+        if not ideas:
+            plan = folder / "video" / "plan.json"
+            ideas = budgeted(load_json(plan).get("ideas") or []) if plan.exists() else []
+            source = rel(plan)
+    else:
+        die(f"{a.folder}: neither a run with video/plan.json nor a series with series.json")
+    if not ideas:
+        die(f"no declared ideas in {source}")
+    cfg = settings()
+    est = estimate(ideas, cfg, recap)
+    c = est["counts"]
+    print(f"{len(ideas)} ideas from {source} (stars {c['star']}, key claims {c['key']}, consequences "
+          f"{c['consequence']}, concepts {c['concept'] + c['pretraining'] + c['term']})")
+    print(f"they need {est['lo_s'] / 60:.1f}-{est['hi_s'] / 60:.1f} min: ideas {est['ideas_s'][0] / 60:.1f}-"
+          f"{est['ideas_s'][1] / 60:.1f}, consolidation {est['consolidation_s'][0] / 60:.1f}-"
+          f"{est['consolidation_s'][1] / 60:.1f}, fixed beats and recaps {est['overhead_s'] / 60:.1f}")
+    for why in overpacked(ideas, cfg, recap):
+        print(f"over-packed: {why}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

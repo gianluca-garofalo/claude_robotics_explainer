@@ -1,24 +1,12 @@
 #!/usr/bin/env python3
-"""Reading-time gate: is every text and equation on screen long enough to be read, and is the narration not too fast?
+"""Reading-time check: every text and equation stays on screen long enough to read, and the narration is not too fast.
 
 Usage:
-  python3 tools/video/check_reading.py runs/<run> --stage draft|final
-  python3 tools/video/check_reading.py --layout X.layout.json [--out DIR]          # one scene (tests, PoCs)
+  python3 tools/video/check_reading.py runs/<run> --stage draft|final [--out DIR]
+  python3 tools/video/check_reading.py --layout X.layout.json [--out DIR]          # one scene
 
-Reads the timeline that tools/video/layout_probe.py logs while rendering (when every Text, MathTex and number became
-visible and invisible) and the narration blocks, and applies the house reading model of
-templates/manim/reading_model.py (the repository's copy; constants in config/video.json "reading"):
-  display time   each appearance of a text or equation, against its required reading time (longer when narration
-                 plays meanwhile); below error_fraction of it, or below min_display_s, is an error, otherwise a warning
-  words on screen  words of the visible texts plus the terms of visible equations, at the end of every animation
-  narration rate   words per minute of each voiceover block (meaningful at the final stage, with the real voice)
-  recall load      design warnings (never errors) when narration refers back to an equation that is no longer on
-                   screen (config/video.json "recall": window_s, max_callbacks, phrases, named equations)
-Live readouts (numbers redrawn every frame) and axis numbers are exempt from display time. Drafts use the silent voice
-sized at the configured pace, so draft results approximate the final ones. Writes <out>/check_reading.json and .md
-(default review/design/<stage>/); exit status 1 when there is an error.
-A text carried across a cut (visible at the end of one scene and from the start of the next, in plan order:
-common.py carry_over() and RAScene.carry_in()) is credited with its time in both scenes.
+Checks: display-time, words-on-screen, narration-rate, recall-load (the reading model of
+templates/manim/reading_model.py; thresholds in config/video.json "reading" and "recall"). Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -32,24 +20,11 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 sys.path.insert(0, str(ROOT / "templates" / "manim"))
 sys.path.insert(0, str(ROOT / "tools" / "video"))
-from _common import CONFIG, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, rel, resolve_run, sha256_file  # noqa: E402
 import check_design as CD  # noqa: E402
+import checks  # noqa: E402
 import reading_model as RM  # noqa: E402
-
-
-def intervals(events: list, end: float) -> list[tuple[float, float]]:
-    """Visible intervals from [t, visible, x0, y0, x1, y1, opacity] events."""
-    out, start = [], None
-    for ev in events:
-        t, vis = ev[0], ev[1]
-        if vis and start is None:
-            start = t
-        elif not vis and start is not None:
-            out.append((start, t))
-            start = None
-    if start is not None:
-        out.append((start, end))
-    return out
+from checks import intervals  # noqa: E402
 
 
 def overlap(a: tuple[float, float], spans: list[tuple[float, float]]) -> float:
@@ -57,9 +32,7 @@ def overlap(a: tuple[float, float], spans: list[tuple[float, float]]) -> float:
 
 
 def edge_items(log: dict) -> tuple[dict, dict]:
-    """({content: seconds} of the texts visible from the very start of a scene, {content: seconds} of those visible
-    up to its very end): a text carried across a cut (common.py carry_over() / RAScene.carry_in()) is read over both
-    scenes."""
+    """({content: seconds} of the texts visible from a scene's start, the same for those visible up to its end)."""
     end = float(log.get("duration", 0.0))
     first, last = {}, {}
     for item in log.get("timeline", []):
@@ -76,9 +49,7 @@ def edge_items(log: dict) -> tuple[dict, dict]:
 
 def scene_reading(name: str, log: dict, cfg: dict, findings: list, stats: dict, frame: dict | None = None,
                   design: dict | None = None, before: dict | None = None, after: dict | None = None) -> None:
-    """before / after: {content: seconds} the same text was already visible at the end of the previous scene, or
-    stays visible at the start of the next one (carried across the cut), credited to an appearance at the scene's
-    start or end."""
+    """before / after: {content: seconds} a text carried across the cut shows in the previous or next scene."""
     end = float(log.get("duration", 0.0))
     narr = [(v["start"], v["start"] + v["duration"]) for v in log.get("voiceovers", [])]
     checked = short = 0
@@ -141,14 +112,7 @@ RECALL_DEFAULTS = {"window_s": 60, "max_callbacks": 3,
 
 
 def recall_load(logs: list[tuple[str, dict]], rcfg: dict) -> list[dict]:
-    """Design warnings (never errors) for callbacks to equations that are no longer on screen.
-
-    logs: (scene, layout log) in plan order; the episode clock runs across scenes. A block of narration is a callback
-    when it uses a recall phrase ("recall", "the equation from before", ...) or names an equation ("the Hamilton-Jacobi
-    equation", config/video.json "recall"."named") mentioned earlier, while no equation is on screen, and the equations
-    shown at that first mention left the screen more than window_s seconds ago (any time, for a recall phrase). More
-    than max_callbacks callbacks in one episode get a warning of their own: the material may be too heavy for one video.
-    """
+    """Warnings for narration that recalls or names an equation no longer on screen; logs: (scene, log) in order."""
     cfg = dict(RECALL_DEFAULTS, **rcfg)
     phrases = [re.compile(p, re.I) for p in cfg["phrases"]]
     named = [re.compile(p, re.I) for p in cfg["named"]]
@@ -238,24 +202,19 @@ def main() -> int:
         sha[name] = sha256_file(lp)
         loaded.append((name, log))
     findings += recall_load(loaded, video_cfg.get("recall", {}))
-    errors = sum(f["severity"] == "error" for f in findings)
-    warnings = sum(f["severity"] == "warning" for f in findings)
-    out.mkdir(parents=True, exist_ok=True)
-    data = {"schema_version": 1, "tool": "check_reading", "stage": a.stage, "checked_at": utc_now(), "passed": not errors,
-            "summary": {"errors": errors, "warnings": warnings}, "model": {k: cfg[k] for k in RM.DEFAULTS},
-            "scenes": stats, "layout_sha256": sha, "findings": findings}
-    write_json(out / "check_reading.json", data)
+    errors, warnings = checks.summary(findings).values()
     md = [f"# Reading-time check ({a.stage})", "", f"{errors} error(s), {warnings} warning(s). Model: text at "
           f"{cfg['text_wpm']} words per minute plus {cfg['orientation_s']} s, equations "
           f"{cfg['equation_base_s']} s + {cfg['equation_term_s']} s per term (at least {cfg['equation_min_s']} s), "
-          f"x{cfg['narration_factor']} while narration plays, never under {cfg['min_display_s']} s.", "",
-          "| Scene | Checked | Too short | Peak words on screen | Narration wpm |", "|---|---|---|---|---|"]
-    md += [f"| {n} | {s['appearances_checked']} | {s['too_short']} | {s['peak_words_on_screen']} | "
-           f"{', '.join(map(str, s['narration_wpm'])) or '-'} |" for n, s in stats.items()]
-    md += ["", "| Severity | Check | Scene | t (s) | Detail |", "|---|---|---|---|---|"]
-    md += [f"| {f['severity']} | {f['check']} | {f['scene']} | {f['t']:.2f} | {f['detail'].replace('|', '/')} |"
-           for f in sorted(findings, key=lambda f: (f["severity"] != "error", f["scene"], f["t"]))]
-    (out / "check_reading.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+          f"x{cfg['narration_factor']} while narration plays, never under {cfg['min_display_s']} s.", ""]
+    md += checks.md_table(["Scene", "Checked", "Too short", "Peak words on screen", "Narration wpm"], (
+        [n, s["appearances_checked"], s["too_short"], s["peak_words_on_screen"],
+         ", ".join(map(str, s["narration_wpm"])) or "-"] for n, s in stats.items()))
+    md += [""] + checks.md_table(["Severity", "Check", "Scene", "t (s)", "Detail"], (
+        [f["severity"], f["check"], f["scene"], f"{f['t']:.2f}", f["detail"]]
+        for f in sorted(findings, key=lambda f: (f["severity"] != "error", f["scene"], f["t"]))))
+    checks.write_report(out, "check_reading", a.stage, findings, md, model={k: cfg[k] for k in RM.DEFAULTS},
+                        scenes=stats, layout_sha256=sha)
     for f in findings:
         if f["severity"] == "error":
             print(f"ERROR   {f['scene']} t={f['t']:.2f}s {f['check']}: {f['detail']}")

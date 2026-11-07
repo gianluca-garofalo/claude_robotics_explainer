@@ -1,31 +1,12 @@
 #!/usr/bin/env python3
-"""Number-format check (house rule): every number a viewer sees or hears reads the way a person would write it.
+"""Number-format check: every number on screen, in the narration and in the captions reads as a person writes it.
 
 Usage:
   python3 tools/video/check_numbers.py runs/<run> [--stage draft|final]
   python3 tools/video/check_numbers.py --layout X.layout.json [--srt X.srt] [--text "narration ..."]   # ad hoc
 
-Sources: the layout logs (video/checks/ for drafts, video/renders/ for the final renders): every text item, and live
-readouts sampled over time (the "values" the probe records); the narration of video/scenes/*.py; the captions; the
-plan's chapter titles and thumbnail text. Rules (thresholds in config/video.json "numbers"; templates/manim/common.py
-fmt() writes numbers that pass):
-  digits         more significant digits than the role allows (max_sig: screen 4, live readout 3, narration 3,
-                 captions 4); an error from error_extra_sig more ("V₁ = 0.500000")
-  trailing-zero  a static number ending in zeros after the point ("0.50"; an error from trailing_zeros_error zeros).
-                 Live readouts may keep fixed decimals: their width must not jump while they update
-  exact-zero     "0.00" in static text: write 0, or "exactly 0"
-  signed-zero    a zero with a sign, also in a live readout ("−H = −0.00", "+0.00"): it reads as a small non-zero value
-                 (fmt() and readout() never sign a zero). Math items ignore exponents, subscripts and TeX layout lengths
-                 (\\makebox[5.0em], \\hspace{1cm})
-  precision      one quantity, one precision within a scene: a readout whose number of decimals changes while it
-                 updates; the same label ("V(q) = ...") with different decimals; two numbers on screen together that
-                 agree within compare_rel_tol but not in decimals ("sum = 1.28" beside "∫ L dt = 1.277")
-  minus          a hyphen before a digit in on-screen text: use the minus sign − (U+2212)
-  sci            e-notation on screen ("1e-12"): write 10⁻¹²
-  unit-space     a number glued to a unit ("1.2s"; the units list)
-  spoken         narration or captions that read out more digits than narration_max_spoken_digits ("zero point five
-                 zero zero zero zero zero"), or write such a number
-Writes review/design/<stage>/check_numbers.json and .md; exit status 1 when there is an error.
+Rules: digits, trailing-zero, exact-zero, signed-zero, precision, minus, sci, unit-space, spoken (thresholds in
+config/video.json "numbers"). Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -33,26 +14,27 @@ import argparse
 import json
 import re
 import sys
+from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
+import checks  # noqa: E402
 import voice_script as VS  # noqa: E402
 
-HELPERS = {"common.py", "voice.py", "reading_model.py"}
 DEFAULTS = {"max_sig": {"screen": 4, "readout": 3, "narration": 3, "captions": 4}, "error_extra_sig": 2,
             "trailing_zeros_error": 3, "compare_rel_tol": 0.02, "narration_max_spoken_digits": 3,
             "units": ["s", "ms", "rad", "deg", "m", "cm", "mm", "kg", "N", "Nm", "Hz", "kHz", "J", "W"]}
 NUM = re.compile(r"(?<![\w.\\^_])([−\-+]?)(\d+(?:\.\d+)?)(?:[eE]([−\-+]?\d+))?")
 LABELLED = re.compile(r"([^=,;:\n]{1,40}?)\s*=\s*[−\-+]?(\d+(?:\.\d+)?)")
-DIGIT_WORDS = {"zero": 0, "oh": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7,
-               "eight": 8, "nine": 9}
 SPOKEN = re.compile(r"\bpoint((?:\s+(?:zero|oh|one|two|three|four|five|six|seven|eight|nine)\b)+)", re.I)
 TEX_NOISE = re.compile(r"\\[a-zA-Z]+\d*|\^\{?\d+\}?|_\{?\d+\}?")
 TEX_DIM = re.compile(r"(?:(?<=[\[{])|(?<=\\kern)|(?<=\\mkern)|(?<=\\hskip)|(?<=\\vskip)|(?<=\\mskip))\s*[−\-+]?\d*\.?\d+"
                      r"\s*(?:em|ex|pt|bp|mu|sp|pc|dd|cc|cm|mm|in)\b")      # layout lengths: \makebox[5.0em], \hspace{1cm}
+Findings = partial(checks.Findings, "rule", "severity", "source", "where", "match", "detail",
+                   key=("rule", "source", "where", "match"))
 
 
 def settings() -> dict:
@@ -62,9 +44,7 @@ def settings() -> dict:
 
 
 def numbers_in(text: str, kind: str = "text") -> list[dict]:
-    """Numbers in a piece of text: {raw, value, decimals, sig, trailing, sci, start}. LaTeX commands, exponents,
-    subscripts and layout lengths are ignored in math items (\\tfrac12, q^2 and \\makebox[5.0em] hold no numbers a
-    viewer reads as values)."""
+    """Numbers in a text (in math, not LaTeX commands, exponents, subscripts or layout lengths)."""
     blank = lambda m: " " * len(m.group())  # noqa: E731
     src = TEX_NOISE.sub(blank, TEX_DIM.sub(blank, text)) if kind == "math" else text
     out = []
@@ -81,28 +61,13 @@ def numbers_in(text: str, kind: str = "text") -> list[dict]:
     return out
 
 
-class Findings:
-    def __init__(self):
-        self.items: list[dict] = []
-        self._seen = set()
-
-    def add(self, rule, severity, source, where, match, detail):
-        key = (rule, source, where, match)
-        if key in self._seen:
-            return
-        self._seen.add(key)
-        self.items.append({"rule": rule, "severity": severity, "source": source, "where": where, "match": match,
-                           "detail": detail})
-
-
 def label_key(label: str) -> str:
     return re.sub(r"\\[ ,;:!]|\\q?quad|\s+", "", label)
 
 
-def check_static(text: str, kind: str, role: str, source: str, where: str, cfg: dict, fd: Findings,
+def check_static(text: str, kind: str, role: str, source: str, where: str, cfg: dict, fd: checks.Findings,
                  live: bool = False, fixed: dict | None = None) -> None:
-    """Digits, trailing zeros, exact and signed zeros, minus, sci and unit spacing of one text. `fixed`: labels shown several
-    times at one precision (one quantity in a legend or table), whose trailing zeros keep the precision aligned."""
+    """The rules of one text but precision; `fixed`: labels shown at one precision, whose trailing zeros align."""
     max_sig = cfg["max_sig"].get(role, 4)
     aligned = set()
     for m in LABELLED.finditer(text):
@@ -139,7 +104,7 @@ def check_static(text: str, kind: str, role: str, source: str, where: str, cfg: 
             fd.add("unit-space", "warning", source, where, m.group(), "put a space between the number and its unit")
 
 
-def check_spoken(text: str, source: str, where: str, cfg: dict, fd: Findings) -> None:
+def check_spoken(text: str, source: str, where: str, cfg: dict, fd: checks.Findings) -> None:
     lim = cfg["narration_max_spoken_digits"]
     for m in SPOKEN.finditer(text):
         words = m.group(1).split()
@@ -163,7 +128,7 @@ def scene_order(run: Path | None) -> list[str]:
     return [s["class"] for s in json.loads(pp.read_text(encoding="utf-8")).get("scenes", [])] if pp.exists() else []
 
 
-def check_layout(name: str, log: dict, cfg: dict, fd: Findings) -> dict:
+def check_layout(name: str, log: dict, cfg: dict, fd: checks.Findings) -> dict:
     """On-screen numbers of one scene: static texts, live readouts over time, and the precision rules."""
     stats = {"text_items": 0, "live_items": 0, "samples": 0}
     by_label: dict[str, set] = {}
@@ -232,19 +197,13 @@ def check_layout(name: str, log: dict, cfg: dict, fd: Findings) -> dict:
     return stats
 
 
-def srt_cues(path: Path) -> list[str]:
-    out, cur = [], []
-    for ln in path.read_text(encoding="utf-8").splitlines() + [""]:
-        if not ln.strip():
-            if cur:
-                out.append(" ".join(cur))
-            cur = []
-        elif "-->" not in ln and not ln.strip().isdigit():
-            cur.append(ln.strip())
-    return out
+def check_captions(path: Path, cfg: dict, fd: checks.Findings) -> None:
+    for k, cue in enumerate(checks.captions(path)):
+        check_spoken(cue, "captions", f"{path.name} cue {k + 1}", cfg, fd)
+        check_static(cue, "text", "captions", "captions", f"{path.name} cue {k + 1}", cfg, fd)
 
 
-def check_run(run: Path, stage: str, cfg: dict, fd: Findings) -> dict:
+def check_run(run: Path, stage: str, cfg: dict, fd: checks.Findings) -> dict:
     folder = run / "video" / ("checks" if stage == "draft" else "renders")
     order = scene_order(run) or sorted(p.name[:-len(".layout.json")] for p in folder.glob("*.layout.json"))
     scenes = {}
@@ -255,9 +214,7 @@ def check_run(run: Path, stage: str, cfg: dict, fd: Findings) -> dict:
         log_all = json.loads(lp.read_text(encoding="utf-8"))
         log = log_all["scenes"].get(name) or next(iter(log_all["scenes"].values()), {})
         scenes[name] = dict(check_layout(name, log, cfg, fd), layout_sha256=sha256_file(lp))
-    for f in sorted((run / "video" / "scenes").glob("*.py")):
-        if f.name in HELPERS:
-            continue
+    for f in checks.scene_files(run):
         for i, (key, text) in enumerate(VS.blocks(f)):
             text = VS.spoken(text) if key else text        # the pacing markup ([pause 2.5]) is not a spoken number
             if text:
@@ -266,9 +223,7 @@ def check_run(run: Path, stage: str, cfg: dict, fd: Findings) -> dict:
                 check_static(text, "text", "narration", "narration", where, cfg, fd)
     srts = sorted(folder.glob("*.srt")) + (sorted((run / "video" / "final").glob("*.srt")) if stage == "final" else [])
     for p in srts:
-        for k, cue in enumerate(srt_cues(p)):
-            check_spoken(cue, "captions", f"{p.name} cue {k + 1}", cfg, fd)
-            check_static(cue, "text", "captions", "captions", f"{p.name} cue {k + 1}", cfg, fd)
+        check_captions(p, cfg, fd)
     pp = run / "video" / "plan.json"
     if pp.exists():
         plan = json.loads(pp.read_text(encoding="utf-8"))
@@ -281,22 +236,15 @@ def check_run(run: Path, stage: str, cfg: dict, fd: Findings) -> dict:
     return scenes
 
 
-def write_report(out: Path, stage: str, fd: Findings, scenes: dict) -> dict:
-    errors = sum(f["severity"] == "error" for f in fd.items)
-    warnings = sum(f["severity"] == "warning" for f in fd.items)
-    data = {"schema_version": 1, "tool": "check_numbers", "stage": stage, "checked_at": utc_now(),
-            "passed": errors == 0, "summary": {"errors": errors, "warnings": warnings}, "scenes": scenes,
-            "findings": fd.items}
-    out.mkdir(parents=True, exist_ok=True)
-    write_json(out / "check_numbers.json", data)
+def write_report(out: Path, stage: str, fd: checks.Findings, scenes: dict) -> None:
+    errors, warnings = checks.summary(fd.items).values()
     md = [f"# Number format ({stage})", "", f"{errors} error(s), {warnings} warning(s); rules in config/video.json "
           "\"numbers\" (format numbers with fmt() in templates/manim/common.py).", ""]
     if fd.items:
-        md += ["| Severity | Rule | Source | Where | Match | Detail |", "|---|---|---|---|---|---|"]
-        md += [f"| {f['severity']} | {f['rule']} | {f['source']} | {f['where']} | {f['match'].replace('|', '/')} | "
-               f"{f['detail'].replace('|', '/')} |" for f in sorted(fd.items, key=lambda f: f['severity'] != 'error')]
-    (out / "check_numbers.md").write_text("\n".join(md) + "\n", encoding="utf-8")
-    return data
+        md += checks.md_table(["Severity", "Rule", "Source", "Where", "Match", "Detail"], (
+            [f["severity"], f["rule"], f["source"], f["where"], f["match"], f["detail"]]
+            for f in sorted(fd.items, key=lambda f: f["severity"] != "error")))
+    checks.write_report(out, "check_numbers", stage, fd.items, md, scenes=scenes)
 
 
 def main() -> int:
@@ -310,32 +258,24 @@ def main() -> int:
     cfg, fd = settings(), Findings()
     if a.run:
         run = resolve_run(a.run)
-        scenes = check_run(run, a.stage, cfg, fd)
-        data = write_report(run / "review" / "design" / a.stage, a.stage, fd, scenes)
+        write_report(run / "review" / "design" / a.stage, a.stage, fd, check_run(run, a.stage, cfg, fd))
         where = rel(run / "review" / "design" / a.stage / "check_numbers.md")
     elif a.layout or a.srt or a.text:
-        scenes = {}
         for lp in a.layout:
-            log_all = json.loads(Path(lp).read_text(encoding="utf-8"))
-            for name, log in log_all.get("scenes", {}).items():
-                scenes[name] = check_layout(name, log, cfg, fd)
+            for name, log in json.loads(Path(lp).read_text(encoding="utf-8")).get("scenes", {}).items():
+                check_layout(name, log, cfg, fd)
         for p in a.srt:
-            for k, cue in enumerate(srt_cues(Path(p))):
-                check_spoken(cue, "captions", f"{Path(p).name} cue {k + 1}", cfg, fd)
-                check_static(cue, "text", "captions", "captions", f"{Path(p).name} cue {k + 1}", cfg, fd)
+            check_captions(Path(p), cfg, fd)
         for i, t in enumerate(a.text):
             check_spoken(t, "narration", f"--text {i + 1}", cfg, fd)
             check_static(t, "text", "narration", "narration", f"--text {i + 1}", cfg, fd)
-        data = {"summary": {"errors": sum(f["severity"] == "error" for f in fd.items),
-                            "warnings": sum(f["severity"] == "warning" for f in fd.items)}}
         where = "(ad hoc)"
     else:
         ap.error("give a run, or --layout/--srt/--text")
     for f in fd.items:
         print(f"{f['severity'].upper():7} {f['source']} {f['where']}: {f['rule']} '{f['match']}' ({f['detail']})")
-    errors = data["summary"]["errors"]
-    print(f"check_numbers: {'FAIL' if errors else 'ok'} ({errors} error(s), {data['summary']['warnings']} warning(s)); "
-          f"{where}")
+    errors, warnings = checks.summary(fd.items).values()
+    print(f"check_numbers: {'FAIL' if errors else 'ok'} ({errors} error(s), {warnings} warning(s)); {where}")
     return 1 if errors else 0
 
 

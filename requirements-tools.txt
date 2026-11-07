@@ -4,4 +4,5 @@ numpy>=1.26
 pillow>=10
 jsonschema>=4.18
 beautifulsoup4>=4.12
+coloraide>=8
 srt>=3.5

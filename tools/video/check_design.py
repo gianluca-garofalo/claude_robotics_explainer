@@ -1,44 +1,12 @@
 #!/usr/bin/env python3
-"""Deterministic design checks of rendered scenes, from the layout log and the frames (Remaining Action house rules).
+"""Design checks of rendered scenes, from their layout logs and frames.
 
 Usage:
-  python3 tools/video/check_design.py runs/<run> --stage draft     # video/checks/<Class>_ql.mp4 + <Class>.layout.json
-  python3 tools/video/check_design.py runs/<run> --stage final     # video/renders/<Class>.mp4 + layout, thumbnail
-  python3 tools/video/check_design.py --layout X.layout.json [--video X.mp4] [--out DIR]   # one scene (tests, PoCs)
+  python3 tools/video/check_design.py runs/<run> --stage draft|final [--out DIR] [--no-frames]
+  python3 tools/video/check_design.py --layout X.layout.json [--video X.mp4] [--out DIR]   # one scene
 
-Checks, at the end of every animation ("settled" snapshots of tools/video/layout_probe.py) unless said otherwise:
-  spacing       text closer than min_gap_warn (error below min_gap_error) to a text of another group, to an axis
-                line beside it, or to any strong stroke (curve, arrow, plot line, outline: strong_stroke_width and
-                strong_stroke_contrast; faint grid strokes are skipped). A label made with common.py attach() is
-                exempt from its own object's strokes; the crossing rule (overlap) still applies to it
-                (config/video.json "design")
-  alignment     (warnings) three or more texts of one kind and size stacked in a column, or set in a row, whose left
-                edges, centres or right edges (rows: centres or bottoms) are almost but not quite aligned: all within
-                align_max but none within align_tol, or all but one aligned and the odd one off by less than
-                align_outlier_max (common.py legend_table() aligns by construction)
-  panels        (warnings) side-by-side panels (content separated by an empty vertical gutter of at least
-                panel_gutter_min) whose content bottoms differ by more than panel_bottom_diff_warn while their centres
-                differ by more than panel_centre_diff_warn (one side ends much higher), or a panel with a hole: an
-                empty block inside its own box larger than panel_empty_warn of it; the outro is exempt
-  overlap       text on text; text crossed by a strong stroke (curve, axis, arrow: width and contrast in config) or
-                covered by a filled shape drawn after it. Thin, low-contrast strokes crossing text are warnings.
-  safe-area     text outside the EBU R 95 action-safe area (error) or graphics-safe area (warning)
-  glyph-size    cap height at 1080 lines and at a phone-sized picture (config phone_height_px)
-  contrast      WCAG 2.x contrast of each text against what is behind it (background and filled shapes, with opacity)
-  palette       semantic colours used together that collapse under protanopia, deuteranopia or tritanopia
-                (Machado et al. 2009 simulation, CIEDE2000 difference), and colours outside the palette
-  clutter       visible top-level elements and text items at once (the cells of one group on one line, a table row,
-                count as one item)
-  space         (warnings) how the graphics-safe area is used: content coverage, left/right and top/bottom balance,
-                a large empty block while the content crowds one side, a small picture (config "space_*")
-  motion        during animations, from the probe's 15 fps timeline: two opaque texts overlapping while something
-                moves (warning, error when it lasts), and live readouts whose width changes as they update
-  margins       non-background pixels in the action-safe margin of sampled frames (needs Pillow; warning)
-  thumbnail     (final stage) the thumbnail text at 168 x 94 px: cap height, contrast, word count; the picture's
-                ink at that size (thumbnail_min_ink, warning); nothing busy behind the title: no frame text under it, edge density and luminance spread (needs Pillow)
-Frames at every settled time and every sample_interval_s are saved with a contact sheet for the video-design-reviewer.
-Thresholds: config/video.json "design" and "palette". Writes <out>/check_design.json and .md (default
-review/design/<stage>/); exit status 1 when there is an error. Pure Python except frames, margins and thumbnail.
+Checks: spacing, alignment, panels, overlap, safe-area, glyph-size, contrast, palette, clutter, space, motion,
+margins, thumbnail (thresholds in config/video.json "design" and "palette"). Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -49,17 +17,20 @@ import re
 import shutil
 import subprocess
 import sys
+from functools import lru_cache, partial
 from pathlib import Path
 
+from coloraide import Color
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import checks  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
 
 CAP_PER_FONT = {"text": 0.010125, "math": 0.0070875}     # cap height (Manim units) per font-size unit, measured
-MACHADO = {  # Machado, Oliveira and Fernandes (2009), severity 1.0, applied to linear RGB
-    "protanopia": ((0.152286, 1.052583, -0.204868), (0.114503, 0.786281, 0.099216), (-0.003882, -0.048116, 1.051998)),
-    "deuteranopia": ((0.367322, 0.860646, -0.227968), (0.280085, 0.672501, 0.047413), (-0.011820, 0.042940, 0.968881)),
-    "tritanopia": ((1.255528, -0.076749, -0.178779), (-0.078411, 0.930809, 0.147602), (0.004733, 0.691367, 0.303900)),
-}
+CVD = {"protanopia": "protan", "deuteranopia": "deutan", "tritanopia": "tritan"}
+Report = partial(checks.Findings, "check", "severity", "scene", "t", "detail", key=("check", "scene"), count=True,
+                 t_digits=2, items=())
 
 
 # --------------------------------------------------------------------------- colour
@@ -68,88 +39,27 @@ def hex_rgb(h: str) -> tuple[float, float, float]:
     return tuple(int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
 
 
-def lin(c: float) -> float:
-    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-
-
-def unlin(c: float) -> float:
-    c = min(max(c, 0.0), 1.0)
-    return 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
-
-
 def luminance(rgb) -> float:
-    r, g, b = (lin(c) for c in rgb)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    return Color("srgb", list(rgb)).luminance()
 
 
+@lru_cache(maxsize=4096)
 def contrast(rgb1, rgb2) -> float:
-    a, b = sorted((luminance(rgb1), luminance(rgb2)), reverse=True)
-    return (a + 0.05) / (b + 0.05)
+    """WCAG 2.x contrast ratio of two sRGB colours."""
+    return Color("srgb", list(rgb1)).contrast(Color("srgb", list(rgb2)), method="wcag21")
 
 
 def blend(top, alpha: float, bottom):
     return tuple(alpha * t + (1 - alpha) * b for t, b in zip(top, bottom))
 
 
-def simulate(rgb, kind: str):
-    m = MACHADO[kind]
-    v = [lin(c) for c in rgb]
-    return tuple(unlin(sum(m[i][j] * v[j] for j in range(3))) for i in range(3))
-
-
-def lab(rgb):
-    r, g, b = (lin(c) for c in rgb)
-    x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
-    y = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
-
-    def f(t):
-        return t ** (1 / 3) if t > (6 / 29) ** 3 else t / (3 * (6 / 29) ** 2) + 4 / 29
-    return 116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))
-
-
-def ciede2000(lab1, lab2) -> float:
-    L1, a1, b1 = lab1
-    L2, a2, b2 = lab2
-    c1, c2 = math.hypot(a1, b1), math.hypot(a2, b2)
-    cm = (c1 + c2) / 2
-    g = 0.5 * (1 - math.sqrt(cm ** 7 / (cm ** 7 + 25 ** 7)))
-    a1p, a2p = (1 + g) * a1, (1 + g) * a2
-    c1p, c2p = math.hypot(a1p, b1), math.hypot(a2p, b2)
-    h1p = math.degrees(math.atan2(b1, a1p)) % 360 if c1p else 0.0
-    h2p = math.degrees(math.atan2(b2, a2p)) % 360 if c2p else 0.0
-    dLp, dCp = L2 - L1, c2p - c1p
-    if c1p * c2p == 0:
-        dhp = 0.0
-    elif abs(h2p - h1p) <= 180:
-        dhp = h2p - h1p
-    else:
-        dhp = h2p - h1p - 360 if h2p > h1p else h2p - h1p + 360
-    dHp = 2 * math.sqrt(c1p * c2p) * math.sin(math.radians(dhp / 2))
-    Lm, cmp_ = (L1 + L2) / 2, (c1p + c2p) / 2
-    if c1p * c2p == 0:
-        hm = h1p + h2p
-    elif abs(h1p - h2p) <= 180:
-        hm = (h1p + h2p) / 2
-    else:
-        hm = (h1p + h2p + 360) / 2 if h1p + h2p < 360 else (h1p + h2p - 360) / 2
-    t = (1 - 0.17 * math.cos(math.radians(hm - 30)) + 0.24 * math.cos(math.radians(2 * hm))
-         + 0.32 * math.cos(math.radians(3 * hm + 6)) - 0.20 * math.cos(math.radians(4 * hm - 63)))
-    dtheta = 30 * math.exp(-(((hm - 275) / 25) ** 2))
-    rc = 2 * math.sqrt(cmp_ ** 7 / (cmp_ ** 7 + 25 ** 7))
-    sl = 1 + 0.015 * (Lm - 50) ** 2 / math.sqrt(20 + (Lm - 50) ** 2)
-    sc, sh = 1 + 0.045 * cmp_, 1 + 0.015 * cmp_ * t
-    rt = -math.sin(math.radians(2 * dtheta)) * rc
-    return math.sqrt((dLp / sl) ** 2 + (dCp / sc) ** 2 + (dHp / sh) ** 2 + rt * (dCp / sc) * (dHp / sh))
-
-
 def cvd_distance(h1: str, h2: str) -> tuple[float, str]:
-    """Smallest CIEDE2000 difference of two colours over normal vision and the three dichromacies."""
-    c1, c2 = hex_rgb(h1), hex_rgb(h2)
-    best = (ciede2000(lab(c1), lab(c2)), "normal")
-    for kind in MACHADO:
-        d = ciede2000(lab(simulate(c1, kind)), lab(simulate(c2, kind)))
-        best = min(best, (d, kind))
+    """Smallest CIEDE2000 difference of two colours over normal vision and the three dichromacies (Machado et al.)."""
+    c1, c2 = Color("srgb", list(hex_rgb(h1))), Color("srgb", list(hex_rgb(h2)))
+    best = (c1.delta_e(c2, method="2000", space="lab-d65"), "normal")
+    for kind, name in CVD.items():
+        a, b = (c.filter(name, method="machado").clip() for c in (c1, c2))
+        best = min(best, (a.delta_e(b, method="2000", space="lab-d65"), kind))
     return best
 
 
@@ -176,12 +86,7 @@ def seg_gap(p, q, box) -> tuple[float, float]:
     vx, vy = q[0] - p[0], q[1] - p[1]
     n2 = vx * vx + vy * vy or 1e-12
     along = ((cx - p[0]) * vx + (cy - p[1]) * vy) / n2
-    pts = [(p[0] + vx * k / 20, p[1] + vy * k / 20) for k in range(21)]
-    def d(pt):
-        dx = max(box[0] - pt[0], 0.0, pt[0] - box[2])
-        dy = max(box[1] - pt[1], 0.0, pt[1] - box[3])
-        return math.hypot(dx, dy)
-    return min(d(pt) for pt in pts), along
+    return min(_pt_box((p[0] + vx * k / 20, p[1] + vy * k / 20), box) for k in range(21)), along
 
 
 def inter(a, b) -> float:
@@ -243,8 +148,7 @@ def contains(outer, inner, tol: float = 0.0) -> bool:
 
 
 def front(snap: dict, frame: dict, d: dict) -> tuple[list, list, list]:
-    """(texts, paths, veils) of a snapshot, without what lies under a veil (a large, mostly opaque shape) or is
-    faded below faded_opacity."""
+    """(texts, paths, veils) of a snapshot, leaving out what lies under a veil (a large opaque shape) or is faded."""
     fw, fh = frame.get("width", 14.222), frame.get("height", 8.0)
     paths = snap.get("paths", [])
     veils = [p for p in paths if p["fill_opacity"] >= d["veil_opacity"] and area(p["bbox"]) >= d["veil_area"] * fw * fh]
@@ -254,8 +158,7 @@ def front(snap: dict, frame: dict, d: dict) -> tuple[list, list, list]:
 
 
 def hidden(paths: list, lo: int, hi: int, box) -> bool:
-    """True when an opaque filled shape drawn between drawing orders lo and hi covers the box: whatever was drawn
-    at lo is hidden there (a card or panel over a curve), so it cannot clash with what is drawn at hi."""
+    """True when an opaque shape drawn between drawing orders lo and hi covers the box (a card over a curve)."""
     return any(lo < p["order"] < hi and p["fill_opacity"] >= 0.8 and contains(p["bbox"], box) for p in paths)
 
 
@@ -321,18 +224,18 @@ def space_findings(name: str, t: float, u: dict, d: dict, rep, role: str | None 
             continue
         if abs(v) > bal:
             rep.add("space", "warning", name, t, f"the content sits in the {sides[v > 0]} part of the frame (centre "
-                    f"of mass at {v:+.2f}, 0 = centred; limit {bal})", ("balance", axis, sides[v > 0]))
+                    f"of mass at {v:+.2f}, 0 = centred; limit {bal})", key=("balance", axis, sides[v > 0]))
     if role != "outro" and u["empty"] >= d.get("space_empty_region_warn", 0.4) and \
             u["coverage"] >= d.get("space_empty_min_coverage", 0.15):
         rep.add("space", "warning", name, t, f"a large empty block ({100 * u['empty']:.0f} % of the safe area) while "
-                f"the content crowds the rest: spread or enlarge it", ("empty",))
+                f"the content crowds the rest: spread or enlarge it", key=("empty",))
     if u.get("graphic") and u["coverage"] < d.get("space_min_coverage_warn", 0.1):
         rep.add("space", "warning", name, t, f"the picture covers {100 * u['coverage']:.0f} % of the safe area",
-                ("sparse",))
+                key=("sparse",))
     ext = d.get("space_min_extent_warn", 0.45)
     if u.get("graphic") and u["extent"][0] < ext and u["extent"][1] < ext:
         rep.add("space", "warning", name, t, f"the content spans only {100 * u['extent'][0]:.0f} % x "
-                f"{100 * u['extent'][1]:.0f} % of the safe area: scale the picture up", ("small",))
+                f"{100 * u['extent'][1]:.0f} % of the safe area: scale the picture up", key=("small",))
 
 
 def _components(n: int, edges: list[tuple[int, int]]) -> list[list[int]]:
@@ -352,9 +255,7 @@ def _components(n: int, edges: list[tuple[int, int]]) -> list[list[int]]:
 
 
 def alignment_findings(name: str, t: float, texts: list, d: dict, rep) -> None:
-    """Columns (texts stacked vertically) and rows (side by side, similar heights) of three or more settled texts whose
-    edges are almost aligned: within align_max of each other but none within align_tol, or all but one aligned and
-    the odd one off by less than align_outlier_max."""
+    """Columns and rows of three or more texts of one kind and size whose edges are almost, but not quite, aligned."""
     tol, mx, out = d.get("align_tol", 0.03), d.get("align_max", 0.4), d.get("align_outlier_max", 0.8)
     stack_gap, ratio = d.get("align_stack_gap", 0.6), d.get("align_row_height_ratio", 0.35)
     items = [x for x in texts if not x.get("axis") and not x.get("live")]
@@ -397,8 +298,8 @@ def alignment_findings(name: str, t: float, texts: list, d: dict, rep) -> None:
             if spreads[k] < mx:
                 rep.add("alignment", "warning", name, t, f"{len(group)} texts in a {kind} ({shown}) are almost "
                         f"aligned: their {measures[k][0]} differ by {spreads[k]:.2f} units (aligned within {tol}): "
-                        "align them (legend_table())", ("near", kind) + tuple(sorted(items[i]["id"] for i in group)),
-                        names)
+                        "align them (legend_table())", key=("near", kind) + tuple(sorted(items[i]["id"] for i in group)),
+                        items=names)
                 continue
             for (what, _), v in zip(measures, vals):
                 for o in range(len(v)):
@@ -407,7 +308,7 @@ def alignment_findings(name: str, t: float, texts: list, d: dict, rep) -> None:
                     if max(rest) - min(rest) <= tol and tol < off < out:
                         rep.add("alignment", "warning", name, t, f"{len(group)} texts in a {kind}: the {what} of "
                                 f"{len(rest)} align, '{names[o]}' is {off:.2f} units off: align it (legend_table())",
-                                ("outlier", kind, what) + tuple(sorted(items[i]["id"] for i in group)), names)
+                                key=("outlier", kind, what) + tuple(sorted(items[i]["id"] for i in group)), items=names)
                         break
                 else:
                     continue
@@ -415,8 +316,7 @@ def alignment_findings(name: str, t: float, texts: list, d: dict, rep) -> None:
 
 
 def panel_findings(name: str, t: float, texts: list, paths: list, gfx, d: dict, rep, role: str | None = None) -> None:
-    """Side-by-side panels: content separated by an empty vertical gutter. One side ending much higher than the other,
-    or a panel that leaves a large block of its own area empty."""
+    """Side-by-side panels (split by an empty gutter): one ending much higher than the other, or one with a hole."""
     if role == "outro":
         return
     gutter, header = d.get("panel_gutter_min", 0.5), gfx[3] - d.get("panel_header_band", 0.9)
@@ -443,7 +343,7 @@ def panel_findings(name: str, t: float, texts: list, paths: list, gfx, d: dict, 
             hi = "left" if ea[1] > eb[1] else "right"
             rep.add("panels", "warning", name, t, f"side-by-side panels: the {hi} one ends {dbot:.2f} units higher "
                     f"(bottoms {ea[1]:.2f} and {eb[1]:.2f}, centres {dcen:.2f} apart): move its content down or spread "
-                    f"it", ("balance", round(ea[0], 1), round(eb[0], 1)))
+                    f"it", key=("balance", round(ea[0], 1), round(eb[0], 1)))
     cols, rows = d.get("space_grid", [48, 27])
     cw, rh = width / cols, (gfx[3] - gfx[1]) / rows
     for g, e in zip(panels, ext):
@@ -463,11 +363,11 @@ def panel_findings(name: str, t: float, texts: list, paths: list, gfx, d: dict, 
         frac = largest_empty(grid) / (nc * nr)
         if frac > d.get("panel_empty_warn", 0.35):
             rep.add("panels", "warning", name, t, f"the panel at x {e[0]:.1f} to {e[2]:.1f} leaves {100 * frac:.0f} % of "
-                    f"its area empty in one block: fill or enlarge its content", ("empty", round(e[0], 1)))
+                    f"its area empty in one block: fill or enlarge its content", key=("empty", round(e[0], 1)))
 
 
 def motion_checks(name: str, log: dict, d: dict, rep) -> dict:
-    """Transient text overlaps and readout width changes, from the probe's timeline (state changes at up to 15 fps)."""
+    """Text overlaps while things move and readouts whose width changes, from the probe's timeline."""
     items = [x for x in log.get("timeline", []) if not x.get("axis") and x.get("events")]
     times = sorted({ev[0] for x in items for ev in x["events"]})
     state: dict[int, list] = {}
@@ -507,7 +407,7 @@ def motion_checks(name: str, log: dict, d: dict, rep) -> dict:
         if dur >= d.get("motion_overlap_warn_s", 0.25):
             sev = "error" if dur >= d.get("motion_overlap_error_s", 1.5) else "warning"
             rep.add("motion", sev, name, t0, f"'{label(by_id[a])}' and '{label(by_id[b])}' overlap for {dur:.2f} s "
-                    "while things move", ("overlap",) + tuple(sorted((a, b))), [label(by_id[a]), label(by_id[b])])
+                    "while things move", key=("overlap",) + tuple(sorted((a, b))), items=[label(by_id[a]), label(by_id[b])])
     jitter = 0.0
     for x in items:
         if not x.get("live"):
@@ -522,7 +422,7 @@ def motion_checks(name: str, log: dict, d: dict, rep) -> dict:
             if j > d.get("readout_width_jitter_warn", 0.12):
                 rep.add("motion", "warning", name, x["events"][0][0], f"live readout '{label(x)}' changes width by "
                         f"{j:.2f} units while it updates: fixed decimals keep it steady (readout(..., decimals=k))",
-                        ("jitter", x["id"]), [label(x)])
+                        key=("jitter", x["id"]), items=[label(x)])
     return {"longest_transient_overlap_s": round(worst, 2), "max_readout_width_change": round(jitter, 3)}
 
 
@@ -533,25 +433,8 @@ def _overlap(a, b) -> bool:
 
 
 # --------------------------------------------------------------------------- checks on one scene
-class Report:
-    def __init__(self):
-        self.findings: list[dict] = []
-        self._seen: dict[tuple, dict] = {}
-
-    def add(self, check: str, severity: str, scene: str, t: float, detail: str, key: tuple, items=()):
-        k = (check, scene) + key
-        if k in self._seen:
-            self._seen[k]["count"] += 1
-            return
-        f = {"check": check, "severity": severity, "scene": scene, "t": round(t, 2), "detail": detail,
-             "items": list(items), "count": 1}
-        self._seen[k] = f
-        self.findings.append(f)
-
-
 def reading_items(texts: list) -> int:
-    """Text items a viewer reads, counting the cells of one group that share a line (a table row split into cells,
-    an equation built from parts) as one item, as if they were a single MathTex."""
+    """Text items a viewer reads: the cells of one group that share a line (a table row) count as one."""
     lines: list[tuple] = []
     for x in sorted(texts, key=lambda x: (x["top"], -x["bbox"][3])):
         b = x["bbox"]
@@ -569,7 +452,8 @@ def label(item: dict) -> str:
     return (c[:48] + "...") if len(c) > 51 else c or f"#{item.get('id')}"
 
 
-def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, rep: Report, role: str | None = None) -> dict:
+def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, rep: checks.Findings,
+                 role: str | None = None) -> dict:
     d = cfg
     fw, fh = frame.get("width", 14.222), frame.get("height", 8.0)
     bg = hex_rgb(frame.get("background", palette.get("background", "#0f172a")))
@@ -604,11 +488,11 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
         if elements > d["max_elements_error"] or elements > d["max_elements_warn"]:
             sev = "error" if elements > d["max_elements_error"] else "warning"
             rep.add("clutter", sev, name, t, f"{elements} visible elements at once (limit {d['max_elements_warn']})",
-                    ("elements",))
+                    key=("elements",))
         if n_read > d["max_text_items_warn"]:
             sev = "error" if n_read > d["max_text_items_error"] else "warning"
             rep.add("clutter", sev, name, t, f"{n_read} text items at once, axis numbers not counted, the cells of "
-                    f"one row counted once (limit {d['max_text_items_warn']})", ("texts",))
+                    f"one row counted once (limit {d['max_text_items_warn']})", key=("texts",))
         colours_here = set()
         for p in front_p:
             for col, on in ((p["stroke_color"], p["stroke_opacity"] >= 0.5 and p["stroke_width"] >= 2),
@@ -630,10 +514,10 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
             # safe areas
             if not contains(act, box, 0.01):
                 rep.add("safe-area", "error", name, t, f"'{label(x)}' reaches outside the action-safe area (EBU R 95)",
-                        (x["id"],), [label(x)])
+                        key=(x["id"],), items=[label(x)])
             elif not contains(gfx, box, 0.01):
                 rep.add("safe-area", "warning", name, t, f"'{label(x)}' reaches outside the graphics-safe area",
-                        (x["id"],), [label(x)])
+                        key=(x["id"],), items=[label(x)])
             # glyph size
             cap = (x.get("font_size") or 0) * CAP_PER_FONT.get(x["kind"], CAP_PER_FONT["text"]) * px_per_unit
             if cap > 0:
@@ -645,8 +529,8 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
                     sev = None
                 if sev:
                     rep.add("glyph-size", sev, name, t, f"'{label(x)}': cap height {cap:.0f} px at 1080p, "
-                            f"{cap * phone_scale:.1f} px on a {d['phone_height_px']} px phone picture", (x["id"],),
-                            [label(x)])
+                            f"{cap * phone_scale:.1f} px on a {d['phone_height_px']} px phone picture", key=(x["id"],),
+                            items=[label(x)])
             # contrast against what is behind (scene background, then filled shapes drawn before the text)
             cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
             behind = bg
@@ -658,7 +542,7 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
             if ratio < d["contrast_error"] or (ratio < d["contrast_warn"] and not large):
                 sev = "error" if ratio < d["contrast_error"] else "warning"
                 rep.add("contrast", sev, name, t, f"'{label(x)}': contrast {ratio:.2f}:1 against its background",
-                        (x["id"],), [label(x)])
+                        key=(x["id"],), items=[label(x)])
             # text on text: glyph boxes (Manim boxes are tight to the ink) that touch by more than ~3 px
             tight = inset(box, 0.01, 0.0)
             for y in front_t[i + 1:]:
@@ -671,14 +555,14 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
                                                                              min(tight[2], other[2]),
                                                                              min(tight[3], other[3])]):
                     rep.add("overlap", "error", name, t, f"'{label(x)}' overlaps '{label(y)}' "
-                            f"({w:.2f} x {hh:.2f} units)", tuple(sorted((x["id"], y["id"]))), [label(x), label(y)])
+                            f"({w:.2f} x {hh:.2f} units)", key=tuple(sorted((x["id"], y["id"]))), items=[label(x), label(y)])
                 elif x["top"] != y["top"] and not (x.get("axis") and y.get("axis")):
                     gap = box_gap(x["bbox"], y["bbox"])     # items of one group (a paragraph, a legend) may sit close
                     if gap < d.get("min_gap_warn", 0.15):
                         sev = "error" if gap < d.get("min_gap_error", 0.05) else "warning"
                         rep.add("spacing", sev, name, t, f"'{label(x)}' and '{label(y)}' are {gap:.2f} units apart "
-                                f"(at least {d.get('min_gap_warn', 0.15)})", ("gap",) + tuple(sorted((x["id"], y["id"]))),
-                                [label(x), label(y)])
+                                f"(at least {d.get('min_gap_warn', 0.15)})", key=("gap",) + tuple(sorted((x["id"], y["id"]))),
+                                items=[label(x), label(y)])
             # an axis line running beside the text (not at its tip, where axis labels belong)
             if not x.get("axis"):
                 for p in front_p:
@@ -687,8 +571,8 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
                         if 0.0 < gap < d.get("min_gap_warn", 0.15) and 0.0 <= along <= 1.0:
                             sev = "error" if gap < d.get("min_gap_error", 0.05) else "warning"
                             rep.add("spacing", sev, name, t, f"'{label(x)}' is {gap:.2f} units from an axis line "
-                                    f"(at least {d.get('min_gap_warn', 0.15)})", ("axis-gap", x["id"], p["id"]),
-                                    [label(x)])
+                                    f"(at least {d.get('min_gap_warn', 0.15)})", key=("axis-gap", x["id"], p["id"]),
+                                    items=[label(x)])
             # strokes through the text, shapes on top of it
             h = max(ink[3] - ink[1], 1e-6)
             for p in front_p:
@@ -705,11 +589,11 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
                         rep.add("overlap", "error" if strong else "warning", name, t,
                                 f"'{label(x)}' is crossed by a {'strong' if strong else 'thin'} stroke "
                                 f"(width {p['stroke_width']}, {p['stroke_color']}) over {inside:.2f} units",
-                                (x["id"], "stroke" if not strong else p["id"]), [label(x)])
+                                key=(x["id"], "stroke" if not strong else p["id"]), items=[label(x)])
                 if p["order"] > x["order"] and p["fill_opacity"] >= 0.5 and inter(ink, p["bbox"]) > 0.1 * area(ink):
                     rep.add("overlap", "error", name, t, f"'{label(x)}' is covered by a filled shape drawn after it "
-                            f"({p['fill_color']}, opacity {p['fill_opacity']})", (x["id"], "covered", p["id"]),
-                            [label(x)])
+                            f"({p['fill_color']}, opacity {p['fill_opacity']})", key=(x["id"], "covered", p["id"]),
+                            items=[label(x)])
             # a strong stroke (curve, arrow, plot line, outline) running close to the text without crossing it
             if not x.get("axis"):
                 gap_warn = d.get("min_gap_warn", 0.15)
@@ -735,7 +619,7 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
                     sev = "error" if gap < d.get("min_gap_error", 0.05) else "warning"
                     rep.add("spacing", sev, name, t, f"'{label(x)}' is {gap:.2f} units from a line (width "
                             f"{p['stroke_width']}, {p['stroke_color']}; at least {gap_warn}): move it clear, or mark a "
-                            "label that points at that object with attach()", ("stroke-gap", x["id"], top_), [label(x)])
+                            "label that points at that object with attach()", key=("stroke-gap", x["id"], top_), items=[label(x)])
     def role(c):
         return semantic[c].split(":")[0] if c in semantic else "off-palette"
     for a, b in sorted(pairs):
@@ -743,9 +627,9 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
         if dist < d["cvd_delta_e_warn"]:
             sev = "error" if dist < d["cvd_delta_e_error"] else "warning"
             rep.add("palette", sev, name, 0.0, f"{a} ({role(a)}) and {b} ({role(b)}) are used together but differ "
-                    f"by only {dist:.1f} (CIEDE2000) for {kind}: label them or change one", (a, b))
+                    f"by only {dist:.1f} (CIEDE2000) for {kind}: label them or change one", key=(a, b))
     for col in sorted(off_palette):
-        rep.add("palette", "warning", name, 0.0, f"colour {col} is not in the palette (config/video.json)", (col,))
+        rep.add("palette", "warning", name, 0.0, f"colour {col} is not in the palette (config/video.json)", key=(col,))
     stats["semantic_colours"] = sorted(used_semantic)
     cov = stats.pop("space_coverage", [])
     stats["space"] = {"mean_coverage": round(sum(cov) / len(cov), 3) if cov else None,
@@ -777,7 +661,7 @@ def extract_frames(video: Path, times: list[float], out: Path) -> list[Path]:
     return files
 
 
-def margin_and_sheet(name: str, frames: list[Path], bg_hex: str, d: dict, rep: Report, sheet: Path) -> None:
+def margin_and_sheet(name: str, frames: list[Path], bg_hex: str, d: dict, rep: checks.Findings, sheet: Path) -> None:
     try:
         from PIL import Image, ImageDraw
     except ImportError:
@@ -799,7 +683,7 @@ def margin_and_sheet(name: str, frames: list[Path], bg_hex: str, d: dict, rep: R
         if hits > 12:
             t = float(f.stem[1:])
             rep.add("margins", "warning", name, t, f"drawn content in the outer {100 * d['action_safe_inset']:.1f} % "
-                    f"margin of the frame ({hits} samples)", ("margin",))
+                    f"margin of the frame ({hits} samples)", key=("margin",))
         thumbs.append((f.stem[1:], im.resize((320, int(320 * h / w)))))
     if not thumbs:
         return
@@ -817,11 +701,11 @@ def margin_and_sheet(name: str, frames: list[Path], bg_hex: str, d: dict, rep: R
 
 
 def pixels(img) -> list:
-    """Pixel values of a Pillow image (get_flattened_data where it exists: getdata is deprecated in Pillow 12)."""
+    # getdata() is deprecated from Pillow 12
     return list(img.get_flattened_data() if hasattr(img, "get_flattened_data") else img.getdata())
 
 
-def thumbnail_check(run: Path, d: dict, rep: Report, out: Path) -> dict | None:
+def thumbnail_check(run: Path, d: dict, rep: checks.Findings, out: Path) -> dict | None:
     meta_p, img_p = run / "video" / "final" / "thumbnail.json", run / "video" / "final" / "thumbnail.jpg"
     if not (meta_p.exists() and img_p.exists()):
         return None
@@ -844,7 +728,7 @@ def thumbnail_check(run: Path, d: dict, rep: Report, out: Path) -> dict | None:
     if ink_share < d.get("thumbnail_min_ink", 0.12):
         rep.add("thumbnail", "warning", "thumbnail", 0.0, f"the picture covers {ink_share:.0%} of the thumbnail at "
                 f"{sw}x{sh} (at least {d.get('thumbnail_min_ink', 0.12):.0%}): crop to the key object, enlarge it",
-                ("ink",))
+                key=("ink",))
     for el in meta.get("elements", []):
         if el.get("decorative"):
             continue
@@ -858,22 +742,21 @@ def thumbnail_check(run: Path, d: dict, rep: Report, out: Path) -> dict | None:
         if cap_small < d["thumbnail_min_cap_px_warn"]:
             sev = "error" if cap_small < d["thumbnail_min_cap_px_error"] else "warning"
             rep.add("thumbnail", sev, "thumbnail", 0.0, f"{el['role']} text is {cap_small:.1f} px tall at {sw}x{sh}",
-                    (el["role"], "size"))
+                    key=(el["role"], "size"))
         if ratio < d["contrast_warn"]:
             sev = "error" if ratio < d["contrast_error"] else "warning"
-            rep.add("thumbnail", sev, "thumbnail", 0.0, f"{el['role']} text contrast {ratio:.2f}:1", (el["role"], "c"))
+            rep.add("thumbnail", sev, "thumbnail", 0.0, f"{el['role']} text contrast {ratio:.2f}:1", key=(el["role"], "c"))
         n_words = len(str(el.get("text", "")).split())
         if el["role"] == "title" and n_words > d["thumbnail_max_words"]:
             rep.add("thumbnail", "warning", "thumbnail", 0.0, f"{n_words} words (at most {d['thumbnail_max_words']})",
-                    ("words",))
+                    key=("words",))
         if el["role"] == "title":
             result["behind_title"] = thumbnail_behind_title(run, meta, im, el["bbox"], d, rep)
     return result
 
 
-def thumbnail_behind_title(run: Path, meta: dict, im, title_box, d: dict, rep: Report) -> dict:
-    """The area behind the thumbnail title must be calm: no frame text under it (from the scene's layout log at the
-    thumbnail's time) and little texture left after the panel (edge density, luminance spread; config/video.json)."""
+def thumbnail_behind_title(run: Path, meta: dict, im, title_box, d: dict, rep: checks.Findings) -> dict:
+    """Nothing busy behind the thumbnail title: no frame text under it, little edge density and luminance spread."""
     from PIL import ImageFilter
     W, H = meta["size"]
     pad = 16
@@ -898,7 +781,7 @@ def thumbnail_behind_title(run: Path, meta: dict, im, title_box, d: dict, rep: R
         if out["frame_texts"]:
             rep.add("thumbnail", "error", "thumbnail", 0.0, f"frame text behind the title ({len(out['frame_texts'])}: "
                     f"'{out['frame_texts'][0]}'): choose a thumbnail time with nothing where the title goes",
-                    ("behind", "text"))
+                    key=("behind", "text"))
     region = im.crop(box).convert("L")
     glyphs = region.point(lambda v: 255 if v > 150 else 0).filter(ImageFilter.MaxFilter(7))
     edges = region.filter(ImageFilter.FIND_EDGES)
@@ -913,7 +796,7 @@ def thumbnail_behind_title(run: Path, meta: dict, im, title_box, d: dict, rep: R
             rep.add("thumbnail", "error", "thumbnail", 0.0, f"busy background behind the title (edge density "
                     f"{density:.3f}, luminance spread {std:.1f}; limits {d.get('thumbnail_busy_max_edges', 0.04)} and "
                     f"{d.get('thumbnail_busy_max_std', 18)}): choose a calmer frame or darken the panel",
-                    ("behind", "busy"))
+                    key=("behind", "busy"))
     return out
 
 
@@ -934,16 +817,6 @@ def scene_inputs(run: Path, stage: str) -> list[tuple[str, Path, Path]]:
         names = sorted(p.name[:-len(".layout.json")] for p in folder.glob("*.layout.json"))
     suffix = "_ql.mp4" if stage == "draft" else ".mp4"
     return [(n, folder / f"{n}.layout.json", folder / f"{n}{suffix}") for n in names if not n.startswith("_")]
-
-
-def write_md(path: Path, data: dict) -> None:
-    lines = [f"# Design check ({data['stage']})", "", f"{data['summary']['errors']} error(s), "
-             f"{data['summary']['warnings']} warning(s); thresholds in config/video.json. Frames and contact sheets "
-             "are next to this file.", "", "| Severity | Check | Scene | t (s) | Detail | Times |", "|---|---|---|---|---|---|"]
-    for f in sorted(data["findings"], key=lambda f: (f["severity"] != "error", f["scene"], f["t"])):
-        lines.append(f"| {f['severity']} | {f['check']} | {f['scene']} | {f['t']:.2f} | "
-                     f"{f['detail'].replace('|', '/')} | {f['count']} |")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> int:
@@ -974,16 +847,14 @@ def main() -> int:
         for old in list(out.glob("*-sheet.jpg")) + list(out.glob("thumbnail_*.png")):
             old.unlink()
     out.mkdir(parents=True, exist_ok=True)
-    scenes, missing = {}, []
-    roles = {}
+    scenes, roles = {}, {}
     if run is not None and (run / "video" / "plan.json").exists():
         roles = {sc["class"]: sc.get("role") for sc in json.loads((run / "video" / "plan.json").read_text(
             encoding="utf-8")).get("scenes", [])}
     for name, lp, video in inputs:
         if not lp.exists():
-            missing.append(name)
             rep.add("layout", "error", name, 0.0, f"no layout log {lp.name}: render with tools/render_video.sh, "
-                    "which runs tools/video/layout_probe.py", ("missing",))
+                    "which runs tools/video/layout_probe.py", key=("missing",))
             continue
         log_all = json.loads(lp.read_text(encoding="utf-8"))
         log = log_all["scenes"].get(name) or next(iter(log_all["scenes"].values()))
@@ -1000,14 +871,15 @@ def main() -> int:
                             video_sha256=sha256_file(video) if video and video.exists() else None,
                             frames=[rel(f) if run else f.name for f in frames])
     thumb = thumbnail_check(run, d, rep, out) if run is not None and a.stage == "final" else None
-    errors = sum(f["severity"] == "error" for f in rep.findings)
-    warnings = sum(f["severity"] == "warning" for f in rep.findings)
-    data = {"schema_version": 1, "tool": "check_design", "stage": a.stage, "checked_at": utc_now(),
-            "passed": errors == 0, "summary": {"errors": errors, "warnings": warnings}, "scenes": scenes,
-            "thumbnail": thumb, "findings": rep.findings}
-    write_json(out / "check_design.json", data)
-    write_md(out / "check_design.md", data)
-    for f in rep.findings:
+    s = checks.summary(rep.items)
+    errors, warnings = s["errors"], s["warnings"]
+    md = [f"# Design check ({a.stage})", "", f"{errors} error(s), {warnings} warning(s); thresholds in config/video.json. "
+          "Frames and contact sheets are next to this file.", ""]
+    md += checks.md_table(["Severity", "Check", "Scene", "t (s)", "Detail", "Times"], (
+        [f["severity"], f["check"], f["scene"], f"{f['t']:.2f}", f["detail"], f["count"]]
+        for f in sorted(rep.items, key=lambda f: (f["severity"] != "error", f["scene"], f["t"]))))
+    checks.write_report(out, "check_design", a.stage, rep.items, md, scenes=scenes, thumbnail=thumb)
+    for f in rep.items:
         if f["severity"] == "error":
             print(f"ERROR   {f['scene']} t={f['t']:.2f}s {f['check']}: {f['detail']}")
     print(f"check_design ({a.stage}): {'FAIL' if errors else 'ok'} ({errors} error(s), {warnings} warning(s)); "

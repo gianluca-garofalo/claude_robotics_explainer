@@ -1,34 +1,11 @@
 #!/usr/bin/env python3
-"""Structure of the video's opening and ending (every run) and of the series beats (series episodes): warnings only.
+"""Warnings on a video's opening, ending, series beats and packaging.
 
 Usage:
   python3 tools/video/check_series.py runs/<run> [--stage draft|final]
 
-House rules (the owner's decisions, 2026-10; thresholds in config/video.json "series"):
-  hook first     a full, moving picture from the first frame (content covering at least first_frame_min_coverage
-                 of the graphics-safe area at t = 0: self.add() it before the first play()); narration starts within
-                 speech_start_max_s (a beat of motion and music may come first); the hook's question (a "?" in its
-                 narration) is spoken by question_by_s; the body (the first scene with role "body") starts by
-                 body_by_s; nothing before the first scene (no channel card); the title beat (role "context")
-                 at most title_beat_max_s long and at least title_beat_min_speech of it spoken
-  outro          the last scene (plan.json role "outro") lasts outro_min_s to outro_max_s, shows the channel name and
-                 keeps x > endscreen_x_min (the right ~40 % of the frame) empty for YouTube's end-screen elements;
-                 a series episode says "In the next episode, ..." there, the finale does not
-  series context (series episodes) a scene with role "context" starting context_min_s to context_max_s into the
-                 video, whose narration places the episode ("episode three of five") over the builds-on frame:
-                 "Episode n of N" and the short titles of the episodes it builds on, shown builds_on_min_s to
-                 builds_on_max_s
-  recaps         one recap scene (role "recap", recap_of) per must prerequisite, with the "Recap" tag, a chapter that
-                 starts with "Recap" and the recap's card on screen
-  body mentions  a body scene that names an earlier episode (by short title or number) whose result this video
-                 does not show (no recap of it)
-  freshness      video/series_context.json made from the current series plan
-  packaging      (every run) the title at most title_max_chars characters, containing plan.json "search_term" and
-                 not the series title; the thumbnail text at most thumbnail_max_words words; the thumbnail frame from
-                 the hook within its first thumbnail_by_s seconds ("click match": the promise is shown early)
-Data: plan.json, the layout logs (video/checks/ or video/renders/), video/series_context.json, and at the final stage
-video/final/assembly.json and the captions. Writes review/design/<stage>/check_series.json and .md; exit status 0
-(the gate shows the warnings; the video design and final-cut reviewers judge them).
+Checks: hook first, title beat, outro, teaser, series context, recap, body mentions, freshness, packaging
+(thresholds in config/video.json "series"). Exit status 0: warnings only.
 """
 from __future__ import annotations
 
@@ -36,12 +13,14 @@ import argparse
 import json
 import re
 import sys
+from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 from _common import CONFIG, REPO, load_json, rel, resolve_run, utc_now, write_json  # noqa: E402
+import checks  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 DEFAULTS = {"speech_start_max_s": 3.0, "question_by_s": 15, "first_frame_min_coverage": 0.02, "body_by_s": 45,
@@ -67,23 +46,13 @@ def norm_tex(t: str) -> str:
     return re.sub(r"\s+|\\[,;:! ]|\\q?quad", "", t or "")
 
 
-class Warnings:
-    def __init__(self):
-        self.items: list[dict] = []
-
-    def add(self, check: str, t: float | None, detail: str):
-        self.items.append({"check": check, "t": None if t is None else round(t, 1), "detail": detail})
+Warnings = partial(checks.Findings, "check", "t", "detail")
 
 
 def scene_logs(run: Path, stage: str, plan: dict) -> dict:
     folder = run / "video" / ("checks" if stage == "draft" else "renders")
-    out = {}
-    for s in plan.get("scenes", []):
-        lp = folder / f"{s['class']}.layout.json"
-        if lp.exists():
-            log_all = json.loads(lp.read_text(encoding="utf-8"))
-            out[s["class"]] = log_all["scenes"].get(s["class"]) or next(iter(log_all["scenes"].values()), {})
-    return out
+    logs = {s["class"]: checks.scene_log(folder, s["class"]) for s in plan.get("scenes", [])}
+    return {c: log for c, (log, lp) in logs.items() if lp is not None}
 
 
 def texts_of(log: dict) -> list[dict]:
@@ -91,26 +60,18 @@ def texts_of(log: dict) -> list[dict]:
 
 
 def visible_span(item: dict) -> float:
-    """Seconds an item is visible, from its timeline events."""
-    total, on = 0.0, None
-    for ev in item.get("events", []):
-        if ev[1] == 1 and on is None:
-            on = ev[0]
-        elif ev[1] == 0 and on is not None:
-            total += ev[0] - on
-            on = None
-    return total + (item["events"][-1][0] - on if on is not None and item.get("events") else 0.0)
+    """Seconds an item is visible, up to its last timeline event."""
+    ev = item.get("events", [])
+    return sum(b - a for a, b in checks.intervals(ev, ev[-1][0] if ev else 0.0))
 
 
 def first_frame_coverage(log: dict) -> float | None:
-    """Share of the graphics-safe area covered by visible content in the first snapshot (t = 0), as check_design.py
-    measures space use; None without a snapshot at 0."""
+    """Share of the graphics-safe area covered at t = 0 (None without a snapshot there)."""
     import check_design as CD
     snaps = [x for x in log.get("snapshots", []) if x.get("t", 1) <= 0.05]
     if not snaps:
         return None
-    d = dict(CD.load_cfg()["design"]) if hasattr(CD, "load_cfg") else \
-        dict(load_json(CONFIG / "video.json").get("design", {}))
+    d = dict(load_json(CONFIG / "video.json").get("design", {}))
     fw, fh = 14.222, 8.0
     inset = d.get("graphics_safe_inset", 0.05)
     gfx = [-fw / 2 * (1 - 2 * inset), -fh / 2 * (1 - 2 * inset), fw / 2 * (1 - 2 * inset), fh / 2 * (1 - 2 * inset)]
@@ -121,9 +82,9 @@ def first_frame_coverage(log: dict) -> float | None:
     return best
 
 
-def hook_checks(scenes: list[dict], logs: dict, starts: dict, narration: dict, cfg: dict, w: "Warnings") -> None:
-    """The opening (owner's rule, 2026-11): a full moving picture from frame 0, a beat before the first word, the
-    question early, the body soon."""
+def hook_checks(scenes: list[dict], logs: dict, starts: dict, narration: dict, cfg: dict,
+                w: checks.Findings) -> None:
+    """A full picture at frame 0, the question early, a short spoken title beat, the body soon."""
     first = logs.get(scenes[0]["class"]) or {}
     if first:
         cov = first_frame_coverage(first)
@@ -165,9 +126,8 @@ def hook_checks(scenes: list[dict], logs: dict, starts: dict, narration: dict, c
                   "the series context")
 
 
-def packaging(plan: dict, cfg: dict, w: "Warnings") -> None:
-    """Title and thumbnail rules (warnings): short, with the search term, without the series name; few words on the
-    thumbnail; its picture shown early in the hook."""
+def packaging(plan: dict, cfg: dict, w: checks.Findings) -> None:
+    """A short title with the search term and without the series name; a few-word thumbnail from the early hook."""
     title = plan.get("title", "")
     if len(title) > cfg["title_max_chars"]:
         w.add("packaging", None, f"the title has {len(title)} characters (at most {cfg['title_max_chars']} show in full)")
@@ -214,10 +174,9 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[list[dict], dict]:
             starts[s["class"]] = t
             t += (logs.get(s["class"]) or {}).get("duration", 0.0)
     narration = {}
-    for f in sorted((run / "video" / "scenes").glob("*.py")):
-        if f.name not in ("common.py", "voice.py", "reading_model.py"):
-            for cls, blocks in VS.blocks_by_class(f).items():
-                narration[cls] = " ".join(b for b in blocks if b)
+    for f in checks.scene_files(run):
+        for cls, blocks in VS.blocks_by_class(f).items():
+            narration[cls] = " ".join(b for b in blocks if b)
     # hook first
     if scenes:
         first = logs.get(scenes[0]["class"]) or {}

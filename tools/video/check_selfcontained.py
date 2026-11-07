@@ -1,37 +1,12 @@
 #!/usr/bin/env python3
-"""Self-contained check: a Remaining Action video stands on its own (house rule, deterministic gate).
+"""Self-contained check: nothing a viewer sees or hears points outside the video or carries an equation label.
 
 Usage:
   python3 tools/video/check_selfcontained.py runs/<run> [--stage draft|final]
   python3 tools/video/check_selfcontained.py --layout X.layout.json [--srt X.srt] [--text "..."]   # ad hoc
 
-A viewer has only the video. Nothing in it may point to the companion material (the explainer, its code and data,
-files, links) or to a document's numbering, and it carries no equation labels. Checked:
-  on-screen text   every Text and MathTex in the layout logs (video/checks/ for drafts, video/renders/ for the final
-                   renders, the intro and outro cards included)
-  narration        every voiceover block of video/scenes/*.py (the literal text that CI synthesizes)
-  captions         the SRT files of the renders and of the assembled video
-  chapters         plan.json "chapter" titles and video/final/chapters.json; plan.json thumbnail text
-It fails on: file names and paths (.py, .html, code/, ...); the words explainer, document, companion, script, code,
-notebook, repository, GitHub, appendix, website; "in the description", "pinned comment"; link, links, linked (but
-not robotics usage: "two-link arm", "link length", "each link"); URLs and domains; "§"; references by number
-("Eq. 3", "equation (13)", "Figure 2", "Section 6.5", "Table 1", "Theorem 2", "recall equation 2"); equation labels:
-\\tag, \\label, \\eqref, \\ref, \\eqno, a trailing "(13)", "(ii)" or "(★)" after an equation, a text item that is only
-such a label, circled numbers; and another episode's equation numbers ("equation 4 of episode 2", "episode 2's
-Eq. 3"), whatever the setting below; and hard prerequisites ("you must have watched ...", "watch ... first", "won't
-make sense unless ..."): a video recaps what it uses, with at most a soft pointer by title ("the episode on ... has
-the full story"). Mentions of other episodes of the series, by title or meaning, are not flagged: the words episode,
-series, previously and next time pass ("in the episode on Gauss's principle we saw ...").
-
-Equation numbers are one setting, "equation_numbers" in config/video.json (default false): false rejects every
-label, the video's own numbering included; true allows the video's own numbering, labels that start at (1) and count
-up in order of first appearance (and symbols such as (★)), and references to them, while a label outside that
-sequence, such as the explainer's (13), is still a document tag and fails.
-
-The numbers on screen still come from the companion scripts (the gates check that); only showing or saying where
-they come from is forbidden. Third-party sources (a paper's authors and title) are not companion material.
-Allowed phrases: config/video.json "self_contained"."allow" (regular expressions, removed before matching).
-Writes review/design/<stage>/check_selfcontained.json and .md; exit status 1 when anything is found.
+Reads the layout logs, the narration, the captions, the chapters and the thumbnail text; equation labels follow
+config/video.json "equation_numbers", allowed phrases "self_contained". Exit status 1 when anything is found.
 """
 from __future__ import annotations
 
@@ -45,9 +20,9 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 from _common import CONFIG, load_json, rel, resolve_run, utc_now, write_json  # noqa: E402
+import checks  # noqa: E402
 import voice_script as VS  # noqa: E402
 
-HELPERS = {"common.py", "voice.py", "reading_model.py"}
 LABEL = (r"(?:\d{1,3}(?:\.\d{1,2})?[a-z]?|[ivx]{1,4}|[IVX]{1,4}|\*{1,3}|[★☆†‡#]"
          r"|\\(?:star|ast|dagger|ddagger|bigstar|S)\b)")
 NUMWORDS = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
@@ -174,9 +149,7 @@ def scan_math(tex: str, st: dict) -> list[dict]:
 
 
 def srt_text(path: Path) -> str:
-    keep = [ln for ln in path.read_text(encoding="utf-8").splitlines()
-            if ln.strip() and not ln.strip().isdigit() and "-->" not in ln]
-    return " ".join(keep)
+    return " ".join(checks.captions(path))
 
 
 def _scene_order(plan: dict) -> dict[str, int]:
@@ -193,9 +166,7 @@ def collect(run: Path, stage: str) -> list[dict]:
     pp = run / "video" / "plan.json"
     plan = json.loads(pp.read_text(encoding="utf-8")) if pp.exists() else {}
     order = _scene_order(plan)
-    for f in sorted((run / "video" / "scenes").glob("*.py")):
-        if f.name in HELPERS:
-            continue
+    for f in checks.scene_files(run):
         for i, (key, text) in enumerate(VS.blocks(f)):
             text = VS.spoken(text) if key else text        # without the pacing markup, as it is heard
             if text:
@@ -234,7 +205,7 @@ def collect(run: Path, stage: str) -> list[dict]:
 
 
 def explainer_headings(run: Path) -> set[str]:
-    """Normalised heading titles of the run's explainer.html (without their numbers), for the chapter rule."""
+    """The run's explainer.html heading titles, normalised and without their numbers."""
     page = run / "explainer.html"
     if not page.exists():
         return set()
@@ -250,8 +221,7 @@ def _norm(s: str) -> str:
 
 
 def label_policy(findings: list[dict], equation_numbers: bool) -> list[dict]:
-    """Apply "equation_numbers": with false every label and numbered equation reference fails; with true the video's
-    own sequence (1), (2), ... in order of first appearance on screen, and symbols, pass, as do references to them."""
+    """Applies "equation_numbers": true passes only the video's own (1), (2), ... and references to them."""
     labels = [f for f in findings if "label" in f or "ref" in f]
     rest = [f for f in findings if "label" not in f and "ref" not in f]
     if not equation_numbers:

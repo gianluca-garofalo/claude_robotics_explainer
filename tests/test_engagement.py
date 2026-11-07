@@ -142,8 +142,7 @@ class SceneCode(unittest.TestCase):
 
 
 class EmphasisIsNotMotion(unittest.TestCase):
-    """v4: pulsing to keep the picture moving does not satisfy the motion budget (the v3 review's FC-3: an 18 s
-    stretch of looping borders around a static box passed as motion)."""
+    """Pulsing to keep the picture moving does not count as motion."""
 
     def test_probe_names_leaf_animations(self):
         class _AnimationBuilder:
@@ -257,8 +256,7 @@ class Stings(unittest.TestCase):
 
 
 class MeterMeansOneThing(unittest.TestCase):
-    """v5: the metaphor's value is logged and must not refill unannounced; a meter that never moves is decoration;
-    a frame inside a scene must not go blank; the outro leaves time after its last word and shows its question."""
+    """The meter refills only when announced and moves; no blank frame inside a scene; the outro's tail and question."""
 
     @staticmethod
     def probe_log(values, visible=((0.0, 1),), duration=40.0, voiceovers=(), vmax=0.6):
@@ -365,8 +363,7 @@ class MeterMeansOneThing(unittest.TestCase):
 
 
 class ResetTimingAndSchematic(unittest.TestCase):
-    """v6: a declared refill counts when the meter refills while or after its words are said; a schematic picture
-    shows no numbers."""
+    """A declared refill counts while or after its words are said; a schematic picture shows no numbers."""
 
     def test_phrase_time_and_late_reset(self):
         block = {"start": 10.0, "duration": 10.0,

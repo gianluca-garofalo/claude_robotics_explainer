@@ -19,7 +19,7 @@ import gate  # noqa: E402
 
 TICK = 10_000_000
 
-# the episode 1 hook as v5 narrated it, and the rewrite the owner preferred in the voice A/B (2026-11-05)
+# a hook written for the page, and the same hook written for the ear
 WRITTEN = ("This controller plans a whole path, takes one step, and throws the rest away. If it keeps changing its "
            "mind, why should it ever arrive? This is model predictive control, steering robot arms, legged robots and "
            "cars. Nothing in that recipe rules out circling forever. So let's start again from the same point, and "

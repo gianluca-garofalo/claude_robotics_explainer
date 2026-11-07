@@ -1,8 +1,5 @@
-"""Unit tests for the pacing rules (v7): the narration's pause and slow-block markup (templates/manim/voice.py), the
-Azure pace cap and take check with planned pauses and slow blocks, the idea and silence detectors and the rules
-P1-P20 of tools/video/check_pacing.py, the plan.json idea declarations (tools/video/plan.py), the planned-hold
-exemptions of tools/video/check_engagement.py, and (with Manim) the holds, slow blocks and clean captions of a
-rendered scene."""
+"""Unit tests for the pacing markup and voice pace cap, the rules P1-P20 of check_pacing.py, the idea budget and the
+plan.json idea declarations."""
 import json
 import os
 import shutil
@@ -26,6 +23,7 @@ sys.path.insert(0, str(REPO / "tools" / "video"))
 
 import check_engagement as CE  # noqa: E402
 import check_pacing as CP  # noqa: E402
+import checks  # noqa: E402
 import gate  # noqa: E402
 import layout_probe as LP  # noqa: E402
 import plan as P  # noqa: E402
@@ -339,7 +337,7 @@ class Detectors(unittest.TestCase):
                 w.setsampwidth(2)
                 w.setframerate(sr)
                 w.writeframes((x * 32767).astype(np.int16).tobytes())
-            sil = CP.stem_silences(d / "n.wav", -30.0, 0.25)
+            sil = checks.silences(d / "n.wav", -30.0, 0.25, relative=True, bridge_s=0.1)
             self.assertEqual(len(sil), 1)
             self.assertAlmostEqual(sil[0][1] - sil[0][0], 2.5, delta=0.06)
         finally:
@@ -652,6 +650,22 @@ class PlanIdeas(unittest.TestCase):
                    {"id": "d", "kind": "claim", "scene": "Elsewhere", "says": "a", "main": True}]
             found = P.idea_problems(run, dict(plan, ideas=bad), {"Body"})
             self.assertEqual(len(found), 6, found)
+        finally:
+            shutil.rmtree(d)
+
+    def test_budget_of_a_standalone_run(self):
+        d = Path(tempfile.mkdtemp())
+        try:
+            (d / "video").mkdir()
+            ideas = [{"id": "descent", "kind": "star", "scene": "Body", "says": "x"},
+                     {"id": "step", "kind": "claim", "of": "descent", "scene": "Body", "says": "y"},
+                     {"kind": "summary", "scene": "Body", "says": "z"}]
+            (d / "video" / "plan.json").write_text(json.dumps({"scenes": [], "ideas": ideas}))
+            r = subprocess.run([sys.executable, str(REPO / "tools" / "video" / "idea_budget.py"), str(d)],
+                               capture_output=True, text=True, env=testenv.env())
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertTrue(r.stdout.startswith("1 ideas"), r.stdout)       # the star; a step and a summary are not
+            self.assertIn(" min", r.stdout)
         finally:
             shutil.rmtree(d)
 

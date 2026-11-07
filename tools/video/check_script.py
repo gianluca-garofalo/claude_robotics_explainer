@@ -1,48 +1,11 @@
 #!/usr/bin/env python3
-"""Spoken-script checks of a run's narration: is it written for the ear? (thresholds in config/video.json "script";
-report only, like the engagement checks).
+"""Spoken-script checks of a run's narration: is it written for the ear?
 
 Usage:
-  python3 tools/video/check_script.py runs/<run> --stage draft     # the voiceover strings of video/scenes/*.py
-  python3 tools/video/check_script.py runs/<run> --stage final     # the same, plus the narration audio in video/voice/
-  options: --out DIR (default review/design/<stage>/), --json (print the stats as JSON)
+  python3 tools/video/check_script.py runs/<run> --stage draft|final [--out DIR] [--json]
 
-Why: the owner found episode 1's narration (v5) unnatural to listen to, and an A/B with the same Azure voice showed the
-script was the main cause: colons, semicolons and brackets used as pauses, runs of short flat sentences, few
-contractions and connectives, and stock phrases the other checks require ("start again from the same point" even in
-the hook, where nothing had started). These checks measure those habits on the voiceover strings; the rubric that
-the reviewers score (.claude/skills/manim-video-producer/spoken-script.md) covers what a count cannot.
-
-  pauses        pause punctuation (":" ";" brackets, dashes) per 100 words above pause_punct_per_100_warn (error
-                above pause_punct_per_100_error): a listener hears punctuation only as the voice's pauses, and a
-                synthetic voice places odd ones at colons and brackets. Say "which means", "so", "that's"
-  contractions  contractions (it's, here's, can't ...) per 100 words below contractions_per_100_min, or below
-                contraction_share_min of the places where one fits ("it is", "do not", "cannot" ... before another
-                word): written English, not spoken
-  connectives   clause connectives (so, but, because, which means, then, yet, still, instead ...; a sentence that
-                opens with "And") per 100 words below connectives_per_100_min: sentences that do not lean on each
-                other sound like a list
-  rhythm        sentence length (words): mean outside sentence_mean_min..sentence_mean_max, spread (standard
-                deviation) below sentence_spread_min (over the narration, and in every scene of at least
-                scene_spread_min_sentences sentences), and every run of short_run_min or more consecutive sentences
-                under short_sentence_words words (within a scene, across its blocks)
-  stock         a phrase of stock_ngram words said in two or more scenes (refrain_allow lists the deliberate
-                refrains, such as the meter's label), a plan.json metaphor_resets "says" used by two or more
-                scenes, and every phrase of stock_phrases (generic wording the checks once required): word each
-                required beat (meter resets, title beat, teaser) for its own scene
-  hype          words of hype_words (amazing, incredible, mind-blowing, obviously ...): a calm, honest register
-  pace (final)  words per minute of each block and of the whole narration (video/voice/manifest.json): outside
-                wpm_min..wpm_max overall is a warning, a block outside block_wpm_min..block_wpm_max too
-  mid pauses    (final) a pause longer than mid_pause_max_s inside a sentence (not after . ? ! or an ellipsis, and
-                not where the narration plans one with "[pause S]"): from the word timings with durations (Azure),
-                else from the audio's silences (ffmpeg silencedetect at silence_db) placed with the estimated timings
-                (Piper, recordings); the report gives the longest pause measured inside a sentence, over the limit or
-                not (v7: it used to print 0.0 s when none was over)
-The narration is read without its pacing markup ([pause S], [slow]: templates/manim/voice.py); the planned pauses and
-slow blocks are checked by tools/video/check_pacing.py.
-Writes <out>/check_script.json and .md; the JSON records the SHA-256 of every scene file read, so tools/gate.py can
-tell a stale report. Exit status 1 when there is an error (the gate reports it; it blocks only when
-script.errors_block_gate is true).
+Checks: pauses, contractions, connectives, rhythm, stock, hype; at the final stage also pace and mid pause, from the
+narration audio in video/voice/ (thresholds in config/video.json "script"). Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -52,12 +15,14 @@ import math
 import re
 import subprocess
 import sys
+from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
+import checks  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 DEFAULTS = {
@@ -83,12 +48,11 @@ DEFAULTS = {
 
 BOOKMARK = VS.BOOKMARK
 WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9'’\-]*")
-SENTENCE_END = re.compile(r"(?:[.!?]+|\.\.\.|…)[\"'’)\]]*(?=\s|$)")
 PAUSE_PUNCT = re.compile(r"(?<!\d):(?!\d)|;|\(|\[|—|–|\s-\s|--")
 CONTRACTION = re.compile(r"\b(?:\w+n['’]t|(?:it|that|here|there|what|who|where|how|let|he|she)['’]s|"
                          r"(?:i|you|we|they)['’](?:re|ve|ll|d)|(?:it|that|there)['’](?:ll|d)|i['’]m|"
                          r"(?:you|we|they)['’]re)\b", re.I)
-# places where a contraction fits: before another word (a stressed "it is." at a sentence end does not contract)
+# where a contraction fits: before another word (a stressed "it is." at a sentence end does not contract)
 UNCONTRACTED = re.compile(r"\b(?:(?:it|that|here|there|what) is|let us|(?:we|you|they) are|(?:we|you|they|i) have"
                           r"(?= (?:got|been|seen|done|made|found|paid|shown|used|built)\b)|(?:do|does|did|is|are|was|"
                           r"were|has|have|had|would|could|should|will) not|cannot|i am|(?:it|that|we|you|they) will)"
@@ -107,12 +71,7 @@ def settings() -> dict:
     return cfg
 
 
-class Findings:
-    def __init__(self):
-        self.items: list[dict] = []
-
-    def add(self, check: str, severity: str, where: str, detail: str):
-        self.items.append({"check": check, "severity": severity, "where": where, "detail": detail})
+Findings = partial(checks.Findings, "check", "severity", "where", "detail")
 
 
 # --------------------------------------------------------------------------- text measures
@@ -126,15 +85,8 @@ def words(text: str) -> list[str]:
 
 
 def sentences(text: str) -> list[str]:
-    """Sentences of a text: they end at . ! ? or an ellipsis followed by a space or the end (decimals stay whole)."""
-    out, start = [], 0
-    for m in SENTENCE_END.finditer(text):
-        if text[start:m.end()].strip():
-            out.append(text[start:m.end()].strip())
-        start = m.end()
-    if text[start:].strip():
-        out.append(text[start:].strip())
-    return out
+    ws = text.split()
+    return [" ".join(ws[a:b + 1]) for a, b in checks.sentences(ws)]
 
 
 def per100(n: int, w: int) -> float:
@@ -142,7 +94,7 @@ def per100(n: int, w: int) -> float:
 
 
 def measure(text: str) -> dict:
-    """Counts of one text (a block, a scene or the whole narration)."""
+    """Counts of a block, a scene or the whole narration."""
     t = clean(text)
     w = len(words(t))
     pauses = PAUSE_PUNCT.findall(t)
@@ -179,8 +131,7 @@ def _norm_words(text: str) -> list[str]:
 
 
 def repeated_phrases(texts: list[tuple[str, str]], n: int) -> list[tuple[str, list[str]]]:
-    """Phrases of n or more words said in two or more of the texts [(name, text)]: [(phrase, [names])], each
-    phrase reported once, from the first text that says it, as the longest run of shared n-grams."""
+    """[(phrase, [names])] of the phrases of n or more words that two or more of [(name, text)] say."""
     grams: dict[str, set[str]] = {}
     toks = [(name, _norm_words(t)) for name, t in texts]
     for name, w in toks:
@@ -214,15 +165,11 @@ def phrase_in(phrase: str, text: str) -> bool:
 # --------------------------------------------------------------------------- the run's narration
 
 def narration(run: Path) -> list[dict]:
-    """[{"class", "file", "role", "blocks": [text, ...], "resets": [says, ...]}] in plan order (all scene classes
-    with narration when there is no plan.json)."""
-    scenes_dir = run / "video" / "scenes"
+    """[{"class", "file", "role", "blocks", "raw", "resets"}] of the scenes with narration, in plan order."""
     plan_p = run / "video" / "plan.json"
     plan = json.loads(plan_p.read_text(encoding="utf-8")) if plan_p.exists() else {}
     by_class = {}
-    for f in sorted(scenes_dir.glob("*.py")):
-        if f.name in ("common.py", "voice.py", "reading_model.py"):
-            continue
+    for f in checks.scene_files(run):
         for cls, blocks in VS.blocks_by_class(f, markup=True).items():
             if blocks:
                 by_class[cls] = (f, blocks)
@@ -238,42 +185,27 @@ def narration(run: Path) -> list[dict]:
 
 
 def scene_hashes(run: Path) -> dict:
-    return {f.name: sha256_file(f) for f in sorted((run / "video" / "scenes").glob("*.py"))
-            if f.name not in ("common.py", "voice.py", "reading_model.py")}
+    return {f.name: sha256_file(f) for f in checks.scene_files(run)}
 
 
 # --------------------------------------------------------------------------- audio (final stage)
 
-def _ends_sentence(word: str) -> bool:
-    w = word.rstrip("\"'’)]")
-    return w.endswith((".", "?", "!", "…"))
-
-
 def silences(audio: Path, db: float, min_s: float) -> list[tuple[float, float]]:
-    """(start, end) of silences of at least min_s in an audio file (ffmpeg silencedetect)."""
     try:
-        out = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(audio), "-af",
-                              f"silencedetect=noise={db}dB:d={min_s}", "-f", "null", "-"],
-                             capture_output=True, text=True, check=True).stderr
+        return checks.silences(audio, db, min_s)
     except (OSError, subprocess.CalledProcessError):
         return []
-    starts = [float(x) for x in re.findall(r"silence_start: ([\d.]+)", out)]
-    ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", out)]
-    return list(zip(starts, ends))
 
 
 def planned_offsets(raw: str, cfg: dict) -> list[int]:
-    """Character offsets (in the block's text, bookmarks removed) of the words before which the narration plans a
-    pause ("[pause S]", an ellipsis): a gap there is meant, not a stumble."""
+    """Text offsets of the words a planned pause ("[pause S]", an ellipsis) comes before."""
     starts = VS.VOICE._word_starts(raw)
     return sorted(starts[n] for n in VS.VOICE.pause_plan(raw, cfg.get("ellipsis_pause_s", 0.7)) if n < len(starts))
 
 
 def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict, planned: list[int] | None = None) \
         -> tuple[list[dict], str, float]:
-    """Pauses longer than mid_pause_max_s inside a sentence of one block: [{"after", "pause_s", "at_s"}], how they were
-    measured ("reported" word durations, or "silences" of the audio placed with estimated timings) and the longest
-    pause inside a sentence measured (0.0 when there is none). planned: offsets of words a planned pause precedes."""
+    """(pauses over mid_pause_max_s inside a sentence, how they were measured, the longest pause inside one)."""
     words_ = [b for b in bounds if re.search(r"\w", str(b.get("text", "")))]
     planned = planned or []
     tick = 10_000_000
@@ -285,7 +217,7 @@ def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict, planned: list[
         for a, b in zip(words_, words_[1:]):
             end_a = a["audio_offset"] / tick + a["duration_milliseconds"] / 1000.0
             gap = b["audio_offset"] / tick - end_a
-            if _ends_sentence(a["text"]) or is_planned(a, b):
+            if checks.sentence_end(a["text"]) or is_planned(a, b):
                 continue
             longest = max(longest, gap)
             if gap > cfg["mid_pause_max_s"]:
@@ -300,7 +232,7 @@ def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict, planned: list[
         nxt = [b for b in words_ if b["audio_offset"] / tick >= s1 - 0.15]
         if not prev or not nxt:
             continue                                   # trailing silence
-        if _ends_sentence(prev[-1]["text"]) or is_planned(prev[-1], nxt[0]):
+        if checks.sentence_end(prev[-1]["text"]) or is_planned(prev[-1], nxt[0]):
             continue
         longest = max(longest, s1 - s0)
         if s1 - s0 > cfg["mid_pause_max_s"]:
@@ -308,8 +240,8 @@ def mid_pauses(bounds: list[dict], audio: Path | None, cfg: dict, planned: list[
     return found, "silences", round(longest, 2)
 
 
-def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict | None:
-    """Pace and mid-sentence pauses of the synthesized or recorded narration (video/voice/)."""
+def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: checks.Findings) -> dict | None:
+    """Pace and mid-sentence pauses of the narration audio in video/voice/."""
     vdir = run / "video" / "voice"
     man_p = vdir / "manifest.json"
     if not man_p.exists():
@@ -361,7 +293,7 @@ def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: Findings) -> dict 
 
 # --------------------------------------------------------------------------- the checks
 
-def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
+def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
     fd = Findings()
     scenes = narration(run)
     whole = " ".join(" ".join(s["blocks"]) for s in scenes)
@@ -442,12 +374,11 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
     return fd, stats
 
 
-def report_md(stage: str, fd: Findings, stats: dict) -> str:
-    errs = [x for x in fd.items if x["severity"] == "error"]
-    warns = [x for x in fd.items if x["severity"] == "warning"]
+def report_md(stage: str, fd: checks.Findings, stats: dict) -> list[str]:
+    n_err, n_warn = checks.summary(fd.items).values()
     w = stats["whole"]
     md = [f"# Spoken script ({stage})", "",
-          f"{len(errs)} error(s), {len(warns)} warning(s); thresholds in config/video.json \"script\"; the rubric "
+          f"{n_err} error(s), {n_warn} warning(s); thresholds in config/video.json \"script\"; the rubric "
           "is .claude/skills/manim-video-producer/spoken-script.md.", "",
           f"- {w['words']} words in {w['sentences']} sentences: mean {w['sentence_mean']} words, spread "
           f"{w['sentence_spread']}",
@@ -461,18 +392,18 @@ def report_md(stage: str, fd: Findings, stats: dict) -> str:
                   f"mid-sentence pauses over the limit: {a['mid_pauses']}; the longest pause inside a sentence: "
                   f"{a['longest_mid_pause_s']} s (planned pauses left out; measured from "
                   f"{', '.join(a['pause_method'])})")
-    md += ["", "| Scene | Words | Pause punct /100 | Contractions /100 | Connectives /100 | Sentence mean / spread | "
-           "Short runs |" + (" wpm |" if a else ""), "|---|---|---|---|---|---|---|" + ("---|" if a else "")]
-    for c, v in stats["scenes"].items():
-        md.append(f"| {c} | {v['words']} | {v['pause_punct_per_100']} | {v['contractions_per_100']} | "
-                  f"{v['connectives_per_100']} | {v['sentence_mean']} / {v['sentence_spread']} | "
-                  f"{len(v['short_runs'])} |" + (f" {a['wpm_by_scene'].get(c) or '-'} |" if a else ""))
+    md += [""] + checks.md_table(
+        ["Scene", "Words", "Pause punct /100", "Contractions /100", "Connectives /100", "Sentence mean / spread",
+         "Short runs"] + (["wpm"] if a else []),
+        ([c, v["words"], v["pause_punct_per_100"], v["contractions_per_100"], v["connectives_per_100"],
+          f"{v['sentence_mean']} / {v['sentence_spread']}", len(v["short_runs"])]
+         + ([a["wpm_by_scene"].get(c) or "-"] if a else []) for c, v in stats["scenes"].items()))
     if fd.items:
-        md += ["", "| Severity | Check | Where | Detail |", "|---|---|---|---|"]
         order = {"error": 0, "warning": 1, "info": 2}
-        md += [f"| {x['severity']} | {x['check']} | {x['where']} | {x['detail'].replace('|', '/')} |"
-               for x in sorted(fd.items, key=lambda x: order[x["severity"]])]
-    return "\n".join(md) + "\n"
+        md += [""] + checks.md_table(["Severity", "Check", "Where", "Detail"], (
+            [x["severity"], x["check"], x["where"], x["detail"]]
+            for x in sorted(fd.items, key=lambda x: order[x["severity"]])))
+    return md
 
 
 def main() -> int:
@@ -485,22 +416,18 @@ def main() -> int:
     run = resolve_run(a.run)
     cfg = settings()
     fd, stats = check(run, a.stage, cfg)
-    errs = [x for x in fd.items if x["severity"] == "error"]
-    warns = [x for x in fd.items if x["severity"] == "warning"]
+    n_err, n_warn = checks.summary(fd.items).values()
     out = Path(a.out) if a.out else run / "review" / "design" / a.stage
-    out.mkdir(parents=True, exist_ok=True)
-    write_json(out / "check_script.json", {
-        "schema_version": 1, "tool": "check_script", "stage": a.stage, "checked_at": utc_now(), "passed": not errs,
-        "summary": {"errors": len(errs), "warnings": len(warns)}, "scene_sha256": stats.pop("scene_sha256"),
-        "stats": stats, "findings": fd.items})
-    (out / "check_script.md").write_text(report_md(a.stage, fd, stats), encoding="utf-8")
+    sha = stats.pop("scene_sha256")
+    checks.write_report(out, "check_script", a.stage, fd.items, report_md(a.stage, fd, stats), scene_sha256=sha,
+                        stats=stats)
     if a.json:
         print(json.dumps(stats, indent=2))
     for x in fd.items:
         if x["severity"] != "info":
             print(f"{x['severity']} {x['check']} {x['where']}: {x['detail']}")
-    print(f"check_script ({a.stage}): {len(errs)} error(s), {len(warns)} warning(s); {rel(out / 'check_script.md')}")
-    return 1 if errs else 0
+    print(f"check_script ({a.stage}): {n_err} error(s), {n_warn} warning(s); {rel(out / 'check_script.md')}")
+    return 1 if n_err else 0
 
 
 if __name__ == "__main__":

@@ -37,7 +37,7 @@ def design_findings(layout: Path) -> list[dict]:
     rep = CD.Report()
     for name, log in log_all["scenes"].items():
         CD.scene_checks(name, log, log_all["frame"], d, palette, rep)
-    return rep.findings
+    return rep.items
 
 
 class Colour(unittest.TestCase):
@@ -45,14 +45,9 @@ class Colour(unittest.TestCase):
         self.assertAlmostEqual(CD.contrast(CD.hex_rgb("#000000"), CD.hex_rgb("#ffffff")), 21.0, places=6)
         self.assertAlmostEqual(CD.contrast(CD.hex_rgb("#777777"), CD.hex_rgb("#ffffff")), 4.48, places=2)
 
-    def test_ciede2000_reference_pairs(self):            # Sharma, Wu and Dalal (2005), pairs 1 and 7
-        self.assertAlmostEqual(CD.ciede2000((50.0, 2.6772, -79.7751), (50.0, 0.0, -82.7485)), 2.0425, places=4)
-        self.assertAlmostEqual(CD.ciede2000((50.0, 0.0, 0.0), (50.0, -1.0, 2.0)), 2.3669, places=4)
-
-    def test_grey_survives_simulation(self):
-        for kind in CD.MACHADO:
-            r, g, b = CD.simulate(CD.hex_rgb("#808080"), kind)
-            self.assertLess(max(r, g, b) - min(r, g, b), 0.01)
+    def test_greys_keep_their_difference_under_every_simulation(self):
+        dist, _ = CD.cvd_distance("#606060", "#a0a0a0")
+        self.assertAlmostEqual(dist, CD.Color("#606060").delta_e("#a0a0a0", method="2000", space="lab-d65"), places=2)
 
     def test_former_green_red_collapse_for_deuteranopes(self):
         dist, kind = CD.cvd_distance("#22c55e", "#f87171")
@@ -68,8 +63,7 @@ class Colour(unittest.TestCase):
                     self.assertGreaterEqual(CD.cvd_distance(a, b)[0], 12)
 
     def test_semantic_colours_readable_on_background(self):
-        """palette.background is the one background setting: every semantic colour of the house palette (the
-        fixture copy; the checks validate whatever the owner picks) keeps the warning level, 4.5:1, against it."""
+        """Every semantic colour of the palette keeps 4.5:1 against palette.background."""
         pal = json.loads((testenv.CONFIG / "video.json").read_text())["palette"]
         bg = CD.hex_rgb(pal["background"])
         for c in pal["semantic"]:
@@ -287,7 +281,7 @@ def spacing(texts, paths=()):
     log = {"snapshots": [{"t": 1.0, "settled": True, "label": "play", "texts": texts, "paths": list(paths),
                           "elements": 2}], "timeline": [], "duration": 2.0}
     CD.scene_checks("S", log, {"width": 14.222, "height": 8.0, "background": "#0f172a"}, d, palette, rep)
-    return [f for f in rep.findings if f["check"] == "spacing"]
+    return [f for f in rep.items if f["check"] == "spacing"]
 
 
 class Spacing(unittest.TestCase):
@@ -370,7 +364,7 @@ class ThumbnailBehindTitle(unittest.TestCase):
         d, _ = CD.load_config()
         rep = CD.Report()
         CD.thumbnail_check(tmp, d, rep, tmp / "out")
-        return [f["detail"] for f in rep.findings if f["severity"] == "error"]
+        return [f["detail"] for f in rep.items if f["severity"] == "error"]
 
     def test_calm_background_passes(self):
         tmp = self.make(busy=False, text_under=False)
@@ -432,8 +426,7 @@ class LiveReadoutPlacement(unittest.TestCase):
 @unittest.skipUnless(_manim() and shutil.which("ffmpeg") and shutil.which("latex"),
                      "needs Manim with manim-voiceover ($MANIM or .venv), LaTeX and ffmpeg")
 class EquationBuiltFromPieces(unittest.TestCase):
-    """v6: an equation on screen only as its pieces (LaggedStart of FadeIn over the pieces, TransformFromCopy into a
-    piece) is logged as one math text, so a stroke through it is found (the probe used to log the pieces as paths)."""
+    """An equation on screen only as its pieces is logged as one math text, so a stroke through it is found."""
 
     def test_render(self):
         tmp = Path(tempfile.mkdtemp(prefix="pieces-test-"))
@@ -529,7 +522,7 @@ def scene_findings(snapshots, timeline=(), duration=10.0, check=None):
     rep = CD.Report()
     log = {"snapshots": list(snapshots), "timeline": list(timeline), "duration": duration}
     CD.scene_checks("S", log, {"width": 14.222, "height": 8.0, "background": "#0f172a"}, d, palette, rep)
-    return [f for f in rep.findings if check is None or f["check"] == check]
+    return [f for f in rep.items if check is None or f["check"] == check]
 
 
 def _settled(t, texts, paths=()):
@@ -548,8 +541,7 @@ def _sized(i, top, bbox, size=28.0, content="label"):
 
 
 class LayoutRegression(unittest.TestCase):
-    """The Hilltop legend of 2026-10-31 that every check missed: a tag touching the hill curve, staggered tags, and a
-    left panel ending 1.5 units above the phase plane (tests/fixtures/design, self-contained layout data)."""
+    """The Hilltop legend: a tag touching the hill curve, staggered tags, a left panel ending far above the plot."""
 
     def test_the_defective_frame_produces_all_three_findings(self):
         found = design_findings(FIX / "design" / "hilltop_legend_before.layout.json")
@@ -634,7 +626,7 @@ class PanelBalance(unittest.TestCase):
         rep = CD.Report()
         CD.scene_checks("S", {"snapshots": [_settled(1.0, texts, [plot])], "timeline": [], "duration": 5.0},
                         {"width": 14.222, "height": 8.0, "background": "#0f172a"}, d, palette, rep, role=role)
-        return [f for f in rep.findings if f["check"] == "panels"]
+        return [f for f in rep.items if f["check"] == "panels"]
 
     def test_one_side_ending_much_higher_warns_and_the_outro_is_exempt(self):
         top_aligned = [[-6.0, 1.4 - 0.6 * i, -1.0, 1.8 - 0.6 * i] for i in range(3)]

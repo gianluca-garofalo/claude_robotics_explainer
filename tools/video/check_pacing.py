@@ -1,83 +1,19 @@
 #!/usr/bin/env python3
-"""Pacing checks of a run's video: how much it teaches per minute and how much time the viewer gets to take it in
-(rules P1-P20 of config/video.json "pacing"; the joint pacing recommendation of 2026-11-07, with the learning-science
-review's corrections).
+"""Pacing checks of a run's video: what it teaches per minute and the time it gives to take it in (rules P1-P20).
 
 Usage:
-  python3 tools/video/check_pacing.py runs/<run> --stage draft    # layout logs of video/checks/ (silent drafts keep the
-                                                                    planned pauses, so the timeline is the final one)
-  python3 tools/video/check_pacing.py runs/<run> --stage final    # video/renders/, the narration stem
-                                                                    video/final/narration.wav and video/voice/manifest.json
-  options: --out DIR (default review/design/<stage>/)
+  python3 tools/video/check_pacing.py runs/<run> --stage draft|final [--out DIR]
 
-Why: the owner found episode 1 v6 hard to keep up with although it ran at an ordinary 146-153 words per minute. Both
-reviews traced it to the plan (seven beats, about 16 claims and 25 concepts in ten minutes) and to no time to take
-them in (pauses of 1.5 s or more 0.7 times a minute, a median 0.26 s between narration blocks, 2.2 s after the
-starred results, stretches of up to 131 s without a pause). These checks measure the same things on every video.
-
-What is measured:
-  ideas     video/plan.json "ideas" (plan.py): the declared units, each placed by its bookmark (or "says") at the
-            start of the sentence that states it; kinds concept, claim, star (the series plan's ideas, same ids) and
-            restatement, summary, roadmap, recap, prompt
-  detected  new terms (the first spoken mention of plan.json "glossary", pacing.glossary and engagement.jargon,
-            hyphens and spaces alike), new equations (math items of the layout logs with two or more relations or
-            operators or at least one new symbol: LaTeX command names are not symbols, Greek letters and infinity
-            are, and sub- and superscripts belong to their base symbol; a rearrangement with no new symbol weighs
-            0.5; timed at the end of the play that reveals them), spoken numbers and questions
-  silences  the narration stem at the final stage (frames 30 dB below the speech level, at least 0.25 s; holds
-            of the picture are silences there too), else the word timings and the gaps between blocks
-  body      from the end of the hook and the title beat to the start of the outro (plan.json roles)
-
-Rules (warnings, except the three errors):
-  P1  at most stars_max starred results, examples_max example results, side_max side results
-  P2  starred results at least star_spacing_s apart
-  P3  claims (and starred results) at most claims_per_min per minute in any claims_window_s of the body, and at least
-      claim_spacing_s apart (after a starred result, counted from the end of its hold)
-  P4  concepts (declared, detected terms, new equations) at most concepts_per_60 per 60 s and concepts_per_120 per
-      120 s; inside the one valid pretraining segment pretraining_per_60 per 60 s (conditions a-g of the
-      learning-science review: at most pretraining_max concepts, each on its own object as named, a break of
-      pretraining_break_s after each, a summary then pretraining_summary_break_s, no equation combining them before
-      that summary, no result inside, one segment, before the first starred result)
-  P5  at most terms_per_sentence new technical terms per sentence and terms_per_30 per 30 s (no exception)
-  P6  ERROR: less than star_silence_s of silence after a starred result's sentence; warning: no restatement within
-      restatement_within_s after it, less than claim_silence_s after a claim, or a new label or equation appearing
-      during the silence (split attention, not consolidation; also during a think prompt's silence, P11)
-  P7  ERROR: a stretch of more than stretch_error_s without a silence of silence_long_s; warning above stretch_warn_s
-  P8  the median pause between narration blocks under block_pause_median_s, or under block_vs_sentence_min times the
-      median ordinary pause between the sentences inside blocks (no planned pause there, no pace-cap break in the
-      block: an idea boundary is never shorter than a sentence boundary); a chapter turn under chapter_turn_pause_s
-  P9  a body chapter, or the body, above body_wpm_max words per minute of running time
-  P10 ERROR: a block or sentence read slower than rate_floor_pct (manifest); warning: a whole block slower than
-      block_rate_min_pct (a slow block: than its own slow rate, if that is lower); a key sentence (starred result,
-      think prompt) slower than key_wpm_min while speaking (dragged), or, in an ordinary block, faster than
-      key_max_vs_median times the median of the ordinary sentences (rushed: read it in a slow block; inside a slow
-      block no contrast is asked); a slow block ("[slow]": a derivation or an argument, read as a whole at
-      voice.azure.slow_rate_pct) in the hook, the title beat, a recap or the outro; slow blocks over slow_share_max of
-      the body's narration time (the contrast between derivations and the rest is the only rate signal left)
-  P11 fewer than one think prompt per prompt_every_s of body; less than prompt_silence_s after a prompt
-      (main_prompt_silence_s after the main one, which says "pause here if you like"); the answer in the same block
-  P12 more than numbers_per_20 spoken numbers in 20 s; a spoken number not on screen while it is said
-  P13 within max(hold_min_s, hold_per_new_symbol_s x new symbols + hold_per_familiar_s x familiar ones), at most
-      hold_cap_s, after an equation finishes writing: a new declared idea, term or equation; a longer formula
-      without a restatement under the hold
-  P14 the words lead the picture by more than picture_lead_max_s (a declared "shows", or a label whose words are said)
-  P15 no roadmap within roadmap_within_s after the title beat; a body chapter over summary_chapter_s without a
-      summary at its end; no recap before the outro
-  P16 a body chapter outside chapter_s (longer ones need a consolidation beat inside)
-  P17 less than pause_share_min of the body in silences of silence_long_s or more
-  P18 the video more than a minute longer than its ideas need (tools/video/idea_budget.py: it says more than it
-      declares), or shorter than they need while a density rule (P3, P4, P6, P7, P13) fires (else the difference is
-      only recorded, for calibration); ideas missing from, or added to, the series plan's budget (episode.json)
-  P19 (check_engagement.py) planned holds are exempt from the frozen-picture warnings
-  P20 (synthesize_voice.py) blocks the pace cap could not fix ("pace": "rewrite" in the manifest)
-  coverage  a detected term or equation with no declared idea within undeclared_window_s; a sentence with a
-            conclusion marker (so, which means, that's why, therefore) and no declared idea near it ("possible
-            undeclared claim"): the detectors are a floor, the declarations carry the budget
-The stats record calibration data (the seconds from each declared idea to the next, by role, the runtime against
-the budget, and the share and measured extra time of the slow blocks), so the budget's constants can be refitted on
-real episodes.
-Writes <out>/check_pacing.json and .md; exit status 1 when there is an error (the gate reports them; they block it
-only when pacing.errors_block_gate is true).
+Rules (thresholds in config/video.json "pacing"):
+  P1  results per video            P8  pauses between blocks       P15 roadmap, summaries, recap
+  P2  starred results apart        P9  words per minute            P16 chapter lengths
+  P3  claim rate and spacing       P10 reading rates, slow blocks  P17 share of pauses
+  P4  concept rate, pretraining    P11 think prompts               P18 runtime against the idea budget
+  P5  new terms                    P12 spoken numbers              P19 holds (check_engagement.py)
+  P6  silence after results        P13 equation holds              P20 blocks to rewrite
+  P7  stretches without a pause    P14 picture before words
+  ideas, coverage, markup: declared ideas not found, detected ideas not declared, markup the voice cannot say.
+Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -87,13 +23,14 @@ import math
 import re
 import statistics
 import sys
-import wave
+from functools import partial
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
-from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
+import checks  # noqa: E402
 import idea_budget as IB  # noqa: E402
 import voice_script as VS  # noqa: E402
 
@@ -155,13 +92,7 @@ def settings() -> dict:
     return cfg
 
 
-class Findings:
-    def __init__(self):
-        self.items: list[dict] = []
-
-    def add(self, rule: str, severity: str, where: str, detail: str, t: float | None = None):
-        self.items.append({"rule": rule, "severity": severity, "where": where,
-                           "t": None if t is None else round(t, 1), "detail": detail})
+Findings = partial(checks.Findings, "rule", "severity", "where", "detail", "t")
 
 
 def mmss(t: float) -> str:
@@ -169,7 +100,7 @@ def mmss(t: float) -> str:
 
 
 def norm(text: str) -> str:
-    """Lower case, hyphens and dashes as spaces, no punctuation but apostrophes: how terms and phrases are matched."""
+    """Lower case, hyphens and dashes as spaces, no punctuation but apostrophes."""
     t = str(text).lower().replace("’", "'")
     t = re.sub(r"[-‐‑–—/]", " ", t)
     return " ".join(re.sub(r"[^a-z0-9' ]+", " ", t).split())
@@ -177,18 +108,8 @@ def norm(text: str) -> str:
 
 # --------------------------------------------------------------------------- the timeline of the video
 
-def scene_log(folder: Path, cls: str) -> tuple[dict, Path | None]:
-    lp = folder / f"{cls}.layout.json"
-    if not lp.exists():
-        return {}, None
-    data = json.loads(lp.read_text(encoding="utf-8"))
-    return (data.get("scenes", {}).get(cls) or next(iter(data.get("scenes", {}).values()), {})), lp
-
-
 def timeline(run: Path, stage: str) -> dict:
-    """Scenes, narration blocks (words with global times), plays and on-screen items of the whole video, in seconds
-    from its start: scene offsets from video/final/assembly.json at the final stage when it exists, else the layout
-    logs' durations in plan order."""
+    """Scenes, narration blocks (words with times), plays and on-screen items of the video, in seconds from its start."""
     plan = json.loads((run / "video" / "plan.json").read_text(encoding="utf-8"))
     folder = run / "video" / ("checks" if stage == "draft" else "renders")
     seg = {}
@@ -199,7 +120,7 @@ def timeline(run: Path, stage: str) -> dict:
     t, scenes, blocks, plays, items, hashes = 0.0, [], [], [], [], {}
     for s in plan.get("scenes", []):
         cls = s["class"]
-        log, lp = scene_log(folder, cls)
+        log, lp = checks.scene_log(folder, cls)
         if lp is not None:
             hashes[cls] = sha256_file(lp)
         off = float(seg[cls]["start"]) if cls in seg else t
@@ -214,8 +135,8 @@ def timeline(run: Path, stage: str) -> dict:
             plan_ = VOICE.pause_plan(raw, ell)
             ws = []
             tim = v.get("timings")
-            if tim:                                     # [word, start, length or None, word index] (the index is new
-                for k, e in enumerate(tim):             # in v7 logs; before it, the position)
+            if tim:                                     # [word, start, length or None, word index]
+                for k, e in enumerate(tim):
                     ws.append({"w": str(e[0]), "t0": b0 + float(e[1]), "d": e[2], "n": e[3] if len(e) > 3 else k})
             else:                                       # an older log: words spread evenly over the block
                 toks = str(v.get("text") or "").split()
@@ -246,23 +167,10 @@ def timeline(run: Path, stage: str) -> dict:
             items.append({"scene": cls, "role": sc["role"], "kind": it.get("kind"), "content": str(it.get("content") or ""),
                           "live": bool(it.get("live")), "t_on": t_on, "t_done": t_done,
                           "values": [(off + float(a), str(b)) for a, b in it.get("values") or []],
-                          "spans": spans_of(it, off, off + dur)})
+                          "spans": [(off + a, off + b) for a, b in checks.intervals(it.get("events") or [], dur)]})
         t = max(t, off + dur)
     return {"plan": plan, "scenes": scenes, "blocks": blocks, "plays": plays, "items": items, "duration": t,
             "layout_sha256": hashes, "stage": stage}
-
-
-def spans_of(item: dict, off: float, end: float) -> list[tuple[float, float]]:
-    out, on = [], None
-    for ev in item.get("events") or []:
-        if ev[1] == 1 and on is None:
-            on = off + float(ev[0])
-        elif ev[1] == 0 and on is not None:
-            out.append((on, off + float(ev[0])))
-            on = None
-    if on is not None:
-        out.append((on, end))
-    return out
 
 
 def body_bounds(tl: dict) -> tuple[float, float]:
@@ -291,43 +199,8 @@ def chapters(tl: dict) -> list[dict]:
 
 # --------------------------------------------------------------------------- silences
 
-def stem_silences(path: Path, rel_db: float, min_s: float) -> list[tuple[float, float]]:
-    """Silences of the narration stem: 10 ms frames whose level (30 ms window) is rel_db below the speech level (the
-    95th percentile of the frame levels), merged across gaps under 0.1 s, at least min_s long."""
-    import numpy as np
-    with wave.open(str(path), "rb") as w:
-        sr, ch, width, n = w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()
-        raw = w.readframes(n)
-    dt = {2: np.int16, 4: np.int32}[width]
-    x = np.frombuffer(raw, dtype=dt).astype(np.float64).reshape(-1, ch).mean(axis=1)
-    hop, win = max(1, int(0.01 * sr)), max(2, int(0.03 * sr))
-    k = max(1, 1 + (len(x) - win) // hop)
-    sq = np.concatenate([[0.0], np.cumsum(x * x)])
-    starts = np.arange(k) * hop
-    rms = np.sqrt(np.maximum((sq[np.minimum(starts + win, len(x))] - sq[starts]) / win, 0.0))
-    lev = 20 * np.log10(rms + 1e-9)
-    loud = lev[lev > lev.max() - 60] if lev.size else lev
-    thr = (np.percentile(loud, 95) if loud.size else 0.0) + rel_db
-    quiet = lev < thr
-    out, s0 = [], None
-    for i, q in enumerate(list(quiet) + [False]):
-        if q and s0 is None:
-            s0 = i
-        elif not q and s0 is not None:
-            out.append([s0 * 0.01, i * 0.01 + 0.02])
-            s0 = None
-    merged = []
-    for a, b in out:
-        if merged and a - merged[-1][1] < 0.1:
-            merged[-1][1] = b
-        else:
-            merged.append([a, b])
-    return [(round(a, 3), round(b, 3)) for a, b in merged if b - a >= min_s]
-
-
 def timing_silences(tl: dict, min_s: float) -> list[tuple[float, float]]:
-    """Silences from the word timings: every gap of min_s or more between spoken words (inside blocks, between
-    blocks, across cuts), plus the start and the end of the video."""
+    """Every gap of min_s or more between spoken words, and before the first and after the last."""
     spans = sorted((w["t0"], w["t1"]) for b in tl["blocks"] for w in b["words"])
     out, t = [], 0.0
     for a, b in spans:
@@ -340,8 +213,7 @@ def timing_silences(tl: dict, min_s: float) -> list[tuple[float, float]]:
 
 
 def silence_after(sil: list[tuple[float, float]], t: float, slack: float = 0.35) -> float:
-    """Length of the silence that follows a word ending at t: one that starts within slack of t (word ends are
-    estimates), else the rest of one that t falls in; 0 when speech goes on."""
+    """Length of the silence after a word ending at t: one starting within slack of t, or the rest of one t is in."""
     best = 0.0
     for a, b in sil:
         if t - slack <= a <= t + slack:
@@ -356,16 +228,11 @@ def silence_after(sil: list[tuple[float, float]], t: float, slack: float = 0.35)
 def sentences(tl: dict) -> list[dict]:
     out = []
     for bi, b in enumerate(tl["blocks"]):
-        cur = []
-        for wi, w in enumerate(b["words"]):
-            cur.append(wi)
-            end = w["w"].rstrip("\"')]")
-            if end.endswith((".", "!", "?", "…")) or wi == len(b["words"]) - 1:
-                ws = [b["words"][k] for k in cur]
-                out.append({"block": bi, "scene": b["scene"], "i0": cur[0], "i1": cur[-1], "t0": ws[0]["t0"],
-                            "t1": ws[-1]["t1"], "text": " ".join(x["w"] for x in ws), "question": end.endswith("?"),
-                            "last": wi == len(b["words"]) - 1, "slow": bool(b.get("slow"))})
-                cur = []
+        for i0, i1 in checks.sentences([w["w"] for w in b["words"]]):
+            ws = b["words"][i0:i1 + 1]
+            out.append({"block": bi, "scene": b["scene"], "i0": i0, "i1": i1, "t0": ws[0]["t0"], "t1": ws[-1]["t1"],
+                        "text": " ".join(x["w"] for x in ws), "question": ws[-1]["w"].rstrip("\"'’)]").endswith("?"),
+                        "last": i1 == len(b["words"]) - 1, "slow": bool(b.get("slow"))})
     return out
 
 
@@ -389,9 +256,8 @@ def find_phrase(tl: dict, scene: str, phrase: str) -> tuple[int, int] | None:
     return None
 
 
-def place_ideas(tl: dict, sents: list[dict], fd: Findings) -> list[dict]:
-    """The declared ideas of plan.json with their time (the start of the sentence that states them, or the
-    bookmark) and the end of that sentence; unplaced ones are warnings."""
+def place_ideas(tl: dict, sents: list[dict], fd: checks.Findings) -> list[dict]:
+    """The declared ideas of plan.json at the start and end of the sentence that states them; unplaced ones warn."""
     out = []
     for k, idea in enumerate(tl["plan"].get("ideas") or []):
         if not isinstance(idea, dict):
@@ -420,8 +286,7 @@ def place_ideas(tl: dict, sents: list[dict], fd: Findings) -> list[dict]:
 
 
 def latex_symbols(tex: str) -> list[str]:
-    """The symbols of a LaTeX formula: letters and Greek letters (and infinity) with their sub- and superscripts; the
-    names of commands (min, sum, left, right, big, frac ...) and text groups are not symbols."""
+    """Letters and Greek letters of a LaTeX formula with their sub- and superscripts (command names are not symbols)."""
     t = TEXT_GROUP.sub(" ", tex)
     t = COMMAND.sub(lambda m: m.group(0) if m.group(1) in GREEK else " ", t)
     t = re.sub(r"\s+", " ", t)
@@ -437,10 +302,7 @@ def relations(tex: str) -> int:
 
 
 def equations(tl: dict, lo: float, hi: float, cfg: dict, labels: list | None = None) -> list[dict]:
-    """New equations in order of their reveal: [{"t", "t_done", "content", "new", "familiar", "weight"}]. An item
-    counts with two or more relations or operators, or with one and a new symbol ("V_0 = W"); weight 1 with a new
-    symbol, else rearrangement_weight (a form change); an equation shown again is not new. A lone new symbol on the
-    picture ("q", "\\Omega") is a label, not an equation: it goes to `labels` (a concept event, no hold)."""
+    """New equations in order of their reveal (a lone new symbol goes to labels instead)."""
     seen_sym, seen_eq, out = set(), set(), []
     for it in sorted((i for i in tl["items"] if i["kind"] == "math" and not i["live"]), key=lambda i: i["t_on"]):
         key = re.sub(r"\s+", "", it["content"])
@@ -476,8 +338,7 @@ def term_list(tl: dict, cfg: dict) -> list[str]:
 
 
 def terms(tl: dict, cfg: dict) -> list[dict]:
-    """First spoken mention of each term: [{"t", "term", "block", "i"}]. Hyphens and spaces alike ("one-step bill");
-    a term is left out only when it is said again (not when it contains, or is contained in, another)."""
+    """First spoken mention of each term: [{"t", "term", "block", "i"}]."""
     flat = []
     for bi, b in enumerate(tl["blocks"]):
         for wi, w in enumerate(b["words"]):
@@ -496,8 +357,7 @@ def terms(tl: dict, cfg: dict) -> list[dict]:
 
 
 def spoken_value(run: list[str]) -> float | None:
-    """The value of a run of number words ("zero point five nine" -> 0.59, "one point two" -> 1.2, "twenty" -> 20,
-    "a hundred" -> 100), or None."""
+    """The value of a run of number words ("zero point five nine" -> 0.59), or None."""
     if "point" in run:
         k = run.index("point")
         whole = spoken_value(run[:k]) if run[:k] else 0.0
@@ -520,14 +380,12 @@ def spoken_value(run: list[str]) -> float | None:
 
 
 def ntok(word: str) -> str:
-    """A word for the number detector: lower case, digits with their decimal point kept ("0.59")."""
+    """A word for the number detector: lower case, digits with their decimal point kept."""
     return re.sub(r"[^a-z0-9.%']", "", str(word).lower().replace("’", "'")).strip(".'")
 
 
 def numbers(tl: dict) -> list[dict]:
-    """Spoken numbers that carry a value: a run of number words with "point", "percent", "hundred" or "half", a digit,
-    or a run after a word that introduces a value ("at", "is", "weight", "about" ...), or one followed by "steps"
-    when it is not an article's ("one step" is an idiom). [{"t", "text", "value"}]."""
+    """Spoken numbers that carry a value: [{"t", "text", "value", "scene"}]."""
     out = []
     for b in tl["blocks"]:
         toks = [ntok(w["w"]) for w in b["words"]]
@@ -559,7 +417,7 @@ def numbers(tl: dict) -> list[dict]:
 
 
 def numbers_on_screen(tl: dict, value: float | None, t: float) -> bool:
-    """A text visible at t that shows the value (to the precision it is written with)."""
+    """Whether a text visible at t shows the value, to the precision it is written with."""
     if value is None:
         return True
     for it in tl["items"]:
@@ -576,7 +434,7 @@ def numbers_on_screen(tl: dict, value: float | None, t: float) -> bool:
 
 
 def windows(events: list[tuple[float, float]], width: float) -> tuple[float, float]:
-    """(largest weighted count in any window of `width` seconds that starts at an event, its start)."""
+    """(the largest weighted count in a window of width seconds that starts at an event, its start)."""
     best = (0.0, 0.0)
     for t0, _ in events:
         n = sum(w for t, w in events if t0 <= t < t0 + width)
@@ -587,7 +445,7 @@ def windows(events: list[tuple[float, float]], width: float) -> tuple[float, flo
 
 # --------------------------------------------------------------------------- the rules
 
-def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
+def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
     fd = Findings()
     tl = timeline(run, stage)
     stats: dict = {"stage": stage, "duration_s": round(tl["duration"], 1)}
@@ -596,9 +454,14 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
     stats["body_s"] = [round(lo, 1), round(hi, 1)]
     sents = sentences(tl)
     ideas = place_ideas(tl, sents, fd)
+    standalone = not (run / "video" / "series_context.json").exists()
+    elsewhere = "cut one, or leave it to the explainer" if standalone else \
+        "move one to a neighbouring episode through the series plan"
     stem = run / "video" / "final" / "narration.wav"
     if stage == "final" and stem.exists():
-        sil, how = stem_silences(stem, float(cfg["silence_rel_db"]), float(cfg["silence_min_s"])), "narration stem"
+        sil = checks.silences(stem, float(cfg["silence_rel_db"]), float(cfg["silence_min_s"]), relative=True,
+                              bridge_s=0.1)
+        how = "narration stem"
     else:
         sil, how = timing_silences(tl, float(cfg["silence_min_s"])), "word timings"
     for p in tl["plays"]:                              # a hold of the picture is silence whatever the timings say
@@ -629,8 +492,7 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
                                                                              "example results"),
                          (n_side, cfg["side_max"], "side results")):
         if n > cap:
-            fd.add("P1", "warning", "video", f"{n} {what} (at most {cap}): move one to a neighbouring episode "
-                   "through the series plan")
+            fd.add("P1", "warning", "video", f"{n} {what} (at most {cap}): {elsewhere}")
     for a, b in zip(stars, stars[1:]):
         if b["t"] - a["t"] < float(cfg["star_spacing_s"]):
             fd.add("P2", "warning", b.get("scene", ""), f"starred results {a['label']!r} and {b['label']!r} "
@@ -964,10 +826,8 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
                f"(at least {cfg['pause_share_min']:.0%}): planned pauses after results, prompts and chapter ends")
 
     # P18: the idea budget (the series plan's ideas when the run has them, else the video's own)
-    ep_path = run / "episode.json"
-    planned = {i.get("id"): i for i in (json.loads(ep_path.read_text(encoding="utf-8")).get("ideas") or [])
-               if isinstance(i, dict)} if ep_path.exists() else {}
-    own = [i for i in ideas if i.get("kind") in IB.KINDS and not (i.get("kind") == "claim" and i.get("of"))]
+    planned = {i.get("id"): i for i in IB.planned_ideas(run)}
+    own = IB.budgeted(ideas)
     basis = list(planned.values()) if planned else own
     if basis:
         pc = IB.settings()
@@ -980,8 +840,8 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
         if tl["duration"] < est["lo_s"] - 30 and dense:
             fd.add("P18", "warning", "video", f"the video runs {tl['duration'] / 60:.1f} min but its ideas need "
                    f"{est['lo_s'] / 60:.1f}-{est['hi_s'] / 60:.1f} min ({stats['budget']['from']}), and the density "
-                   f"rules {', '.join(dense)} fire: give the ideas their time, or move one to a neighbouring episode "
-                   "through the series plan (never raise the speaking rate)")
+                   f"rules {', '.join(dense)} fire: give the ideas their time, or {elsewhere} (never raise the "
+                   "speaking rate)")
         elif tl["duration"] > est["hi_s"] + 60:
             fd.add("P18", "warning", "video", f"the video runs {tl['duration'] / 60:.1f} min, more than the "
                    f"{est['lo_s'] / 60:.1f}-{est['hi_s'] / 60:.1f} min its declared ideas need: it says more than it "
@@ -1028,8 +888,8 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
         for p in VOICE.markup_problems(b["raw"], mx):
             fd.add("markup", "warning", b["scene"], f"{p} ({b['text'][:40]!r})", b["start"])
 
-    by_role: dict[str, list[float]] = {}               # the time each declared idea got, by its budget role (the
-    for a, b in zip(ideas, ideas[1:]):                 # series plan's idea when there is one: follows, names ...)
+    by_role: dict[str, list[float]] = {}               # the time each declared idea got, by its planned role
+    for a, b in zip(ideas, ideas[1:]):
         src = planned.get(a.get("id")) or a
         r = IB.role(src) if a.get("kind") in IB.KINDS else str(a.get("kind"))
         by_role.setdefault(r, []).append(round(b["t"] - a["t"], 1))
@@ -1038,7 +898,7 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[Findings, dict]:
         b = stats["budget"]
         stats["calibration"]["runtime_minus_budget_s"] = [round(b["runtime_s"] - b["needs_s"][0], 1),
                                                           round(b["runtime_s"] - b["needs_s"][1], 1)]
-    b0, b1 = body_bounds(tl)                           # the slow reading, for pacing.plan slow_extra and slow_roles
+    b0, b1 = body_bounds(tl)                           # the slow reading, to calibrate pacing.plan slow_extra
     spoken = [(b["end"] - b["start"], bool(b.get("slow"))) for b in tl["blocks"] if b0 <= b["start"] < b1]
     if spoken:
         share = sum(d for d, sl in spoken if sl) / max(sum(d for d, _ in spoken), 1e-6)
@@ -1075,15 +935,13 @@ def scene_at(tl: dict, t: float) -> str:
 
 
 def changes(tl: dict, scene: str | None, t0: float, t1: float) -> list[str]:
-    """Texts and equations of a scene (not live readouts) that appear between t0 and t1: the picture changing during
-    a silence meant for consolidation."""
+    """Texts and equations of a scene (not live readouts) that appear between t0 and t1."""
     return [it["content"][:30] for it in tl["items"] if it["scene"] == scene and not it["live"]
             and t0 + 0.05 < it["t_on"] < t1]
 
 
 def label_leads(tl: dict) -> list[tuple[dict, float]]:
-    """(label, when its words are said) for short on-screen labels (one to four words, not live, not math) said in
-    their scene within 10 s before they appear and not within the 1.5 s around it: the words came first."""
+    """(label, when its words are said) for short labels whose words come within 10 s before them, not as they appear."""
     out, done = [], set()
     for it in sorted(tl["items"], key=lambda i: i["t_on"]):
         if it["kind"] != "text" or it["live"] or it["role"] not in ("body", "recap"):
@@ -1110,12 +968,9 @@ def label_leads(tl: dict) -> list[tuple[dict, float]]:
     return out
 
 
-def pretraining(tl: dict, ideas: list[dict], eqs: list[dict], sil: list, fd: Findings, cfg: dict,
+def pretraining(tl: dict, ideas: list[dict], eqs: list[dict], sil: list, fd: checks.Findings, cfg: dict,
                 events: list | None = None) -> dict:
-    """The pretraining segment of the declared concepts with "pretraining": its span and whether the exception of P4
-    applies (conditions a-g of the learning-science review); a warning names the first condition that fails. Every
-    concept event inside the segment counts in (a): the declared concepts and the detected terms and equations no
-    declared concept covers."""
+    """The pretraining segment and whether P4's exception applies (conditions a-g; the first that fails warns)."""
     pre = [i for i in ideas if i.get("kind") == "concept" and i.get("pretraining")]
     if not pre:
         return {}
@@ -1158,11 +1013,10 @@ def pretraining(tl: dict, ideas: list[dict], eqs: list[dict], sil: list, fd: Fin
     return {"t0": round(t0, 1), "t1": round(end, 1), "concepts": len(pre), "valid": not fails, "fails": fails}
 
 
-def report_md(stage: str, fd: Findings, stats: dict) -> str:
-    errs = [x for x in fd.items if x["severity"] == "error"]
-    warns = [x for x in fd.items if x["severity"] == "warning"]
+def report_md(stage: str, fd: checks.Findings, stats: dict) -> list[str]:
+    n_err, n_warn = checks.summary(fd.items).values()
     md = [f"# Pacing ({stage})", "",
-          f"{len(errs)} error(s), {len(warns)} warning(s); rules P1-P20 and thresholds in config/video.json "
+          f"{n_err} error(s), {n_warn} warning(s); rules P1-P20 and thresholds in config/video.json "
           "\"pacing\"; silences from the " + stats.get("silences_from", "-") + ".", "",
           f"- runtime {stats['duration_s'] / 60:.1f} min, body {stats['body_s'][0]:.0f}-{stats['body_s'][1]:.0f} s; "
           f"{stats.get('body_wpm', '-')} words per minute of body running time",
@@ -1181,18 +1035,17 @@ def report_md(stage: str, fd: Findings, stats: dict) -> str:
         md.append(f"- picture against words: {p['pairs']} pairs, words first in {p['words_first']}, median lead of "
                   f"the words {p['median_s']} s")
     if stats.get("ideas"):
-        md += ["", "| t | Kind | Idea | Scene | Silence after (s) |", "|---|---|---|---|---|"]
-        md += [f"| {mmss(i['t'])} | {i['kind']} | {i['label']} | {i['scene']} | {i.get('silence_after_s', '')} |"
-               for i in stats["ideas"]]
+        md += [""] + checks.md_table(["t", "Kind", "Idea", "Scene", "Silence after (s)"], (
+            [mmss(i["t"]), i["kind"], i["label"], i["scene"], i.get("silence_after_s", "")] for i in stats["ideas"]))
     if stats.get("chapters"):
-        md += ["", "| Chapter | s | wpm |", "|---|---|---|"]
-        md += [f"| {c['chapter']} | {c['s']} | {c.get('wpm') or '-'} |" for c in stats["chapters"]]
+        md += [""] + checks.md_table(["Chapter", "s", "wpm"],
+                                     ([c["chapter"], c["s"], c.get("wpm") or "-"] for c in stats["chapters"]))
     if fd.items:
-        md += ["", "| Severity | Rule | Where | t | Detail |", "|---|---|---|---|---|"]
         order = {"error": 0, "warning": 1, "info": 2}
-        md += [f"| {x['severity']} | {x['rule']} | {x['where']} | {'' if x['t'] is None else mmss(x['t'])} | "
-               f"{x['detail'].replace('|', '/')} |" for x in sorted(fd.items, key=lambda x: order[x["severity"]])]
-    return "\n".join(md) + "\n"
+        md += [""] + checks.md_table(["Severity", "Rule", "Where", "t", "Detail"], (
+            [x["severity"], x["rule"], x["where"], "" if x["t"] is None else mmss(x["t"]), x["detail"]]
+            for x in sorted(fd.items, key=lambda x: order[x["severity"]])))
+    return md
 
 
 def main() -> int:
@@ -1204,20 +1057,16 @@ def main() -> int:
     run = resolve_run(a.run)
     cfg = settings()
     fd, stats = check(run, a.stage, cfg)
-    errs = [x for x in fd.items if x["severity"] == "error"]
-    warns = [x for x in fd.items if x["severity"] == "warning"]
+    n_err, n_warn = checks.summary(fd.items).values()
     out = Path(a.out) if a.out else run / "review" / "design" / a.stage
-    out.mkdir(parents=True, exist_ok=True)
-    write_json(out / "check_pacing.json", {
-        "schema_version": 1, "tool": "check_pacing", "stage": a.stage, "checked_at": utc_now(), "passed": not errs,
-        "summary": {"errors": len(errs), "warnings": len(warns)}, "layout_sha256": stats.pop("layout_sha256"),
-        "stats": stats, "findings": fd.items})
-    (out / "check_pacing.md").write_text(report_md(a.stage, fd, stats), encoding="utf-8")
+    sha = stats.pop("layout_sha256")
+    checks.write_report(out, "check_pacing", a.stage, fd.items, report_md(a.stage, fd, stats), layout_sha256=sha,
+                        stats=stats)
     for x in fd.items:
         print(f"{x['severity']} {x['rule']} {x['where']}{'' if x['t'] is None else ' at ' + mmss(x['t'])}: "
               f"{x['detail']}")
-    print(f"check_pacing ({a.stage}): {len(errs)} error(s), {len(warns)} warning(s); {rel(out / 'check_pacing.md')}")
-    return 1 if errs else 0
+    print(f"check_pacing ({a.stage}): {n_err} error(s), {n_warn} warning(s); {rel(out / 'check_pacing.md')}")
+    return 1 if n_err else 0
 
 
 if __name__ == "__main__":
