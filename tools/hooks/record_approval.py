@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "human"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import _common  # noqa: E402,F401  re-executes under .venv before stdin is read
 
 
 def reply(obj: dict) -> int:

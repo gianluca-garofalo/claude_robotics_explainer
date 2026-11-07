@@ -15,6 +15,7 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(TOOLS))
+import _common  # noqa: E402,F401  re-executes under .venv before stdin is read
 MAX_LINES = 25
 
 
