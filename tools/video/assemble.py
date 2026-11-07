@@ -1,36 +1,13 @@
 #!/usr/bin/env python3
-"""Assemble the final video: the narrated scenes in plan order, captions, chapters (deterministic).
+"""Assemble the final video: the scenes in plan order, the mastered narration and music, captions and chapters.
 
 Usage:
   python3 tools/video/assemble.py runs/<run> [--quality h|m|l] [--fps N]
-
-Inputs:  video/plan.json; video/renders/<Class>.mp4 (+ .srt) for each scene; explainer.html (section headings, only
-         for old plans without chapter titles); config/channel.json "video" (quality, loudness_lufs) and "music".
-         No card is added: the video opens with the first scene's hook (no channel card) and ends with the plan's
-         outro scene (takeaway card, channel name, teaser). The only thing added is original music (route A of the
-         music rule): tools/video/music.py generates it, seeded and reproducible, with its provenance stamp.
-Outputs: video/final/<slug>.mp4 (h264 + AAC), <slug>.srt (captions shifted to the final timeline), chapters.json
-         (YouTube rules: first at 0:00, each at least 10 s, at least three), assembly.json (segments, and "audio":
-         the music settings and the loudness and true peak measured on the encoded file), narration.wav (the
-         narration stem, which the final gate measures), music.wav, stings.wav and music.json (when music is on).
-Each segment is re-encoded to one size, frame rate and audio format, so the concatenation is exact.
-
-Audio chain (after the concatenation): the narration stem (high-passed at 70 Hz, 2 dB less at 7 kHz, where the
-synthetic voice has an edge); the music bed set bed_in_gaps_lu below the narration's loudness and ducked by
-bed_in_gaps_lu - bed_under_voice_lu while the narration speaks (a sidechain keyed by the narration advanced by
-lookahead_ms, attack_ms, release_ms), per scene mode (plan.json "music": bed, low or off; music.py); the stings at
-sting_lu; then two passes to the target: the premix is measured
-(EBU R128), a fixed gain brings it to video.loudness_lufs, an oversampled (192 kHz) limiter holds the peaks, and the
-true peak is measured again after AAC encoding; above music.true_peak_dbtp the limiter is lowered and the encode
-repeated, and a gain
-shortfall the limiter caused (more than 0.3 LU) is made up (at most four encodes).
 """
 from __future__ import annotations
 
 import argparse
-import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -39,37 +16,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import CONFIG, load_json, rel, resolve_run, write_json  # noqa: E402
 import music as MU  # noqa: E402
 import plan as P  # noqa: E402
+from media import loudness, probe, read_srt, run, write_srt  # noqa: E402
 
 PRESETS = {"l": (854, 480, 15), "m": (1280, 720, 30), "h": (1920, 1080, 60), "k": (3840, 2160, 60)}
 MIN_CHAPTER_S = 10.0
 MAX_GAIN_DB = 24.0          # never raise a near-silent premix (a silent draft voice) by more than this
-VOICE_FILTER = "highpass=f=70,equalizer=f=7000:t=q:w=1.5:g=-2"
-
-
-def run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True)
-    if p.returncode != 0:
-        raise SystemExit(f"error: {' '.join(cmd[:4])} ... failed:\n{p.stderr[-2000:]}")
-    return p.stdout
-
-
-def probe(path: Path) -> dict:
-    return json.loads(run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(path)]))
-
-
-def video_duration(info: dict) -> float:
-    v = next(s for s in info["streams"] if s["codec_type"] == "video")
-    return float(v.get("duration") or info["format"]["duration"])
+VOICE_FILTER = "highpass=f=70,equalizer=f=7000:t=q:w=1.5:g=-2"   # softens the synthetic voice's edge at 7 kHz
 
 
 def background_hex() -> str:
-    """config/video.json palette.background as ffmpeg's 0xRRGGBB (the padding colour matches the scenes)."""
     return "0x" + load_json(CONFIG / "video.json").get("palette", {}).get("background", "#0f172a").lstrip("#")
 
 
 def normalise(src: Path, dst: Path, w: int, h: int, fps: int) -> float:
+    """Re-encode a scene to one size, frame rate and audio format, so that the concatenation is exact."""
     info = probe(src)
-    dur = video_duration(info)
+    v = next(s for s in info["streams"] if s["codec_type"] == "video")
+    dur = float(v.get("duration") or info["format"]["duration"])
     has_audio = any(s["codec_type"] == "audio" for s in info["streams"])
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(src)]
     if not has_audio:
@@ -84,22 +47,18 @@ def normalise(src: Path, dst: Path, w: int, h: int, fps: int) -> float:
     return float(probe(dst)["format"]["duration"])
 
 
-def loudness(path: Path, extra: list[str] | None = None) -> dict:
-    """EBU R128 of a file (music.py's measure): integrated LUFS, LRA, true peak dBTP."""
-    return MU.loudness(path, extra)
-
-
 def master_audio(joined: Path, out: Path, build: Path, final: Path, slug: str, segments: list[dict],
                  chs: list[dict], total: float, channel: dict) -> dict:
-    """Narration stem, music (when on), ducking, two-pass loudness and the true-peak limit; muxes `out`."""
+    """Narration stem, music ducked under it, the gain to the loudness target and the true-peak limit after AAC
+    encoding (at most four encodes); muxes `out` and returns the audio record."""
     import numpy as np
     target = float(channel.get("video", {}).get("loudness_lufs", -14))
     mcfg = MU.settings()
     tp_max = float(mcfg.get("true_peak_dbtp", -1.0))
     use_music = bool(mcfg.get("enabled")) and mcfg.get("source", "generated") == "generated"
-    for name in ("music.wav", "stings.wav", "music.json"):       # never leave an old stamp behind
-        if not use_music and (final / name).exists():
-            (final / name).unlink()
+    if not use_music:                                       # never leave an old stamp behind
+        for name in ("music.wav", "stings.wav", "music.json"):
+            (final / name).unlink(missing_ok=True)
     stem = final / "narration.wav"
     run(["ffmpeg", "-v", "error", "-y", "-i", str(joined), "-map", "0:a:0", "-af", VOICE_FILTER, "-ar", str(MU.SR),
          "-ac", "2", "-c:a", "pcm_s16le", str(stem)])
@@ -130,10 +89,10 @@ def master_audio(joined: Path, out: Path, build: Path, final: Path, slug: str, s
         music_mix = bed * gain * 10 ** (g_bed / 20) + st * st_gain * 10 ** (g_st / 20)
         mix = mix + music_mix
         under = None
-        if not silent_voice:                      # K-weighted, as the loudness targets: the mixed music alone
-            probe = build / "music_mix_probe.wav"
-            MU.write_wav(probe, music_mix, bits=32)
-            under = MU.under_voice_files(stem, probe)
+        if not silent_voice:                      # the mixed music alone, K-weighted like the loudness target
+            probe_wav = build / "music_mix_probe.wav"
+            MU.write_wav(probe_wav, music_mix, bits=32)
+            under = MU.under_voice_files(stem, probe_wav)
             if under is None:
                 under = MU.under_voice(voice.mean(axis=0), music_mix.mean(axis=0), MU.SR)
         info = {"used": True, "source": "generated", "generator": stamp["generator"], "tool_version":
@@ -175,25 +134,6 @@ def master_audio(joined: Path, out: Path, build: Path, final: Path, slug: str, s
             "music": info}
 
 
-def parse_srt(text: str) -> list[tuple[float, float, str]]:
-    def t(s):
-        hh, mm, rest = s.strip().split(":")
-        ss, ms = rest.split(",")
-        return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000
-    cues = []
-    for block in re.split(r"\n\s*\n", text.strip()):
-        lines = [x for x in block.splitlines() if x.strip()]
-        if len(lines) >= 2 and "-->" in lines[1]:
-            a, b = lines[1].split("-->")
-            cues.append((t(a), t(b), " ".join(lines[2:]).strip()))
-    return cues
-
-
-def fmt_srt(sec: float) -> str:
-    ms = int(round(sec * 1000))
-    return f"{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}"
-
-
 def fmt_chapter(sec: float) -> str:
     s = int(sec)
     return f"{s // 3600}:{s // 60 % 60:02d}:{s % 60:02d}" if s >= 3600 else f"{s // 60}:{s % 60:02d}"
@@ -212,8 +152,8 @@ def section_titles(explainer: Path) -> dict[str, str]:
 
 
 def music_changes(scene: dict, layout: Path, t0: float) -> list[list]:
-    """(v5) plan.json scenes[].music_from [{"says", "mode"}] as [[video seconds, mode]]: the start of the scene's first
-    narration block (from its layout log) that contains the words; a cue whose words are not found is left out."""
+    """plan.json music_from cues as [[video seconds, mode]]: the start of the scene's first narration block (from its
+    layout log) that holds the cue's words; a cue whose words match no block is left out."""
     cues = scene.get("music_from") or []
     if not cues or not layout.exists():
         return []
@@ -234,13 +174,13 @@ def music_changes(scene: dict, layout: Path, t0: float) -> list[list]:
 
 
 def chapters(segments: list[dict], titles: dict[str, str], total: float) -> list[dict]:
-    """YouTube chapters from the scene segments: plan.json "chapter" titles (the explainer's heading only for old plans
-    without one); consecutive scenes with the same title form one chapter."""
+    """YouTube chapters: the scenes' plan.json "chapter" titles (else their section's heading); consecutive scenes
+    with one title form one chapter, and chapters under MIN_CHAPTER_S fold into the one before."""
     raw = []
     for seg in segments:
         if seg["kind"] != "scene":
             continue
-        title = seg.get("chapter") or titles.get(seg.get("section"), seg.get("section"))   # the video's own title first
+        title = seg.get("chapter") or titles.get(seg.get("section"), seg.get("section"))
         if raw and raw[-1]["title"] == title:
             continue
         raw.append({"start": seg["start"], "title": title})
@@ -251,10 +191,10 @@ def chapters(segments: list[dict], titles: dict[str, str], total: float) -> list
     for i, ch in enumerate(raw):
         end = raw[i + 1]["start"] if i + 1 < len(raw) else total
         if merged and end - ch["start"] < MIN_CHAPTER_S:
-            continue                            # too short: fold into the previous chapter
+            continue
         merged.append(dict(ch))
     if len(merged) >= 2 and total - merged[-1]["start"] < MIN_CHAPTER_S:
-        merged.pop()                            # a short last chapter folds back too
+        merged.pop()
     for ch in merged:
         ch["label"] = f"{fmt_chapter(ch['start'])} {ch['title']}"
     return merged
@@ -298,10 +238,8 @@ def main() -> int:
             changes = music_changes(scene, src.with_suffix(".layout.json"), t)
             if changes:
                 seg["music_changes"] = changes
-            srt = src.with_suffix(".srt")
-            if srt.exists():
-                for a0, b0, text in parse_srt(srt.read_text(encoding="utf-8")):
-                    cues.append((t + a0, min(t + b0, t + dur), text))
+            for a0, b0, text in read_srt(src.with_suffix(".srt")):
+                cues.append((t + a0, min(t + b0, t + dur), text))
         segments.append(seg)
         t += dur
     (build / "concat.txt").write_text("".join(f"file 'seg_{i:02d}.mp4'\n" for i in range(len(order))), encoding="utf-8")
@@ -309,15 +247,12 @@ def main() -> int:
     run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(build / "concat.txt"), "-c", "copy",
          str(joined)])
     out = final / f"{slug}.mp4"
-    audio = master_audio(joined, out, build, final, slug, segments,
-                         chapters(segments, section_titles(runp / "explainer.html"), t), t, channel)
+    titles = section_titles(runp / "explainer.html")
+    audio = master_audio(joined, out, build, final, slug, segments, chapters(segments, titles, t), t, channel)
     total = float(probe(out)["format"]["duration"])
 
-    srt_lines = []
-    for n, (a0, b0, text) in enumerate(sorted(cues), 1):
-        srt_lines += [str(n), f"{fmt_srt(a0)} --> {fmt_srt(max(b0, a0 + 0.05))}", text, ""]
-    (final / f"{slug}.srt").write_text("\n".join(srt_lines), encoding="utf-8")
-    chs = chapters(segments, section_titles(runp / "explainer.html"), total)
+    write_srt(final / f"{slug}.srt", [(a0, max(b0, a0 + 0.05), text) for a0, b0, text in sorted(cues)])
+    chs = chapters(segments, titles, total)
     write_json(final / "chapters.json", {"schema_version": 1, "chapters": chs, "valid": len(chs) >= 3})
     write_json(final / "assembly.json", {"schema_version": 1, "quality": q, "size": [w, h], "fps": fps,
                                           "duration": round(total, 3), "video": rel(out),
@@ -336,4 +271,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except RuntimeError as exc:                 # ffmpeg or ffprobe failed
+        sys.exit(f"error: {exc}")

@@ -1,50 +1,23 @@
 #!/usr/bin/env python3
-"""Original music for a video: a seeded, reproducible ambient bed with the channel's motif (numpy only, no samples).
+"""Original music for a video: a seeded ambient bed and the channel's motif, synthesised with numpy (no samples).
 
 Usage:
-  python3 tools/video/music.py runs/<run> [--seed N] [--preset calm-pad] [--duration S]
-
-Route A of the music rule ("original only"): every note is synthesised here from sine and triangle oscillators, so
-the music has no third-party rights and no Content ID risk, and the same inputs give the same file bit for bit.
-tools/video/assemble.py calls build() after it has joined the scenes and written the narration stem; run alone, this
-reads video/final/assembly.json and video/final/narration.wav of an assembled run.
-
-What it makes (preset "calm-pad", the only one so far; the owner approves a preset by ear once):
-  bed      a slow chord pad (detuned sine and triangle voices, low-passed, with a synthetic reverb) that changes chord
-           at every chapter start (chapters as assemble.py merges them) and every chord_s seconds inside long chapters
-  bells    sparse soft FM bells on the chord tones, an octave or two up
-  motif    the channel's four-note motif (scale degrees 1-3-5-2) as bells over a short swell: the "sting", on the
-           title beat after the hook and at the start of the outro (config/channel.json music.stings)
-  modes    per scene (plan.json scenes "music", default config/channel.json music.modes_by_role): "bed", "low" or
-           "off"; v5: a scene may change mode at a narration block (plan.json "music_from", assemble.py
-           music_changes). Music under explanation hurts recall and transfer (the coherence principle, Moreno and Mayer 2000),
-           so the default is the bed in the hook, the title beat and the outro, and "low" (at least 20 LU under the
-           voice) in the body; a scene can turn it off. Every cut between scenes gets a short swell (a transition).
-  shape    a swell under the cold open (the picture moves before the first word), a gentle swell in every pause of
-           the narration of at least pause_swell_s inside a scene whose mode is not "off" (v4: a pause of at least
-           off_beat_swell_s inside an "off" scene is a planned beat, not a hole: the bed rises to the "low" level
-           in it, so a beat is never digital silence; 0 turns this off), a lift under the outro and
-           a fade over its last fade_out_s
-The seed (default: from the run slug) fixes the voicings, the bell pattern and the phases. The level relative to the
-voice and the ducking are set at the mix (assemble.py, duck_gain() here), not in this file.
-
-Writes video/final/music.wav (48 kHz stereo, 16-bit) and video/final/music.json, the provenance stamp tools/gate.py
-checks before any music may be in the final mix: generator, tool version and sha256, preset, seed, the events, and
-the sha256 of music.wav.
+  python3 tools/video/music.py runs/<run> [--seed N] [--preset calm-pad]   # remakes the music of an assembled run
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import shutil
 import sys
-import wave
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _common import CONFIG, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from media import ebur128, loudness, read_wav, write_wav  # noqa: E402
 
 GENERATOR = "tools/video/music.py"
 VERSION = "1.0"
@@ -52,11 +25,11 @@ SR = 48000
 A4 = 440.0
 PRESETS = {
     "calm-pad": {
-        # Dmaj9 - Bm9 - Gmaj7#11 - Asus2 (MIDI notes): calm, unresolved
+        # MIDI notes of Dmaj9, Bm9, Gmaj7#11, Asus2; the motif D5 F#5 A5 E5 is scale degrees 1-3-5-2
         "chords": [[50, 57, 61, 64, 66], [47, 54, 57, 61, 62], [43, 50, 54, 59, 61], [45, 52, 59, 61, 64]],
-        "motif": [74, 78, 81, 76],          # D5 F#5 A5 E5: scale degrees 1-3-5-2, the channel's sonic identity
-        "chord_s": 12.0,                    # a chord change inside long chapters
-        "lowpass_hz": 1500.0,               # keeps the pad out of the 1-4 kHz band where speech is understood
+        "motif": [74, 78, 81, 76],
+        "chord_s": 12.0,
+        "lowpass_hz": 1500.0,               # below the 1-4 kHz band where speech is understood
         "bell_every_s": 5.0,
         "bell_level": 0.22,
         "reverb_rt60": 3.0,
@@ -91,14 +64,12 @@ def mode_offset_db(mode: str, cfg: dict) -> float:
 
 
 def settings() -> dict:
-    """config/channel.json "music" over the defaults above."""
     cfg = dict(DEFAULTS)
     cfg.update(load_json(CONFIG / "channel.json").get("music", {}) or {})
     return cfg
 
 
 def seed_for(slug: str) -> int:
-    """A stable seed from the run's slug: the same episode always gets the same music."""
     return int(hashlib.sha256(slug.encode("utf-8")).hexdigest()[:8], 16)
 
 
@@ -106,7 +77,6 @@ def hz(midi: float) -> float:
     return A4 * 2 ** ((midi - 69) / 12)
 
 
-# --------------------------------------------------------------------------- signal helpers (numpy only)
 def fft_convolve(x: np.ndarray, h: np.ndarray, block: int = 1 << 18) -> np.ndarray:
     """Overlap-add convolution of each row of x (channels, n) with h (taps,) or (channels, taps); output length n."""
     x = np.atleast_2d(x)
@@ -162,7 +132,6 @@ def bump(n: int, a: float, b: float, db: float, ramp: float = 0.8) -> np.ndarray
     return db * (0.5 - 0.5 * np.cos(np.pi * np.minimum(up, down)))
 
 
-# --------------------------------------------------------------------------- events from the assembled video
 def pauses(voice: np.ndarray, sr: int, min_s: float, floor_db: float = -45.0, hop_s: float = 0.02) -> list[list[float]]:
     """Spans of at least min_s seconds in which the narration (mono) stays below floor_db dBFS RMS."""
     hop = int(sr * hop_s)
@@ -183,12 +152,8 @@ def pauses(voice: np.ndarray, sr: int, min_s: float, floor_db: float = -45.0, ho
 
 
 def sting_slot(t0: float, t1: float, gaps: list[list[float]], cfg: dict) -> float:
-    """Where a sting meant for the segment [t0, t1) starts, so that it sounds in a pause of the narration and ends
-    sting_margin_s before the next word (a sting over the first words masks them: the v2 final-cut review, FC-1):
-    at t0 when the pause there lasts long enough; else ending just before the speech that follows t0, when that
-    pause is long enough; else in the first long enough pause inside the segment; else in its longest pause of at
-    least half the sting; else None: no sting (it would sit on the words). Stings are also ducked under the voice
-    (sting_duck_db) as a safety net."""
+    """Start of the sting of the segment [t0, t1): in a pause of the narration, ending sting_margin_s before the next
+    word; None when no pause can hold it."""
     need = float(cfg.get("sting_s", 3.2)) + float(cfg.get("sting_margin_s", 0.2))
     for a, b in gaps:
         if a - 0.05 <= t0 < b:
@@ -207,10 +172,8 @@ def sting_slot(t0: float, t1: float, gaps: list[list[float]], cfg: dict) -> floa
 
 def under_voice(voice: np.ndarray, music: np.ndarray, sr: int, win_s: float = 0.4, hop_s: float = 0.1,
                 floor_db: float = -45.0) -> float | None:
-    """How loud the music gets while the narration speaks, relative to the narration (dB, RMS): the maximum, over
-    windows of win_s in which the voice speaks (RMS within 6 dB of its median speaking level: whole words, not the
-    soft onsets at the edge of a pause), of the music's RMS
-    minus the voice's median speaking RMS. None when the voice never speaks. Both mono, same rate."""
+    """Loudest music RMS over win_s windows of whole words (voice within 6 dB of its median speaking RMS), in dB
+    relative to that median; None when the voice never speaks."""
     win, hop = int(win_s * sr), int(hop_s * sr)
     n = min(len(voice), len(music))
     if n < win:
@@ -228,40 +191,14 @@ def under_voice(voice: np.ndarray, music: np.ndarray, sr: int, win_s: float = 0.
     return round(float((m[loud] - level).max()), 2)
 
 
-def momentary(path: Path) -> np.ndarray:
-    """EBU R128 momentary loudness (LUFS, 400 ms windows every 100 ms, K-weighted) of a file, from ffmpeg ebur128:
-    one value per 100 ms, indexed by time (silence and unparsable values read as -120)."""
-    import re
-    import subprocess
-    p = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", str(path), "-map", "0:a:0", "-af", "ebur128",
-                        "-f", "null", "-"], capture_output=True, text=True)
-    pairs = re.findall(r"\bt:\s*([\d.]+)\s+TARGET:\S+\s+LUFS\s+M:\s*(\S+)", p.stderr)
-    if not pairs:
-        return np.zeros(0)
-    out = np.full(int(round(float(pairs[-1][0]) * 10)), -120.0)
-    for t, m in pairs:
-        k = int(round(float(t) * 10)) - 1
-        try:
-            val = float(m)
-        except ValueError:
-            val = -120.0
-        if 0 <= k < len(out):
-            out[k] = val if np.isfinite(val) else -120.0
-    return out
-
-
 def under_voice_files(voice_path: Path, music_path: Path, speaking_lu: float = 6.0) -> float | None:
-    """How loud the music gets while the narration speaks, in LU relative to the narration (both K-weighted, EBU
-    R128): the maximum, over the 400 ms windows in which the voice's momentary loudness is within speaking_lu of its
-    integrated loudness (and so are the two windows on each side: whole words, not the edge of a pause), of the
-    music's momentary loudness minus the voice's integrated loudness. None without
-    speech or without ffmpeg."""
-    import shutil
+    """Loudest momentary loudness of the music over whole spoken words (the voice's momentary loudness within
+    speaking_lu of its integrated loudness), in LU relative to the voice; None without speech or ffmpeg."""
     if not shutil.which("ffmpeg"):
         return None
-    v, m = momentary(voice_path), momentary(music_path)
+    (summary, v), m = ebur128(voice_path), ebur128(music_path)[1]
     n = min(len(v), len(m))
-    ref = loudness(voice_path)["integrated_lufs"]
+    ref = summary["integrated_lufs"]
     if n == 0 or ref <= -60:
         return None
     v, m = v[:n], m[:n]
@@ -299,7 +236,7 @@ def plan_events(segments: list[dict], chapters: list[dict], duration: float, gap
     first_speech = gaps[0][1] if gaps and gaps[0][0] <= 0.05 else 0.0
     intro = first_speech if first_speech > 0.5 else float(cfg.get("intro_swell_s", 2.5))   # until the first word
     modes = []
-    for s in segments:                             # v5: a scene may change mode at a narration block (music_changes)
+    for s in segments:                             # a scene may change mode at a narration block (music_changes)
         a, b = round(float(s["start"]), 3), round(float(s["start"]) + float(s["duration"]), 3)
         m = s.get("music") or scene_mode(s, cfg)
         for t, m2 in sorted(s.get("music_changes") or []):
@@ -320,7 +257,6 @@ def plan_events(segments: list[dict], chapters: list[dict], duration: float, gap
             "duration": round(duration, 3)}
 
 
-# --------------------------------------------------------------------------- synthesis
 def chord_times(ev: dict, chord_s: float) -> list[float]:
     """A chord change at every chapter start, and every chord_s seconds inside a long chapter."""
     out, bounds = [], list(ev["chapters"]) + [ev["duration"]]
@@ -372,7 +308,7 @@ def bells_layer(n: int, ev: dict, p: dict, rng: np.random.Generator) -> np.ndarr
 
 
 def sting(p: dict, seconds: float = 3.2) -> np.ndarray:
-    """The motif as bells over a soft swell of the first chord: deterministic (the same in every episode)."""
+    """The motif as bells over a soft swell of the first chord, the same in every episode."""
     n = int(seconds * SR)
     t = np.arange(n) / SR
     out = np.zeros((2, n))
@@ -389,8 +325,7 @@ def sting(p: dict, seconds: float = 3.2) -> np.ndarray:
 
 
 def mode_gain(n: int, ev: dict, cfg: dict) -> np.ndarray:
-    """Linear gain of the bed from the scene modes (cosine ramps of mode_ramp_s at each change), raised to the bed
-    level for transition_swell_s around every cut."""
+    """Linear gain of the bed from the scene modes, smoothed over mode_ramp_s and raised to the bed around cuts."""
     t = np.arange(n) / SR
     lin = np.zeros(n)
     for a, b, m in ev.get("modes") or [[0.0, ev["duration"], "bed"]]:
@@ -412,9 +347,8 @@ def mode_gain(n: int, ev: dict, cfg: dict) -> np.ndarray:
 
 
 def synthesize(ev: dict, seed: int, preset: str = "calm-pad", cfg: dict | None = None):
-    """(bed, stings, raw), each (2, n) float in [-1, 1] at SR: the bed with its modes, swells and fades; the stings
-    apart (mixed at their own level and ducked under the narration by sting_duck_db); and the bed before modes and swells (its loudness is the "bed"
-    level the mix sets)."""
+    """(bed with modes, swells and fades; stings; the bed before them, whose loudness is the "bed" level), each
+    (2, n) in [-1, 1]."""
     cfg = dict(DEFAULTS, **(cfg or {}))
     p = PRESETS[preset]
     rng = np.random.default_rng(seed)
@@ -443,12 +377,10 @@ def synthesize(ev: dict, seed: int, preset: str = "calm-pad", cfg: dict | None =
     return bed, st, raw
 
 
-# --------------------------------------------------------------------------- ducking (the mix side)
 def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, release_ms: float, lookahead_ms: float,
               threshold_db: float = -40.0, hop_s: float = 0.005) -> np.ndarray:
-    """A sidechain gain (linear, one value per sample) that lowers the music by duck_db while the narration speaks.
-    The key is the narration advanced by lookahead_ms, so the music dips just before each phrase; the gain falls
-    with the attack time and recovers with the release time (one-pole smoothing on a 5 ms control grid)."""
+    """Sidechain gain (linear, per sample) lowering the music by duck_db while the narration, advanced by
+    lookahead_ms, speaks; one-pole attack and release on a 5 ms grid."""
     hop = max(1, int(sr * hop_s))
     nfr = int(np.ceil(len(voice) / hop))
     pad = np.zeros(nfr * hop)
@@ -458,7 +390,6 @@ def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, rele
     shift = int(round(lookahead_ms / 1000 / hop_s))
     if shift:
         active = np.concatenate([active[shift:], np.zeros(shift)])
-    # hold each detected frame across the look-ahead window, so the dip starts lookahead_ms before the word
     target = -duck_db * active
     a_att = np.exp(-hop_s / max(attack_ms / 1000, 1e-4))
     a_rel = np.exp(-hop_s / max(release_ms / 1000, 1e-4))
@@ -468,55 +399,13 @@ def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, rele
         a = a_att if tv < cur else a_rel
         cur = a * cur + (1 - a) * tv
         g[i] = cur
-    lin = 10 ** (np.repeat(g, hop)[:len(voice)] / 20)
-    return lin
-
-
-# --------------------------------------------------------------------------- measuring
-def loudness(path: Path, extra: list[str] | None = None) -> dict:
-    """EBU R128 of a file's first audio stream (ffmpeg ebur128 with true peak): integrated (LUFS), LRA (LU), true
-    peak (dBTP). -70 stands for silence."""
-    import re
-    import subprocess
-    p = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *(extra or []), "-i", str(path), "-map", "0:a:0",
-                        "-af", "ebur128=peak=true", "-f", "null", "-"], capture_output=True, text=True)
-    tail = p.stderr[p.stderr.rfind("Summary:"):] if "Summary:" in p.stderr else ""
-
-    def grab(pat, default):
-        m = re.search(pat, tail, re.S)
-        return float(m.group(1)) if m and m.group(1) not in ("-inf", "inf", "nan") else default
-    return {"integrated_lufs": grab(r"Integrated loudness:.*?I:\s*(-?[\d.]+|-inf)", -70.0),
-            "lra_lu": grab(r"Loudness range:.*?LRA:\s*(-?[\d.]+|-inf)", 0.0),
-            "true_peak_dbtp": grab(r"True peak:.*?Peak:\s*(-?[\d.]+|-inf)", -70.0)}
-
-
-# --------------------------------------------------------------------------- files
-def read_wav(path: Path) -> tuple[np.ndarray, int]:
-    """(channels, n) float in [-1, 1] and the sample rate of a 16- or 32-bit PCM WAV."""
-    with wave.open(str(path), "rb") as w:
-        sr, ch, width, n = w.getframerate(), w.getnchannels(), w.getsampwidth(), w.getnframes()
-        raw = w.readframes(n)
-    dt = {2: np.int16, 4: np.int32}[width]
-    x = np.frombuffer(raw, dtype=dt).astype(np.float64) / float(np.iinfo(dt).max)
-    return x.reshape(-1, ch).T, sr
-
-
-def write_wav(path: Path, x: np.ndarray, sr: int = SR, bits: int = 16) -> None:
-    x = np.atleast_2d(x)
-    dt = {16: np.int16, 32: np.int32}[bits]
-    pcm = (np.clip(x.T, -1, 1) * np.iinfo(dt).max).astype(dt)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with wave.open(str(path), "wb") as w:
-        w.setnchannels(x.shape[0])
-        w.setsampwidth(bits // 8)
-        w.setframerate(sr)
-        w.writeframes(pcm.tobytes())
+    return 10 ** (np.repeat(g, hop)[:len(voice)] / 20)
 
 
 def build(final: Path, slug: str, segments: list[dict], chapters: list[dict], duration: float,
           voice: np.ndarray | None, cfg: dict | None = None, seed: int | None = None,
           preset: str | None = None) -> dict:
-    """Generate video/final/music.wav (bed) and stings.wav, and stamp them in music.json. Returns the stamp."""
+    """Write video/final/music.wav (the bed) and stings.wav, stamped in music.json; returns the stamp."""
     cfg = dict(DEFAULTS, **(cfg or {}))
     preset = preset or cfg.get("preset") or "calm-pad"
     if preset not in PRESETS:

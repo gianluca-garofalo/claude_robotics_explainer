@@ -1,25 +1,6 @@
-"""Shared palette, helpers and the RAScene base class for every scene of a run.
+"""Palette, layout and choreography helpers and the RAScene base class (narration, reading holds) of every scene.
 
-Copy into runs/<run>/video/scenes/ with voice.py and reading_model.py. Colours have fixed meanings across the
-Remaining Action series (config/video.json "palette"; state them in the run's video/README.md); the four semantic
-colours stay distinguishable under protanopia, deuteranopia and tritanopia (tools/video/check_design.py checks it),
-and outcomes are labelled in text too. Scenes derive from RAScene: narration (manim-voiceover) plus automatic reading
-holds, so no text or equation leaves the screen before it can be read (templates/manim/reading_model.py).
-
-House rule: the video is self-contained. Nothing on screen or in the narration names the explainer, code, files, data,
-links or the description; no equation carries a label or tag ((13), (2), (★), "Eq. 3"; config/video.json
-equation_numbers); to use an equation again, show it again or pin() it in a corner. tools/video/check_selfcontained.py
-checks every render, the narration, the captions and the chapters. Numbers go through fmt() (config/video.json
-"numbers", tools/video/check_numbers.py). A video opens with its hook: a full, moving picture from the first frame
-(self.add() it before the first play()), a beat of motion and music, the first words by 3 s, the question by 15 s, no
-channel card; then a short title beat (title_beat(), the "Episode n of N" lower third, at most about 6 s) and the
-body by 45 s. It ends with outro() (takeaway_card() and the channel name; the right of the frame empty for end
-screens); a series episode adds recap scenes with recap_tag() and recap_card() (tools/video/check_series.py). meter()
-is the channel's signature object: the remaining action as a bar that drains, with a live readout. Choreography
-(tools/video/check_engagement.py): keep the picture moving while the narration talks; derive equations with
-derive() (TransformMatchingTex plus a highlight beat) on ceq() pieces coloured by quantity (config/video.json
-"quantities"); end scenes with carry_over() instead of a fade to an empty frame; plan beat()s after the reveals;
-show every inequality with the same budget_bars(). No persistent slide titles: the chapter list names the chapter.
+Usage: copy into runs/<run>/video/scenes/ with voice.py and reading_model.py; in a scene, from common import *
 """
 import json
 import os
@@ -45,32 +26,27 @@ def _video_config(start):
         return {}
 
 
-def _palette(start):
-    """The "palette" section of config/video.json ({} when absent)."""
-    return _video_config(start).get("palette", {})
-
-
 HERE = os.path.dirname(os.path.abspath(__file__))
 _VIDEO = _video_config(HERE)
-BG = _VIDEO.get("palette", {}).get("background", "#0f172a")   # config/video.json
+BG = _VIDEO.get("palette", {}).get("background", "#0f172a")
 INK = "#e2e8f0"         # main text
 MUTED = "#94a3b8"       # axes, secondary text, captions
 GRID = "#334155"        # grid lines, level sets
-GREEN = "#2dd4bf"       # holds / stable / verified (teal-green: tells apart from RED for deuteranopes)
+GREEN = "#2dd4bf"       # holds / stable / verified (teal: told apart from RED by deuteranopes)
 AMBER = "#fbbf24"       # contrast case / unstable / second option
-BLUE = "#818cf8"        # reference case / first option (indigo: tells apart from GREEN for tritanopes)
+BLUE = "#818cf8"        # reference case / first option (indigo: told apart from GREEN by tritanopes)
 RED = "#ef4444"         # failure / violation (always with a text label)
 SAFE_X, SAFE_Y = 6.4, 3.6   # graphics-safe area (EBU R 95: 5 % margins), in Manim units from the centre
 
 config.background_color = BG
-from reading_model import MINUS, NUMBERS, fmt  # noqa: E402,F401  (number format house rule, pure Python)
+from reading_model import MINUS, NUMBERS, fmt  # noqa: E402,F401
 Tex.set_default(color=INK)
 MathTex.set_default(color=INK)
 Text.set_default(color=INK, font="DejaVu Sans")
 
 
 def _check_font(name="DejaVu Sans"):
-    """Pango silently substitutes a missing font, which changes text widths and so the design checks: say so once."""
+    """Warn once when the font is missing: Pango substitutes another, which changes text widths and the checks."""
     try:
         import manimpango
         if name not in manimpango.list_fonts():
@@ -83,7 +59,6 @@ def _check_font(name="DejaVu Sans"):
 
 _check_font()
 
-# MathTex needs LaTeX and dvisvgm. Without them, scenes fall back to Pango Text (set NO_LATEX=1 to force it).
 HAS_LATEX = os.environ.get("NO_LATEX") != "1" and bool(shutil.which("latex")) and bool(shutil.which("dvisvgm"))
 
 
@@ -95,7 +70,7 @@ def eq(tex, plain=None, font_size=36, **kw):
 
 
 def caption(text, size=24):
-    """Bottom caption inside the graphics-safe area. Font size >= 24 stays legible at 1080p."""
+    """Bottom caption inside the graphics-safe area."""
     c = Text(text, font_size=size, color=MUTED)
     if c.width > 2 * SAFE_X:
         c.scale_to_fit_width(2 * SAFE_X)
@@ -111,9 +86,7 @@ def title(text, size=34):
 
 
 def pin(mob, corner=UR, scale=0.75):
-    """A smaller copy of an equation shown earlier, placed in a corner of the graphics-safe area: keep it in view while
-    the narration uses it again, instead of asking the viewer to recall it (no equation labels or callbacks by number).
-    The default scale keeps a 36-40 pt equation at 27-30 pt, above the 24 pt minimum."""
+    """A smaller copy of an equation shown earlier, in a corner of the graphics-safe area, to keep it in view."""
     c = mob.copy().scale(scale)
     x = SAFE_X - c.width / 2 if corner[0] > 0 else -SAFE_X + c.width / 2
     y = SAFE_Y - c.height / 2 if corner[1] > 0 else -SAFE_Y + c.height / 2
@@ -121,8 +94,7 @@ def pin(mob, corner=UR, scale=0.75):
 
 
 def swap_caption(scene, old, text, run_time=0.5):
-    """Swap to a new caption: the old one fades out, then the new one in (Transform between different strings morphs
-    glyphs illegibly; two texts faded on one spot at once overlap)."""
+    """The old caption fades out, then the new one in (a Transform between strings morphs glyphs illegibly)."""
     new = caption(text)
     scene.play(Succession(FadeOut(old, shift=UP * 0.1, run_time=run_time / 2),
                           FadeIn(new, shift=UP * 0.1, run_time=run_time / 2)), run_time=run_time)
@@ -133,14 +105,13 @@ SUP = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 
 def sci_u(x, digits=1):
-    """Unicode scientific notation for Pango Text, e.g. -2.7x10^-11 written with a real minus and superscripts."""
+    """Scientific notation for Pango Text with a real minus and superscripts, e.g. −2.7×10⁻¹¹."""
     m, e = f"{x:.{digits}e}".split("e")
     return f"{m.replace('-', chr(0x2212))}×10{str(int(e)).translate(SUP)}"
 
 
 def always_redraw(func):
-    """manim's always_redraw, keeping the text the mobject shows now (become() copies only the shape), so the layout
-    probe logs what the viewer sees: live readouts are checked for format and width over time."""
+    """manim's always_redraw that also keeps the text shown now (become() copies only the shape), for the layout log."""
     mob = func()
 
     def update(m):
@@ -158,13 +129,8 @@ def always_redraw(func):
 
 def readout(text_or_label, value=None, decimals=None, unit="", font_size=26, color=INK, sign=False, zero_exact=False,
             **kw):
-    """A live number that changes every frame, in Pango Text (never a MathTex inside an updater: LaTeX would typeset
-    every frame). readout("∫ L dt", lambda: paid, decimals=2) shows "∫ L dt = 1.04": the value goes through fmt() with
-    fixed decimals (default numbers.readout_decimals), so the width stays steady and every readout of one quantity has
-    the same precision; sign=True shows +0.14 and −1.50 (never −0.00). readout(lambda: "...") with a function returning
-    the whole string still works: build its numbers with fmt(..., decimals=k). Position it with an updater after this
-    one (m.move_to(...)), as before. zero_exact=True (the meter's readout, v5): an exact zero reads "0", never
-    "0.000" (episode 1 v4, FC-11: an empty bar labelled "left to pay = 0.000")."""
+    """A live number in Pango Text: readout("∫ L dt", lambda: paid, decimals=2) shows "∫ L dt = 1.04" through fmt()
+    with fixed decimals; readout(lambda: "...") shows the string; zero_exact=True shows an exact zero as "0"."""
     if value is None:
         fn = text_or_label
     else:
@@ -186,10 +152,8 @@ def readout(text_or_label, value=None, decimals=None, unit="", font_size=26, col
 
 
 def attach(label, target=True, direction=None, buff=0.15):
-    """Mark a label as belonging next to an object (a curve's name at its end, a dot's tag, a line's value): the
-    text-stroke proximity rule of check_design.py does not count that object's strokes against the label (any stroke
-    when target is True); the crossing rule still applies. With a target and a direction, also place the label next to
-    it. Returns the label. Use it only for labels that point at their object; a label merely near a curve is a defect."""
+    """Mark a label that names or points at `target` (any object when True), so check_design.py lets it sit close;
+    with a direction, also place it next to the target. Returns the label."""
     if direction is not None and target is not True:
         label.next_to(target, direction, buff=buff)
     label.ra_attached_to = target
@@ -197,9 +161,7 @@ def attach(label, target=True, direction=None, buff=0.15):
 
 
 class LegendTable(VGroup):
-    """legend_table()'s result: a VGroup of rows (VGroups of cells) plus an invisible anchor. cells[i][j] is a cell,
-    column(j) the cells of a column, place(mob, i, j) puts another mobject (a swapped label) in cell (i, j) with the
-    column's alignment, wherever the table has moved."""
+    """legend_table()'s result: rows of cells (cells[i][j]), column(j), and place(mob, i, j) for a swapped-in cell."""
 
     def column(self, j):
         return VGroup(*[r[j] for r in self.cells if r[j] is not None])
@@ -212,12 +174,8 @@ class LegendTable(VGroup):
 
 
 def legend_table(rows, aligns=None, col_gap=0.3, row_gap=0.22, min_widths=None):
-    """Legends and blocks of readouts in fixed columns, aligned by construction (check_design.py warns about columns
-    that are almost aligned). rows: lists of cells, each a Mobject (a Dot, a MathTex, a Text) or None; aligns: one
-    letter per column, "l", "c" or "r" (default: "c" for a column of dots, "l" otherwise); col_gap: the space between
-    columns; row_gap: the space between rows, at one pitch for the whole table; min_widths: {column: width} to reserve
-    room for labels swapped in later with place(). The cells are moved, not copied; animate them through the rows or
-    columns (FadeIn(VGroup(*[r[:3] for r in t.cells])), FadeIn(t.column(3))). Position the table like any VGroup."""
+    """Legends and readout blocks in fixed columns: rows of cells (Mobjects or None), aligns "l", "c" or "r" per column
+    (default "c" for dots, else "l"), min_widths {column: width} reserved for cells placed later. Moves the cells."""
     rows = [list(r) for r in rows]
     ncol = max(len(r) for r in rows)
     rows = [r + [None] * (ncol - len(r)) for r in rows]
@@ -241,36 +199,26 @@ def legend_table(rows, aligns=None, col_gap=0.3, row_gap=0.22, min_widths=None):
 
 
 def load_data(default_name, here):
-    """Load the npz exported by the run's code/ scripts. $SCENE_DATA overrides the path.
-    Returns None when the file does not exist, so a scene can fall back to clearly labelled demo data."""
+    """The arrays of ../data/<default_name> ($SCENE_DATA overrides the path), or None without the file."""
     path = os.environ.get("SCENE_DATA", os.path.join(here, "..", "data", default_name))
     return dict(np.load(path)) if os.path.exists(path) else None
 
 
-# Narration and branding (voice.py sits next to this file)
 from voice import block_end_pause, channel_config, speech_service, strip_markup  # noqa: E402,F401
 
 CHANNEL = channel_config(os.path.dirname(os.path.abspath(__file__))).get("channel_name", "Remaining Action")
-
-
-# Series beats and the outro (house rules: hook first, no channel card, a spoken series context over the builds-on
-# frame, recaps of everything used, an outro with the takeaway card and the teaser; tools/video/check_series.py)
 END_SCREEN_X = 1.4      # the outro keeps x > END_SCREEN_X (the right ~40 % of the frame) empty for end-screen elements
 
 
 def series_context():
-    """video/series_context.json of a series episode (written by tools/series.py start), or None (a news video)."""
+    """video/series_context.json of a series episode, or None (a news video)."""
     p = Path(HERE).parent / "series_context.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 def takeaway_card(episode=None, tex=None, font_size=40, color=None):
-    """An episode's takeaway card: its equations stacked in a rounded frame (the first one in `color` when given;
-    by default all in ink: colours belong to quantities, config/video.json "quantities", so do not paint a result
-    in a quantity's colour; mark the result with a shape, e.g. a box, if it needs emphasis). The same
-    builder makes an episode's own card (outro) and the recap card of a later episode, from the same data
-    (series_context.json "takeaways", or the recap's "card"), so the two match. episode: a key such as 2 or
-    "mpc-mechanics:2" (default: this episode); tex: the equations themselves (news videos)."""
+    """An episode's takeaway equations stacked in a rounded frame, in ink (the first in `color` when given): episode
+    a key such as 2 or "mpc-mechanics:2" of series_context.json "takeaways" (default this one), or tex the equations."""
     if tex is None:
         ctx = series_context() or {}
         key = str(episode if episode is not None else ctx.get("episode"))
@@ -286,15 +234,13 @@ def takeaway_card(episode=None, tex=None, font_size=40, color=None):
 
 
 def recap_card(index=0, font_size=38):
-    """The card of the index-th recap of this episode (series_context.json "recaps": the recap's own card, or the
-    takeaway equations of the episode it restates)."""
+    """The card of the index-th recap of series_context.json "recaps"."""
     rc = (series_context() or {}).get("recaps", [])[index]
     return takeaway_card(tex=rc["card"], font_size=font_size)
 
 
 def recap_tag():
-    """The small "Recap" tag in the upper-left corner, shown for the whole recap scene (viewers who know the episode
-    it restates may skip; the recap also has its own chapter)."""
+    """The small "Recap" tag in the upper-left corner, shown for the whole recap scene."""
     t = Text("Recap", font_size=26, color=MUTED)
     bar = Line(ORIGIN, RIGHT * (t.width + 0.3), color=MUTED, stroke_width=2).next_to(t, DOWN, buff=0.1, aligned_edge=LEFT)
     g = VGroup(t, bar)
@@ -302,8 +248,7 @@ def recap_tag():
 
 
 def builds_on(ctx=None):
-    """The 4-6 s builds-on frame under the spoken series context: "Episode n of N", the series title, and the short
-    titles of the episodes this one builds on (its must prerequisites). No map."""
+    """The builds-on frame: "Episode n of N", the series title and the short titles of the must prerequisites."""
     ctx = ctx or series_context()
     head = Text(f"Episode {ctx['episode']} of {ctx['episodes_total']}", font_size=44, weight=BOLD)
     sub = Text(ctx["series_title"], font_size=28, color=MUTED)
@@ -322,7 +267,7 @@ def builds_on(ctx=None):
 
 
 def plan_title():
-    """The video's title from video/plan.json (the title beat shows it), or None."""
+    """The title of video/plan.json, or None."""
     p = Path(HERE).parent / "plan.json"
     try:
         return json.loads(p.read_text(encoding="utf-8")).get("title")
@@ -331,11 +276,8 @@ def plan_title():
 
 
 def title_beat(title=None, ctx=None, size=40):
-    """The short title beat right after the hook (about 4-6 s, over the picture the hook built, which stays): the
-    video's title at the top of the safe area and a lower third with "Episode n of N", the series title and, when the
-    episode builds on others, their short titles. Returns VGroup(head, lower); fade the hook's question out and head
-    in, then FadeIn(lower). For a news video (no series context) the lower third is empty. Say the series sentence
-    ("This is episode three of five ...") over it; there is no channel card and no separate series frame."""
+    """VGroup(head, lower) of the title beat: the video's title at the top, and a lower third with "Episode n of N",
+    the series title and what it builds on (empty for a news video)."""
     ctx = ctx if ctx is not None else series_context()
     head = Text(title or plan_title() or "", font_size=size, weight=BOLD)
     if head.width > 2 * SAFE_X:
@@ -361,8 +303,7 @@ def title_beat(title=None, ctx=None, size=40):
 
 
 class Meter(VGroup):
-    """meter()'s result: the frame, the live fill and the live readout. level(v) is the y of the fill's top at value v
-    (to place a bracket or a cost segment beside the bar)."""
+    """meter()'s result: frame, fill and readout; level(v) is the y of the fill's top at value v."""
 
     def level(self, v):
         return self.frame.get_bottom()[1] + self.bar_height * max(0.0, min(v, self.vmax)) / self.vmax
@@ -371,23 +312,20 @@ class Meter(VGroup):
         label, value, decimals, font_size, buff = self._ro_args
         if show_value:
             ro = readout(label, value, decimals=decimals, font_size=font_size, zero_exact=True)
-        else:                                   # a schematic picture: the meaning without a number
+        else:
             ro = Text(label, font_size=font_size, color=INK)
         ro.next_to(self.frame, DOWN, buff=buff)
         ro.add_updater(lambda m: m.next_to(self.frame, DOWN, buff=buff))
         return ro
 
     def swap_readout(self, scene, show_value, run_time=0.5, *others):
-        """Swap the readout (the old one fades out, then the new one fades in) between the live number (show_value=True: its value comes from code/ or a closed
-        form) and the label alone (False: while the bar's level is schematic, no number is shown with it); `others`
-        are animations played with the cross-fade."""
+        """Swap the readout between the live number (show_value=True) and the label alone, the old one fading out
+        before the new one fades in; `others` play along."""
         new = self._make_readout(show_value)
         old = self.readout
         old.clear_updaters()
         self.remove(old)
         (scene.carry_in if hasattr(scene, "carry_in") else scene.add)(old)   # a live readout needs no reading hold
-        # v4: the old text leaves before the new one arrives (a cross-fade on one spot reads "left toto pay": the
-        # final-cut review of episode 1 v3, FC-6); `others` run over the whole run_time
         scene.play(Succession(FadeOut(old, run_time=run_time / 2), FadeIn(new, run_time=run_time / 2)), *others,
                    run_time=run_time)
         scene.remove(new)                         # FadeIn left it at the top level: keep one copy, inside the meter
@@ -404,15 +342,8 @@ class Meter(VGroup):
 
 def meter(value, vmax, label="left to pay", height=4.0, width=0.6, decimals=3, color=BLUE, font_size=26,
           readout_buff=0.3, show_value=True):
-    """The remaining-action meter, the channel's signature object (the series is named after it): a bar whose fill
-    drains as the value falls, and under it a live readout("left to pay", value) through fmt(). value: a function
-    (a ValueTracker's get_value) whose numbers come from code/ or a closed form, never typed by hand; vmax: the value
-    of a full bar. Move the whole meter with move_to(); the fill and the readout follow its frame. Use it in the hook,
-    the body where the argument is about what is left, the thumbnail frame and the outro. Marked ra_role="metaphor"
-    for the checks, with ra_value() (the number the bar shows, readout or not) and ra_vmax, which layout_probe.py logs
-    (v5): along the controller's path the bill only falls, so a refill (a new start, a shorter window, a scan of
-    hypothetical points) is declared in plan.json (scenes[].metaphor_resets) and said in the narration, or shown
-    on the bowl or a ghost meter instead. Call freeze() before fading it out."""
+    """The remaining-action meter: a bar that drains as value() falls (vmax fills it) over a live readout. Marked
+    ra_role="metaphor" with ra_value and ra_vmax for the layout log; call freeze() before fading it out."""
     frame = Rectangle(width=width, height=height, color=MUTED, stroke_width=2)
 
     def make_fill():
@@ -427,14 +358,12 @@ def meter(value, vmax, label="left to pay", height=4.0, width=0.6, decimals=3, c
     m.readout = m._make_readout(show_value)
     m.add(m.readout)
     m.ra_role = "metaphor"
-    m.ra_value, m.ra_vmax = (lambda: float(value())), vmax      # v5: logged by layout_probe.py, checked for refills
+    m.ra_value, m.ra_vmax = (lambda: float(value())), vmax
     return m
 
 
 def outro(card, next_title=None):
-    """The outro layout (15-20 s): the takeaway card and the channel name on the left, an optional "Next: ..." line,
-    and the right of the frame (x > END_SCREEN_X) empty for YouTube's end-screen elements. Say the teaser ("In the
-    next episode, ...") in the narration; the finale has none."""
+    """The outro: the card, an optional "Next: ..." line and the channel name on the left, x > END_SCREEN_X empty."""
     width = END_SCREEN_X + SAFE_X - 0.4
     if card.width > width:
         card.scale_to_fit_width(width)
@@ -451,8 +380,6 @@ def outro(card, next_title=None):
     return g
 
 
-# Choreography (the review against the 3Blue1Brown bar, 2026-11-04: transform, do not retype; colour bound to the
-# quantity; carry objects across cuts; planned beats; one picture reused for every inequality)
 _COLOR_NAMES = {"blue": BLUE, "amber": AMBER, "green": GREEN, "red": RED, "ink": INK, "muted": MUTED}
 QUANTITIES = {k: v for k, v in (_VIDEO.get("quantities") or {}).items() if isinstance(v, dict)}
 QCOLOR = {k: _COLOR_NAMES.get(str(v.get("color", "ink")).lower(), v.get("color", INK)) for k, v in QUANTITIES.items()}
@@ -476,11 +403,8 @@ def _piece_color(tex):
 
 
 def ceq(*pieces, font_size=36, color_map=True, **kw):
-    """An equation built from pieces (MathTex(*pieces)): every piece that starts with a quantity's symbol
-    (config/video.json "quantities": V, L_d, W ...) takes that quantity's colour, everywhere in the video, so a
-    quantity keeps one colour in pictures, bars and equations. Pieces are also the units TransformMatchingTex
-    matches: write the pieces that stay the same in two lines identically, and derive() morphs only what changes.
-    Without LaTeX, a plain Text fallback."""
+    """MathTex(*pieces) with each piece that starts with a quantity's symbol (config/video.json "quantities") in its
+    colour; the pieces are what derive() matches. Plain Text without LaTeX."""
     if not HAS_LATEX:
         return Text("".join(pieces), font_size=int(font_size * 0.75), **kw)
     m = MathTex(*pieces, font_size=font_size, **kw)
@@ -493,11 +417,8 @@ def ceq(*pieces, font_size=36, color_map=True, **kw):
 
 
 def derive(scene, src, dst, key_map=None, run_time=1.6, highlight=None, beat_s=0.8, from_copy=False):
-    """One step of a derivation as a transform, in the manner of TransformMatchingTex: the pieces src and dst share
-    (the same tex) glide to their new places, the pieces paired by key_map={"old piece": "new piece"} morph into
-    each other (several old pieces may map to one new piece, and their glyph counts may differ), the rest fade out
-    and in; then a highlight beat on what is new (or on the pieces given by index in `highlight`), so the eye lands
-    where the change is. from_copy=True keeps src on screen. Position dst before calling. Returns dst."""
+    """One derivation step: shared pieces glide, pieces paired by key_map={"old": "new"} morph, the rest fade, then
+    the new pieces (or those indexed in `highlight`) are indicated. from_copy=True keeps src. Returns dst."""
     key_map = key_map or {}
     sp, dp = list(src.submobjects), list(dst.submobjects)
 
@@ -540,8 +461,7 @@ def derive(scene, src, dst, key_map=None, run_time=1.6, highlight=None, beat_s=0
 
 
 def until(tracker, mark, minimum=0.6):
-    """Seconds from now to a bookmark of the voiceover (at least `minimum`): give the animation before
-    wait_until_bookmark() this run_time, so the picture keeps moving up to the word instead of waiting still."""
+    """Seconds from now to a bookmark (at least `minimum`): the run_time that keeps moving up to the word."""
     try:
         return max(float(tracker.time_until_bookmark(mark)), minimum)
     except Exception:                              # no such bookmark, or a service without word timings
@@ -549,10 +469,7 @@ def until(tracker, mark, minimum=0.6):
 
 
 def pulse(scene, mob, seconds, period=1.6, scale=1.08, color=None, max_cycles=2):
-    """Signal the object the narration is naming: at most `max_cycles` gentle Indicate cycles of about `period` each,
-    then hold still for the rest of `seconds`. Emphasis is not motion: check_engagement.py counts narration over
-    emphasis alone as a frozen picture (layout_probe.py logs every play), so do not pulse to fill time; animate what
-    the narration says (move the dot, grow the bar, transform the equation) instead."""
+    """At most `max_cycles` Indicate cycles of about `period` on the object being named, then a hold to `seconds`."""
     n = max(1, min(int(round(seconds / period)), max_cycles))
     each = min(period, seconds / n)
     for _ in range(n):
@@ -562,9 +479,7 @@ def pulse(scene, mob, seconds, period=1.6, scale=1.08, color=None, max_cycles=2)
 
 
 def carry_over(scene, *keep, run_time=0.6):
-    """End a scene in the layout the next one starts from: fade out everything except `keep` (the dot, the region,
-    the meter ...), which the next scene adds again at frame 0 with the same code. Replaces
-    FadeOut(Group(*self.mobjects)), the fade to an empty frame (check_engagement.py warns about it)."""
+    """End a scene by fading out everything but `keep`, which the next scene adds again (carry_in) at frame 0."""
     keep_ids = {id(x) for k in keep for x in k.get_family()}
     gone = [m for m in scene.mobjects if id(m) not in keep_ids]
     for m in gone:
@@ -576,21 +491,14 @@ def carry_over(scene, *keep, run_time=0.6):
 
 
 class Hold(Wait):
-    """A planned hold of the picture (v7): a beat after a reveal, think time after a prompt, the pause after a
-    narration block. It plays like Wait; layout_probe.py logs it as "Hold", so check_engagement.py exempts it from
-    the frozen-picture warnings (a hold of up to 4 s, or 8 s with a restatement: rule P19) and
-    check_pacing.py counts it as consolidation time."""
+    """A planned hold of the picture: a Wait that the layout log names "Hold", so the checks do not call it frozen."""
 
     def __init__(self, run_time=1.0, **kwargs):
         super().__init__(run_time=run_time, **kwargs)
 
 
 def beat(scene, seconds=2.0, *mobs, push=1.0):
-    """A planned pause right after a reveal: `seconds` without words, so the result can sink in. The music swells in
-    it (give the scene "low" music: in a scene whose music is "off" a beat is digital silence, which
-    check_engagement.py reports). With `push` > 1, the first of `mobs` grows slowly by that factor and settles back
-    (a calm push-in, one smooth move); by default the picture holds still (a Hold): a beat needs no flashing. A pause
-    longer than one Azure break (voice.azure.max_break_ms) is a beat between two narration blocks, never audio."""
+    """A pause of `seconds` without words after a reveal: a Hold, or with `push` > 1 a slow push-in on the first mob."""
     if mobs and push and push != 1.0:
         scene.play(mobs[0].animate.scale(push), rate_func=there_and_back, run_time=seconds)
     elif seconds > 0:
@@ -598,19 +506,15 @@ def beat(scene, seconds=2.0, *mobs, push=1.0):
 
 
 class BudgetBars(VGroup):
-    """budget_bars()'s result. before, after: VGroups of the stacked blocks (bottom first); guide: the dashed line at
-    the top of the before stack, across to the after stack; level(v): the y of value v on the shared scale."""
+    """budget_bars()'s result: before and after stacks, the dashed guide, and level(v), the y of value v."""
 
     def level(self, v):
         return self.base_y + v * self.scale
 
 
 def budget_bars(before, after, x_before, x_after, base_y=-1.9, scale=1.0, width=0.6, opacity=0.85, guide=True):
-    """The budget picture of an inequality: a stack of blocks before a step against the stack after it, on one
-    scale, so 'what is lost covers what is spent' is a comparison of heights. before, after: lists of (value,
-    colour) pairs, bottom first (use qcolor() so each block has its quantity's colour); values from code/ or a
-    closed form, or schematic heights when no number is shown. Reuse one picture for every inequality of an episode
-    (the one-step test, the descent, the worked numbers)."""
+    """The budget picture of an inequality: stacks of (value, colour) blocks, bottom first, before and after a step,
+    on one scale."""
     def stack(items, x):
         g, y = VGroup(), base_y
         for v, c in items:
@@ -633,7 +537,6 @@ def budget_bars(before, after, x_before, x_after, base_y=-1.9, scale=1.0, width=
     return g
 
 
-# Reading holds (reading_model.py sits next to this file; constants in config/video.json "reading")
 import reading_model as _RM  # noqa: E402
 from manim_voiceover import VoiceoverScene  # noqa: E402
 from manim_voiceover.helper import remove_bookmarks as _remove_bookmarks  # noqa: E402
@@ -675,14 +578,8 @@ def _leaving(anims):
 
 
 class RAScene(VoiceoverScene):
-    """Remaining Action base scene: narration (manim-voiceover) plus automatic reading holds.
-
-    Every text or equation is timed from the end of the animation that shows it. Before an animation removes or
-    replaces it (FadeOut, Uncreate, Transform, ReplacementTransform, TransformMatchingTex, swap_caption, ...) or
-    self.remove() takes it away, the scene waits until it has been on screen for reading_time(); while narration
-    plays the time is longer. self.read(*mobjects) waits explicitly, for example before a cut. Live readouts (with
-    updaters) are exempt. The speech service is set from config/channel.json; call set_speech_service to change it.
-    """
+    """The base scene: narration (manim-voiceover) and reading holds. Before a text or equation is removed or
+    replaced, the scene waits until it has been on screen for its reading_time(); live readouts are exempt."""
 
     def setup(self):
         super().setup()
@@ -693,15 +590,13 @@ class RAScene(VoiceoverScene):
         self._block_end_s = float((channel_config(here).get("voice") or {}).get("block_end_pause_s", 0.75) or 0.0)
 
     def _add_voiceover_text(self, text, service_kwargs, subcaption=None, max_subcaption_len=70, subcaption_buff=0.1):
-        """Captions never show the pacing markup ([pause S], [slow]): the subcaption is the spoken text."""
+        """The caption is the spoken text, without the pacing markup."""
         if subcaption is None:
             subcaption = strip_markup(_remove_bookmarks(text))
         return super()._add_voiceover_text(text, service_kwargs, subcaption, max_subcaption_len, subcaption_buff)
 
     def wait_for_voiceover(self):
-        """After a narration block, the picture holds for the block's pause (v7): its final "[pause S]", else
-        voice.block_end_pause_s of config/channel.json; "[pause 0]" for none. A scene wait (a Hold), never audio: the
-        voice drops a break at the end of its audio, and the narration is never padded."""
+        """After a block, hold the picture (never the audio) for its final [pause S], else voice.block_end_pause_s."""
         super().wait_for_voiceover()
         tr = getattr(self, "current_tracker", None)
         if tr is None or getattr(tr, "_ra_held", False):
@@ -752,9 +647,7 @@ class RAScene(VoiceoverScene):
         return self
 
     def carry_in(self, *mobs):
-        """Add the objects carried over from the previous scene's last frame (carry_over() there): the first frame
-        is the previous scene's last, and their texts count as already read, so nothing holds the picture still
-        before the first animation."""
+        """Add the objects carried over from the previous scene (carry_over()); their texts count as read."""
         self.add(*mobs)
         for m in mobs:
             for x in text_items(m):

@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-"""Render the fixed reference paragraph with the channel voice, for regression checks (voice policy, README.md).
+"""Render the fixed reference paragraph with the channel voice into voice-reference/<date>_<voice>/, to compare voices.
 
+Usage:
   python3 tools/video/voice_reference.py [--service azure|piper] [--out voice-reference]
-
-At every voice change (and whenever the vendor may have moved a "Latest" model under the same name) render this
-paragraph and keep the result: voice-reference/<date>_<voice>/reference.wav, reference.mp3 (as synthesized),
-timings.json (the word timings) and reference.json (voice, settings, duration, words per minute). The folder is
-git-ignored: archive it with the run archives. Listen against the previous reference before a new episode ships.
-The voice name goes into the folder name with every character other than letters, digits, "." and "-" replaced by
-"_" (the HD voices' names hold a colon).
 """
 import argparse
 import datetime as dt
@@ -23,8 +17,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "templates" / "manim"))
 import voice  # noqa: E402
 
-# Fixed: never edit it, or the references stop being comparable. It covers a question, a planned beat (the
-# ellipsis), a number, a comma pause and a long sentence.
+# Never edit it: the references stay comparable only while the text is the same.
 REFERENCE = ("A robot never sees the whole road. It plans a short stretch ahead, takes one step, and plans again. "
              "Why does that work? Because the cost still to pay... the remaining action... shrinks with every step. "
              "In this example it falls from 0.42 to 0.17 in four steps, and the robot ends up exactly where a much "
@@ -32,7 +25,7 @@ REFERENCE = ("A robot never sees the whole road. It plans a short stretch ahead,
 
 
 def safe_name(voice_id: str) -> str:
-    """A voice id as a file or folder name: "en-US-Steffan:DragonHDLatestNeural" -> "en-US-Steffan_DragonHDLatestNeural"."""
+    """A voice id as a folder name: "en-US-Steffan:DragonHDLatestNeural" -> "en-US-Steffan_DragonHDLatestNeural"."""
     return re.sub(r"[^A-Za-z0-9.-]+", "_", voice_id).strip("_") or "voice"
 
 

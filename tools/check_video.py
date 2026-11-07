@@ -1,16 +1,9 @@
 #!/usr/bin/env python3
-"""Check rendered videos with ffprobe/ffmpeg: decodable, expected size and frame rate, sane length, not blank.
+"""Check rendered videos: decodable, the quality preset's size and frame rate, length, not blank, captions.
 
 Usage:
   python3 tools/check_video.py VIDEO.mp4 [...] [--quality l|m|h|k] [--fps N] [--min-duration 2] [--max-duration 1200]
-                                [--json report.json]
-
-Quality presets follow Manim's flags: l = 854x480 @15 fps, m = 1280x720 @30, h = 1920x1080 @60, k = 3840x2160 @60;
---fps expects another frame rate at the preset's size (for example 1080p30: --quality h --fps 30).
-Three frames (10 %, 50 %, 90 % of the duration) are decoded at 64x36 in grey: if all are flat the video is blank
-(error); if all three are identical it may be frozen (warning). Captions next to a video (same name, .srt) must be
-self-contained (tools/video/check_selfcontained.py rules: no reference to the explainer, code, files, links or a
-document's numbering, no equation labels). Exit status 1 if any video has an error.
+                                [--json report.json]      # exit status 1 when a video has an error
 """
 from __future__ import annotations
 
@@ -22,15 +15,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
+from media import probe  # noqa: E402
+
 PRESETS = {"l": (854, 480, 15), "m": (1280, 720, 30), "h": (1920, 1080, 60), "k": (3840, 2160, 60)}
-
-
-def probe(path: Path) -> dict:
-    out = subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_streams", "-show_format", str(path)],
-                         capture_output=True, text=True)
-    if out.returncode != 0:
-        raise RuntimeError(out.stderr.strip() or "ffprobe failed")
-    return json.loads(out.stdout)
 
 
 def frame_gray(path: Path, t: float) -> bytes:
@@ -71,7 +59,6 @@ def check(path: Path, quality: str | None, dmin: float, dmax: float, fps_overrid
     srt = path.with_suffix(".srt")
     if srt.exists():
         try:
-            sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
             import check_selfcontained as SC
             st = SC.settings()
             found = SC.check_items([{"source": "captions", "where": srt.name, "text": SC.srt_text(srt),

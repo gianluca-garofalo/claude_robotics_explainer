@@ -1,26 +1,10 @@
-"""TEMPLATE: one idea, one narrated scene. Copy to runs/<run>/video/scenes/<name>.py (with common.py, voice.py and
-reading_model.py), rename the class and list it in video/plan.json.
+"""TEMPLATE: one idea, one narrated scene. Copy to runs/<run>/video/scenes/<name>.py, rename the class, list it in
+video/plan.json; the rules are .claude/rules/manim-scenes.md.
 
-Explainer: ../../explainer.html, Section <n> (<section id>).        <- fill in (plan.json "section"; "chapter" is the
-                                                                       viewer's title)
-Data:      ../data/<file>.npz, written by ../../code/<script>.py.   <- fill in
-Every number on screen is read from the data file or computed here from the explainer's equations; none is typed by
-hand. Without a data file the scene runs on demo data and says so on screen (fine for the template check only).
-Self-contained: those sources stay behind the scenes. Nothing on screen, in the narration or in the captions names
-the explainer, code, files, data, links or the description, and no equation carries a label or tag such as (13),
-(2) or (★), nor "Eq. 3" (config/video.json equation_numbers). To refer back to an equation, show it again (pin()
-keeps it in a corner) or name it by its meaning. tools/video/check_selfcontained.py enforces this.
-Narration: each `with self.voiceover(text=...)` block is spoken by the configured voice (Piper; silent in drafts
-without its model) and becomes a caption; <bookmark mark='x'/> plus self.wait_until_bookmark('x') syncs an
-animation to a word. The text must be a string literal (implicit concatenation of literals is fine; no f-strings, variables or conditionals): CI synthesizes the
-voice from the parsed file without running it. Show live numbers on screen; say only numbers the explainer states.
+Explainer: ../../explainer.html, Section <n> (<section id>)         <- fill in
+Data:      ../data/<file>.npz, written by ../../code/<script>.py    <- fill in
 
-RAScene holds every text and equation until it can be read (reading_model.py); self.read() waits explicitly.
-Keep text inside the graphics-safe area: title() and caption() place it; tools/video/check_design.py checks overlaps,
-safe areas, sizes, contrast and the palette on every draft render, tools/video/check_reading.py the reading times.
-
-Draft check:  tools/render_video.sh runs/<run> --check        (-ql, silent, seconds)
-Final render: tools/render_video.sh runs/<run> --quality h    (1080p60, configured voice)
+Usage: bash tools/render_video.sh runs/<run> --check     (drafts: -ql, silent)
 """
 import os
 

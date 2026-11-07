@@ -1,24 +1,8 @@
 #!/usr/bin/env python3
-"""Compose the YouTube metadata for the final video (deterministic).
+"""Compose the YouTube metadata of the final video (video/final/youtube.json: snippet, status, the links decision).
 
 Usage:
   python3 tools/video/metadata.py runs/<run> [--links on|off|config] [--site-base https://<user>.github.io/<repo>]
-
-Writes video/final/youtube.json: snippet (title, description, tags, category, languages), status (review privacy,
-made-for-kids and synthetic-media declarations, licence) and the run's links decision. The description carries the
-plan's summary, the primary sources (third-party attribution), the chapters (from chapters.json), the disclosure
-line, a "Music:" credit when the mix carries music (from video/final/music.json: "original, generated"), the
-Remaining Action footer and a "Run:" marker that makes uploads idempotent. A series episode's description
-starts "Episode n of N · <series>", with links to the channel's own published episodes it builds on and to the series
-playlist (our own YouTube videos: included even with links off; from video/series_context.json). Links to the
-explainer and its
-code are opt-in, per run, and only ever in the description: "links.include" in config/channel.json (default false),
-overridden by --links or $INCLUDE_LINKS (on/off, set by the pipeline's "links" input). With links on, the site base URL
-(--site-base or $SITE_BASE_URL) is required; with links off it is not used. Limits enforced here and re-checked by
-tools/gate.py: title at most 100 characters, description at most 5,000 bytes, tags at most 500 characters in total,
-no angle brackets anywhere. With
-"contains_synthetic_media": "auto" (config/channel.json) the video is declared as containing synthetic media whenever
-the narration is synthetic ($VOICE_SERVICE or voice.service other than "recorded").
 """
 from __future__ import annotations
 
@@ -46,12 +30,7 @@ def tags_length(tags: list[str]) -> int:
 
 
 def synthetic_voice(channel: dict, run: Path | None = None) -> bool:
-    """The narration voice is synthetic unless the run uses the user's own recordings.
-
-    With video/voice/manifest.json (written by synthesize_voice.py) the answer comes from what made each block: any
-    block from a speech service (piper, azure, ...) makes the voice synthetic; only recordings ("kept") do
-    not. Without it: $VOICE_SERVICE, else voice.service, anything but "recorded".
-    """
+    """True unless every block of video/voice/manifest.json is a recording (without it: the service is "recorded")."""
     man = run / "video" / "voice" / "manifest.json" if run else None
     if man is not None and man.exists():
         blocks = load_json(man).get("blocks", {})
@@ -62,14 +41,13 @@ def synthetic_voice(channel: dict, run: Path | None = None) -> bool:
 
 
 def synthetic_flag(channel: dict, run: Path | None = None) -> bool:
-    """status.containsSyntheticMedia: true/false from config, or "auto" = true whenever the voice is synthetic."""
+    """status.containsSyntheticMedia: the config's true or false, or with "auto" whether the voice is synthetic."""
     v = channel["youtube"].get("contains_synthetic_media", "auto")
     return synthetic_voice(channel, run) if v == "auto" else bool(v)
 
 
 def narration_service(channel: dict, run: Path | None = None) -> str:
-    """The speech service that made the narration: video/voice/manifest.json, else $VOICE_SERVICE, else
-    voice.service."""
+    """The service of video/voice/manifest.json, else $VOICE_SERVICE, else voice.service."""
     man = run / "video" / "voice" / "manifest.json" if run else None
     if man is not None and man.exists() and load_json(man).get("service"):
         return str(load_json(man)["service"]).strip().lower()
@@ -77,8 +55,7 @@ def narration_service(channel: dict, run: Path | None = None) -> str:
 
 
 def narration_line(channel: dict, run: Path | None = None) -> str:
-    """The description's disclosure of the AI narration (voice policy, README.md): "Narration: AI voice (Microsoft
-    Azure, Steffan). Script and animation by <owner_name, else channel_name>." Empty for the user's own recordings."""
+    """The description's disclosure of an AI narration; empty for the owner's own recordings."""
     if not synthetic_voice(channel, run):
         return ""
     v = channel.get("voice", {})
@@ -97,21 +74,16 @@ def narration_line(channel: dict, run: Path | None = None) -> str:
 
 
 def music_line(run: Path) -> str:
-    """The description's music credit, from the provenance stamp assemble.py left (empty without music)."""
+    """The description's music credit, from the stamp of the music in the mix (empty without music)."""
     asm_p, st_p = run / "video" / "final" / "assembly.json", run / "video" / "final" / "music.json"
     if not asm_p.exists() or not st_p.exists():
         return ""
     used = ((load_json(asm_p).get("audio") or {}).get("music") or {}).get("used")
-    st = load_json(st_p)
-    if not used:
-        return ""
-    if st.get("source") == "generated":
-        return "Music: original, generated for this video."
-    return ""
+    return "Music: original, generated for this video." if used and load_json(st_p).get("source") == "generated" else ""
 
 
 def links_included(channel: dict, override: str | None = None) -> bool:
-    """The run's links decision: --links/$INCLUDE_LINKS (on/off/true/false) if given, else links.include."""
+    """--links or $INCLUDE_LINKS (on/off/true/false) when given, else links.include."""
     v = (override if override is not None else os.environ.get("INCLUDE_LINKS", "")).strip().lower()
     if v in ("on", "true", "yes", "1"):
         return True
@@ -148,8 +120,7 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
     ctx = json.loads(ctx_p.read_text(encoding="utf-8")) if ctx_p.exists() else None
 
     def series_lines() -> list[str]:
-        """"Episode n of N · <series>", then links to the channel's own published episodes this one builds on and to
-        the playlist: YouTube links to our own videos, included whether or not links.include is on."""
+        """"Episode n of N · <series>" and links to our own videos it builds on and the playlist (even links off)."""
         if not P.is_series(run):
             return []
         total = topic.get("episodes_total") or (ctx or {}).get("episodes_total")

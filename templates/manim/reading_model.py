@@ -1,18 +1,6 @@
-"""How long on-screen text and equations must stay visible to be read (Remaining Action house model).
+"""How long on-screen text and equations must stay visible to be read, and fmt(), the house number format (no Manim).
 
-Pure Python, no Manim: the scenes use it for automatic holds (RAScene in common.py) and the gate uses the repository's
-copy (tools/video/check_reading.py). Copy it next to the scenes with common.py and voice.py.
-
-    text      orientation_s + words * 60 / text_wpm
-    equation  max(equation_min_s, equation_base_s + equation_term_s * terms), terms = top-level terms and relations,
-              plus half a term for each fraction, root, integral or sum; words inside \\text{} count as text
-    narrated  times narration_factor when narration plays during at least narration_overlap of the display time
-    floor     min_display_s for anything, however short
-
-Constants come from config/video.json "reading" (tunable defaults; the file says where each one comes from).
-
-Numbers must also be readable at a glance: fmt() writes them the house way (config/video.json "numbers"), and
-tools/video/check_numbers.py checks every number on screen and in the narration against the same rules.
+Usage: copied next to the scenes with common.py (RAScene's holds); the checks import the repository's copy.
 """
 from __future__ import annotations
 
@@ -102,7 +90,6 @@ def on_screen_words(kind: str, content: str) -> float:
     return float(words(content))
 
 
-# --------------------------------------------------------------------------- number format (house rule)
 _SUP = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 
@@ -119,24 +106,15 @@ def _numbers(start: str | os.PathLike | None = None) -> dict:
         return {}
 
 
-NUMBERS = _numbers()                       # config/video.json "numbers": the number-format house rule
+NUMBERS = _numbers()
 MINUS = "\u2212"
 _VULGAR = {(1, 2): "½", (1, 3): "⅓", (2, 3): "⅔", (1, 4): "¼", (3, 4): "¾", (1, 8): "⅛"}
 
 
 def fmt(x, sig=None, decimals=None, unit="", role="label", exact=False, sign=False):
-    """A number as a viewer should read it (house rule; config/video.json "numbers"; check_numbers.py checks it).
-
-    fmt(0.500000) -> "0.5" and fmt(1.27712) -> "1.28": at most `sig` significant digits (default by role, numbers.sig:
-    readout and label 3, table 4), trailing zeros dropped; integers stay integers (fmt(3.0) -> "3"); a real minus
-    sign (U+2212); values below 10^-3 or from 10^6 up in Unicode scientific notation (1.2×10⁻⁵).
-    decimals=k: exactly k decimals, trailing zeros kept: for live readouts, whose width must not jump while they
-    update; give every number of one quantity in a scene the same k (sum = 1.28, not 1.277 beside it).
-    exact=True: the value is exact (a symbolic result): 0 -> "0", 0.5 -> "0.5", 1/3 -> "⅓", never "0.000".
-    sign=True: an explicit + on positive values, for a quantity whose sign is the point (−H = +0.14); a value shown
-    as zero never carries a sign ("0.00", not "−0.00" or "+0.00").
-    unit: appended after a space ("1.2 s").
-    """
+    """A number as a viewer reads it: fmt(1.27712) -> "1.28" (`sig` significant digits, default numbers.sig by role),
+    fmt(3.0) -> "3", a real minus, scientific notation below 10⁻³ and from 10⁶; decimals=k exactly k decimals;
+    exact=True "0", "0.5", "⅓"; sign=True "+0.14" (a zero never signed); unit after a space."""
     x = float(x)
     if exact:
         from fractions import Fraction

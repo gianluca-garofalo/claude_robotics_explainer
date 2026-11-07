@@ -1,25 +1,15 @@
 #!/usr/bin/env bash
 [ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"   # started from sh or zsh: run under bash
-# Render the Manim scenes of a run and check the resulting files (deterministic; never uploads anything).
+# Render the scenes of a run (every *Scene class of video/scenes/*.py) with captions and layout logs, then check them.
 #
-#   tools/render_video.sh runs/<run> --check                   # every scene at -ql, silent, into video/checks/
-#   tools/render_video.sh runs/<run> --quality h               # final renders (1080p60, configured voice) into video/renders/
-#   options: --voice NAME (piper, azure, recorded, silent), --fps N (frame rate other than the preset)
-#   tools/render_video.sh runs/<run> --quality h --scene hilltop.py:Hilltop        # one scene (CI renders scenes in parallel)
-#   tools/render_video.sh --template-check                     # render templates/manim/scene_template.py at -ql
-#
-# Scenes are video/scenes/*.py (common.py, voice.py excluded); every class deriving from a *Scene class is rendered.
-# Each MP4 is copied with its captions (.srt, written by manim-voiceover) when there are any, and with its layout log
-# (<Class>.layout.json: text boxes, paths and on-screen timeline, from tools/video/layout_probe.py) for the design and
-# reading-time checks. Missing helper modules (voice.py, reading_model.py) are copied from templates/manim/.
-# Voice: --voice, else $VOICE_SERVICE, else "voice.service" in config/channel.json (piper). Drafts are silent. A final
-# render whose voice cannot work here (Piper without its model: ./setup.sh downloads it) stops before rendering.
-# Manim: $MANIM, else .venv/bin/manim, else manim on PATH. Python for the checks: $PYTHON, else .venv/bin/python, else
-# python3. Media caches go to video/media/<Class>/ (git-ignored; one folder per scene, so parallel renders do not race
-# on Manim's text cache). Runs under bash (3.2 or later) from any shell.
+#   bash tools/render_video.sh runs/<run> --check                 # every scene at -ql, silent, into video/checks/
+#   bash tools/render_video.sh runs/<run> --quality h             # final renders, configured voice, into video/renders/
+#   bash tools/render_video.sh runs/<run> --quality h --scene file.py:Class     # one scene
+#   bash tools/render_video.sh --template-check                   # templates/manim/scene_template.py at -ql
+#   options: --voice piper|azure|recorded|silent, --fps N; environment: MANIM, MANIM_PYTHON, PYTHON, VOICE_SERVICE
 set -euo pipefail
 
-usage() { sed -n '3,19p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 case "${1:-}" in -h|--help) usage 0 ;; esac
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

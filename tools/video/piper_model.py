@@ -1,30 +1,11 @@
 #!/usr/bin/env python3
-"""Download and check the Piper voice model of the default no-key narration voice (voice.service "piper").
+"""Download and check the Piper voice model (voice.piper in config/channel.json) from huggingface.co.
 
 Usage:
-  python3 tools/video/piper_model.py fetch [--voice NAME] [--dest DIR] [--force]
+  python3 tools/video/piper_model.py fetch [--voice NAME] [--dest DIR] [--force]   # exit 2: the network refused it
   python3 tools/video/piper_model.py path  [--voice NAME]     # where the model is; exit status 1 when it is missing
   python3 tools/video/piper_model.py info  [--voice NAME]     # source, licence lines of the model card, SHA-256
   python3 tools/video/piper_model.py list  [--lang en]        # voices in the catalogue (needs the network)
-
-Where it comes from: the Hugging Face repository rhasspy/piper-voices (https://huggingface.co/rhasspy/piper-voices),
-where the Piper project publishes its voices: <voice>.onnx (the model), <voice>.onnx.json (its config) and the
-voice's MODEL_CARD (training data and licence), saved next to the model with <voice>.source.json (URLs, revision,
-SHA-256, size, date). The default voice, en_US-ljspeech-medium, was trained on the LJ Speech dataset (public-domain
-LibriVox readings by Linda Johnson, compiled by Keith Ito); read the saved MODEL_CARD before publishing with it.
-
-Settings, "voice.piper" in config/channel.json:
-  voice     <lang>_<REGION>-<name>-<quality>, e.g. en_US-ljspeech-medium (default)
-  revision  branch, tag or commit of rhasspy/piper-voices (default main)
-  sha256    expected SHA-256 of <voice>.onnx: set it after the first download to pin the file (empty: not checked)
-Destination: --dest, else $PIPER_MODEL_DIR, else .cache/piper/ of the repository (git-ignored). The CI image keeps
-it in /opt/piper ($PIPER_MODEL_DIR).
-
-Network: huggingface.co, which redirects the model file to its download CDN, a host under hf.co (cdn-lfs.hf.co,
-cdn-lfs-us-1.hf.co or cas-bridge.xethub.hf.co, depending on how the file is stored). When a host is unreachable or
-blocked, fetch stops with exit status 2 and names the host; then allow the host, or copy the three files in by hand
-from a machine that can reach it. Final renders need the model (no other voice stands in for it); draft renders are
-silent and need none. Standard library only: the CI image runs it before the project's packages are installed.
 """
 from __future__ import annotations
 
@@ -33,8 +14,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
-import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -61,13 +42,13 @@ def settings() -> dict:
 
 
 def files_of(voice: str, revision: str) -> dict[str, str]:
-    """{local file name: download URL} for a voice."""
+    """{local file name: download URL} of a voice."""
     m = VOICE_RE.match(voice)
     if not m:
         raise SystemExit(f"error: {voice!r} is not a Piper voice name (<lang>_<REGION>-<name>-<quality>, "
                          f"e.g. {DEFAULT_VOICE})")
-    folder = f"{m['lang']}/{m['lang']}_{m['region']}/{m['name']}/{m['quality']}"
-    base = f"{HUB}/resolve/{urllib.parse.quote(revision, safe='')}/{folder}"
+    base = f"{HUB}/resolve/{urllib.parse.quote(revision, safe='')}/{m['lang']}/{m['lang']}_{m['region']}/{m['name']}/" \
+           f"{m['quality']}"
     return {f"{voice}.onnx": f"{base}/{voice}.onnx?download=true",
             f"{voice}.onnx.json": f"{base}/{voice}.onnx.json?download=true",
             f"{voice}.MODEL_CARD": f"{base}/MODEL_CARD?download=true"}
@@ -78,7 +59,7 @@ def destination(arg: str | None) -> Path:
 
 
 def find(voice: str) -> Path | None:
-    """The model as templates/manim/voice.py finds it ($PIPER_MODEL, $PIPER_MODEL_DIR, .cache/piper/)."""
+    """The model where templates/manim/voice.py looks: $PIPER_MODEL, $PIPER_MODEL_DIR, .cache/piper/."""
     places = [Path(os.environ["PIPER_MODEL"])] if os.environ.get("PIPER_MODEL") else []
     if os.environ.get("PIPER_MODEL_DIR"):
         places.append(Path(os.environ["PIPER_MODEL_DIR"]) / f"{voice}.onnx")
@@ -94,17 +75,6 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-class _Trail(urllib.request.HTTPRedirectHandler):
-    """Remembers every host a download was redirected to, to name the one that failed."""
-
-    def __init__(self):
-        self.hosts: list[str] = []
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        self.hosts.append(urllib.parse.urlsplit(newurl).hostname or newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-
 class FetchError(Exception):
     def __init__(self, message: str, network: bool):
         super().__init__(message)
@@ -112,31 +82,29 @@ class FetchError(Exception):
 
 
 def download(url: str, dest: Path) -> tuple[str, int]:
-    """Stream url into dest (atomically); returns (SHA-256, bytes)."""
-    trail = _Trail()
-    opener = urllib.request.build_opener(trail)
-    host = urllib.parse.urlsplit(url).hostname
+    """Download url into dest atomically; (SHA-256, bytes). FetchError names the host that failed."""
+    hosts = [urllib.parse.urlsplit(url).hostname]
+
+    class Trail(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            hosts.append(urllib.parse.urlsplit(newurl).hostname or newurl)
+            return super().redirect_request(req, fp, code, msg, headers, newurl)
+    part = dest.with_name(f".{dest.name}.part")
     try:
-        with opener.open(urllib.request.Request(url, headers={"User-Agent": "remaining-action-pipeline"}),
-                         timeout=60) as r:
-            h, n = hashlib.sha256(), 0
-            with tempfile.NamedTemporaryFile(dir=dest.parent, prefix=f".{dest.name}.", delete=False) as tmp:
-                for block in iter(lambda: r.read(1 << 20), b""):
-                    tmp.write(block)
-                    h.update(block)
-                    n += len(block)
-            Path(tmp.name).replace(dest)
-            return h.hexdigest(), n
+        request = urllib.request.Request(url, headers={"User-Agent": "remaining-action-pipeline"})
+        with urllib.request.build_opener(Trail).open(request, timeout=60) as r, part.open("wb") as f:
+            shutil.copyfileobj(r, f, 1 << 20)
     except urllib.error.HTTPError as exc:
-        where = trail.hosts[-1] if trail.hosts else host
+        part.unlink(missing_ok=True)
         if exc.code == 404:
             raise FetchError(f"{url.split('?')[0]}: not found (404); is the voice name right? "
                              "python3 tools/video/piper_model.py list", network=False) from exc
-        raise FetchError(f"{where}: HTTP {exc.code} {exc.reason}", network=exc.code in (403, 407, 451)) from exc
-    except (urllib.error.URLError, OSError) as exc:
-        where = trail.hosts[-1] if trail.hosts else host
-        reason = getattr(exc, "reason", exc)
-        raise FetchError(f"{where}: {reason}", network=True) from exc
+        raise FetchError(f"{hosts[-1]}: HTTP {exc.code} {exc.reason}", network=exc.code in (403, 407, 451)) from exc
+    except OSError as exc:
+        part.unlink(missing_ok=True)
+        raise FetchError(f"{hosts[-1]}: {getattr(exc, 'reason', exc)}", network=True) from exc
+    part.replace(dest)
+    return sha256_file(dest), dest.stat().st_size
 
 
 def fetch(a) -> int:
@@ -146,10 +114,11 @@ def fetch(a) -> int:
     out.mkdir(parents=True, exist_ok=True)
     files = files_of(voice, s["revision"])
     model = out / f"{voice}.onnx"
+    pinned = s["sha256"] if voice == s["voice"] else ""
     if model.is_file() and (out / f"{voice}.onnx.json").is_file() and not a.force:
         digest = sha256_file(model)
-        if s["sha256"] and digest != s["sha256"] and voice == s["voice"]:
-            print(f"error: {model} has SHA-256 {digest}, config pins {s['sha256']}: fetch --force", file=sys.stderr)
+        if pinned and digest != pinned:
+            print(f"error: {model} has SHA-256 {digest}, config pins {pinned}: fetch --force", file=sys.stderr)
             return 1
         print(f"{voice}: already in {out} (SHA-256 {digest[:16]}...)")
         return 0
@@ -170,14 +139,12 @@ def fetch(a) -> int:
             return 2 if exc.network else 1
         record["files"][name] = {"url": url.split("?")[0], "sha256": digest, "bytes": size}
     digest = record["files"][f"{voice}.onnx"]["sha256"]
-    if s["sha256"] and voice == s["voice"] and digest != s["sha256"]:
+    if pinned and digest != pinned:
         model.unlink()
-        print(f"error: downloaded {voice}.onnx has SHA-256 {digest}, config pins {s['sha256']}; removed it",
-              file=sys.stderr)
+        print(f"error: downloaded {voice}.onnx has SHA-256 {digest}, config pins {pinned}; removed it", file=sys.stderr)
         return 1
     (out / f"{voice}.source.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-    mb = record["files"][f"{voice}.onnx"]["bytes"] / 1e6
-    print(f"{voice}: {mb:.1f} MB into {out} (SHA-256 {digest})")
+    print(f"{voice}: {record['files'][f'{voice}.onnx']['bytes'] / 1e6:.1f} MB into {out} (SHA-256 {digest})")
     for line in licence_lines(out / f"{voice}.MODEL_CARD"):
         print(f"  model card: {line}")
     if not s["sha256"]:
@@ -225,7 +192,7 @@ def list_cmd(a) -> int:
     try:
         with urllib.request.urlopen(url, timeout=60) as r:
             voices = json.load(r)
-    except (urllib.error.URLError, OSError) as exc:
+    except OSError as exc:
         print(f"error: {url.split('?')[0]}: {getattr(exc, 'reason', exc)}; {HOSTS_HINT}", file=sys.stderr)
         return 2
     for name in sorted(voices):

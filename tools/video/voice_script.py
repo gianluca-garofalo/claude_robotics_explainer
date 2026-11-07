@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
-"""List every voiceover block of a run's scenes, for recording them in your own voice.
+"""List every voiceover block of a run's scenes with its key, for recording them as video/voice/<key>.wav.
 
 Usage:
-  python3 tools/video/voice_script.py runs/<run>      # writes video/voice/SCRIPT.md and prints it
-
-Each `self.voiceover(text="...")` string literal in video/scenes/*.py becomes one line: its block key, the scene and the
-text to read (bookmarks removed; the pacing markup stays as a direction: "[pause 2]" is a two-second pause, "[slow]" a
-block to read slowly as a whole, a derivation or an argument). Record each block as video/voice/<key>.wav (or .mp3,
-.m4a, .flac, .ogg), then render with VOICE_SERVICE=recorded (or set "voice": {"service": "recorded"} in
-config/channel.json). The key is the same one templates/manim/voice.py computes, so a changed sentence (or a changed
-pause) needs a new recording and an unchanged one does not. The checks read the narration through blocks_by_class(),
-without the markup (spoken()); tools/video/check_pacing.py reads it with the markup (markup=True).
+  python3 tools/video/voice_script.py runs/<run> [--out PATH]      # default video/voice/SCRIPT.md; also printed
 """
 from __future__ import annotations
 
@@ -29,8 +21,7 @@ BOOKMARK = re.compile(r"<bookmark\s*mark\s*=['\"]\w*[\"']\s*/>")   # as manim_vo
 
 
 def _voice():
-    """templates/manim/voice.py (the repository's copy, loaded by path: no scene folder on sys.path), for its pacing
-    markup helpers (strip_markup, planned_pauses, pause_plan, slow_block, markup_problems)."""
+    """templates/manim/voice.py, loaded by path (the repository's copy, never a run's)."""
     spec = importlib.util.spec_from_file_location("ra_template_voice", REPO / "templates" / "manim" / "voice.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -65,8 +56,7 @@ def blocks(path: Path):
 
 
 def blocks_by_class(path: Path, markup: bool = False) -> dict[str, list[str]]:
-    """{scene class: [narration text, ...]} in source order (literal texts, bookmarks removed; computed texts skipped).
-    The pacing markup is removed too, unless markup=True (then key() of a text is its block key)."""
+    """{scene class: [narration text, ...]} in source order, as spoken() unless markup=True (then key() applies)."""
     tree = ast.parse(path.read_text(encoding="utf-8"))
     out = {}
     for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
@@ -87,6 +77,7 @@ def blocks_by_class(path: Path, markup: bool = False) -> dict[str, list[str]]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
+    ap.add_argument("--out", help="where to write the script (default: video/voice/SCRIPT.md of the run)")
     a = ap.parse_args()
     run = resolve_run(a.run)
     lines = ["# Voice-over script", "", "Record each block as `video/voice/<key>.wav` (one file per block).", "",
@@ -96,7 +87,7 @@ def main() -> int:
         for k, text in blocks(f):
             lines.append(f"| {k or '-'} | {f.stem} | {text.replace('|', '/')} |")
             n += 1
-    out = run / "video" / "voice" / "SCRIPT.md"
+    out = Path(a.out) if a.out else run / "video" / "voice" / "SCRIPT.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))

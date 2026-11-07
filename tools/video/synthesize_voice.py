@@ -1,24 +1,8 @@
 #!/usr/bin/env python3
-"""Synthesize a run's narration once, before rendering, without running any code written during the run.
+"""Synthesize a run's narration into video/voice/ from the parsed scene files (no scene code runs), with a manifest.
 
 Usage:
-  python3 tools/video/synthesize_voice.py runs/<run> [--service piper|azure|recorded|silent]
-
-Reads every `self.voiceover(text="...")` literal of video/scenes/*.py through the syntax tree (the same extraction
-as tools/video/voice_script.py; nothing is imported or executed), asks the speech service of the repository's own
-templates/manim/voice.py for each block that has no audio yet, and writes video/voice/<key>.mp3, <key>.timings.json
-(word timings, when the service returns them) and video/voice/manifest.json. Render jobs then use
-VOICE_SERVICE=recorded and need no text-to-speech key: the keys never reach a job that runs the run's scene code.
-Audio already in video/voice/ (your own recordings) is kept; a file this tool made earlier keeps its recorded source.
-The service is --service, else $VOICE_SERVICE, else "voice.service" in config/channel.json (piper: offline, no key).
-Piper needs its voice model (./setup.sh downloads it; the CI image has it): without it the tool stops and says how to
-get it, and never uses another voice instead. The manifest records the service, the Piper voice model and whether the
-word timings are measured or estimated, and for Azure how each block was paced (v7: "applied_rate_pct", "pace" ok |
-breaks | slowed | rewrite, "pace_break_s", "speech_wpm" with the planned pauses left out, "slowest_rate_pct",
-"slow" and "slow_rate_pct" for a block marked [slow], and "pauses": each planned pause, planned and measured). The
-pacing markup ([pause S], [slow]) is checked before any synthesis (a pause inside a block longer than
-voice.azure.max_break_ms, or the retired [key], stops the tool with the fix). Exit status 1 when a block's text is not
-a literal, its markup cannot be voiced, or synthesis fails.
+  python3 tools/video/synthesize_voice.py runs/<run> [--service piper|azure|recorded|silent]   # recordings are kept
 """
 from __future__ import annotations
 
@@ -78,7 +62,7 @@ def main() -> int:
     old_blocks = old.get("blocks", {})
 
     def made_earlier(key, f):
-        """The service this tool used for f in an earlier run, if f is unchanged since (else None: a recording)."""
+        """The service that made f in an earlier run if f is unchanged since, else None (a recording)."""
         prev = old_blocks.get(key, {})
         return prev.get("source") if prev.get("file") == f.name and prev.get("sha256") == sha256_file(f) else None
 

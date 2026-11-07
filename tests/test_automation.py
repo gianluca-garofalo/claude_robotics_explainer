@@ -60,7 +60,11 @@ class Chapters(unittest.TestCase):
     def test_timestamps(self):
         self.assertEqual(assemble.fmt_chapter(59.9), "0:59")
         self.assertEqual(assemble.fmt_chapter(3725), "1:02:05")
-        self.assertEqual(assemble.fmt_srt(3.0), "00:00:03,000")
+        import media
+        with tempfile.TemporaryDirectory() as d:
+            media.write_srt(Path(d) / "c.srt", [(3.0, 4.2346, "One push."), (3725.5, 3726.0, "Two.")])
+            self.assertIn("1\n00:00:03,000 --> 00:00:04,235\nOne push.", (Path(d) / "c.srt").read_text())
+            self.assertEqual(media.read_srt(Path(d) / "c.srt"), [(3.0, 4.235, "One push."), (3725.5, 3726.0, "Two.")])
 
 
 class Metadata(unittest.TestCase):

@@ -1,20 +1,8 @@
 #!/usr/bin/env python3
-"""Make the YouTube thumbnail from a frame of our own render, with the Remaining Action layout (deterministic).
+"""Make the YouTube thumbnail (JPEG under 2 MB, and thumbnail.json for check_design.py) from plan.json "thumbnail".
 
 Usage:
   python3 tools/video/thumbnail.py runs/<run> [--out video/final/thumbnail.jpg]
-
-Takes the frame at plan.json "thumbnail" (scene class + seconds into that scene) from the assembled video, scales it
-to 1280x720, lays a uniform dark panel (config/video.json "design"."thumbnail_title_shade") over everything under
-the title, fading out to the right of it, writes the thumbnail text (at most 40 characters, two lines) and the
-channel name. Original graphics only: nothing but our own frame and text. JPEG under 2 MB, as the YouTube API
-requires. Also writes thumbnail.json (text boxes, sizes, colours, the frame's scene and time, the panel) for the
-checks in check_design.py: legibility at 168 x 94, and nothing busy behind the title (frame text under it, edges).
-Choose plan.json "thumbnail" so that the frame has no text where the title goes (the left half).
-Layout "picture" (plan.json thumbnail.layout, picture first): the title (three words or fewer, one line) sits in a
-dark band across the top (about the top fifth, the channel name under the title beside a green accent) and the
-frame's content, cropped to what is drawn, is fitted whole under the band, as large as it fits (nothing hidden
-behind the title; the key object stays legible at 168 x 94). The default layout "panel" is the one described above.
 """
 from __future__ import annotations
 
@@ -33,17 +21,14 @@ import plan as P  # noqa: E402
 W, H = 1280, 720
 INK, GREEN, MUTED = (226, 232, 240), (45, 212, 191), (148, 163, 184)
 _BG_HEX = load_json(CONFIG / "video.json").get("palette", {}).get("background", "#0f172a").lstrip("#")
-BG = tuple(int(_BG_HEX[i:i + 2], 16) for i in (0, 2, 4))          # config/video.json palette.background
-
-
+BG = tuple(int(_BG_HEX[i:i + 2], 16) for i in (0, 2, 4))
 FALLBACKS = {True: ["Arial Bold.ttf", "LiberationSans-Bold.ttf", "Helvetica.ttc"],
              False: ["Arial.ttf", "LiberationSans-Regular.ttf", "Helvetica.ttc"]}
 _warned = set()
 
 
 def font(size: int, bold: bool = True):
-    """DejaVu Sans (the scenes' font), found by file name in the system font folders (Pillow searches the Linux ones
-    and, on macOS, ~/Library/Fonts and /Library/Fonts) or through fontconfig; else a common sans with a warning."""
+    """DejaVu Sans (the scenes' font) by file name or through fontconfig; else a common sans, with a warning."""
     from PIL import ImageFont
     fname = "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf"
     try:
@@ -82,8 +67,7 @@ def save(img, out: Path, meta: dict) -> None:
 
 
 def content_box(img, pad: float = 0.04, delta: int = 28) -> tuple[int, int, int, int]:
-    """Bounding box of what differs from the background in a frame (the picture's content), padded by `pad` of the
-    frame size; the whole frame when nothing is found."""
+    """Bounding box of what differs from the background, padded by `pad` of the frame; the whole frame if nothing."""
     from PIL import ImageChops, Image
     diff = ImageChops.difference(img, Image.new("RGB", img.size, BG)).convert("L").point(lambda v: 255 if v > delta
                                                                                           else 0)
@@ -95,9 +79,7 @@ def content_box(img, pad: float = 0.04, delta: int = 28) -> tuple[int, int, int,
 
 
 def picture_layout(run: Path, a, img, th: dict, t: float, channel: str) -> int:
-    """Picture first: the title in a dark band across the top, a short green accent under it with the channel name
-    beside it, and the frame's content (cropped to what is drawn, so the key object is as large as it can be at
-    168 x 94) fitted whole under the band: nothing of the picture is hidden behind the title (v2 final-cut review)."""
+    """Layout "picture": the title in a band across the top, the frame's content cropped and fitted whole under it."""
     from PIL import Image, ImageDraw
     size = 84
     f_big = font(size)
@@ -189,16 +171,9 @@ def main() -> int:
                 {"role": "channel", "text": channel.upper(), "font_px": 34, "decorative": True,
                  "bbox": list(d.textbbox((64, H - 78), channel.upper(), font=font(34))), "color": "#%02x%02x%02x" % MUTED}]
     out = Path(a.out) if a.out else run / "video" / "final" / "thumbnail.jpg"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    for q in (90, 80, 70, 60):
-        img.save(out, "JPEG", quality=q, optimize=True)
-        if out.stat().st_size < 2_000_000:
-            break
-    (out.parent / "thumbnail.json").write_text(json.dumps({"size": [W, H], "elements": elements,
-                                                           "frame": {"scene": th["scene"], "scene_time": float(th["time"]),
-                                                                     "video_time": round(t, 3)},
-                                                           "panel": {"right": right, "fade": fade, "shade": alpha}},
-                                                          indent=1), encoding="utf-8")
+    save(img, out, {"size": [W, H], "elements": elements,
+                    "frame": {"scene": th["scene"], "scene_time": float(th["time"]), "video_time": round(t, 3)},
+                    "panel": {"right": right, "fade": fade, "shade": alpha}})
     print(f"wrote {rel(out)} ({out.stat().st_size / 1e3:.0f} kB, frame at {t:.1f} s of the final video)")
     return 0
 

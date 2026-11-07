@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
-"""Frames of the final assembled video for the final-cut reviewer, who watches it the way a viewer would.
+"""Frames and contact sheets of the assembled video for the final-cut review (review/final_cut/), with frames.json.
 
 Usage:
   python3 tools/video/final_frames.py runs/<run> [--every 2] [--scene-threshold 0.3] [--width 960]
-
-Takes a frame every --every seconds, at every scene change (ffmpeg scene detection), at every chapter start and just
-after the end of every scene (leftovers after a transition), from video/final/<slug>.mp4. Writes
-review/final_cut/frames/t<seconds>.jpg, contact sheets review/final_cut/sheet-NN.jpg (12 frames each, labelled with
-time, chapter and the caption on screen at that moment) and review/final_cut/frames.json: for every frame its time,
-why it was taken (every, scene-change, chapter, after-scene), the chapter, the scene and the caption shown then, plus
-the narration blocks with their times (from the captions). The final-cut-reviewer subagent reads these; it can
-extract any other moment with ffmpeg -ss. Needs ffmpeg and Pillow.
 """
 from __future__ import annotations
 
@@ -26,21 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 import plan as P  # noqa: E402
-
-
-def srt(path: Path) -> list[tuple[float, float, str]]:
-    def t(s):
-        hh, mm, rest = s.strip().split(":")
-        ss, ms = rest.split(",")
-        return int(hh) * 3600 + int(mm) * 60 + int(ss) + int(ms) / 1000
-    cues = []
-    if path.exists():
-        for block in re.split(r"\n\s*\n", path.read_text(encoding="utf-8").strip()):
-            lines = [x for x in block.splitlines() if x.strip()]
-            if len(lines) >= 2 and "-->" in lines[1]:
-                a, b = lines[1].split("-->")
-                cues.append((t(a), t(b), " ".join(lines[2:]).strip()))
-    return cues
+from media import read_srt  # noqa: E402
 
 
 def scene_changes(video: Path, threshold: float) -> list[float]:
@@ -100,7 +78,7 @@ def main() -> int:
         return 1
     asm = json.loads((run / "video" / "final" / "assembly.json").read_text(encoding="utf-8"))
     chs = json.loads((run / "video" / "final" / "chapters.json").read_text(encoding="utf-8")).get("chapters", [])
-    cues = srt(video.with_suffix(".srt"))
+    cues = read_srt(video.with_suffix(".srt"))
     dur = asm["duration"]
     times: dict[float, set] = {}
 
