@@ -1,41 +1,11 @@
 #!/usr/bin/env python3
-"""Render a Manim scene exactly as the manim command would, and log its layout and on-screen timeline.
+"""Render a Manim scene as the manim command would, and log its layout and on-screen timeline for the checks.
 
-Usage (tools/render_video.sh calls it with the Python that has Manim; everything after -- is the manim command line):
-  .venv/bin/python tools/video/layout_probe.py --probe-out OUT.layout.json [--interval 1.0] -- -ql --media_dir M scene.py Class
+Usage (tools/render_video.sh calls it with the Python that has Manim; after -- comes the manim command line):
+  .venv/bin/python tools/video/layout_probe.py --probe-out OUT.layout.json [--interval S] [--fps-max N] -- ARGS
 
-It patches manim's Scene base class in this process only, so every scene is instrumented without changing its code
-(the Remaining Action base class in templates/manim/common.py adds reading holds on top; it is not required here).
-The JSON written to --probe-out holds, in scene seconds:
-  snapshots   at the end of every play() and wait() ("settled") and every --interval seconds: each visible text item
-              (Text, MarkupText, Paragraph, MathTex, Tex, DecimalNumber) with kind, content, bounding box, font size,
-              colour, opacity, drawing order and top-level group; each visible path (curves, lines, shapes) as a
-              subsampled polyline with stroke width, colours and opacities; the number of visible top-level elements
-  timeline    every text item's visibility and position changes, sampled at up to --fps-max frames per second;
-              for live items (readouts with updaters) also "values": [t, text shown] whenever the text changes
-  voiceovers  start, duration and words of each manim-voiceover block, its text without bookmarks and pacing markup;
-              (v7) "raw": the text with its markup ([pause S], [slow]) when it has any, "bookmarks": {mark: scene
-              time}, "timings": [[word, seconds after the block start, seconds the word lasts or null, its index
-              among the block's words]] from the voice's word timings (estimated for silent drafts, with the planned
-              pauses in place; a word the voice reported no timing for is missing), so
-              tools/video/check_pacing.py can place every sentence, pause and declared idea; sections from
-              next_section()
-  plays       every play() call: start, end and the class names of its leaf animations (AnimationGroup, Succession
-              and LaggedStart unpacked; ".animate" builders as "animate"), so tools/video/check_engagement.py can
-              tell motion that changes the picture's content from emphasis alone (Indicate, Circumscribe, ...); a
-              plain wait is left out, a planned hold (common.py Hold: beat(), the pause after a narration block) is
-              logged as "Hold"
-  metaphor    (v5) every object marked ra_role="metaphor" (common.py meter()): its value (ra_value(), the number the
-              bar shows, with or without a readout) and vmax, as "values": [t, value] whenever it changes by more
-              than 1e-4 and "visible": [t, 0|1], sampled like the timeline, so the checks can tell a meter that
-              drains along the path from one that refills with no step paid or never moves
-An equation on screen only as its pieces (v6: TransformFromCopy into a piece, FadeIn of a piece, LaggedStart over
-the pieces, the way common.py ceq()/derive() choreography builds formulas out of pictures) is logged as one math text
-item, the whole equation's content over the union of the visible pieces: before v6 such pieces were logged as paths,
-so the design, reading-time and words-on-screen checks did not see the equation at all (episode 1 v5: the Bill's
-formula never, a chain of inequalities crossed by curves unreported).
-Coordinates are Manim units (frame 14.22 x 8, origin at the centre). tools/video/check_design.py and
-tools/video/check_reading.py read this file; the gate never trusts a log it did not produce on a clean checkout.
+The log, in scene seconds and Manim units (origin at the centre): snapshots of the visible texts and paths, each
+text's timeline, the voiceovers with their word timings, the plays and the metaphor's value.
 """
 from __future__ import annotations
 
@@ -68,7 +38,7 @@ class SceneLog:
         self.voiceovers: list[dict] = []
         self.sections: list[dict] = []
         self.plays: list[dict] = []
-        self.metaphor: dict[int, dict] = {}       # v5: value track of each ra_role="metaphor" object
+        self.metaphor: dict[int, dict] = {}       # value track of each ra_role="metaphor" object
         self.ids: dict[int, int] = {}
         self.keep: list = []                      # keep logged objects alive so id() stays unique
         self.last_sample = -1e9
@@ -89,8 +59,7 @@ class SceneLog:
 
 
 def anim_names(args) -> list[str]:
-    """Class names of the leaf animations of a play() call: groups (AnimationGroup, Succession, LaggedStart) are
-    unpacked, an ".animate" builder is "animate", a Wait is left out."""
+    """Class names of a play() call's leaf animations ("animate" for a builder; groups unpacked, Wait left out)."""
     out: list[str] = []
 
     def go(a):
@@ -108,8 +77,7 @@ def anim_names(args) -> list[str]:
 
 
 def equations_in(args) -> tuple[set, set]:
-    """(v6) The equations (MathTex, tagged by the probe) whose pieces a play() call animates, and the animated pieces
-    themselves (Python ids), so loose pieces are logged once they have arrived, not while they fly, fade or morph."""
+    """(the equations whose pieces a play() animates, the ids of those pieces): loose pieces are logged once landed."""
     out: set = set()
     moving: set = set()
 
@@ -156,8 +124,7 @@ def install() -> None:
     orig_mathtex_init = MathTex.__init__
 
     def mathtex_init(self, *a, **kw):
-        """Tag every piece of an equation with (equation id, index, piece, font size, whole equation): plain values,
-        so copies of a piece (TransformFromCopy, .copy()) keep them."""
+        """Tags each piece with (equation id, index, piece, font size, whole equation); copies keep the tag."""
         orig_mathtex_init(self, *a, **kw)
         try:
             eid = next(_EQ_IDS)
@@ -173,8 +140,7 @@ def install() -> None:
     MathTex.__init__ = mathtex_init
 
     class Pieces:
-        """An equation on screen only as loose pieces: one text item for the checks (content: the whole equation;
-        box: the visible pieces; drawn at the order of its last piece)."""
+        """An equation on screen only as loose pieces, logged as one text item over the visible pieces."""
         ra_math = True
 
         def __init__(self, whole: str, font_size: float):
@@ -246,9 +212,8 @@ def install() -> None:
         return ""
 
     def walk(scene):
-        """Visible text items and paths in drawing order, with their top-level element index and live flag, and the
-        attachment of each text (common.py attach(): a label that belongs next to an object; inherited from groups).
-        Loose pieces of an equation (v6) become one Pieces item, unless the whole equation is on screen too."""
+        """Visible texts and paths in drawing order with their top-level index, live flag and attach() target; the
+        loose pieces of an equation become one Pieces item."""
         order = {id(f): i for i, f in enumerate(extract_mobject_family_members(scene.mobjects, use_z_index=True))}
         texts, paths, attached = [], [], {}
         loose: dict[int, list] = {}
@@ -360,8 +325,7 @@ def install() -> None:
         lg.end = max(lg.end, t)
 
     def metaphor_value(m):
-        """The number a metaphor object shows: ra_value() (common.py meter() from v5), else the value function of an
-        older meter() (its readout arguments), else None."""
+        """The number a metaphor object shows: ra_value(), else its readout's value function, else None."""
         fn = getattr(m, "ra_value", None)
         if not callable(fn):
             ro = getattr(m, "_ro_args", None)
@@ -505,8 +469,7 @@ def install() -> None:
             return tracker
 
         def word_timings(tracker, raw):
-            """[[word, start, length or None, word index]] of a block, seconds after its start (one entry per word
-            with a timing: the bracketing boundaries bookmark_safe() adds are left out)."""
+            """[[word, start, length or None, word index]] of each timed word of a block, from its start."""
             masked = MARKUP.sub(lambda m: " " * len(m.group()), raw)
             index = {m.start(): i for i, m in enumerate(re.finditer(r"\S+", masked))}
             by_offset = {}

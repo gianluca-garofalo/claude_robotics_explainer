@@ -1,60 +1,4 @@
-"""video/plan.json: what the final video contains (written by the manim-video-producer skill, read by the tools).
-
-{
-  "schema_version": 1,
-  "title": "YouTube title, at most 90 characters, no angle brackets",
-  "summary": "Two to four sentences for the description (at most 900 characters)",
-  "tags": ["model predictive control", "..."],
-  "search_term": "MPC",
-  "scenes": [{"file": "hilltop.py", "class": "Hilltop", "section": "sec-hj", "chapter": "Only one push arrives",
-              "role": "body", "music": "low"}],
-  "thumbnail": {"scene": "Hook", "time": 9.5, "text": "Only H = 0 arrives", "layout": "picture"},
-  "metaphor": {"name": "the remaining-action meter", "label": "left to pay"}
-}
-Scenes play in this order; nothing is added before the first (no channel card) and the last is the outro. "section"
-is the explainer section the scene draws on (a source, for the review and, only when links are on, the description;
-any heading id of the explainer), "chapter" the chapter title viewers see, written for the video (never the
-explainer's heading; consecutive scenes with the same chapter form one chapter). "role" (optional, checked by
-tools/video/check_series.py): "hook" (first: a full moving picture from frame 0, narration by 3 s, the question by
-15 s), "context" (the spoken series context: a short title beat right after the hook, title_beat()), "recap" (with "recap_of": the earlier episode it restates, a number or "series:episode"), "body",
-"outro" (last: takeaway card, channel name, the teaser). "music" (optional): the scene's music mode, "bed" (the bed
-under the narration, music.bed_under_voice_lu below it), "low" (music.low_under_voice_lu, at least 20 LU below:
-under explanation, after the coherence principle) or "off"; the default comes from config/channel.json
-music.modes_by_role (hook, context, outro: bed; body and recap: low). Cuts between scenes always get a short swell.
-"music_from" (optional, v5): a change of mode inside the scene, [{"says": "<words of the narration block where it
-starts>", "mode": "low"}]: from the start of that block to the scene's end (or the next change) the bed plays in that
-mode (an outro's closing question under "low" music, after the bed of the card); assemble.py finds the block in the
-scene's layout log.
-"search_term" (optional): the words viewers search for, which the title should contain (check_series.py warns).
-"thumbnail": the frame (scene class, seconds into it; for "click match" a frame of the hook within its first 15 s),
-at most 40 characters of text (three words or fewer reads best), and "layout": "panel" (default: the title on a dark
-panel over the left half) or "picture" (the frame fills the thumbnail; the title sits in a band at the top: keep the
-top fifth of the frame empty).
-"metaphor" (optional, checked by tools/video/check_engagement.py): the episode's one central picture, carried through
-the video: "name" says what it is, "label" is the start of the text it shows (the meter's readout), by which the
-check finds it in the layout logs of the hook, the body scenes and the outro; "direction" (v5): "down" (the default:
-along the path the bill only falls, so the check warns when the meter refills) or "any".
-"metaphor_resets" (v5, optional, per scene): the refills of the meter the scene means, each {"says": words of the
-narration block during which it refills (the narration must announce it), "why": the reason, for the reviewers},
-e.g. {"says": "let's build it", "why": "the bill is built from one plan's step costs"}. The meter refills while or after
-those words are said (v6), never seconds before them.
-"picture" (v6, optional, per scene; once one scene has it, all should): "faithful" (drawn to the scale of the numbers
-it carries: a graph, a number line, bars to scale) or "schematic" (an illustration: the hook's 2-D path, a title beat),
-which shows no numbers (check_engagement.py warns at a live readout with digits or a decimal on it).
-"ideas" (v7, the pacing rules of config/video.json "pacing"; tools/video/check_pacing.py): the idea units of the video
-where they land, in order, e.g. {"id": "descent", "kind": "star", "scene": "ShiftedPlan", "bookmark": "descent",
-"shows": "V_N(q^+)"}. "kind": "concept", "claim" or "star" (the episode's ideas of the series plan, by the same "id":
-episode.json "ideas"; a claim that is a step of a planned idea gives its id in "of"), or one of the consolidation units
-"restatement" (a starred result again in plain words, "of": its id), "summary" (the end of a chapter), "roadmap"
-(after the title beat), "recap" (before the outro), "prompt" (a think prompt; "main": true for the one that says
-"pause here if you like"). "scene": the scene class; "bookmark": the <bookmark mark='...'/> at the start of the sentence
-that states it, or "says": words of that sentence (as metaphor_resets). Optional: "shows" (the start of the on-screen
-text or equation that carries it: the picture comes first, rule P14), "text", "pretraining" (concepts named in the
-pretraining segment), "example" and "side" (claims), "follows" (a claim that follows at once from another idea).
-"glossary" (v7, optional): the episode's own technical terms ("one-step bill", "end region"), which the pacing check
-counts as new concepts and terms at their first mention, besides config/video.json pacing.glossary and
-engagement.jargon.
-"""
+"""video/plan.json, what a run's video contains: loading it, and every way it is unusable (problems())."""
 from __future__ import annotations
 
 import json
@@ -66,8 +10,8 @@ FILE_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}\.py$")
 NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$")
 ROLES = ("hook", "context", "recap", "body", "outro")
 MUSIC_MODES = ("bed", "low", "off")
-PICTURES = ("faithful", "schematic")             # v6: what a scene's picture claims (check_engagement.py "picture")
-IDEA_KINDS = ("concept", "claim", "star", "restatement", "summary", "roadmap", "recap", "prompt")   # v7, check_pacing
+PICTURES = ("faithful", "schematic")
+IDEA_KINDS = ("concept", "claim", "star", "restatement", "summary", "roadmap", "recap", "prompt")
 THUMB_LAYOUTS = ("panel", "picture")
 
 
@@ -219,7 +163,7 @@ def problems(run: Path, plan: dict | None = None) -> list[str]:
 
 
 def idea_problems(run: Path, plan: dict, classes: set) -> list[str]:
-    """(v7) What is wrong with plan.json "ideas" and "glossary" (the declarations tools/video/check_pacing.py reads)."""
+    """What is wrong with plan.json "ideas" and "glossary"."""
     out = []
     gl = plan.get("glossary")
     if gl is not None and not (isinstance(gl, list) and all(isinstance(t, str) and 0 < len(t.strip()) <= 60 for t in gl)):
