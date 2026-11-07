@@ -1,20 +1,11 @@
 #!/usr/bin/env python3
-"""Hard gates before anything leaves the build: if one fails, the run stops and nothing is uploaded.
+"""Hard gates of a run, recorded in review/gates.json and gates.md; exit 1 when one fails.
 
 Usage:
-  python3 tools/gate.py runs/<run> --stage pre-render      # CI gate job (clean checkout) or end of a local run:
-                                                           # explainer, code, review, references, plan, narration
-  python3 tools/gate.py runs/<run> --stage final           # after assembly: all of the above + video, captions,
-                                                           # thumbnail, metadata
-  python3 tools/gate.py runs/<run> --stage release         # before the private upload: the final gates passed for
-                                                           # this video and the final-cut review has no open blocker
-  options: --require-links (when the run includes links, links.include or the pipeline's "links" input, the
-           description must carry them; with links off nothing is required and no site link may appear);
-           tests only: --allow-silent (no narration needed),
-           --video-quality l|m|h|k and --min-duration S (override config/channel.json)
-
-Content hashes, not file times, tie the reports to what they checked, so the gates hold across CI jobs and artifacts.
-Thresholds come from config/pipeline.json ("gates"). Writes review/gates.json and review/gates.md; exit 1 on failure.
+  python3 tools/gate.py runs/<run> --stage pre-render   # explainer, code, review, references, plan, narration, drafts
+  python3 tools/gate.py runs/<run> --stage final        # the above, then video, captions, thumbnail, metadata
+  python3 tools/gate.py runs/<run> --stage release      # the final gates passed for this video; final-cut review
+  options: --require-links; tests only: --allow-silent, --video-quality l|m|h|k, --video-fps N, --min-duration S
 """
 from __future__ import annotations
 
@@ -29,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import CONFIG, REPO, load_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import CONFIG, REPO, load_json, read_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 import lint_html  # noqa: E402
 import plan as P  # noqa: E402
 import voice_script as VS  # noqa: E402
@@ -58,49 +49,52 @@ class Gates:
         self.add(name, ok, detail)
 
 
-def _json(p: Path):
-    return json.loads(p.read_text(encoding="utf-8"))
-
-
 def _json_or_empty(p: Path) -> dict:
     try:
-        return _json(p)
+        return read_json(p)
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
 
-def video_checks(run: Path, g: Gates, stage: str) -> None:
-    """Design and reading-time reports of `stage` (draft or final renders), tied to the logs and videos they read."""
-    folder = run / "video" / ("checks" if stage == "draft" else "renders")
-    names = [s["class"] for s in P.load(run)["scenes"]]
+def open_serious(findings: list, unverified: list) -> tuple[list, list, list]:
+    """Open blockers, open confirmed majors, and the blockers among `unverified`."""
+    open_ = [f for f in findings if f.get("status", "open") == "open" and f.get("verdict") != "refuted"]
+    blockers = {f["id"] for f in findings if f["severity"] == "blocker"}
+    return ([f["id"] for f in open_ if f["severity"] == "blocker"],
+            [f["id"] for f in open_ if f["severity"] == "major" and f.get("verdict") == "confirmed"],
+            [i for i in unverified if i in blockers])
 
-    def fresh(report: dict, key: str) -> list[str]:
-        stale = []
+
+def video_checks(run: Path, g: Gates, stage: str) -> None:
+    """The video checks' reports for `stage` (draft or final renders), tied to the logs and files they read."""
+    folder = run / "video" / ("checks" if stage == "draft" else "renders")
+    reports = run / "review" / "design" / stage
+    names = [s["class"] for s in P.load(run)["scenes"]]
+    video_cfg = _json_or_empty(CONFIG / "video.json")
+
+    def stale(have, strict: bool = True) -> list[str]:
+        """Scenes whose layout log is not the one the report read (strict: a missing log too)."""
+        out = []
         for n in names:
             lp = folder / f"{n}.layout.json"
-            have = (report.get("scenes", {}).get(n, {}) or {}).get("layout_sha256") if key == "design" else \
-                report.get("layout_sha256", {}).get(n)
-            if not lp.exists() or have != sha256_file(lp):
-                stale.append(n)
-        return stale
+            now = sha256_file(lp) if lp.exists() else None
+            if have(n) != now or (strict and now is None):
+                out.append(n)
+        return out
 
-    def design():
-        r = _json(run / "review" / "design" / stage / "check_design.json")
-        stale = fresh(r, "design")
-        ok = r.get("passed") is True and not stale
-        return ok, (f"{r['summary']['warnings']} warning(s), no error" if ok else
-                    f"{r['summary']['errors']} error(s) (review/design/{stage}/check_design.md)" if not stale else
-                    f"not run on the current {stage} renders of {stale}")
-    g.guard(f"video design ({stage} renders)", design)
-
-    def reading():
-        r = _json(run / "review" / "design" / stage / "check_reading.json")
-        stale = fresh(r, "reading")
-        ok = r.get("passed") is True and not stale
-        return ok, (f"{r['summary']['warnings']} warning(s), no error" if ok else
-                    f"{r['summary']['errors']} error(s) (review/design/{stage}/check_reading.md)" if not stale else
-                    f"not run on the current {stage} renders of {stale}")
-    g.guard(f"reading time ({stage} renders)", reading)
+    def layout_report(tool, have):
+        def check():
+            r = read_json(reports / f"{tool}.json")
+            st = stale(lambda n: have(r, n))
+            ok = r.get("passed") is True and not st
+            return ok, (f"{r['summary']['warnings']} warning(s), no error" if ok else
+                        f"{r['summary']['errors']} error(s) (review/design/{stage}/{tool}.md)" if not st else
+                        f"not run on the current {stage} renders of {st}")
+        return check
+    g.guard(f"video design ({stage} renders)",
+            layout_report("check_design", lambda r, n: (r.get("scenes", {}).get(n, {}) or {}).get("layout_sha256")))
+    g.guard(f"reading time ({stage} renders)",
+            layout_report("check_reading", lambda r, n: (r.get("layout_sha256") or {}).get(n)))
 
     def self_contained():
         import check_selfcontained as SC
@@ -129,81 +123,65 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
                       + " (check_series.py; warnings only)")
     g.guard(f"opening, ending and series beats ({stage})", structure)
 
-    def engagement():
-        p = run / "review" / "design" / stage / "check_engagement.json"
-        block = bool(_json_or_empty(CONFIG / "video.json").get("engagement", {}).get("errors_block_gate", False))
-        if not p.exists():
-            return not block, (f"not run (tools/video/check_engagement.py {rel(run)} --stage {stage}; warnings "
-                               "only)")
-        r = _json(p)
-        stale = [n for n in names if (r.get("layout_sha256") or {}).get(n) != (
-            sha256_file(folder / f"{n}.layout.json") if (folder / f"{n}.layout.json").exists() else None)]
-        st = r.get("stats", {})
-        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
-        detail = (f"{errs} error(s), {warns} warning(s); moving {st.get('moving_share', '-')}, longest frozen "
-                  f"narration {st.get('longest_frozen_narrated_s', '-')} s, FadeIn/transforms {st.get('fade_in')}/"
-                  f"{st.get('transforms')} (review/design/{stage}/check_engagement.md"
-                  + ("" if block else "; reported, not blocking: engagement.errors_block_gate") + ")")
-        if stale:
-            detail = f"not run on the current {stage} renders of {stale[:3]}; " + detail
-        return (not block) or (not errs and not stale), detail
-    g.guard(f"engagement: motion, transforms, narration, text ({stage})", engagement)
+    def measured(tool, section, not_run, stale_of, what, detail_of):
+        """A report that blocks only when config/video.json <section>.errors_block_gate is true."""
+        def check():
+            p = reports / f"{tool}.json"
+            block = bool(video_cfg.get(section, {}).get("errors_block_gate", False))
+            if not p.exists():
+                return not block, f"not run (tools/video/{tool}.py {rel(run)} --stage {stage}; {not_run})"
+            r = read_json(p)
+            st = stale_of(r)
+            errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
+            detail = (f"{errs} error(s), {warns} warning(s); {detail_of(r)} (review/design/{stage}/{tool}.md"
+                      + ("" if block else f"; reported, not blocking: {section}.errors_block_gate") + ")")
+            if st:
+                detail = f"not run on the current {what} {st[:3]}; " + detail
+            return (not block) or (not errs and not st), detail
+        return check
 
-    def script():
-        p = run / "review" / "design" / stage / "check_script.json"
-        block = bool(_json_or_empty(CONFIG / "video.json").get("script", {}).get("errors_block_gate", False))
-        if not p.exists():
-            return not block, f"not run (tools/video/check_script.py {rel(run)} --stage {stage}; report only)"
-        r = _json(p)
-        scenes_dir = run / "video" / "scenes"
-        now = {f.name: sha256_file(f) for f in sorted(scenes_dir.glob("*.py"))
+    def by_layout(r):
+        return stale(lambda n: (r.get("layout_sha256") or {}).get(n), strict=False)
+
+    def by_scene_files(r):
+        now = {f.name: sha256_file(f) for f in sorted((run / "video" / "scenes").glob("*.py"))
                if f.name not in ("common.py", "voice.py", "reading_model.py")}
-        stale = sorted(n for n in set(now) | set(r.get("scene_sha256") or {})
-                       if (r.get("scene_sha256") or {}).get(n) != now.get(n))
+        had = r.get("scene_sha256") or {}
+        return sorted(n for n in set(now) | set(had) if had.get(n) != now.get(n))
+
+    def engagement_detail(r):
+        st = r.get("stats", {})
+        return (f"moving {st.get('moving_share', '-')}, longest frozen narration "
+                f"{st.get('longest_frozen_narrated_s', '-')} s, FadeIn/transforms {st.get('fade_in')}/"
+                f"{st.get('transforms')}")
+
+    def script_detail(r):
         st = (r.get("stats") or {}).get("whole", {})
         au = (r.get("stats") or {}).get("audio") or {}
-        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
-        detail = (f"{errs} error(s), {warns} warning(s); pause marks {st.get('pause_punct_per_100', '-')}, "
-                  f"contractions {st.get('contractions_per_100', '-')}, connectives "
-                  f"{st.get('connectives_per_100', '-')} per 100 words"
-                  + (f"; {au.get('wpm')} wpm, {au.get('mid_pauses')} mid-sentence pause(s)" if au else "")
-                  + f" (review/design/{stage}/check_script.md"
-                  + ("" if block else "; reported, not blocking: script.errors_block_gate") + ")")
-        if stale:
-            detail = f"not run on the current scene files {stale[:3]}; " + detail
-        return (not block) or (not errs and not stale), detail
-    g.guard(f"spoken script: pauses, rhythm, contractions, stock phrases ({stage})", script)
+        return (f"pause marks {st.get('pause_punct_per_100', '-')}, contractions "
+                f"{st.get('contractions_per_100', '-')}, connectives {st.get('connectives_per_100', '-')} per 100 words"
+                + (f"; {au.get('wpm')} wpm, {au.get('mid_pauses')} mid-sentence pause(s)" if au else ""))
 
-    def pacing():
-        p = run / "review" / "design" / stage / "check_pacing.json"
-        block = bool(_json_or_empty(CONFIG / "video.json").get("pacing", {}).get("errors_block_gate", False))
-        if not p.exists():
-            return not block, (f"not run (tools/video/check_pacing.py {rel(run)} --stage {stage}; reported, not "
-                               "blocking unless pacing.errors_block_gate)")
-        r = _json(p)
-        stale = [n for n in names if (r.get("layout_sha256") or {}).get(n) != (
-            sha256_file(folder / f"{n}.layout.json") if (folder / f"{n}.layout.json").exists() else None)]
+    def pacing_detail(r):
         st = r.get("stats", {})
-        errs, warns = r["summary"]["errors"], r["summary"]["warnings"]
-        detail = (f"{errs} error(s), {warns} warning(s); longest stretch without a pause "
-                  f"{st.get('longest_stretch_s', '-')} s, pauses {st.get('pause_share', '-')} of the body, declared "
-                  f"ideas {st.get('declared') or 'none'} (review/design/{stage}/check_pacing.md"
-                  + ("" if block else "; reported, not blocking: pacing.errors_block_gate") + ")")
-        if stale:
-            detail = f"not run on the current {stage} renders of {stale[:3]}; " + detail
-        return (not block) or (not errs and not stale), detail
-    g.guard(f"pacing: ideas per minute, pauses, holds (rules P1-P20; {stage})", pacing)
+        return (f"longest stretch without a pause {st.get('longest_stretch_s', '-')} s, pauses "
+                f"{st.get('pause_share', '-')} of the body, declared ideas {st.get('declared') or 'none'}")
+    g.guard(f"engagement: motion, transforms, narration, text ({stage})",
+            measured("check_engagement", "engagement", "warnings only", by_layout, f"{stage} renders of",
+                     engagement_detail))
+    g.guard(f"spoken script: pauses, rhythm, contractions, stock phrases ({stage})",
+            measured("check_script", "script", "report only", by_scene_files, "scene files", script_detail))
+    g.guard(f"pacing: ideas per minute, pauses, holds (rules P1-P20; {stage})",
+            measured("check_pacing", "pacing", "reported, not blocking unless pacing.errors_block_gate", by_layout,
+                     f"{stage} renders of", pacing_detail))
 
 
 def scene_urls(run: Path) -> list[str]:
-    """Scene files of the run that hold a URL (a fetched asset is third-party media) or load an image from anywhere
-    but code/figures/ or data/. A helper module identical to
-    the repository's own copy in templates/manim/ is skipped: voice.py holds the SSML namespaces, URIs that fetch
-    nothing."""
+    """Scene files that hold a URL or load an image from outside code/figures/ and data/."""
     bad = []
     for p in sorted((run / "video" / "scenes").glob("*.py")):
         helper = REPO / "templates" / "manim" / p.name
-        if helper.is_file() and helper.read_bytes() == p.read_bytes():
+        if helper.is_file() and helper.read_bytes() == p.read_bytes():   # voice.py's SSML namespaces fetch nothing
             continue
         src = p.read_text(encoding="utf-8")
         if re.search(r"https?://", src):
@@ -219,8 +197,12 @@ def pre_render(run: Path, g: Gates, cfg: dict):
     html_sha = sha256_file(html) if html.exists() else None
     series = P.is_series(run)
 
+    def explainer_gate(name, fn):              # a series reuses its published, reviewed explainer unchanged
+        if not series:
+            g.guard(name, fn)
+
     def episode():
-        e = _json(run / "episode.json")
+        e = read_json(run / "episode.json")
         same = e.get("explainer_sha256") == html_sha
         return same, (f"episode {e['episode']} of {e['series']}: {e['title']}" + ("" if same else
                       "; explainer.html differs from the series' explainer (it must be copied unchanged)"))
@@ -228,19 +210,19 @@ def pre_render(run: Path, g: Gates, cfg: dict):
     def topic():
         mode = load_json(CONFIG / "pipeline.json").get("topic_approval", "auto")
         name = "selection.json" if mode == "auto" else "approval.json"
-        t = _json(run / name)
+        t = read_json(run / name)
         ok = t.get("ranking_sha256") == sha256_file(run / "ranking.md")
         return ok, f"{name}: {t['topic_id']} {t['title']}" + ("" if ok else " (ranking changed after the selection)")
     g.guard("topic approved" if not series else "series episode chosen (explainer unchanged)",
             topic if not series else episode)
 
     def plan_approved():
-        e = _json(run / "episode.json")
         import series as S
-        sp = Path(__file__).resolve().parent.parent / "series" / e["series"] / "series.json"
+        e = read_json(run / "episode.json")
+        sp = REPO / "series" / e["series"] / "series.json"
         if sp.exists():                                   # re-check against the plan in this checkout
-            st = S.approval_state(sp, _json(sp), require=bool((e.get("plan_approval") or {}).get("required")))
-            same = S.plan_hash(_json(sp)) == e.get("plan_sha256")
+            st = S.approval_state(sp, read_json(sp), require=bool((e.get("plan_approval") or {}).get("required")))
+            same = S.plan_hash(read_json(sp)) == e.get("plan_sha256")
             ok = (st["approved"] or not st["required"]) and same
             return ok, st["detail"] + ("" if same else "; the plan changed since this episode was started")
         pa = e.get("plan_approval") or {}
@@ -255,19 +237,17 @@ def pre_render(run: Path, g: Gates, cfg: dict):
     def lint():
         errs = [i for i in lint_html.lint(html, run, strict=True) if i["level"] == "error"]
         return not errs, "strict lint clean" if not errs else "; ".join(e["message"] for e in errs[:3])
-    if not series:                          # a series reuses its published, reviewed explainer unchanged
-        g.guard("explainer strict lint", lint)
+    explainer_gate("explainer strict lint", lint)
 
     def render_check():
-        r = _json(run / "review" / "check_html.json")
+        r = read_json(run / "review" / "check_html.json")
         same = r.get("sha256") == html_sha
         return r.get("pass") is True and same, ("passed" if r.get("pass") else f"{len(r.get('errors', []))} error(s)") \
             + ("" if same else "; the check was run on a different explainer.html")
-    if not series:
-        g.guard("render check (KaTeX, anchors, TOC, 390 px)", render_check)
+    explainer_gate("render check (KaTeX, anchors, TOC, 390 px)", render_check)
 
     def code_checks():
-        s = _json(run / "code" / "logs" / "summary.json")
+        s = read_json(run / "code" / "logs" / "summary.json")
         bad = [c["script"] for c in s["checks"] if not c.get("ok")]
         stale = [c["script"] for c in s["checks"] if c.get("sha256") != sha256_file(run / "code" / c["script"])]
         if s.get("manifest_sha256") != sha256_file(run / "code" / "checks.toml"):
@@ -284,53 +264,45 @@ def pre_render(run: Path, g: Gates, cfg: dict):
         orphans = [f for f in figs if f not in produced]
         return not orphans, f"{len(figs)} figure(s), each produced by a listed script" if not orphans else \
             f"figures not produced by any script in checks.toml: {orphans}"
-    if not series:
-        g.guard("figure provenance (original figures only)", figures)
+    explainer_gate("figure provenance (original figures only)", figures)
 
     def review_complete():
         missing = [r for r in REVIEWERS if not (run / "review" / f"{r}.json").exists()]
-        s = _json(run / "review" / "summary.json")
+        s = read_json(run / "review" / "summary.json")
         current = s.get("explainer_sha256") == html_sha
         ok = not missing and current
         return ok, (f"{len(REVIEWERS)} reviewer reports merged against the final explainer" if ok else
                     f"missing reports: {missing}" if missing else "summary.json was merged for another explainer.html")
-    if not series:
-        g.guard("independent review complete", review_complete)
+    explainer_gate("independent review complete", review_complete)
 
     def blockers():
-        s = _json(run / "review" / "summary.json")
-        open_ = [f for f in s["findings"] if f.get("status", "open") == "open" and f.get("verdict") != "refuted"]
-        blk = [f["id"] for f in open_ if f["severity"] == "blocker"]
-        maj = [f["id"] for f in open_ if f["severity"] == "major" and f.get("verdict") == "confirmed"]
+        s = read_json(run / "review" / "summary.json")
+        blk, maj, _ = open_serious(s["findings"], [])
         unverified = s.get("unverified_blocker_major", [])
         ok = len(blk) <= cfg.get("max_open_blocker", 0) and len(maj) <= cfg.get("max_open_confirmed_major", 0) \
             and not unverified
         return ok, (f"open blockers {blk or 'none'}, open confirmed majors {maj or 'none'}, "
                     f"serious findings never verified {unverified or 'none'}")
-    if not series:
-        g.guard("review findings (blocker/major)", blockers)
+    explainer_gate("review findings (blocker/major)", blockers)
 
     def references():
-        refs = _json(run / "references.json")["references"]
+        refs = read_json(run / "references.json")["references"]
         allowed = set(cfg.get("allowed_reference_status", ["verified", "secondary_only"]))
         bad = [r["key"] for r in refs if r.get("verification", {}).get("status") not in allowed]
         has_report = (run / "review" / "reference-verifier.json").exists()
         ok = not bad and (has_report or not cfg.get("require_reference_verifier_report", True))
         return ok, (f"{len(refs)} reference(s) verified or marked secondary-only; reference-verifier report present"
                     if ok else f"not verified: {bad}" if bad else "reference-verifier report missing")
-    if not series:
-        g.guard("reference verification", references)
+    explainer_gate("reference verification", references)
 
     def attribution():
         text = html.read_text(encoding="utf-8")
         ok = 'id="attribution"' in text and 'id="sec-references"' in text
         return ok, "attribution statement and references present" if ok else "attribution or references missing"
-    if not series:
-        g.guard("attribution", attribution)
+    explainer_gate("attribution", attribution)
 
     def media():
-        """Images and footage in scenes and data are rejected; audio there needs the music generator's stamp (a
-        <file>.json beside it from tools/video/music.py). The final mix's own music is checked at the final stage."""
+        """Images and footage in scenes and data fail; audio there needs the music generator's stamp beside it."""
         import music as MU
         bad = []
         for sub in ("scenes", "data"):
@@ -369,7 +341,7 @@ def pre_render(run: Path, g: Gates, cfg: dict):
     g.guard("narration script", narration)
 
     def drafts():
-        r = _json(run / "video" / "checks" / "check.json")
+        r = read_json(run / "video" / "checks" / "check.json")
         names = {v["file"] for v in r.get("videos", [])}
         need = {f"{s['class']}_ql.mp4" for s in P.load(run)["scenes"]}
         ok = r.get("pass") is True and need <= names
@@ -378,14 +350,11 @@ def pre_render(run: Path, g: Gates, cfg: dict):
     video_checks(run, g, "draft")
 
     def design_review():
-        s = _json(run / "review" / "video" / "summary.json")
         import merge_reviews
+        s = read_json(run / "review" / "video" / "summary.json")
         current = s.get("scenes_sha256") == merge_reviews.scenes_sha256(run)
         has = any(r["reviewer"] == "video-design-reviewer" for r in s.get("reviewers", []))
-        open_blk = [f["id"] for f in s.get("findings", []) if f["severity"] == "blocker"
-                    and f.get("status", "open") == "open" and f.get("verdict") != "refuted"]
-        unverified = [i for i in s.get("unverified_blocker_major", []) if any(
-            f["id"] == i and f["severity"] == "blocker" for f in s.get("findings", []))]
+        open_blk, _, unverified = open_serious(s.get("findings", []), s.get("unverified_blocker_major", []))
         ok = has and current and not open_blk and not unverified
         return ok, ("video-design-reviewer report merged for the current scenes; open blockers none" if ok else
                     "no video-design-reviewer report" if not has else
@@ -400,7 +369,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     asm_p = run / "video" / "final" / "assembly.json"
 
     def video():
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         w, h, fps = PRESETS[vid_cfg.get("quality", "h")]
         fps = vid_cfg.get("fps") or fps
         path = P.final_video(run)
@@ -418,10 +387,9 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("final video (size, frame rate, length, no channel card)", video)
 
     def narration():
-        """Measured on the narration stem (video/final/narration.wav, written by assemble.py), not on the mix: with a
-        music bed under it, a silent narration would otherwise pass."""
+        # measured on the narration stem: under a music bed a silent narration would pass on the mix
         stem = run / "video" / "final" / "narration.wav"
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         music = ((asm.get("audio") or {}).get("music") or {}).get("used", False)
         src = stem if stem.exists() else (None if music else P.final_video(run))
         if src is None:
@@ -437,10 +405,8 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("narration present", narration)
 
     def music_provenance():
-        """Every sound in the mix besides the narration must be ours: generated music carries the stamp of
-        tools/video/music.py (generator, tool version, preset, seed) and its files match their sha256."""
         import music as MU
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         info = (asm.get("audio") or {}).get("music") or {"used": False}
         final_dir = run / "video" / "final"
         if not info.get("used"):
@@ -459,10 +425,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("music provenance (original sound only)", music_provenance)
 
     def music_under_voice():
-        """No music element (bed, swells or stings) rises above music_under_voice_max_lu relative to the narration
-        while the narration speaks (assemble.py measures the mixed music against the narration stem; the v2
-        final-cut review found undocked stings on the first words)."""
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         info = (asm.get("audio") or {}).get("music") or {"used": False}
         if not info.get("used"):
             return True, "no music in the mix"
@@ -478,10 +441,8 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("music under the narration", music_under_voice)
 
     def loudness():
-        """The integrated loudness and true peak of the encoded final video, as assemble.py measured them; a quick
-        re-measure of the file confirms them."""
         import assemble as AS
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         a = asm.get("audio") or {}
         target = float(channel.get("video", {}).get("loudness_lufs", -14))
         ceiling = float((channel.get("music") or {}).get("true_peak_dbtp", -1.0))
@@ -497,7 +458,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
         man = run / "video" / "voice" / "manifest.json"
         if not man.exists():
             return True, "no narration manifest (rendered with a live speech service)"
-        m = _json(man)
+        m = read_json(man)
         blocks = ", ".join(f"{k} {v}" for k, v in (m.get("sources") or {}).items()) or m.get("service", "?")
         model = f" ({m['voice_model']})" if m.get("voice_model") else ""
         return True, f"{m.get('service')}{model}; blocks: {blocks}; word timings {m.get('timings', 'unknown')}"
@@ -505,7 +466,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
 
     def captions():
         srt = P.final_video(run).with_suffix(".srt")
-        asm = _json(asm_p)
+        asm = read_json(asm_p)
         text = srt.read_text(encoding="utf-8")
         times = re.findall(r"(\d\d):(\d\d):(\d\d),(\d{3}) --> (\d\d):(\d\d):(\d\d),(\d{3})", text)
         secs = [(int(a) * 3600 + int(b) * 60 + int(c) + int(d) / 1000, int(e) * 3600 + int(f) * 60 + int(g_) + int(h) / 1000)
@@ -517,7 +478,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     g.guard("captions", captions)
 
     def chapters():
-        c = _json(run / "video" / "final" / "chapters.json")
+        c = read_json(run / "video" / "final" / "chapters.json")
         ok = c.get("valid") or not cfg.get("require_chapters", False)
         return ok, (f"{len(c['chapters'])} chapters" + ("" if c.get("valid") else
                     " (fewer than 3: none in the description; not required)"))
@@ -535,7 +496,7 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
     video_checks(run, g, "final")
 
     def metadata():
-        m = _json(run / "video" / "final" / "youtube.json")
+        m = read_json(run / "video" / "final" / "youtube.json")
         s, st = m["snippet"], m["status"]
         errs = []
         if not (0 < len(s["title"]) <= 100):
@@ -567,13 +528,11 @@ def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, al
 
 
 def release(run: Path, g: Gates, cfg: dict):
-    """Before the private upload: the final gates passed for this very video, and the final-cut review (a viewer's
-    watch of the assembled MP4, by a separate reviewer) has no open blocker or confirmed major."""
     vid = P.final_video(run)
     vsha = sha256_file(vid) if vid.exists() else None
 
     def final_passed():
-        r = _json(run / "review" / "gates.json")
+        r = read_json(run / "review" / "gates.json")
         ok = r.get("final_passed", r.get("stage") == "final" and r.get("passed")) is True and \
             r.get("video_sha256") == vsha
         return ok, ("final gates passed for this video" if ok else
@@ -587,12 +546,8 @@ def release(run: Path, g: Gates, cfg: dict):
         if not p.exists():
             return (not need), ("no final-cut review (tools/video/final_frames.py, then the final-cut-review skill)"
                                 + ("" if need else "; optional in config/pipeline.json"))
-        s = _json(p)
-        open_ = [f for f in s["findings"] if f.get("status", "open") == "open" and f.get("verdict") != "refuted"]
-        blk = [f["id"] for f in open_ if f["severity"] == "blocker"]
-        maj = [f["id"] for f in open_ if f["severity"] == "major" and f.get("verdict") == "confirmed"]
-        unverified = [i for i in s.get("unverified_blocker_major", [])
-                      if any(f["id"] == i and f["severity"] == "blocker" for f in s["findings"])]
+        s = read_json(p)
+        blk, maj, unverified = open_serious(s["findings"], s.get("unverified_blocker_major", []))
         fresh = s.get("video_sha256") == vsha
         indep = s.get("independent", True)
         ok = fresh and not blk and len(maj) <= cfg.get("max_open_confirmed_major", 0) and not unverified
@@ -608,7 +563,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("run")
     ap.add_argument("--stage", choices=["pre-render", "final", "release"], required=True)
-    ap.add_argument("--require-links", action="store_true")
+    ap.add_argument("--require-links", action="store_true",
+                    help="with links on, the description must carry them (with links off it never may)")
     ap.add_argument("--allow-silent", action="store_true", help="tests only")
     ap.add_argument("--video-quality", choices=sorted(PRESETS), help="override config/channel.json (tests, drafts)")
     ap.add_argument("--video-fps", type=int, help="override the frame rate of the quality preset")
@@ -634,7 +590,7 @@ def main() -> int:
         record["final_passed"] = passed
     if a.stage == "release":                 # keep the final result next to the release checks
         try:
-            prev = _json(run / "review" / "gates.json")
+            prev = read_json(run / "review" / "gates.json")
             record["final_passed"] = prev.get("final_passed", prev.get("stage") == "final" and prev.get("passed"))
             record["final_checks"] = prev.get("checks", []) if prev.get("stage") == "final" else prev.get("final_checks", [])
         except (FileNotFoundError, json.JSONDecodeError):

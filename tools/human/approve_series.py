@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
-"""Record the owner's approval of a series plan (the "plan_approval" field of series/<slug>/series.json).
+"""Record the owner's approval of a series plan ("plan_approval" in series/<slug>/series.json).
 
-With "series"."plan_approval": "required" in config/pipeline.json (the default) no episode of a series is made until
-its plan is approved, once per series; tools/series.py start checks the record, and so does the gate. The approval
-holds the plan's hash (tools/series.py plan_hash: the plan without the explainer's byte hash and timestamps), so any
-later change to the story, the episodes, the prerequisites, recaps or teasers needs a new approval.
-
-In your own terminal, not through Claude (it asks you to type the series slug, and refuses without a terminal), from
-the repository folder, in zsh or bash (macOS or Linux):
-    ./tools/human/approve_series.py series/<slug> [--note "..."]
-    ./tools/human/approve_series.py series/<slug> --revoke
-It needs Python 3.11 or newer: started with an older python3 (macOS's own is 3.9) it re-runs itself with the
-project's .venv/bin/python, which ./setup.sh creates (with Homebrew's Python on a Mac). `.venv/bin/python
-tools/human/approve_series.py series/<slug>` does the same. Read series/<slug>/PLAN.md and
-`python3 tools/series.py list series/<slug>` first; commit series.json so the GitHub workflow sees the approval.
+Usage, in your own terminal (it asks you to type the series slug; commit series.json afterwards):
+  ./tools/human/approve_series.py series/<slug> [--note "..."]
+  ./tools/human/approve_series.py series/<slug> --revoke
 """
 from __future__ import annotations
 
@@ -41,7 +31,7 @@ def main() -> int:
     ap.add_argument("--note", default="")
     ap.add_argument("--revoke", action="store_true")
     a = ap.parse_args()
-    sp, data = S.load_any(a.series)
+    sp, data = S.load_series(a.series)
     if data.get("schema_version") != 2:
         print(f"error: {rel(sp)} is not a schema-2 series plan (made with /plan-series)", file=sys.stderr)
         return 1

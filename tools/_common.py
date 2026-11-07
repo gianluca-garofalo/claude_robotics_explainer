@@ -15,14 +15,13 @@ if (sys.prefix == sys.base_prefix and _VENV_PY.exists() and not os.environ.get("
         and Path(sys.argv[0]).resolve().is_relative_to(REPO / "tools")):   # python3 tools/x.py -> the .venv
     os.execv(_VENV_PY, [str(_VENV_PY), *sys.argv])
 RUNS = REPO / "runs"
-# The user's preferences. $RA_CONFIG_DIR is for the tests only (tests/testenv.py points it at tests/fixtures/config,
-# so that config/ can change without changing a test, as $VIDEO_CONFIG and $CHANNEL_CONFIG do for the scene helpers);
-# the workflow, the gate job and sessions never set it.
+# $RA_CONFIG_DIR points the tools at the tests' frozen copy of config/ (tests/testenv.py).
 CONFIG = Path(os.environ["RA_CONFIG_DIR"]).resolve() if os.environ.get("RA_CONFIG_DIR") else REPO / "config"
 TEMPLATES = REPO / "templates"
 
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_REQUIRED = object()
 
 
 def die(msg: str, code: int = 1) -> None:
@@ -40,6 +39,14 @@ def load_json(path: Path):
         die(f"{rel(path)} is not valid JSON: {exc}")
 
 
+def read_json(path: Path | str, default=_REQUIRED):
+    """Like load_json, but raises instead of exiting, and returns `default` (when given) for a missing file."""
+    path = Path(path)
+    if default is not _REQUIRED and not path.exists():
+        return default
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def write_json(path: Path, data) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
@@ -55,8 +62,13 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def md_cell(text, bar: str = "\\|") -> str:
+    """A Markdown table cell: one line, "|" escaped (or replaced by `bar`)."""
+    return str(text).replace("|", bar).replace("\n", " ").strip()
+
+
 def rel(path: Path | str) -> str:
-    """Path relative to the repository when possible (never print absolute paths in reports)."""
+    """The path relative to the repository when it is inside it (reports never print absolute paths)."""
     p = Path(path).resolve()
     try:
         return str(p.relative_to(REPO))
@@ -93,7 +105,7 @@ def utc_now() -> str:
 
 
 def ranking_inputs(run: Path) -> dict:
-    """Content hashes of everything a ranking depends on (a changed input makes the ranking and selection stale)."""
+    """Content hashes of the files a ranking is computed from."""
     out = {n: sha256_file(run / n) for n in ("sources.json", "scores.json")}
     if (run / "search.json").exists():
         out["search.json"] = sha256_file(run / "search.json")
