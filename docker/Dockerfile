@@ -18,7 +18,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 # Python: the project's stack (with Piper), the Azure text-to-speech backend and the publishing clients
-COPY requirements.txt requirements-voice.txt requirements-publish.txt /tmp/req/
+COPY requirements.txt requirements-tools.txt requirements-voice.txt requirements-publish.txt /tmp/req/
 RUN /opt/venv/bin/python -m pip install -r /tmp/req/requirements.txt -r /tmp/req/requirements-voice.txt \
         -r /tmp/req/requirements-publish.txt \
  && rm -rf /tmp/req

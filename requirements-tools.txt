@@ -1,0 +1,4 @@
+# Libraries the checkers and tools import (CI quick job, runner python, .venv via requirements.txt).
+pyyaml>=6.0
+numpy>=1.26
+pillow>=10

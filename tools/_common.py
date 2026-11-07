@@ -10,6 +10,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+_VENV_PY = REPO / ".venv" / "bin" / "python"
+if (sys.prefix == sys.base_prefix and _VENV_PY.exists() and not os.environ.get("RA_NO_VENV")
+        and Path(sys.argv[0]).resolve().is_relative_to(REPO / "tools")):   # python3 tools/x.py -> the .venv
+    os.execv(_VENV_PY, [str(_VENV_PY), *sys.argv])
 RUNS = REPO / "runs"
 # The user's preferences. $RA_CONFIG_DIR is for the tests only (tests/testenv.py points it at tests/fixtures/config,
 # so that config/ can change without changing a test, as $VIDEO_CONFIG and $CHANNEL_CONFIG do for the scene helpers);

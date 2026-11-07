@@ -2,12 +2,11 @@
 # Tested on Ubuntu 24.04 with Python 3.13: manim 0.22.1 (ManimPango 0.7.1, pycairo 1.29.2, av 19.0.2),
 # numpy 2.5, scipy 1.18, sympy 1.14, matplotlib 3.11, PyYAML 6.0.
 # manim needs Cairo/Pango development headers to build, ffmpeg, and TeX Live + dvisvgm for MathTex (see setup.sh).
+-r requirements-tools.txt
 manim==0.22.1
-numpy>=1.26
 scipy>=1.11
 sympy>=1.12
 matplotlib>=3.8
-pyyaml>=6.0
 manim-voiceover>=0.4      # narrated scenes (VoiceoverScene); the offline draft voice needs nothing else
 piper-tts>=1.8,<2         # default narration voice: Piper, offline neural text to speech, no key (GPL-3.0-or-later);
                           # its voice model is downloaded once: python3 tools/video/piper_model.py fetch

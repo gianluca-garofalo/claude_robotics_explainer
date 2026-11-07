@@ -39,7 +39,10 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
         cache: pip
-        cache-dependency-path: requirements.txt
+        cache-dependency-path: requirements*.txt
+    - name: Tool dependencies (runner python)
+      shell: bash
+      run: python -m pip install -r requirements-tools.txt
     - name: Python venv
       if: inputs.profile == 'full'
       shell: bash
