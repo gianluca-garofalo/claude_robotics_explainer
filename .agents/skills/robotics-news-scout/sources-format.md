@@ -1,6 +1,6 @@
 # sources.json format
 
-Validated by `tools/validate.py` (the executable schema). Example with one candidate; the URLs are placeholders.
+`tools/validate.py` is the executable schema. An example with one candidate (placeholder URLs):
 
 ```json
 {
@@ -41,19 +41,17 @@ Validated by `tools/validate.py` (the executable schema). Example with one candi
 }
 ```
 
-Rules the validator enforces:
+What the validator enforces:
 
-- ids `T1..`, `S1..` (source ids unique across the file); kebab-case slugs; summary under 700 characters (error above
-  900); `window_days` equal to the run's (`run.json`).
-- `primary: true` only for paper, preprint, official_post, code, dataset; every primary source has a `relation`
-  (`subject`, `prior_work`, `context`); `via` is an http(s) URL.
-- `read` is one of `full`, `abstract`, `search_abstract`, `snippet`, `unreadable` (defined in source-policy.md).
-- dates ISO and not after the run date; the newest dated `subject` primary source must lie inside the window (error),
-  and a candidate without one gets a warning (recency unknown, gate fails without a subject primary source).
-- claims: `role` (`central`, `limitation`, `context`; missing counts as central, with a warning); `status`
-  `verified` needs a primary source read at `full` or `abstract`; `provisional` needs one read at least at
-  `search_abstract`; every support id belongs to the same candidate.
+- Ids `T1..` and `S1..` (source ids unique across the file); kebab-case slugs; the summary's length; `window_days`
+  equal to the run's (`run.json`).
+- `primary: true` only for paper, preprint, official_post, code, dataset; every primary source has a `relation`; `via`
+  is an http(s) URL; `read` is one of the levels of source-policy.md.
+- ISO dates, none after the run date; the newest dated `subject` primary source lies inside the window (error); a
+  candidate without one gets a warning (recency unknown; the gate fails without a subject primary source).
+- Claims: `role` (missing counts as central, with a warning) and `status`; `verified` needs a primary source read at
+  `full` or `abstract`, `provisional` one read at least at `search_abstract`; every support id belongs to the same
+  candidate.
 - `coverage` is required when the run has `covered.json`; a candidate marked `new` that shares keywords with a covered
   item gets a warning.
-- `unreadable` entries need `url` and `reason`, and should give a `cause` (`network_policy`, `paywall`, `login`,
-  `http_error`, `timeout`, `not_found`, `other`).
+- `unreadable` entries need `url` and `reason`, and should give a `cause`.

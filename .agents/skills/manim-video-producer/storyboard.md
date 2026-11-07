@@ -1,128 +1,82 @@
-# Storyboard template (copy to runs/<run>/video/storyboard.md)
- Explainer: `../explainer.html` (a source: choose less, and different, material that tells one story; do not walk its
-sections). Audience: robotics and control researchers and students. Channel: Remaining Action. The video opens with
-the hook: a full, moving picture from the first frame, music from 0 s, narration by 3 s, the question by 15 s, then
-the stakes; no channel card (a title beat of about 4-6 s after the hook, with the "Episode n of N" lower third, is
-allowed); the body by 45 s. Then a short title beat (`title_beat()`) and the body; it ends with the outro scene (15-20
-s: `outro(takeaway_card(...))`, the channel name, the teaser in a series; the right of the frame empty for the end
-screen). Music per scene: `bed` in the hook, title beat and outro; `low` (at least 20 LU under the voice) or `off`
-under explanation (the coherence principle: background music under narrated explanation lowers recall). Pacing:
-130-150 spoken words per minute; hold each new equation 2-3 s before speaking over it. Reading time
-(config/video.json): text 0.6 s + 0.3 s per word, equations 1 s + 0.6 s per term (at least 2 s), x1.4 while the
-narration talks; at most 40 words and terms on screen at once. RAScene enforces the holds; plan the narration so they
-fit instead of stretching the scene. Self-contained: the video never names the explainer, code, files, links or other
-episodes by equation number and shows no equation numbers; refer back to an equation by showing it again or by its
-meaning. Numbers through `fmt()`: 2-3 significant digits, no trailing zeros, one precision per quantity.
+# Storyboard template (copy to runs/<run>/video/storyboard.md; fill every field)
 
-Craft (the review against the 3Blue1Brown bar, 2026-11-04; `tools/video/check_engagement.py` measures it): never
-narrate over a frozen picture for more than 6 s (12 s is an error), at least half of the runtime moving; derive by
-transform (`derive()`, `TransformFromCopy`, a brace that turns into its symbol), never by writing each line afresh;
-one colour per quantity (`ceq()`, `config/video.json` "quantities"); objects carried across cuts (`carry_over()`),
-no fade to an empty frame except at the very end; no persistent slide titles, at most about 25 words and terms on
-screen; narration in meanings ("the cost left with one step fewer"), not symbols read aloud, talking to the viewer
-("you", "we") with a question every two minutes or so. Emphasis is not motion (v4): `Indicate`/`Circumscribe`/`pulse`
-name an object once and do not count as motion; at most two new technical terms per narration block; one name and
-one convention per parameter; pictures with the dimension and scale of the maths they carry (a scalar example on a
-number line or as the graph of its bill), and no numbers on a schematic picture.
+Explainer: `../explainer.html`, a source: tell one story with less, and different, material; never walk its sections.
+Audience: robotics and control researchers and students. Rules: AGENTS.md (Conventions),
+`.claude/rules/manim-scenes.md`, `.agents/skills/manim-video-producer/spoken-script.md`.
 
-## The episode's craft plan (fill every field)
+## Craft plan
 
-- Visual metaphor (one object, what it means, in which scenes; `plan.json` "metaphor" with its on-screen label;
-  v5: where its value changes in each scene, and every refill with the sentence that announces it, which go into
-  `plan.json` scenes[].metaphor_resets; hypothetical points go on the bowl or a ghost meter; v6: the refill comes
-  as or after its sentence is said, and the sentence states the true reason):
-- Picture per scene (v6, `plan.json` scenes[].picture): faithful (drawn to the scale of its numbers) or schematic
-  (an illustration; no numbers on it, not even in a readout):
-- Misconception first (what a viewer is likely to believe, voiced, then refuted, and in which scene):
-- Analogy or real-world anchor (by 90 s):
-- Picture before formula (for each new equation: the picture shown first, and for how long):
-- Which object becomes which (the transforms: path segment -> cost term, bar -> symbol, line -> next line):
-- Colours by quantity (each quantity's colour, the same in pictures, bars and equations):
-- Think prompts (v7: one per four minutes of body; for each, the question, the scene, the silence after it (3.5 s; 4 s
-  for the main one, which says "pause here if you like") with the picture held, and the block where the answer comes):
-- Planned beats (`beat()` right after the key reveals other than the starred results, whose blocks end with
-  `[pause 3]`; the picture still or one slow push-in, music swelling):
-- What moves under every narration block (one line per block: the content that changes, not a highlight):
-- New terms (each technical term, the block that introduces it, and its picture; at most two per block):
-- Picture fidelity (for each picture with numbers: its dimension and scale match the maths; which pictures are
-  schematic and therefore carry no numbers):
-- Parameters (each parameter's one name and convention, as said and as shown):
-- "So what" after each result (one sentence of consequence after every boxed result):
-- Carried objects at each cut (what stays on screen from one scene to the next):
-- Outro callback (the hook's picture again, moving) and the teaser as a picture:
-- Spoken script (spoken-script.md; after the rewrite pass): the everyday analogy and where it comes back; the
-  signposts and re-engagement points (every 2-3 min); each required phrase (meter resets, title beat, teaser) as
-  worded for its scene; the "Spoken script" scores (1-5, ten criteria) go in `video/README.md`:
+- Metaphor (one object, its meaning, scenes and on-screen label; where its value changes in each scene; every refill
+  with the sentence that announces it):
+- Picture per scene (faithful or schematic):
+- Misconception (what a viewer likely believes; where it is voiced and refuted):
+- Everyday analogy (by 90 s) and where it returns:
+- Picture before formula (each new equation: the picture first, for how long):
+- Which object becomes which (path segment -> cost term, bar -> symbol, line -> next line):
+- Colours by quantity:
+- Think prompts (question, scene, held silence, the block with the answer):
+- Beats (`beat()` after the key reveals that are not starred results):
+- What moves under each narration block (one line per block: content, not a highlight):
+- New terms (the block and picture of each):
+- Parameters (one name and convention each, said and shown):
+- "So what" after each boxed result:
+- Objects carried across each cut:
+- Outro callback (the hook's picture, moving) and the teaser as a picture:
+- Signposts, re-engagement points, and each required phrase as worded for its scene:
 
-## The pacing plan (v7: config/video.json "pacing", tools/video/check_pacing.py; fill every field)
+## Pacing plan (check_pacing.py)
 
-- Ideas (the episode's ideas from `video/episode.md` "Ideas", in order: each concept, claim and starred result with
-  its id, the scene and the bookmark where it lands, and the picture that carries it; `plan.json` "ideas"). No result
-  the plan does not list; at most two starred results, at least 90 s apart; claims at least 20 s apart (after a
-  starred result, counted from the end of its hold):
-- Runtime from the ideas (the brief's range) and the sum of the scene lengths below:
-- Pretraining segment (if any: the at most five concepts named before the first starred result, each on its own object
-  as it is named and followed by `[pause 0.8]`, then a one-sentence summary and `[pause 2]`; the equation that combines
-  them only after the summary):
-- Roadmap (the sentence after the title beat, within 20 s: the three or so moves of the episode):
-- Chapter summaries (one sentence at the end of each body chapter over 90 s; chapters 60-120 s):
-- Restatements (for each starred result, the plain-words sentence within 10 s after its hold, worded the same in the
-  recap):
-- Recap (about 20 s before the outro; it opens with the question it answers, the picture held 2-3 s, then the card;
-  so do the recaps of earlier episodes):
-- Pause plan (every planned pause: after which sentence, how long, and how: `[pause S]` inside a block (an Azure break,
-  at most 4 s; `[pause 2]` for a stretch break), `[pause S]` after a block's last word (a hold of the picture), or
-  `beat()`; 3 s held after each starred result (end its block with `[pause 3]`), 1.5 s after other results
-  (`[pause 1.8]` inside a block, `[pause 1.5]` at its end), 1-1.5 s at chapter ends, 0.75 s after every other block by
-  default; no stretch of more than 45 s without a pause of 1.5 s):
-- Slow blocks (`[slow]` before the first word: the whole block read at -15 %; each derivation or argument, with its
-  result and the step just before it; a think prompt or definition that should be read slowly gets a slow block of
-  its own; the hook, title beat, recaps and outro stay at the base rate; at most two-thirds of the body's
-  narration):
-- Numbers (at most three spoken in any 20 s, each on screen while it is said; the rest shown, not said):
+- Ideas in order, each with id, scene, bookmark and picture (`plan.json` `ideas`). Series episode: those of
+  `video/episode.md` ("Ideas"), no others. Standalone video: its own, with the same kinds and fields
+  (`.agents/skills/plan-series/brief.md`, "The idea budget"). Spacing: P1-P3.
+- Runtime (series: the range in `video/episode.md`; standalone: `python3 tools/video/idea_budget.py runs/<run>`) and
+  the sum of the scene lengths:
+- Pretraining segment, if any (P4):
+- Roadmap (after the title beat):
+- Chapter summaries:
+- Restatements (each starred result in plain words, the same in the recap):
+- Recap (before the outro, opening with its question):
+- Pause plan (each planned pause: after which sentence, how long, how: `[pause S]`, a hold, `beat()`):
+- Slow blocks (`[slow]`: each derivation or argument):
+- Numbers (which are said, each on screen as it is said; the rest shown only):
 
-## What this video leaves out of the explainer, and why
+## Left out of the explainer, and why
 
 - ...
 
 ## Scene 1: <title> (<length> s, role hook) - source: explainer Section <n>
 
 - Idea (one sentence):
-- First frame (already full, `self.add()` before the first `play()`; what moves in 0-2 s, before the first word):
-- First line (a claim, a question or a surprise, not set-up; spoken by 3 s):
-- Question at (s, by 15 s) and the stakes (what could go wrong, why it matters):
-- The picture the thumbnail uses (the episode's end picture, shown within 15 s; bold at 168 x 94: thick strokes, the
-  key object large, no readouts or labels in the frame):
-- Signature object (`meter()`: which quantity it shows, from which data):
+- First frame (full, added before the first `play()`; what moves before the first word):
+- First line (a claim, a question or a surprise, not set-up):
+- Question (at s) and the stakes:
+- Thumbnail picture (the episode's end picture; bold at 168 x 94: thick strokes, the key object large, no readouts or
+  labels):
+- Signature object (`meter()`: its quantity and data):
 - Objects carried into the title beat and the body:
 - Music mode (bed | low | off):
-- Data: `data/<file>.npz` from `code/<script>.py` (or: closed forms of equation (<k>))
-- On screen (each item, how long it stays, reading time it needs; what moves during each narration block):
-- Colours: blue = <...>, amber = <...>, green = <...> (palette in common.py; label every meaning in text too)
-- End card: <the one equation or sentence to remember>
+- Data (`data/<file>.npz` from `code/<script>.py`, or the closed forms used):
+- On screen (each item, how long it stays, the reading time it needs; what moves in each block):
+- Colours (the palette of `common.py`; every meaning also in text):
+- End card (the one equation or sentence to remember):
 
-Voice-over, one block per `with self.voiceover(text="...")`, literal text, `<bookmark mark='x'/>` where an animation
-must start on a word or where an idea lands, `[pause S]` for a planned pause, `[slow]` first for a derivation or an
-argument:
+Voice-over, one block per `with self.voiceover(text="...")`, literal text with `<bookmark mark='x'/>`, `[pause S]` and
+`[slow]`:
 
 > 1. [slow] One idea per scene. `<bookmark mark='law'/>`Here is the equation that carries it. [pause 3]
 > 2. ...
-> 3. (end card) ...
 
 ## Scene 2: ...
 
 ## Plan (`video/plan.json`)
 
-- Search term (what viewers type, e.g. "MPC"):
-- Title (at most 60 characters shown in full, accurate, no clickbait, with the search term, without the series name):
-- Summary (two to four sentences for the description):
+- Search term:
+- Title:
+- Summary (two to four sentences):
 - Tags:
-- Scenes in order, each with the explainer section id it explains and its chapter title for viewers:
-- Thumbnail: a frame of the hook within its first 15 s (click match: the video shows its promise at once), one bold
-  picture (the signature object), text of at most three words; layout `picture` (the frame first, the title in a
-  top band: keep the top fifth of the frame empty) or `panel` (nothing where the title goes, the left half)
-  (tools/video/thumbnail.py composes it with the Remaining Action layout)
+- Scenes, each with its explainer section and chapter title:
+- Thumbnail (a frame of the hook, one bold picture, its text, layout `picture` or `panel`):
 
 ## Shorts (optional, not automated)
 
-Vertical 1080x1920 cut of one scene (`manim -r 1080,1920 ...`), at most 60 s, same palette, burned-in captions.
+A vertical 1080x1920 cut of one scene (`manim -r 1080,1920 ...`), at most 60 s, same palette, burned-in captions.
