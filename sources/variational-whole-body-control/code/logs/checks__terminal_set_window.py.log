@@ -1,0 +1,23 @@
+# checks/terminal_set_window.py 
+# exit 0, 0.4 s
+Part A (Section 5.2): m = kappa = 1, r = 0.5, theta = 0.1, W = V
+  q = 0.30000: V_theta - V = 5.55e-17, optimal endpoint +0.27145   (threshold r e^(omega theta) = 0.55259)
+  q = 0.55203: V_theta - V = -3.33e-16, optimal endpoint +0.49950   (threshold r e^(omega theta) = 0.55259)
+  q = 0.55314: V_theta - V = 1.38e-06, optimal endpoint +0.50000   (threshold r e^(omega theta) = 0.55259)
+  q = 1.00000: V_theta - V = 9.04e-01, optimal endpoint +0.50000   (threshold r e^(omega theta) = 0.55259)
+  q = 2.00000: V_theta - V = 9.46e+00, optimal endpoint +0.50000   (threshold r e^(omega theta) = 0.55259)
+  V_theta(1) = L_d^E(1, r) + V(r) = 1.404143  [bounded minimization 1.404143 at q_f = 0.500000; quadrature of the action 1.404143]   V(1) = 0.500000   (claims 1.404, 0.5)
+  first move p/m = -d_1 L_d^E(1, r)/m = -5.041635  [m qdot(0) of the extremal / m = -5.041635]   rule -omega q = -1.000000   (claims -5.04, -1)
+
+Part B (Section 6.3): L_d^E, h = 0.1, W = 1/2 q^2, Omega = [-0.5, 0.5], q = 1
+  max |B W - W| over q in [-3, 3] = 1.8e-14; minimizer of B W at q = 1: 0.904837 = e^(-h) = 0.904837
+  N = 1: V_N(1) = 1.404143  (continuous window N h: 1.404143)  V_N(1) - W(1) = 9.04e-01  q_N = +0.50000  mu = 4.4667  e^(-N h) = 0.9048
+  N = 2: V_N(1) = 0.808145  (continuous window N h: 0.808145)  V_N(1) - W(1) = 3.08e-01  q_N = +0.50000  mu = 1.9336  e^(-N h) = 0.8187
+  N = 3: V_N(1) = 0.628535  (continuous window N h: 0.628535)  V_N(1) - W(1) = 1.29e-01  q_N = +0.50000  mu = 1.0675  e^(-N h) = 0.7408
+  N = 4: V_N(1) = 0.552679  (continuous window N h: 0.552679)  V_N(1) - W(1) = 5.27e-02  q_N = +0.50000  mu = 0.6186  e^(-N h) = 0.6703
+  N = 5: V_N(1) = 0.517954  (continuous window N h: 0.517954)  V_N(1) - W(1) = 1.80e-02  q_N = +0.50000  mu = 0.3371  e^(-N h) = 0.6065
+  N = 6: V_N(1) = 0.503409  (continuous window N h: 0.503409)  V_N(1) - W(1) = 3.41e-03  q_N = +0.50000  mu = 0.1397  e^(-N h) = 0.5488
+  N = 7: V_N(1) = 0.500000  (continuous window N h: 0.500000)  V_N(1) - W(1) = -7.11e-15  q_N = +0.49659  mu = 0.0000  e^(-N h) = 0.4966
+  N = 8: V_N(1) = 0.500000  (continuous window N h: 0.500000)  V_N(1) - W(1) = -6.22e-15  q_N = +0.44933  mu = 0.0000  e^(-N h) = 0.4493
+  N = 9: V_N(1) = 0.500000  (continuous window N h: 0.500000)  V_N(1) - W(1) = -6.22e-15  q_N = +0.40657  mu = 0.0000  e^(-N h) = 0.4066
+  V_1(1) = 1.404143 (claim 1.404); first N with V_N(1) = W(1): 7; first N with e^(-N h) <= 1/2: 7   (claim: both 7)

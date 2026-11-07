@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "ran_at": "2026-11-01T14:34:51+00:00",
+  "ran_at": "2026-11-07T15:23:47+00:00",
   "python": "python",
-  "manifest_sha256": "2fc252e1b2adc426997c08cefe6e8d419e7532e6d27119923c5e109d39e1ecdf",
+  "manifest_sha256": "e891a9fb2a2abdfdb7afe709a84676aab2dac9ef7152db4c7fd08c3d1bb3d17c",
   "checks": [
     {
       "script": "note/sec4_3_one_step_example.py",
@@ -14,7 +14,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec4_3_one_step_example.py.log",
       "sha256": "f7e83a8ac82570d81cbdf8633d2856ec039d3f81d6f5ddcd1599cb453717e8a8",
       "rc": 0,
-      "seconds": 0.55,
+      "seconds": 0.35,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -33,7 +33,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec5_6_symbolic_checks.py.log",
       "sha256": "fc16601677cb0de84893cccca0b4b13f0ff4548e14566a02b2f10affdec60379",
       "rc": 0,
-      "seconds": 1.66,
+      "seconds": 0.98,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -47,7 +47,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__fig3_phase_portrait.py.log",
       "sha256": "7db485118ea618a582315c58f733949a67143b152a64775de65f9064fc01b486",
       "rc": 0,
-      "seconds": 1.21,
+      "seconds": 1.75,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -62,7 +62,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__window_split.py.log",
       "sha256": "031cf809e111dc97c0350b502bb94bb340687599cb4c9bdb880efc3c50691681",
       "rc": 0,
-      "seconds": 0.13,
+      "seconds": 0.07,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -77,7 +77,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__riccati_threshold.py.log",
       "sha256": "92980d6e5189d4650d2235a90715ccd6811553cda7bb3c51f499002249a329ff",
       "rc": 0,
-      "seconds": 0.43,
+      "seconds": 0.24,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -93,13 +93,14 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__hilltop_extra.py.log",
       "sha256": "f4f991a76e6242d407ca3c9a03b86ec7ae5b3cfc7283a579a173871d9d5a238c",
       "rc": 0,
-      "seconds": 2.51,
+      "seconds": 1.64,
       "missing_expect": [],
       "missing_produces": []
     },
     {
       "script": "merged/fig_bases.py",
       "sections": [
+        "11",
         "13.4",
         "Figure 7"
       ],
@@ -108,7 +109,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__fig_bases.py.log",
       "sha256": "70892531cd40c646166de065c58776fc4f25b9648e323839162c1ff812c533fe",
       "rc": 0,
-      "seconds": 0.11,
+      "seconds": 0.07,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -130,7 +131,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc__wbc_companion_checks.py.log",
       "sha256": "2753d110f1a3a14bc894eb92a71ece77d7c427ffe81601b3af6c5baf4b712766",
       "rc": 0,
-      "seconds": 0.13,
+      "seconds": 0.1,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -146,7 +147,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_hilltop.py.log",
       "sha256": "15d78e5f32d55439c09e843e129d8cb51bca4d2f13fbeea17a7cf1cf4e3c5a8d",
       "rc": 0,
-      "seconds": 1.05,
+      "seconds": 0.64,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -163,7 +164,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec7_numerical_checks.py.log",
       "sha256": "b5d74307df70df6969eecb4affb83b299e82566d52439be55b70cf0da7b12aa4",
       "rc": 0,
-      "seconds": 0.7,
+      "seconds": 0.43,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -180,7 +181,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec7_symbolic_checks.py.log",
       "sha256": "7083945a94591be150dca8967c381a61c8ddfaf0598fe01a10c476562c997449",
       "rc": 0,
-      "seconds": 1.82,
+      "seconds": 1.11,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -194,7 +195,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__fig4_double_integrator.py.log",
       "sha256": "7c2a56d273bee9bbc4cebfe5bab53e851c296bf7c5af921b952d9c585e2c4739",
       "rc": 0,
-      "seconds": 0.38,
+      "seconds": 0.19,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -208,7 +209,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__model.py.log",
       "sha256": "7985e348e824a0289a9ec27e04a2ce65a3319e8fe2edd8ed0eb1f6adab9ef65d",
       "rc": 0,
-      "seconds": 0.13,
+      "seconds": 0.07,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -222,7 +223,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__mpc.py.log",
       "sha256": "40c93959fc8ecca0a40f726638e6f138bca1369caeff49a37e2355a8ea4e3dc5",
       "rc": 0,
-      "seconds": 1.2,
+      "seconds": 0.69,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -238,7 +239,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__sym_derive.py.log",
       "sha256": "420d4b1258e5fe75236e63e6528965e8f5b26fb150cc1ca26097691b64b8816b",
       "rc": 0,
-      "seconds": 21.63,
+      "seconds": 12.54,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -252,7 +253,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__condcheck.py.log",
       "sha256": "560652dab287bee1f868ae6c994088558990a75ab85b4dce2dc61dfe6bc61185",
       "rc": 0,
-      "seconds": 229.18,
+      "seconds": 98.28,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -266,7 +267,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__edge.py.log",
       "sha256": "951cd8a42116b196e34e3d750da810c41e6482ed63a1f038a884eb1b864e0bc7",
       "rc": 0,
-      "seconds": 0.64,
+      "seconds": 0.41,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -280,7 +281,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__quadlimit.py.log",
       "sha256": "78336442a58fae8d41d23b137f7b05b1a9233aa4b544a449f9d5d3d9dae677df",
       "rc": 0,
-      "seconds": 0.54,
+      "seconds": 0.34,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -295,7 +296,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__feas.py.log",
       "sha256": "f0015be8fc2fe283235caa8595871163ef9130596e661a23f930c305f2e25a44",
       "rc": 0,
-      "seconds": 32.73,
+      "seconds": 76.81,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -309,7 +310,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__omega_check.py.log",
       "sha256": "d6c4567bc319400c2ed5deef8115b9d6c8305b26b33c5789a6ec36f1ac27309f",
       "rc": 0,
-      "seconds": 11.64,
+      "seconds": 8.51,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -323,7 +324,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__discrete_check.py.log",
       "sha256": "698276f27b1417bf7a062dafbfd3cc8f1cd0b5c58889a15f1951f67882521d42",
       "rc": 0,
-      "seconds": 35.94,
+      "seconds": 22.51,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -338,7 +339,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__closedloop.py.log",
       "sha256": "a378e9be2e391b5a0ec47214f28adeeb6def7f7d1cbe8a52060045404e6f8c1a",
       "rc": 0,
-      "seconds": 1.81,
+      "seconds": 1.13,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -352,7 +353,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec8_arm__longh.py.log",
       "sha256": "ea65ce6da3ee169af6cec709da9b6331e0d9c2c707d2de3cd1fab71e2ad9ec87",
       "rc": 0,
-      "seconds": 107.01,
+      "seconds": 143.05,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -368,7 +369,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_arm.py.log",
       "sha256": "f8584b2e2580757155220dfc41eececb28e77d49edfa5f7fbc61eaacbe5e425e",
       "rc": 0,
-      "seconds": 161.94,
+      "seconds": 85.92,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -384,7 +385,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__arm_extra_checks.py.log",
       "sha256": "b93996d54adf799fbb41d30e09f01b6a4b798d891e91718f6d26da5acecdc73c",
       "rc": 0,
-      "seconds": 3.44,
+      "seconds": 2.67,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -399,7 +400,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_gauss.py.log",
       "sha256": "6b3c4e2aa9c212f7bedfa41dac149ec54702473a53d6d4c60532305d52185eb4",
       "rc": 0,
-      "seconds": 0.22,
+      "seconds": 0.21,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -414,7 +415,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__duals_check.py.log",
       "sha256": "5be17712b138e131b6da3d39429f7fea8896ba6060dc116b634b1ff53d4b45f9",
       "rc": 0,
-      "seconds": 0.58,
+      "seconds": 0.43,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -430,7 +431,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_ineq_order.py.log",
       "sha256": "b83d77c167985017d8408e0edead7071010247c4ddc06ba6419cc2638798750f",
       "rc": 0,
-      "seconds": 0.36,
+      "seconds": 0.19,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -445,7 +446,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_A_B.py.log",
       "sha256": "8cf390869d20c778cf85c8bbb2bf66a50034122f3b4164708ce3e53a3de00ce1",
       "rc": 0,
-      "seconds": 0.31,
+      "seconds": 0.23,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -462,7 +463,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_hierarchy.py.log",
       "sha256": "da5d80a7070cc91e6f3dd1c57fb899f5103dc6f93441f89a5d1a72c081876f04",
       "rc": 0,
-      "seconds": 0.81,
+      "seconds": 0.55,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -476,7 +477,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_power.py.log",
       "sha256": "b07892277e5c028790c43ee3312ceb8f4d8a119a138a995825c371d99b03c5e5",
       "rc": 0,
-      "seconds": 0.45,
+      "seconds": 0.27,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -491,7 +492,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__redteam_check_C_F.py.log",
       "sha256": "baab262b2ce9a39c60fe8dc2451d13cb8bc5776ef403d5eac9bbaaf4ad92752f",
       "rc": 0,
-      "seconds": 1.47,
+      "seconds": 0.86,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -505,7 +506,7 @@
       "log": "sources/variational-whole-body-control/code/logs/merged__ineq_soft.py.log",
       "sha256": "b8e9ae244db3f679b3a4c9d4d526436e496938982acd784005d49adbd4065737",
       "rc": 0,
-      "seconds": 0.17,
+      "seconds": 0.15,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -521,7 +522,7 @@
       "log": "sources/variational-whole-body-control/code/logs/note__sec10_general_N_descent.py.log",
       "sha256": "8c699b0220c01d9df239df2dc07f168eb4f7d805bcabbdf5ba9c96f97e9e44b8",
       "rc": 0,
-      "seconds": 0.64,
+      "seconds": 0.41,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -538,7 +539,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__brainstorm_check1.py.log",
       "sha256": "3d1dac4cbd26d29febfe06fb7a0c836cec394160c39fbea54fc7c8a9fa4b1e05",
       "rc": 0,
-      "seconds": 0.19,
+      "seconds": 0.16,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -552,7 +553,7 @@
       "log": "sources/variational-whole-body-control/code/logs/wbc_brainstorm__brainstorm_check2.py.log",
       "sha256": "e19d4f8c452dd2c9497c7dcfcc1c3487d0e8423108718e4ab3048972cc1d9dbc",
       "rc": 0,
-      "seconds": 0.89,
+      "seconds": 0.5,
       "missing_expect": [],
       "missing_produces": []
     },
@@ -566,9 +567,55 @@
       "claims": "finite window with W = cV (closed form vs Riccati ODE); discrete torque = momentum shares under zero-order hold and symplectic Euler; 10 ms first-instant stiffness 2.86 vs 1.36 N/m",
       "ok": true,
       "log": "sources/variational-whole-body-control/code/logs/checks__torque_momentum_share.py.log",
-      "sha256": "2879a497cbf4134d5245812c44837f14f81b6074255b4e4cf4cf4d2518bf96ca",
+      "sha256": "ed6c96aa2692bf6faff0b03638a24481f024b6d800af4054e625be125bd2815f",
       "rc": 0,
-      "seconds": 0.72,
+      "seconds": 0.44,
+      "missing_expect": [],
+      "missing_produces": []
+    },
+    {
+      "script": "checks/midpoint_fixed_point.py",
+      "sections": [
+        "6.3"
+      ],
+      "claims": "midpoint rule: the identity is exact (symbolic residual 0), the Riccati fixed point is a fixed point of the midpoint map",
+      "ok": true,
+      "log": "sources/variational-whole-body-control/code/logs/checks__midpoint_fixed_point.py.log",
+      "sha256": "d1be2b407d5b90c1c5e8df78d154f02beaa799d5c3ff3108847d4dd10082a639",
+      "rc": 0,
+      "seconds": 1.08,
+      "missing_expect": [],
+      "missing_produces": []
+    },
+    {
+      "script": "checks/torque_level.py",
+      "sections": [
+        "11.5",
+        "11.7",
+        "18.2"
+      ],
+      "claims": "torque level of the two-link arm: Wbar_tau = 0.310 on the tau_2 = +30 face, faces of the torque box, random-ray search",
+      "ok": true,
+      "log": "sources/variational-whole-body-control/code/logs/checks__torque_level.py.log",
+      "sha256": "7a0592746f9a1d92acf7b05bca443bf9e9f28502cf50e90b605ed2ec7f05d2af",
+      "rc": 0,
+      "seconds": 17.05,
+      "missing_expect": [],
+      "missing_produces": []
+    },
+    {
+      "script": "checks/terminal_set_window.py",
+      "sections": [
+        "4.6",
+        "5.2",
+        "6.3"
+      ],
+      "claims": "terminal region on the hilltop: V_theta(1) = 1.404, first move -5.04, first N with V_N(1) = W(1) is 7",
+      "ok": true,
+      "log": "sources/variational-whole-body-control/code/logs/checks__terminal_set_window.py.log",
+      "sha256": "281ed90e3ff594362e25e75e918c491be870d33ffd6d62719c56d7ea1f0d55cc",
+      "rc": 0,
+      "seconds": 0.4,
       "missing_expect": [],
       "missing_produces": []
     }

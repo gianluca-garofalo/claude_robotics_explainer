@@ -1,5 +1,5 @@
 # checks/torque_momentum_share.py 
-# exit 0, 0.72 s
+# exit 0, 0.44 s
 c=0.0: max |numerical - closed form| = 4.6e-12; monotone up in theta; P(0)=0.0000 -> P(4)=0.9993
 c=0.5: max |numerical - closed form| = 2.0e-13; monotone up in theta; P(0)=0.5000 -> P(4)=0.9998
 c=1.0: max |numerical - closed form| = 0.0e+00; monotone flat in theta; P(0)=1.0000 -> P(4)=1.0000
@@ -7,11 +7,12 @@ c=1.2: max |numerical - closed form| = 3.4e-13; monotone down in theta; P(0)=1.2
 c=3.0: max |numerical - closed form| = 1.2e-12; monotone down in theta; P(0)=3.0000 -> P(4)=1.0003
 worst agreement 4.6e-12  (claim: <= 1e-10)
 
-zoh               h=10.0 ms N= 1: tau_0=-1.3636 N, position-momentum share = 110.0%, identity residual 2.8e-17
-zoh               h= 5.0 ms N= 2: tau_0=-2.1135 N, position-momentum share =  35.5%, identity residual 5.6e-17
-zoh               h= 1.0 ms N=10: tau_0=-2.7135 N, position-momentum share =   5.5%, identity residual 5.6e-17
-symplectic Euler  h= 5.0 ms N= 2: tau_0=-2.7952 N, position-momentum share =  53.7%, identity residual 0.0e+00
-symplectic Euler  h= 1.0 ms N=10: tau_0=-2.8498 N, position-momentum share =  10.5%, identity residual 0.0e+00
+zoh               h=10.0 ms N= 1: tau_0=-1.3636 N, end-of-step position-momentum term = 110.0% of T0 tau_0, identity residual 2.8e-17; at every node, residual against (pi_v,j + pi_v,j+1)/2 0.0e+00
+                  per unit q_0: -pi_v,0/T0 = 2.8635 N/m, -pi_v,1/T0 = -0.1364 N/m, mean 1.3636 N/m   (claims 2.864, -0.136, 1.36)
+zoh               h= 5.0 ms N= 2: tau_0=-2.1135 N, end-of-step position-momentum term =  35.5% of T0 tau_0, identity residual 5.6e-17; at every node, residual against (pi_v,j + pi_v,j+1)/2 5.6e-17
+zoh               h= 1.0 ms N=10: tau_0=-2.7135 N, end-of-step position-momentum term =   5.5% of T0 tau_0, identity residual 5.6e-17; at every node, residual against (pi_v,j + pi_v,j+1)/2 2.8e-17
+symplectic Euler  h= 5.0 ms N= 2: tau_0=-2.7952 N, end-of-step position-momentum term =  53.7% of T0 tau_0, identity residual 0.0e+00; at every node, residual against pi_v,j 5.6e-17
+symplectic Euler  h= 1.0 ms N=10: tau_0=-2.8498 N, end-of-step position-momentum term =  10.5% of T0 tau_0, identity residual 0.0e+00; at every node, residual against pi_v,j 5.6e-17
 
 time-varying optimum: stiffness P12(d)/T0 = 2.8635 N/m   (claim 2.86)
 zero-order hold:      stiffness = 1.3636 N/m   (claim 1.36)

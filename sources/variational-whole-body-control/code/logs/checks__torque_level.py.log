@@ -1,0 +1,27 @@
+# checks/torque_level.py 
+# exit 0, 17.05 s
+M0 = [[1.5393 0.4521]
+ [0.4521 0.24  ]]
+Ke = [[33.843 -1.809]
+ [-1.809 19.04 ]] eig [18.822 34.061]
+g(qd) = [18.0253  5.886 ]
+
+e=0 bound: v2=-2.41140 v1=0.70831 schur=0.107194  W=0.311659  tau=[ 3.8591 30.    ]
+check W(z_e0) = 0.3116587539793861
+  scaled by 1.02 : W=0.3242 tau=[ 3.576 30.482]
+  scaled by 1.044 : W=0.3397 tau=[ 3.236 31.061]
+  scaled by 1.08 : W=0.3635 tau=[ 2.726 31.929]
+
+lambda_min(Ke)/2=9.4111 (claim >= 9.4);
+lambda_min(Ke)=18.8222; |e| bound for W<=0.312: 0.1821; for W<=4: 0.6519
+face tau_1 = +50: grid 0.867194 -> polished 0.867153 at e=[-0.017806  0.02303 ], v=[-1.5524  2.9776]; W(z)=0.867153, tau=[ 50.     -24.3502]; other torque inside box: True
+face tau_1 = -50: grid 3.810603 -> polished 3.810555 at e=[0.050257 0.118832], v=[ 3.2653 -6.9102]; W(z)=3.810555, tau=[-50.      72.5271]; other torque inside box: False
+    plane minimizer is outside the box; least W on the face of the box itself: 5.784203 at e=[ 0.07977 -0.02309]
+face tau_2 = +30: grid 0.309973 -> polished 0.309966 at e=[0.000645 0.013233], v=[ 0.7088 -2.4379]; W(z)=0.309966, tau=[ 3.8145 30.    ]; other torque inside box: True
+face tau_2 = -30: grid 0.681902 -> polished 0.681864 at e=[0.00178  0.029496], v=[-1.0634  3.5293]; W(z)=0.681864, tau=[ 39.1984 -30.    ]; other torque inside box: True
+
+Wbar_tau = 0.309966 (claim 0.310); margin of Wbar=0.3: 3.22% (claim about 3%)
+4-D SLSQP on tau_2=+30 face: 0.309966 at z=[ 6.454261e-04  1.323280e-02  7.088282e-01 -2.437922e+00] (claim: agrees with the face reduction)
+
+ray search, 2e5 rays, no refinement, seeds 0-7: min W at first violation = [0.3352 0.3689 0.3135 0.3403 0.3578 0.3278 0.3292 0.3433]
+range 0.3135 - 0.3689 (claim 0.31-0.37); all >= Wbar_tau: True

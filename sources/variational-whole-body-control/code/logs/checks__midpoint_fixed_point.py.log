@@ -1,0 +1,32 @@
+# checks/midpoint_fixed_point.py 
+# exit 0, 1.08 s
+(a) symbolic residual of the midpoint identity: 0
+    chord-slope residual W(q')-W(q) - h grad W(q_half).v: 0
+
+(b) ||QR-RQ|| = 5.225333419309096
+    residual P R^-1 P - Q = 7.615707129954036e-15
+    h=0.05: |T_mid(P)-P|=1.8e-14, |step-Cayley|=7.1e-16, |step-expm|=1.1e-04, |T_rect(P)-P|=0.015
+    h=0.3: |T_mid(P)-P|=2.6e-15, |step-Cayley|=6.5e-16, |step-expm|=1.4e-02, |T_rect(P)-P|=0.382
+    h=1.0: |T_mid(P)-P|=3.1e-15, |step-Cayley|=7.8e-16, |step-expm|=1.8e-01, |T_rect(P)-P|=2.310
+    h=3.0: |T_mid(P)-P|=3.6e-15, |step-Cayley|=1.1e-15, |step-expm|=6.9e-01, |T_rect(P)-P|=9.158
+    largest residual in (b): 1.8e-14   (claim: identity exact; residuals <= 3e-14)
+    iterate T_mid (h=0.3) from zero -> |X-P| = 4.2e-15
+    iterate T_mid (h=0.3) from 10P -> |X-P| = 4.9e-15
+
+(c) smallest eigenvalue of cP - T_mid(cP) (h=0.3):
+    c=0.9: -1.037e-01
+    c=0.99: -1.060e-02
+    c=0.999: -1.062e-03
+    c=1.0: -1.835e-15
+    c=1.001:  2.540e-04
+    c=1.01:  2.548e-03
+    c=1.1:  2.624e-02
+    c=2.0:  3.286e-01
+
+(e) trapezoid fixed points: [sqrt(kappa)*sqrt(h**2*kappa + 4*m)/2]  expected sqrt(m k + h^2 k^2/4)
+    m=k=1, h=0.1: [1.00124921972504]
+    T_trap(sqrt(1.0025)) - sqrt(1.0025) = 0.0 ; T_trap(1)-1 = 0.0002262443438914019
+    scalar T_mid(X) = (X*h**2*kappa + 4*X*m + 4*h*kappa*m)/(4*X*h + h**2*kappa + 4*m) ; fixed points: [sqrt(kappa)*sqrt(m)]
+
+(f) m=k=1, h=0.1, q=1: q+ = 0.904762 (exp(-h) = 0.904837), L_d = 0.090703, W(1)-W(q+) = 0.090703, V_1(1) = 0.500000
+    L_d^E(1,0.95) = 0.060002, L_d^mid(1,0.95) = 0.060031
