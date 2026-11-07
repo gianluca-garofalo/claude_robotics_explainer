@@ -106,13 +106,12 @@ def sentences(words: list[str]) -> list[tuple[int, int]]:
 
 def captions(path: Path) -> list[str]:
     """The text of each cue of an SRT file, its lines joined by spaces."""
+    import media
     import srt
     try:
-        cues = [" ".join(ln.strip() for ln in s.content.splitlines() if ln.strip())
-                for s in srt.parse(path.read_text(encoding="utf-8"))]
+        return [text for _, _, text in media.read_srt(path) if text]
     except srt.SRTParseError as exc:
         raise ValueError(f"{path.name}: not SRT captions ({exc})") from None
-    return [c for c in cues if c]
 
 
 def _samples(path: Path):
