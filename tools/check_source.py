@@ -1,28 +1,10 @@
 #!/usr/bin/env python3
-"""Check a source document folder before series are planned or episodes made from it (deterministic, offline).
+"""Check a source folder (explainer.html, code/, checks.toml) before series are planned or episodes made from it.
 
 Usage:
   python3 tools/check_source.py sources/<name> [more folders] [--render] [--strict] [--json OUT]
-  python3 tools/check_source.py --all [--sources-dir DIR]          # every folder in sources/ (none: nothing to do)
+  python3 tools/check_source.py --all [--sources-dir DIR]
   python3 tools/check_source.py sources/<name> --strip-external-scripts [--write]
-
-Errors (exit status 1): the pipeline would fail on them.
-  - no explainer.html, or tools/lint_html.py errors in it, among them external <script src> tags other than the pinned
-    KaTeX CDN files (a page saved from a viewer can carry one): --strip-external-scripts lists the tags it would
-    remove and --write removes them (only empty <script ... src=...></script> tags whose host is not the KaTeX CDN);
-  - code/ without a readable code/checks.toml, or a checks.toml entry whose script is not under code/ (the code
-    checks of every episode would fail).
-Warnings (exit status 0; the plan and the report mention them):
-  - scripts the explainer names (its verification section or the text) that are not under code/: the numbers they
-    print cannot be reproduced, so no episode may show them until the script is there. A file name that follows a
-    path in the same table cell or paragraph ("note/sec8_arm/condcheck.py, edge.py") is looked up in that folder;
-    another bare file name anywhere under code/;
-  - scripts under code/ that checks.toml does not list (fine for helper modules and scripts run by hand);
-  - section and figure tags in checks.toml and in code/README.md that the explainer does not have (after a
-    renumbering), and tags outside the top-level sections the explainer's verification table gives for the script;
-  - no code/ at all (the episodes then write their own scripts), lint_html warnings.
---render also runs tools/check_html.js (Node, Playwright and Chromium; without them it is a warning).
---strict counts warnings as errors. The source folder is never changed except by --strip-external-scripts --write.
 """
 from __future__ import annotations
 
@@ -33,15 +15,17 @@ import subprocess
 import sys
 import tempfile
 import tomllib
-from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import REPO, rel, write_json  # noqa: E402
 import lint_html  # noqa: E402
+from bs4 import Tag  # noqa: E402
+from bs4.element import PreformattedString  # noqa: E402
 
 KATEX_HOST = urlparse(lint_html.KATEX_BASE).hostname        # cdn.jsdelivr.net
+# matched in the source, not the tree: strip_scripts cuts the tags out and keeps every other byte
 SCRIPT_TAG_RE = re.compile(r"<script\b[^>]*?\bsrc\s*=\s*([\"'])(.*?)\1[^>]*>\s*</script\s*>", re.I | re.S)
 SCRIPT_REF_RE = re.compile(r"(?<![\w./-])((?:\./)?(?:[\w-]+/)*[\w-]+\.py)(?![\w])")
 BLOCKS = {"p", "li", "td", "th", "dd", "dt", "figcaption", "caption", "pre", "blockquote", "h1", "h2", "h3", "h4",
@@ -67,91 +51,47 @@ class Report:
 
 
 # --------------------------------------------------------------------------- the explainer as text blocks
-class Blocks(HTMLParser):
-    """Text blocks (paragraphs, list items, table cells, ...) with the section they sit in, the verification rows
-    (script cells and the row's text) and the figure numbers. Script, style and SVG content is skipped."""
+def read_blocks(html: str) -> tuple[list[dict], list[dict], set[int]]:
+    """(text blocks with their section and .py links, rows of the verification table, figure numbers)."""
+    blocks, rows, figures = [], [], set()
+    section = ""
 
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.stack: list[str] = []
-        self.blocks: list[dict] = []
-        self.open: list[dict] = []
-        self.section = ""
-        self.heading: list[str] | None = None
-        self.in_ver = False
-        self.ver_depth = 0
-        self.row: dict | None = None
-        self.rows: list[dict] = []
-        self.figures: set[int] = set()
-        self.cap: list[str] | None = None
+    def walk(el, ver: bool, block: dict | None, row: dict | None) -> str:
+        nonlocal section
+        out = []
+        for c in el.children:
+            if not isinstance(c, Tag):
+                if not isinstance(c, PreformattedString):
+                    out.append(c.replace("\u00a0", " ").translate({0x2060: None, 0x200b: None, 0xfeff: None}))
+                continue
+            name, href = c.name, c.get("href") or ""
+            if name in SKIP:
+                continue
+            if name == "a" and block is not None and href.endswith(".py") and not re.match(r"^[a-z]+://", href):
+                block["hrefs"].append(href)
+            in_ver = ver or (name == "section" and c.get("id") == "sec-verification")
+            own = {"section": section, "hrefs": []} if name in BLOCKS else None
+            new_row = {"cells": [], "section": section} if name == "tr" and in_ver else None
+            t = walk(c, in_ver, own or block, new_row or row)
+            if own is not None:
+                t = " ".join(t.split())
+                blocks.append({"text": t, "section": own["section"], "hrefs": own["hrefs"]})
+                if row is not None and name in ("td", "th"):
+                    row["cells"].append(t)
+                t = f" {t} "                       # a nested block's text also belongs to its parent
+            if name in ("h2", "h3"):
+                head = " ".join(t.split())
+                m = re.match(r"^(\d+(?:\.\d+)*)\.?\s", head)
+                section = m.group(1) if m else (head.split(".")[0] if head.startswith("Appendix") else head[:40])
+            if name == "figcaption" and (m := re.match(r"\s*Figure\s+(\d+)", t)):
+                figures.add(int(m.group(1)))
+            if new_row is not None:
+                rows.append(new_row)
+            out.append(t)
+        return "".join(out)
 
-    def handle_starttag(self, tag, attrs):
-        a = dict(attrs)
-        if tag in ("br", "img", "hr", "meta", "link", "input", "col", "wbr", "area", "source", "track", "embed"):
-            return
-        self.stack.append(tag)
-        if tag == "section" and a.get("id") == "sec-verification":
-            self.in_ver, self.ver_depth = True, len(self.stack)
-        if tag in ("h2", "h3"):
-            self.heading = []
-        if tag == "figcaption":
-            self.cap = []
-        if tag == "tr" and self.in_ver:
-            self.row = {"cells": [], "section": self.section}
-        if tag in BLOCKS:
-            b = {"text": [], "section": self.section, "hrefs": []}
-            self.open.append(b)
-        if tag == "a" and self.open and (a.get("href") or "").endswith(".py") and \
-                not re.match(r"^[a-z]+://", a.get("href") or ""):
-            self.open[-1]["hrefs"].append(a["href"])
-
-    def handle_startendtag(self, tag, attrs):
-        pass
-
-    def handle_endtag(self, tag):
-        if tag not in self.stack:
-            return
-        while self.stack:
-            t = self.stack.pop()
-            self._close(t)
-            if t == tag:
-                break
-
-    def _close(self, tag):
-        if tag in BLOCKS and self.open:
-            b = self.open.pop()
-            text = " ".join("".join(b["text"]).split())
-            self.blocks.append({"text": text, "section": b["section"], "hrefs": b["hrefs"]})
-            if self.open:                                   # a nested block's text also belongs to its parent
-                self.open[-1]["text"].append(" " + text + " ")
-            if self.row is not None and tag in ("td", "th"):
-                self.row["cells"].append(text)
-        if tag in ("h2", "h3") and self.heading is not None:
-            text = " ".join("".join(self.heading).split())
-            m = re.match(r"^(\d+(?:\.\d+)*)\.?\s", text)
-            self.section = m.group(1) if m else (text.split(".")[0] if text.startswith("Appendix") else text[:40])
-            self.heading = None
-        if tag == "figcaption" and self.cap is not None:
-            m = re.match(r"\s*Figure\s+(\d+)", "".join(self.cap))
-            if m:
-                self.figures.add(int(m.group(1)))
-            self.cap = None
-        if tag == "tr" and self.row is not None:
-            self.rows.append(self.row)
-            self.row = None
-        if tag == "section" and self.in_ver and len(self.stack) < self.ver_depth:
-            self.in_ver = False
-
-    def handle_data(self, data):
-        if any(t in SKIP for t in self.stack):
-            return
-        data = data.replace("\u00a0", " ").translate({0x2060: None, 0x200b: None, 0xfeff: None})
-        if self.heading is not None:
-            self.heading.append(data)
-        if self.cap is not None:
-            self.cap.append(data)
-        if self.open:
-            self.open[-1]["text"].append(data)
+    walk(lint_html.parse(html), False, None, None)
+    return blocks, rows, figures
 
 
 def numbering(page: Path) -> tuple[set[str], set[str]]:
@@ -181,8 +121,7 @@ def section_numbers(text: str) -> set[str]:
 
 
 def within(tag: str, sections: set[str]) -> bool:
-    """A tag agrees with the verification table when it is in one of its top-level sections: a renumbering moves
-    whole sections, while one table row often covers several subsections of the same section."""
+    """A tag agrees with the verification table when it is in one of its top-level sections."""
     return tag.split(".")[0] in {s.split(".")[0] for s in sections}
 
 
@@ -284,7 +223,6 @@ def check(src: Path, render: bool = False) -> Report:
         rep.err("no-explainer", f"{rel(src)} has no explainer.html", "put the source document there as explainer.html")
         return rep
     html = page.read_text(encoding="utf-8")
-    # 1. lint_html, with the external scripts reported with their fix
     strip = strippable(html)
     stripped_urls = {u for _, _, u, _ in strip}
     cmd = f"python3 tools/check_source.py {rel(src)} --strip-external-scripts --write"
@@ -297,12 +235,9 @@ def check(src: Path, render: bool = False) -> Report:
             continue
         where = f"explainer.html:{i['line']} " if i.get("line") else "explainer.html "
         (rep.err if i["level"] == "error" else rep.warn)(f"lint-{i['code']}", where + i["message"])
-    # 2. scripts named in the explainer
-    p = Blocks()
-    p.feed(html)
-    p.close()
+    blocks, rows, figures = read_blocks(html)
     code = src / "code"
-    found, missing = script_refs(p.blocks, code)
+    found, missing = script_refs(blocks, code)
     rep.facts.update(scripts_named=len(found) + len(missing), scripts_found=len(found),
                      scripts_missing=sorted(missing))
     for name, e in sorted(missing.items()):
@@ -310,7 +245,6 @@ def check(src: Path, render: bool = False) -> Report:
         rep.warn("script-missing", f"the explainer names {name} (section {secs}), which is not under code/: the "
                  "numbers it prints cannot be reproduced, so no episode may show them until it is there",
                  f"add code/{name} (the source's author provides it; never write it from memory)")
-    # 3. the manifest
     if not code.is_dir():
         rep.warn("no-companion-code", f"{rel(src)} has no code/: every number an episode shows must come from a "
                  "script written in that episode's run code/, never from memory")
@@ -321,19 +255,18 @@ def check(src: Path, render: bool = False) -> Report:
         if checks and f not in listed:
             rep.warn("not-in-manifest", f"code/{f} is not in checks.toml (fine for a helper module or a script run "
                      "by hand)")
-    # 4. section and figure tags
     nums, ids = numbering(page)
-    rows = verification_rows(p.rows)
+    rows = verification_rows(rows)
     for c in checks:
         s = c.get("script")
-        bad = tag_problems([str(t) for t in c.get("sections", [])], nums, ids, p.figures)
+        bad = tag_problems([str(t) for t in c.get("sections", [])], nums, ids, figures)
         if bad:
             rep.warn("stale-tag", f"checks.toml: {s} is tagged {', '.join(bad)}, which the explainer does not have "
                      "(renumbered?)", "change the sections of its [[check]] entry to the explainer's numbering")
         else:
             _place(rep, "checks.toml", s, [str(t) for t in c.get("sections", [])], rows)
     for s, tags in readme_tags(code):
-        bad = tag_problems(tags, nums, ids, p.figures)
+        bad = tag_problems(tags, nums, ids, figures)
         if bad:
             rep.warn("stale-tag", f"code/README.md: the row of {s} names {', '.join(bad)}, which the explainer does "
                      "not have (renumbered?)", "change the Section(s) cell to the explainer's numbering")
@@ -343,8 +276,7 @@ def check(src: Path, render: bool = False) -> Report:
 
 
 def verification_rows(rows: list[dict]) -> dict[str, set[str]]:
-    """{script: sections the verification table gives for it}: the "Section x" references in its rows, else the
-    "(Sections a–b)" range of the part heading row above them."""
+    """{script: the sections its rows of the verification table name, else those of the part row above them}."""
     out: dict[str, set[str]] = {}
     part: set[str] = set()
     for r in rows:
@@ -403,29 +335,25 @@ def _render(rep: Report, page: Path, render: bool) -> Report:
 
 
 # --------------------------------------------------------------------------- external scripts
-def strippable(html: str) -> list[tuple[int, int, str, str]]:
-    """(line, offset, url, host) of each empty <script ... src=...></script> tag whose host is not the KaTeX CDN."""
-    out = []
+def _external_scripts(html: str):
+    """(match, url, host) of each empty <script src> tag whose host is not the KaTeX CDN."""
     for m in SCRIPT_TAG_RE.finditer(html):
         url = m.group(2).strip()
-        if not re.match(r"^(https?:)?//", url, re.I):
-            continue
-        host = urlparse(url if not url.startswith("//") else "https:" + url).hostname or "?"
-        if host != KATEX_HOST:
-            out.append((html.count("\n", 0, m.start()) + 1, m.start(), url, host))
-    return out
+        if re.match(r"^(https?:)?//", url, re.I):
+            host = urlparse(url if not url.startswith("//") else "https:" + url).hostname
+            if host != KATEX_HOST:
+                yield m, url, host or "?"
+
+
+def strippable(html: str) -> list[tuple[int, int, str, str]]:
+    """(line, offset, url, host) of each tag strip_scripts removes."""
+    return [(html.count("\n", 0, m.start()) + 1, m.start(), url, host) for m, url, host in _external_scripts(html)]
 
 
 def strip_scripts(html: str) -> tuple[str, int]:
-    """The page without those tags: a tag alone on its line takes the line with it."""
-    n = 0
-    for m in reversed(list(SCRIPT_TAG_RE.finditer(html))):
-        url = m.group(2).strip()
-        if not re.match(r"^(https?:)?//", url, re.I):
-            continue
-        host = urlparse(url if not url.startswith("//") else "https:" + url).hostname
-        if host == KATEX_HOST:
-            continue
+    """The page without those tags (a tag alone on its line takes the line), and their number."""
+    found = [m for m, _, _ in _external_scripts(html)]
+    for m in reversed(found):
         a, b = m.start(), m.end()
         ls = html.rfind("\n", 0, a) + 1
         le = html.find("\n", b)
@@ -433,8 +361,7 @@ def strip_scripts(html: str) -> tuple[str, int]:
         if not html[ls:a].strip() and not html[b:le].strip():
             a, b = ls, min(le + 1, len(html))
         html = html[:a] + html[b:]
-        n += 1
-    return html, n
+    return html, len(found)
 
 
 # --------------------------------------------------------------------------- command line

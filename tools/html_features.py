@@ -1,21 +1,10 @@
 #!/usr/bin/env python3
-"""Reader features of the explainer pages: a dark-mode switch, equation links that the Back button undoes, a
-collapsible table of contents (a drawer on phones), and on phones equation numbers that stay on screen, figure labels
-that keep a readable size and numbers in tables that do not break; added by tools/build_explainer.py. Small inline
-CSS and JavaScript only, no dependency; with JavaScript off the page stays light, the table of contents stays visible
-and every link still jumps.
+"""Reader features the build injects into explainer pages: dark mode, equation links with Back, collapsible contents.
 
+Usage:
   python3 tools/html_features.py reinject PAGE.html            # dry run: which blocks would be replaced
   python3 tools/html_features.py reinject PAGE.html --write    # replace them in place
   python3 tools/html_features.py reinject PAGE.html -o OUT.html
-
-reinject swaps the injected CSS and scripts of an existing page for the current ones and leaves every other byte
-(text, equations, figures, the page's own CSS) as it is. It finds the blocks by their markers, or, in pages made
-before the markers, by their first lines.
-
-Colours: the light set is the house style; the dark set is the channel's video palette (background #0f172a, a lighter
-surface for cards and the sidebar, text #e2e8f0, secondary #94a3b8, borders #334155, and the semantic colours
-#2dd4bf, #fbbf24, #818cf8, #ef4444 with lighter tints where text needs WCAG AA contrast). Print is always light.
 """
 from __future__ import annotations
 
@@ -32,7 +21,7 @@ DARK_VARS = {
     "--fig-ink": "#e2e8f0", "--fig-muted": "#94a3b8", "--fig-faint": "#334155", "--fig-bg": "#0f172a",
     "--highlight": "#3b3417", "--fig-mix": "65%", "--fig-keep": "0%",
 }
-LIGHT_EXTRA = {"--accent": "#2563eb",            # links: #3b82f6 gave 3.7:1 on white (WCAG AA needs 4.5:1)
+LIGHT_EXTRA = {"--accent": "#2563eb",            # links: 4.5:1 on white (WCAG AA)
                "--fig-ink": "#1e293b", "--fig-muted": "#64748b", "--fig-faint": "#e2e8f0", "--fig-bg": "#ffffff",
                "--highlight": "#fef3c7", "--fig-mix": "100%", "--fig-keep": "100%"}
 
@@ -333,9 +322,7 @@ def _lum(rgb) -> float:
 
 
 def _neutral(col: str) -> str | None:
-    """'ink', 'muted', 'faint' or 'bg' for a neutral colour, else None (a colour keeps its meaning). Neutral: a named
-    grey, equal channels, or the low-chroma greys of UI palettes (slate, zinc, ...: channel spread up to 48); in the
-    pale range a small spread can be a tint (a shaded region), told apart from a light grey by its saturation."""
+    """'ink', 'muted', 'faint' or 'bg' for a grey (named, or a channel spread up to 48), else None."""
     c = col.strip().lower()
     if c in NAMED:
         return NAMED[c]
@@ -346,7 +333,7 @@ def _neutral(col: str) -> str | None:
     if spread > 12:
         if _lum(rgb) > 0.85:
             if colorsys.rgb_to_hls(*(x / 255 for x in rgb))[2] > 0.5:
-                return None                            # a pale tint: #f0fdf4, #eff6ff (slate-200 #e2e8f0 is grey)
+                return None                            # a pale tint (#f0fdf4), not a light grey (#e2e8f0)
         elif spread > 48:
             return None
     v = sum(rgb) / 3
@@ -354,10 +341,7 @@ def _neutral(col: str) -> str | None:
 
 
 def themed(val: str) -> str | None:
-    """The theme-aware value of a fill or stroke colour, or None to leave it alone. The light theme keeps the exact
-    colour (--fig-keep and --fig-mix are 100 %); in the dark theme neutrals take the theme's ink, muted, faint or
-    background, a colour keeps its hue and is lightened (more contrast on the dark background), and a pale tint becomes
-    a dark tint of the same hue."""
+    """The theme-aware value of a fill or stroke colour (exact in light; in dark, greys take the theme's), or None."""
     v = val.strip()
     role = _neutral(v)
     if role:
@@ -372,16 +356,13 @@ def themed(val: str) -> str | None:
     return f"color-mix(in srgb, {v} var(--fig-mix), #ffffff)"
 
 
-# The style attribute itself, never the tail of another attribute (font-style="italic" is not a style attribute), and
-# the colour properties inside it, never the tail of another property (background-color, flood-color).
+# The style attribute, not the tail of font-style; colour properties, not the tail of background-color.
 STYLE_ATTR = re.compile(r'(?<=\s)style="([^"]*)"')
 STYLE_DECL = re.compile(r"(?<![\w-])(fill|stroke|color|stop-color)\s*:\s*([#\w(), ]+?)(?=;|$)")
 
 
 def theme_svg(svg: str) -> str:
-    """Strokes, fills and text of an inline SVG follow the theme (themed(): the light theme keeps every colour exactly,
-    the dark theme maps neutrals to its ink and background and keeps the hue of colours). The original value stays in
-    front as the fallback for browsers without color-mix(). No blanket invert: it would break the semantic colours."""
+    """The SVG with fills, strokes and colours themed; the original values stay as the fallback without color-mix()."""
     def style_decl(m):
         prop, val = m.group(1), m.group(2)
         new = themed(val)
@@ -415,6 +396,7 @@ MARK = {"css": ("/* reader-features:css */", "/* /reader-features:css */"),
         "controls": ("<!-- reader-features:controls -->", "<!-- /reader-features:controls -->"),
         "body": ("<!-- reader-features:body -->", "<!-- /reader-features:body -->")}
 # the same blocks in pages injected before the markers existed
+# (blocks are found and replaced as text: everything else in the page must keep its bytes)
 LEGACY = {"css": re.compile(r"(?<=\n)  /\* Reader features \(tools/html_features\.py\).*?\n(?=\n</style>)", re.S),
           "head": re.compile(r"<script>\n/\* Theme before first paint.*?</script>", re.S),
           "controls": re.compile(r'<button type="button" class="toc-toggle".*?back to text</button>', re.S),
@@ -442,8 +424,7 @@ def inject(html: str) -> str:
 
 
 def find_blocks(html: str) -> dict:
-    """{block: (start, end, "marked" | "legacy")} of the injected blocks of a page; ValueError if one is missing or
-    appears twice."""
+    """{block: (start, end, "marked" | "legacy")}; ValueError unless each block appears once."""
     found = {}
     for k, (start, end) in MARK.items():
         hits, kind = list(re.finditer(re.escape(start) + r".*?" + re.escape(end), html, re.S)), "marked"
@@ -457,8 +438,7 @@ def find_blocks(html: str) -> dict:
 
 
 def reinject(html: str) -> tuple[str, dict]:
-    """The page with its injected CSS and scripts replaced by the current ones; every other byte is kept. Returns
-    (html, {block: "marked" | "legacy"})."""
+    """(the page with the current blocks, {block: "marked" | "legacy"}); every other byte is kept."""
     new, found = blocks(), find_blocks(html)
     out, last = [], 0
     for k, (a, b, kind) in sorted(found.items(), key=lambda kv: kv[1][0]):

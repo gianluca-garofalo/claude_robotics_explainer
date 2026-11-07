@@ -1,30 +1,19 @@
 #!/usr/bin/env node
 /*
- * Browser check of the reader features of an explainer page (tools/html_features.py): the dark-mode switch, equation
- * links with a working Back button, and the collapsible contents (a drawer on phones). Playwright + Chromium.
+ * Browser check of the reader features of an explainer page (dark mode, equation links with Back, contents drawer).
  *
  *   node tools/check_html_features.js PAGE.html [--katex-dist DIR] [--shots DIR] [--json OUT.json]
- *
- * KaTeX is served from a local copy (--katex-dist, $KATEX_DIST, ./node_modules/katex/dist); every other request is
- * refused. Checks: KaTeX renders without errors; no duplicate ids and every #link resolves; with JavaScript off the
- * contents stay visible and the page light; the theme follows prefers-color-scheme, the toggle flips it (aria-pressed)
- * and the choice survives a reload; clicking an equation reference scrolls to it and page.goBack() restores the
- * reading position; at 390 px the menu button opens the drawer (aria-expanded, focus inside, Tab stays inside),
- * Esc and a link close it and focus returns; on a desktop the button collapses the sidebar and the state survives a
- * reload; no horizontal overflow at 360 and 390 px in either theme. --shots saves a figure in each theme.
- * Exit status: 0 = all checks pass, 1 = a check failed, 3 = setup problem.
  */
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { findKatex, launchChromium } = require('./check_html.js');
 
-const REPO = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const opt = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : null; };
 const file = args.find((a, i) => !a.startsWith('--') && (i === 0 || !args[i - 1].startsWith('--')));
 if (!file || !fs.existsSync(file)) { console.error('usage: node tools/check_html_features.js PAGE.html'); process.exit(3); }
-const kdir = [opt('--katex-dist'), process.env.KATEX_DIST, path.join(REPO, 'node_modules', 'katex', 'dist')]
-  .find(d => d && fs.existsSync(path.join(d, 'katex.min.js')));
+const kdir = (findKatex(opt('--katex-dist')) || {}).dir;
 if (!kdir) { console.error('no local KaTeX (--katex-dist DIR)'); process.exit(3); }
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (e) { console.error('playwright is not installed'); process.exit(3); }
@@ -59,7 +48,7 @@ async function open(browser, opts) {
 
 (async () => {
   let browser;
-  try { browser = await chromium.launch(); } catch (e) { console.error('could not start Chromium: ' + e.message); process.exit(3); }
+  try { browser = await launchChromium(chromium); } catch (e) { console.error('could not start Chromium: ' + e.message); process.exit(3); }
   const shots = opt('--shots');
 
   // 1. JavaScript off: contents visible, light, every anchor present

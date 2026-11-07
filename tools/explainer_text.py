@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The text of a built explainer in reading order, section by section (for reviewers who read front to back).
+"""The text of a built explainer in reading order, section by section.
 
 Usage:
   python3 tools/explainer_text.py runs/<run>/explainer.html --outline           # sections: number, id, words
@@ -8,19 +8,19 @@ Usage:
   python3 tools/explainer_text.py runs/<run>/explainer.html --from 5 --until 6.3 # a range, in order
   python3 tools/explainer_text.py runs/<run>/explainer.html --grep 'nabla W' --until 6.2   # was it said before 6.2?
   python3 tools/explainer_text.py runs/<run>/explainer.html                      # the whole text
-
-A section is named by its number (5, 5.2) or its id (sec-momentum). Headings print as Markdown headings with their
-number and id; math stays as written ($...$ and $$...$$ with \\tag numbers), figures as one line with their
-description, tables as rows of cells; scripts, styles, the contents sidebar and the page controls are left out.
-Standard library only; deterministic.
 """
 from __future__ import annotations
 
 import argparse
 import re
 import sys
-from html.parser import HTMLParser
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _common  # noqa: E402,F401  (runs the script in .venv)
+from bs4 import Tag  # noqa: E402
+from bs4.element import PreformattedString  # noqa: E402
+from lint_html import parse  # noqa: E402
 
 BLOCK = {"p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "figcaption", "table", "section", "ol", "ul",
          "blockquote", "br", "figure", "header", "footer", "article", "aside", "details", "summary", "pre", "dt", "dd"}
@@ -29,115 +29,82 @@ HEADING = {"h1": 1, "h2": 2, "h3": 3, "h4": 4}
 NUM_RE = re.compile(r"^((?:\d+|[A-Z])(?:\.\d+)*)\.?\s+")
 
 
-class Reader(HTMLParser):
-    """Collects blocks of text in document order: {"text", "level" (0 for text), "num", "id", "sec", "sec_id"}."""
+def read(path: Path) -> list[dict]:
+    """Text blocks in document order: {"text", "level" (0 for text), "num", "id", "sec", "sec_id"}; a figure is one
+    block with its description."""
+    blocks, buf, ids = [], [], []          # ids: of the open <section>s, innermost last
+    sec, sec_id, heading, cell = "", None, None, False
 
-    def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.blocks: list[dict] = []
-        self.buf: list[str] = []
-        self.skip = 0                  # depth inside a skipped element
-        self.svg = 0                   # depth inside an inline <svg>
-        self.heading = None            # (level, id) while inside a heading
-        self.ids: list[str | None] = []    # id of each open <section>, innermost last
-        self.sec, self.sec_id = "", None
-        self.cell = False
+    def add(text, level=0, num="", hid=None):
+        blocks.append({"text": text, "level": level, "num": num, "id": hid, "sec": sec, "sec_id": sec_id})
 
-    def flush(self):
-        text = " ".join("".join(self.buf).split())
-        self.buf = []
+    def flush():
+        nonlocal sec, sec_id
+        text = " ".join("".join(buf).split())
+        buf.clear()
         if not text:
             return
-        if self.heading:
-            level, hid = self.heading
-            m = NUM_RE.match(text)
-            num = m.group(1) if m else ""
-            if num:
-                self.sec = num
-            elif level <= 2:
-                self.sec = text
-            if hid:
-                self.sec_id = hid
-            elif level <= 2 or num:            # an unnumbered minor heading stays in its subsection
-                self.sec_id = next((i for i in reversed(self.ids) if i), None)
-            self.blocks.append({"text": text, "level": level, "num": num, "id": self.sec_id, "sec": self.sec,
-                                "sec_id": self.sec_id})
-        else:
-            self.blocks.append({"text": text, "level": 0, "num": "", "id": None, "sec": self.sec,
-                                "sec_id": self.sec_id})
+        if not heading:
+            add(text)
+            return
+        level, hid = heading
+        m = NUM_RE.match(text)
+        num = m.group(1) if m else ""
+        if num:
+            sec = num
+        elif level <= 2:
+            sec = text
+        if hid:
+            sec_id = hid
+        elif level <= 2 or num:            # an unnumbered minor heading stays in its subsection
+            sec_id = next((i for i in reversed(ids) if i), None)
+        add(text, level, num, sec_id)
 
-    def handle_starttag(self, tag, attrs):
-        a = dict(attrs)
-        if self.skip:
-            if tag in SKIP:
-                self.skip += 1
-            return
-        if tag in SKIP:
-            self.skip = 1
-            return
-        if tag == "svg":
-            if not self.svg:
-                self.flush()
-                label = a.get("aria-label") or a.get("title") or ""
-                self.blocks.append({"text": f"[figure: {label}]" if label else "[figure]", "level": 0, "num": "",
-                                    "id": None, "sec": self.sec, "sec_id": self.sec_id})
-            self.svg += 1
-            return
-        if self.svg:
-            return
-        if tag == "section":
-            self.flush()
-            self.ids.append(a.get("id"))
-        elif tag in HEADING:
-            self.flush()
-            self.heading = (HEADING[tag], a.get("id"))
-        elif tag in ("td", "th"):
-            if self.cell:
-                self.buf.append(" | ")
-            self.cell = True
-        elif tag in BLOCK:
-            self.flush()
-            if tag == "li":
-                self.buf.append("- ")
-            if tag == "tr":
-                self.cell = False
+    def walk(el):
+        nonlocal heading, cell
+        for c in el.children:
+            if not isinstance(c, Tag):
+                if not isinstance(c, PreformattedString):
+                    buf.append(c)
+                continue
+            if c.name in SKIP:
+                continue
+            if c.name == "svg":
+                flush()
+                label = c.get("aria-label") or c.get("title") or ""
+                add(f"[figure: {label}]" if label else "[figure]")
+                continue
+            if c.name == "section":
+                flush()
+                ids.append(c.get("id"))
+            elif c.name in HEADING:
+                flush()
+                heading = (HEADING[c.name], c.get("id"))
+            elif c.name in ("td", "th"):
+                if cell:
+                    buf.append(" | ")
+                cell = True
+            elif c.name in BLOCK:
+                flush()
+                if c.name == "li":
+                    buf.append("- ")
+                if c.name == "tr":
+                    cell = False
+            walk(c)
+            if c.name in HEADING:
+                flush()
+                heading = None
+            elif c.name == "section":
+                flush()
+                ids.pop()
+            elif c.name in BLOCK:
+                flush()
+                if c.name == "tr":
+                    cell = False
 
-    def handle_endtag(self, tag):
-        if self.skip:
-            if tag in SKIP:
-                self.skip -= 1
-            return
-        if tag == "svg" and self.svg:
-            self.svg -= 1
-            return
-        if self.svg:
-            return
-        if tag in HEADING:
-            self.flush()
-            self.heading = None
-        elif tag == "section":
-            self.flush()
-            if self.ids:
-                self.ids.pop()
-        elif tag in BLOCK:
-            self.flush()
-            if tag == "tr":
-                self.cell = False
-
-    def handle_data(self, data):
-        if not self.skip and not self.svg:
-            self.buf.append(data)
-
-    def close(self):
-        super().close()
-        self.flush()
-
-
-def read(path: Path) -> list[dict]:
-    r = Reader()
-    r.feed(path.read_text(encoding="utf-8"))
-    r.close()
-    return r.blocks
+    walk(parse(path.read_text(encoding="utf-8")))
+    flush()
+    return blocks
 
 
 def matches(block: dict, key: str) -> bool:
@@ -146,8 +113,7 @@ def matches(block: dict, key: str) -> bool:
 
 
 def span(blocks: list[dict], key: str, start: int = 0) -> tuple[int, int]:
-    """(first, end) indices of the section named by key: its heading and everything up to the next heading of the
-    same or a higher level."""
+    """(first, end) of the section named by key: its heading up to the next heading of the same or a higher level."""
     i = next((k for k in range(start, len(blocks)) if matches(blocks[k], key)), None)
     if i is None:
         sys.exit(f"error: no section {key!r} (see --outline)")

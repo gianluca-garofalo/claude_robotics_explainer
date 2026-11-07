@@ -1,5 +1,4 @@
-  /* Explainer house style: extracted from the reference document (sources/variational-whole-body-control/explainer.html), document-specific selectors removed.
-     tools/build_explainer.py inlines this file into <style> so every explainer is a single self-contained HTML file. */
+  /* Explainer house style */
   :root {
     --bg: #ffffff;
     --bg-secondary: #f7f8fa;
@@ -450,8 +449,7 @@
   table.ver td:nth-child(3) { width: 20%; }
   @media (max-width: 800px) {
     table { display: block; overflow-x: auto; }
-    /* long displays scroll inside their own box, and tags follow the formula instead of overlapping it (the
-       reader features of tools/html_features.py put a numbered display's tag on screen, under the formula) */
+    /* long displays scroll inside their own box; tags follow the formula instead of overlapping it */
     .katex-display { overflow-x: auto !important; overflow-y: hidden !important; }
     .katex-display > .katex > .katex-html > .tag { position: static; display: inline-block; padding-left: 1em; }
     /* scrolling boxes must contain KaTeX's absolutely positioned MathML, or it widens the page */

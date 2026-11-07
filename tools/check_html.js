@@ -1,29 +1,18 @@
 #!/usr/bin/env node
 /*
- * Render check for an explainer HTML file with Playwright (Chromium). Exit 0 = pass, 1 = fail, 3 = setup problem.
+ * Render check of an explainer page in Chromium at each width (KaTeX, links, ids, contents, figures, overflow, tags).
  *
  *   node tools/check_html.js runs/<run>/explainer.html [--json report.json] [--screenshots DIR]
  *                            [--offline] [--katex-dist DIR] [--widths 1400,390]
- *
- * At every width (default 1400 px and 390 px): zero KaTeX errors, KaTeX actually rendered, no raw "$" left in
- * text, no console or page errors, no external requests except KaTeX 0.16.9, internal anchors resolve, no
- * duplicate ids, TOC text matches the headings, every figure has a caption and a non-empty graphic, equation
- * tags do not overlap their formulas; at the widest width the tags run 1..N; at widths <= 500 px nothing
- * overflows horizontally. Uncited references are reported as warnings, and so are three reading problems (warnings
- * for now, errors once the documents pass): equation numbers off screen in a formula that scrolls sideways (widths
- * <= 500 px), figure labels rendered below MIN_LABEL_PX (9 px), and numbers broken across lines in table cells.
- *
- * KaTeX: requests to cdn.jsdelivr.net/npm/katex@0.16.9/dist/ are served from a local copy when one is found
- * (--katex-dist, $KATEX_DIST, ./node_modules/katex/dist); otherwise they go to the CDN. --offline (or
- * CHECK_HTML_OFFLINE=1) refuses every other network request and requires the local copy.
  */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 
 const KATEX_PREFIX = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/';
-const MIN_LABEL_PX = 9;           // smallest rendered size of a figure label (tools/html_features.py scales to this)
+const MIN_LABEL_PX = 9;           // tools/html_features.py scales figure labels up to this
 const REPO = path.resolve(__dirname, '..');
+const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium';    // cloud images
 
 function parseArgs(argv) {
   const a = { file: null, json: null, shots: null, offline: !!process.env.CHECK_HTML_OFFLINE, katex: null, widths: [1400, 390] };
@@ -53,6 +42,17 @@ function findKatex(explicit) {
     }
   }
   return null;
+}
+
+// Playwright's pinned Chromium, else $CHROMIUM_PATH or the preinstalled one when the pinned build is not installed.
+async function launchChromium(chromium) {
+  try { return await chromium.launch(); } catch (e) {
+    const alt = process.env.CHROMIUM_PATH || (fs.existsSync(PREINSTALLED_CHROMIUM) ? PREINSTALLED_CHROMIUM : null);
+    if (!alt || !e.message.includes("Executable doesn't exist")) throw e;
+    const browser = await chromium.launch({ executablePath: alt });
+    console.log(`browser: ${alt} (Chromium ${browser.version()}; Playwright's pinned build is not installed)`);
+    return browser;
+  }
 }
 
 // Runs inside the page.
@@ -120,8 +120,7 @@ function inspect(opts) {
   }).map(e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + (e.className && typeof e.className === 'string' ? '.' + e.className.split(' ')[0] : '')).slice(0, 10);
   res.headingIds = [...document.querySelectorAll('article section[id]')].map(s => s.id);
 
-  // Reading problems. An equation number is off screen when it lies outside the part of its scrolling box (or of the
-  // page) that is visible without scrolling sideways.
+  // An equation number is off screen outside the part of its scrolling box (or of the page) seen without scrolling.
   const visible = el => {
     let l = 0, r = cw;
     for (let x = el.parentElement; x; x = x.parentElement) {
@@ -164,7 +163,7 @@ function inspect(opts) {
   return res;
 }
 
-(async () => {
+async function main() {
   const a = parseArgs(process.argv.slice(2));
   const file = path.resolve(a.file);
   if (!fs.existsSync(file)) { console.error(`not found: ${a.file}`); process.exit(3); }
@@ -178,7 +177,7 @@ function inspect(opts) {
   if (kx && kx.version && kx.version !== '0.16.9') console.warn(`warning: local KaTeX is ${kx.version}, the documents pin 0.16.9`);
 
   let browser;
-  try { browser = await chromium.launch(); } catch (e) {
+  try { browser = await launchChromium(chromium); } catch (e) {
     console.error('could not start Chromium: run `npx playwright install chromium` (' + e.message.split('\n')[0] + ')');
     process.exit(3);
   }
@@ -267,4 +266,7 @@ function inspect(opts) {
   for (const wmsg of report.warnings) console.log('warning ' + wmsg);
   console.log(`check_html: ${report.pass ? 'PASS' : 'FAIL'} (${report.errors.length} error(s), ${report.warnings.length} warning(s); KaTeX ${report.katex}) ${report.file}`);
   process.exit(report.pass ? 0 : 1);
-})().catch(e => { console.error('check_html crashed: ' + (e && e.stack || e)); process.exit(3); });
+}
+
+module.exports = { findKatex, launchChromium };
+if (require.main === module) main().catch(e => { console.error('check_html crashed: ' + (e && e.stack || e)); process.exit(3); });

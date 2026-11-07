@@ -1,23 +1,8 @@
 #!/usr/bin/env python3
-"""Assemble runs/<run>/draft/ into one self-contained explainer.html (deterministic; standard library only).
+"""Build runs/<run>/draft/ (parts, meta.json, references.json, code/figures/*.svg) into explainer.html, then lint it.
 
 Usage:
   python3 tools/build_explainer.py runs/<run> [--strict] [--out FILE]
-
-Inputs (written by the didactic-html-writer skill):
-  draft/meta.json        {"title", "subtitle", "date", "html_title" (optional), "lang" (optional, default "en")}
-  draft/NN-name.html     body parts, concatenated in file-name order (files starting with "_" are skipped)
-  references.json        bibliography with verification records (tools/validate.py --kind references)
-  code/figures/NAME.svg  figures produced by the run's scripts, inlined where a part says <!--SVG:NAME-->
-Markers resolved here (so numbering, TOC and citations can never drift):
-  <section id="sec-x"><h2>Title</h2>   numbered sections; <h3 id="sec-y">Title</h3> numbered subsections
-  <div class="part-label">Part I · ...</div>   optional part labels (also listed in the TOC)
-  \\tag{[[eq:label]]}  numbered equation (anchor eq-<label>); ([[eq:label]]) elsewhere links to it: <a class="eqref">
-  Figure [[figdef:name]].  in a figcaption defines a figure number; [[fig:name]] prints it
-  [[sec:sec-id]]  prints a section number;  [[cite:key]] -> "Keerthi & Gilbert, 1988";  [[citet:key]] -> "Keerthi and Gilbert (1988)"
-The References section (with the attribution statement from templates/explainer/attribution.html) is appended
-automatically as the last numbered section. After writing, the file is linted (tools/lint_html.py).
-Exit status: 0 = built and lint clean, 1 = errors.
 """
 from __future__ import annotations
 
@@ -152,7 +137,7 @@ def load_svg(run: Path, name: str) -> str:
     s = re.sub(r"<\?xml.*?\?>", "", s, flags=re.S)
     s = re.sub(r"<!DOCTYPE.*?>", "", s, flags=re.S)
     s = re.sub(r"<!--.*?-->", "", s, flags=re.S).strip()
-    s = HF.theme_svg(s)                  # neutral strokes, fills and text follow the light or dark theme
+    s = HF.theme_svg(s)
     prefix = re.sub(r"[^\w-]", "-", name)
     s = re.sub(r'\bid="([^"]+)"', lambda m: f'id="{prefix}-{m.group(1)}"', s)
     s = re.sub(r"url\(#([^)]+)\)", lambda m: f"url(#{prefix}-{m.group(1)})", s)
@@ -181,6 +166,7 @@ def load_svg(run: Path, name: str) -> str:
 
 
 # --------------------------------------------------------------------------- assembly
+# The drafts are rewritten as text (markers, regular expressions): every byte the build does not number stays as written.
 def build(run: Path, strict: bool = False) -> tuple[str, dict]:
     draft = run / "draft"
     meta_p = draft / "meta.json"
@@ -197,7 +183,6 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
     if 'id="sec-references"' in body:
         raise BuildError("drafts must not contain the References section: the build appends it from references.json")
 
-    # references
     refs_p = run / "references.json"
     refs = []
     if refs_p.exists():
@@ -215,16 +200,13 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
         return cite(by_key[key], textual=m.group(1) == "citet")
     body = re.sub(r"\[\[(cite|citet):([\w]+)\]\]", cite_repl, body)
 
-    # figures (inline SVG)
     body = re.sub(r"<!--SVG:([\w-]+)-->", lambda m: load_svg(run, m.group(1)), body)
 
-    # references section (last numbered section)
     attribution = (TEMPLATES / "explainer" / "attribution.html").read_text(encoding="utf-8").strip()
     items = "\n".join("  " + format_ref(by_key[k]) for k in sorted(by_key))
     body += ("\n\n<section id=\"sec-references\">\n<h2>References</h2>\n" + attribution +
              "\n<ol class=\"references\">\n" + items + "\n</ol>\n</section>")
 
-    # sections, subsections, part labels
     tok = re.compile(r'<div class="part-label[^"]*">(.*?)</div>|<section id="([^"]+)"([^>]*)>\s*<h2>(.*?)</h2>'
                      r'|<h3 id="([^"]+)">(.*?)</h3>', re.S)
     sec_num, toc, out, last, h2n, h3n = {}, [], [], 0, 0, 0
@@ -256,8 +238,7 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
     out.append(body[last:])
     body = "".join(out)
 
-    # anchors: an empty anchor right before each display that carries \tag{[[eq:name]]} (id eq-<name>), and an id on
-    # the <figure> whose caption defines [[figdef:name]] (fig-<name>), so references can link to them
+    # link targets: an anchor before each display with \tag{[[eq:name]]}, an id on the figure defining [[figdef:name]]
     def anchor_display(m):
         names = re.findall(r"\\tag\{\[\[eq:([\w-]+)\]\]\}", m.group(0))
         return "".join(f'<span class="eq-anchor" id="eq-{n}" aria-hidden="true"></span>' for n in names) + m.group(0)
@@ -270,7 +251,6 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
         return m.group(0)
     body = re.sub(r"<figure((?:\s[^>]*)?)>(.*?</figure>)", figure_id, body, flags=re.S)
 
-    # equations and figures
     eq_num, fig_num = {}, {}
     for i, name in enumerate(re.findall(r"\\tag\{\[\[eq:([\w-]+)\]\]\}", body), 1):
         if name in eq_num:
@@ -308,7 +288,6 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
         i = left.start()
         raise BuildError("leftover marker near: " + body[max(0, i - 60):i + 60].replace("\n", " "))
 
-    # table of contents
     nav = ['<!-- Table of Contents (sidebar) -->', '<nav class="toc">', '  <div class="toc-title">Contents</div>',
            '  <ol>', '    <li><a href="#abstract">Abstract</a></li>']
     open_sub = False
@@ -338,7 +317,7 @@ def build(run: Path, strict: bool = False) -> tuple[str, dict]:
               "toc": "\n".join(nav), "title": meta["title"], "subtitle": meta["subtitle"], "date": meta["date"],
               "year": str(meta["date"])[:4], "body": body}
     doc = re.sub(r"\{\{(\w+)\}\}", lambda m: fields[m.group(1)], skel)
-    doc = HF.inject(doc)                 # dark mode, equation links with Back, collapsible contents
+    doc = HF.inject(doc)
     stats = {"parts": len(parts), "sections": h2n, "equations": len(eq_num), "figures": len(fig_num),
              "references": len(refs),
              "uncited": sorted(set(by_key) - set(re.findall(r'href="#ref-(\w+)"', body.split('id="sec-references"')[0])))}

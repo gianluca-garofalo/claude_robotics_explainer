@@ -1,18 +1,9 @@
 #!/usr/bin/env python3
-"""Fast static lint for explainer HTML (no browser, standard library only, well under a second).
+"""Static lint of an explainer page or draft part: math, equation tags, links, ids, contents, figures, resources.
 
 Usage:
   python3 tools/lint_html.py runs/<run>/explainer.html [--run-dir runs/<run>] [--strict] [--json out.json]
-  python3 tools/lint_html.py runs/<run>/draft/30-model.html --part      # a draft part before the build
-
-Checks (errors unless noted): math delimiters closed exactly as KaTeX auto-render will split them; \\tag numbers
-1..N in order; internal links resolve; no duplicate ids; TOC entries match the headings they point to; every
-#ref- link has an entry (uncited entries: warning); figures have captions; no external resources except the
-pinned KaTeX 0.16.9 CDN files; required sections (abstract, verification, references); attribution statement
-(warning, error with --strict); no leftover build markers; unverified references (warning, error with --strict);
-with --run-dir, every script named in the verification table exists under code/.
-The full rendering check (KaTeX errors, overlaps, overflow at 390 px) is tools/check_html.js.
-Exit status: 0 = no errors, 1 = errors.
+  python3 tools/lint_html.py runs/<run>/draft/30-model.html --part
 """
 from __future__ import annotations
 
@@ -20,13 +11,15 @@ import argparse
 import json
 import re
 import sys
-from html.parser import HTMLParser
 from pathlib import Path
+
+if __name__ == "__main__":
+    import _common  # noqa: F401  (runs the script in .venv; not on import: the edit hook has already read its stdin)
+from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4.element import PreformattedString
 
 KATEX_BASE = "https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/"
 KATEX_FILES = ("katex.min.css", "katex.min.js", "contrib/auto-render.min.js")
-VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track",
-        "wbr"}
 NO_MATH = {"script", "style", "svg", "code", "pre", "textarea", "math", "title"}
 HTML_TAGS = set("""html head body meta link title style script nav article header footer section div span p a em strong
 b i u s sub sup small br wbr hr ol ul li dl dt dd table thead tbody tfoot tr th td caption colgroup col figure
@@ -40,11 +33,20 @@ TODO_RE = re.compile(r"\b(TODO|FIXME|XXX|TBD)\b")
 SCRIPT_PATH_RE = re.compile(r"^[\w./-]+\.(py|js|sh|jl|m|ipynb|toml)$")
 
 
-def split_math(text: str):
-    """Split a text node like KaTeX auto-render with delimiters [$$ display, $ inline].
+def parse(html: str) -> BeautifulSoup:
+    """The page as a tree; whitespace-only text stays as written, so the lines of text can be counted."""
+    return BeautifulSoup(html, "html.parser", preserve_whitespace_tags={BeautifulSoup.ROOT_TAG_NAME})
 
-    Returns (segments, unclosed): segments are (kind, content) with kind in text|display|inline;
-    unclosed is the remainder that starts with a delimiter that is never closed (None if all closed)."""
+
+def text(el: Tag) -> str:
+    """The text under el, without comments."""
+    return "".join(s for s in el.descendants
+                   if isinstance(s, NavigableString) and not isinstance(s, PreformattedString))
+
+
+def split_math(text: str):
+    """Split a text node like KaTeX auto-render with delimiters [$$ display, $ inline]: (segments, unclosed), segments
+    (kind, content) with kind text|display|inline, unclosed the rest from a delimiter never closed (None if all are)."""
     segs = []
     while True:
         m = re.search(r"\$\$|\$", text)
@@ -87,141 +89,93 @@ def norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-class Collector(HTMLParser):
+def _ancestor(el: Tag, name: str, cls: str | None = None) -> Tag | None:
+    return next((p for p in el.parents if p.name == name and (cls is None or cls in p.get("class", ()))), None)
+
+
+def _text_runs(soup: BeautifulSoup, src: str) -> list[tuple[str, int, bool]]:
+    """(text, line, math allowed) of the text between two tags; comments do not end a run."""
+    lines, pending, runs, last = {}, [], [], None
+    for el in [*soup.descendants, None]:
+        if el is None or isinstance(el, Tag):     # only tags carry a line: count back through the strings before it
+            line = src.count("\n") + 1 if el is None else el.sourceline
+            for s in reversed(pending):
+                line -= s.count("\n")
+                lines[id(s)] = line
+            pending, last = [], None
+            continue
+        pending.append(el)
+        if isinstance(el, PreformattedString):
+            continue
+        if last is not None and last.parent is el.parent and last.next_sibling is not el:
+            runs[-1][0] += el                     # only comments since the last string (adjacent ones had an end tag)
+        else:
+            runs.append([str(el), el, not any(p.name in NO_MATH for p in el.parents)])
+        last = el
+    return [(t, lines[id(s)], allowed) for t, s, allowed in runs]
+
+
+class Collector:
+    """What lint() checks, from one parse of the page: feed() it, then close()."""
+
     def __init__(self):
-        super().__init__(convert_charrefs=True)
-        self.stack: list[tuple[str, dict]] = []
-        self.ids: dict[str, int] = {}
-        self.dups: list[tuple[str, int]] = []
-        self.links: list[tuple[str, int]] = []
-        self.external: list[tuple[str, str, int]] = []
-        self.katex_urls: list[str] = []
-        self.nodes: list[tuple[str, int, bool]] = []  # (text, line, math_allowed)
-        self.buf: list[str] = []
-        self.buf_line = 0
-        self.buf_math = True
-        self.headings: dict[str, tuple[int, str, int]] = {}  # target id -> (level, text, line)
-        self.heading_order: list[str] = []
-        self.toc: list[tuple[str, str, int]] = []
-        self.refs: list[str] = []
-        self.figures: list[dict] = []
-        self.ver_code: list[tuple[str, int]] = []
-        self.unknown_tags: list[tuple[str, int]] = []
-        self.unverified_refs = 0
-        self._cap: list[list] = []  # capture stacks: [kind, key, parts, line]
+        self._src: list[str] = []
 
-    # -- helpers
-    def _flush(self):
-        if self.buf:
-            self.nodes.append(("".join(self.buf), self.buf_line, self.buf_math))
-            self.buf = []
-
-    def _math_allowed(self) -> bool:
-        return not any(t in NO_MATH for t, _ in self.stack)
-
-    def _in(self, tag: str, cls: str | None = None) -> dict | None:
-        for t, a in reversed(self.stack):
-            if t == tag and (cls is None or cls in (a.get("class") or "").split()):
-                return a
-        return None
-
-    # -- parser callbacks
-    def handle_starttag(self, tag, attrs):
-        self._start(tag, attrs, void=tag in VOID)
-
-    def handle_startendtag(self, tag, attrs):
-        self._start(tag, attrs, void=True)
-
-    def _start(self, tag, attrs, void):
-        self._flush()
-        line = self.getpos()[0]
-        a = {k: (v if v is not None else "") for k, v in attrs}
-        in_svg = self._in("svg") is not None or tag == "svg"
-        if tag not in HTML_TAGS and not (in_svg and tag in SVG_TAGS):
-            self.unknown_tags.append((tag, line))
-        if "id" in a:
-            if a["id"] in self.ids:
-                self.dups.append((a["id"], line))
-            self.ids[a["id"]] = line
-        href = a.get("href") or a.get("xlink:href")
-        if tag == "a" and href and href.startswith("#"):
-            self.links.append((href[1:], line))
-        for attr in ("src", "href", "data", "xlink:href"):
-            url = a.get(attr, "")
-            if tag != "a" and re.match(r"^(https?:)?//", url):
-                if tag in ("link", "script") and url.startswith(KATEX_BASE):
-                    self.katex_urls.append(url)
-                else:
-                    self.external.append((tag, url, line))
-        if tag == "li" and a.get("id", "").startswith("ref-"):
-            self.refs.append(a["id"])
-        if tag == "span" and "unverified" in (a.get("class") or "").split():
-            self.unverified_refs += 1
-        if tag == "figure":
-            self.figures.append({"line": line, "caption": False, "graphic": False, "svg_labelled": True})
-        if self.figures and self._in("figure") is not None:
-            f = self.figures[-1]
-            if tag == "figcaption":
-                f["caption"] = True
-            if tag in ("svg", "img"):
-                f["graphic"] = True
-                if tag == "svg" and not (a.get("role") == "img" and a.get("aria-label")):
-                    f["svg_labelled"] = False
-        # captures: headings, toc links, verification-table code
-        if tag == "h2":
-            sec = self._in("section")
-            key = sec.get("id") if sec and sec.get("id") else a.get("id")
-            self._cap.append(["h2", key, [], line])
-        elif tag in ("h3", "h4") and a.get("id"):
-            self._cap.append([tag, a["id"], [], line])
-        elif tag == "a" and self._in("nav", "toc") is not None and href and href.startswith("#"):
-            self._cap.append(["toc", href[1:], [], line])
-        elif tag == "code" and self._in("table", "ver") is not None:
-            self._cap.append(["vercode", None, [], line])
-        if not void:
-            self.stack.append((tag, a))
-        self.buf_math = self._math_allowed()
-
-    def handle_endtag(self, tag):
-        self._flush()
-        for cap in reversed(self._cap):
-            kind = cap[0]
-            if (kind == tag) or (kind == "toc" and tag == "a") or (kind == "vercode" and tag == "code"):
-                self._cap.remove(cap)
-                text = norm("".join(cap[2]))
-                if kind in ("h2", "h3", "h4") and cap[1]:
-                    self.headings[cap[1]] = (int(kind[1]), text, cap[3])
-                    self.heading_order.append(cap[1])
-                elif kind == "toc":
-                    self.toc.append((cap[1], text, cap[3]))
-                elif kind == "vercode":
-                    self.ver_code.append((text, cap[3]))
-                break
-        for i in range(len(self.stack) - 1, -1, -1):
-            if self.stack[i][0] == tag:
-                del self.stack[i:]
-                break
-        self.buf_math = self._math_allowed()
-
-    def handle_data(self, data):
-        if not self.buf:
-            self.buf_line = self.getpos()[0]
-            self.buf_math = self._math_allowed()
-        self.buf.append(data)
-        for cap in self._cap:
-            cap[2].append(data)
+    def feed(self, data: str):
+        self._src.append(data)
 
     def close(self):
-        super().close()
-        self._flush()
+        src = "".join(self._src)
+        soup = parse(src)
+        self.nodes = _text_runs(soup, src)
+        self.ids: dict[str, int] = {}
+        self.dups, self.links, self.external, self.katex_urls, self.refs = [], [], [], [], []
+        self.headings: dict[str, tuple[int, str, int]] = {}     # target id -> (level, text, line)
+        self.heading_order, self.toc, self.figures, self.ver_code, self.unknown_tags = [], [], [], [], []
+        self.unverified_refs = 0
+        for t in soup.find_all(True):
+            name, line = t.name, t.sourceline
+            if name not in HTML_TAGS and not (name in SVG_TAGS and (name == "svg" or _ancestor(t, "svg"))):
+                self.unknown_tags.append((name, line))
+            if t.has_attr("id"):
+                if t["id"] in self.ids:
+                    self.dups.append((t["id"], line))
+                self.ids[t["id"]] = line
+            href = t.get("href") or t.get("xlink:href")
+            if name == "a" and href and href.startswith("#"):
+                self.links.append((href[1:], line))
+                if _ancestor(t, "nav", "toc"):
+                    self.toc.append((href[1:], norm(text(t)), line))
+            for url in ([] if name == "a" else [t.get(k, "") for k in ("src", "href", "data", "xlink:href")]):
+                if re.match(r"^(https?:)?//", url):
+                    if name in ("link", "script") and url.startswith(KATEX_BASE):
+                        self.katex_urls.append(url)
+                    else:
+                        self.external.append((name, url, line))
+            if name == "li" and t.get("id", "").startswith("ref-"):
+                self.refs.append(t["id"])
+            if name == "span" and "unverified" in t.get("class", ()):
+                self.unverified_refs += 1
+            if name == "figure":
+                svgs = t.find_all("svg")
+                self.figures.append({"line": line, "caption": t.find("figcaption") is not None,
+                                     "graphic": bool(svgs) or t.find("img") is not None,
+                                     "svg_labelled": all(s.get("role") == "img" and s.get("aria-label") for s in svgs)})
+            if name in ("h2", "h3", "h4"):
+                sec = _ancestor(t, "section") if name == "h2" else None    # an h2 is known by its section's id
+                key = (sec.get("id") if sec else None) or t.get("id")
+                if key:
+                    self.headings[key] = (int(name[1]), norm(text(t)), line)
+                    self.heading_order.append(key)
+            if name == "code" and _ancestor(t, "table", "ver"):
+                self.ver_code.append((norm(text(t)), line))
 
 
 SVG_ATTR_DECL = re.compile(r'(?<=\s)([a-z][\w-]*-style)="([^"]*:[^"]*)"')
 
 
 def lint_svg_attributes(src: str) -> list[dict]:
-    """Presentation attributes that hold CSS declarations, such as font-style="fill: color-mix(...); italic" (left by
-    the SVG theming before its fix): the label loses its italics and its dark-mode colour."""
+    """Presentation attributes holding CSS declarations (font-style="fill: ...; italic"): the label loses its style."""
     return [{"level": "error", "code": "svg-attribute", "line": src.count("\n", 0, m.start()) + 1,
              "message": f'{m.group(1)}="{m.group(2)[:50]}..." holds CSS declarations: they belong in the style '
                         f'attribute, and {m.group(1)} keeps only its own value'}
@@ -239,7 +193,6 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
     p.feed(src)
     p.close()
 
-    # math delimiters and equation tags
     tags, math_count = [], 0
     for text, line, allowed in p.nodes:
         if "$" not in text:
@@ -269,11 +222,8 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
                 add("error", "tag-sequence", f"equation tag ({n}) found where ({i}) was expected", line)
                 break
 
-    # unknown tags (often a '<' inside math: write \lt or &lt;)
     for tag, line in p.unknown_tags:
         add("error", "unknown-tag", f"unexpected tag <{tag}> (a '<' inside math? write \\lt or &lt;)", line)
-
-    # external resources
     for tag, url, line in p.external:
         add("error", "external-resource", f"<{tag}> loads {url}: explainers are self-contained (original figures, "
                                           "inline SVG or files under the run); only the pinned KaTeX CDN is allowed", line)
@@ -286,7 +236,6 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
             if KATEX_BASE + f not in p.katex_urls:
                 add("error", "katex-missing", f"math present but {KATEX_BASE + f} is not loaded")
 
-    # leftover markers and TODOs
     for m in MARKER_RE.finditer(src):
         if not part:
             line = src.count("\n", 0, m.start()) + 1
@@ -302,14 +251,12 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
     if part:
         return issues
 
-    # ids and links
     for i, line in p.dups:
         add("error", "duplicate-id", f"duplicate id '{i}'", line)
     for target, line in p.links:
         if target not in p.ids:
             add("error", "dangling-link", f"link to #{target} has no target", line)
 
-    # required structure
     for rid in ("abstract", "sec-verification", "sec-references"):
         if rid not in p.ids:
             add("error", "missing-section", f"required element id='{rid}' is missing")
@@ -320,7 +267,6 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
         add("error" if strict else "warning", "unverified-refs",
             f"{p.unverified_refs} reference(s) still marked [unverified]")
 
-    # table of contents
     if not p.toc:
         add("error", "toc-missing", "no <nav class=\"toc\"> entries")
     toc_targets = set()
@@ -341,13 +287,11 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
             add("error", "toc-incomplete", f"heading '{p.headings[hid][1]}' (#{hid}) is not in the TOC",
                 p.headings[hid][2])
 
-    # citations and references
     cited = {t for t, _ in p.links if t.startswith("ref-")}
     for r in p.refs:
         if r not in cited:
             add("warning", "uncited-ref", f"reference #{r} is never cited")
 
-    # figures
     for f in p.figures:
         if not f["caption"]:
             add("error", "figure-caption", "figure without <figcaption>", f["line"])
@@ -356,7 +300,6 @@ def lint(path: Path, run_dir: Path | None = None, strict: bool = False, part: bo
         if not f["svg_labelled"]:
             add("warning", "figure-a11y", "inline svg without role=\"img\" and aria-label", f["line"])
 
-    # verification table -> scripts exist
     if run_dir is not None:
         code = run_dir / "code"
         names = {q.relative_to(code).as_posix() for q in code.rglob("*") if q.is_file()} if code.is_dir() else set()
