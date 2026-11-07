@@ -1,3 +1,5 @@
+> **Superseded on 2026-11-07.** `series.json` now holds the 8-episode plan rebuilt under the idea budget (`tools/series.py validate`, `pacing.plan` in `config/video.json`): the recursion moved to episode 2, and the Hamilton-Jacobi material is split into episodes 2-4. The previous plan is in `superseded/`. This file describes the previous plan; the series red team has not reviewed the new one.
+
 # Series plan: variational whole-body control (2026-11-01, revised after red-team round 1)
 
 Source: `sources/variational-whole-body-control` (explainer sha256 `d879b298…a686`, companion code and data present).

@@ -10,7 +10,7 @@
     "privacy": "public"
   },
   "plan_sentence": "A controller that plans a short window ahead and applies only the first move converges because the action still to be paid can only fall; this series finds what guarantees that fall, and why a perfectly good controller can still fail to prove it.",
-  "playlist_description": "Model predictive control re-plans over a short window and applies only the first move. Why does that converge, and what exactly certifies it? This series answers with one idea from analytical mechanics, the remaining action: the least action still to be paid from where you are.\n\nSeven episodes, best watched in order, each made to stand on its own:\n1. Why re-planning converges: the remaining action and a one-step test that works for every window length.\n2. Shrinking the step to zero: the Hamilton-Jacobi equation, momentum, and the two outputs of one minimization, a controller and a certificate.\n3. The hilltop: the simplest example solved by hand, where the stable path rides the separatrix of an unstable hill.\n4. Discretization: when one step is already exact, and why the textbook terminal weight fails with the simplest discretization.\n5. Speed limits: the right controller with the wrong certificate.\n6. A two-link arm under gravity: PD control with gravity compensation falls out of the rule, and the cost decides whether it is certified.\n7. The receding window on the arm: descent at every step, and what the step size and the window length change.\n\nFor control and robotics students, engineers and researchers who know what a cost function and a Lyapunov function are. A second series, Multipliers Are Forces, carries the same ideas into whole-body control.",
+  "playlist_description": "Model predictive control re-plans over a short window and applies only the first move. Why does that converge, and what exactly certifies it? This series answers with one idea from analytical mechanics, the remaining action: the least action still to be paid from where you are.\n\nEight episodes, best watched in order, each made to stand on its own:\n1. Why re-planning converges: the remaining action and a one-step test that works for every window length.\n2. From steps to rates: the recursion becomes the Hamilton-Jacobi equation, and its slope is a momentum.\n3. Rule and certificate: one minimization, two outputs, a controller and its certificate.\n4. The hilltop: the simplest example solved by hand, where the stable path rides the separatrix of an unstable hill.\n5. Discretization: when one step is already exact, and why the textbook terminal weight fails with the simplest discretization.\n6. Speed limits: the right controller with the wrong certificate.\n7. A two-link arm under gravity: PD control with gravity compensation falls out of the rule, and the cost decides whether it is certified.\n8. The receding window on the arm: descent at every step, and what the step size and the window length change.\n\nFor control and robotics students, engineers and researchers who know what a cost function and a Lyapunov function are. A second series, Multipliers Are Forces, carries the same ideas into whole-body control.",
   "related_series": {
     "follows": [],
     "followed_by": [
@@ -26,9 +26,10 @@
       4,
       5,
       6,
-      7
+      7,
+      8
     ],
-    "note": "In episode order; the second series starts after episode 7 of this one."
+    "note": "In episode order; the second series starts after episode 8 of this one."
   },
   "target_viewer": "Control and robotics students and engineers who know MPC by name and Lyapunov functions",
   "episodes": [
@@ -38,11 +39,141 @@
       "title": "Why Does MPC Converge? A One-Step Proof",
       "short_title": "The Remaining Action",
       "hook": "A controller looks ahead a few steps, picks the cheapest path, takes only its first step and throws the rest away. Then it does it all again. Why should that ever reach the target? The answer fits in one line: the action still left to pay can only go down.",
-      "length_min": 10,
+      "length_min": 12.0,
+      "ideas": [
+        {
+          "id": "receding-window",
+          "kind": "concept",
+          "text": "plan a few steps ahead, take the first, throw the rest away, plan again",
+          "pretraining": true
+        },
+        {
+          "id": "stage-cost",
+          "kind": "concept",
+          "text": "every step costs something: the stage cost, a discrete Lagrangian",
+          "pretraining": true
+        },
+        {
+          "id": "end-cost",
+          "kind": "concept",
+          "text": "the boundary term W paid where the plan ends",
+          "pretraining": true
+        },
+        {
+          "id": "end-region",
+          "kind": "concept",
+          "text": "the terminal region the plan must end in",
+          "pretraining": true
+        },
+        {
+          "id": "remaining-action",
+          "kind": "concept",
+          "text": "the least total still to pay, V_N: the bill on the meter",
+          "pretraining": true,
+          "uses": [
+            "receding-window",
+            "stage-cost",
+            "end-cost",
+            "end-region"
+          ]
+        },
+        {
+          "id": "reference-step",
+          "kind": "concept",
+          "text": "one extra step that stays inside the region"
+        },
+        {
+          "id": "descent",
+          "kind": "star",
+          "text": "for every N, V_N(q+) - V_N(q) <= -L_d(q,q+): the shifted path plus one reference step",
+          "uses": [
+            "remaining-action",
+            "reference-step"
+          ]
+        },
+        {
+          "id": "feasibility",
+          "kind": "claim",
+          "follows": "descent",
+          "text": "from the new point there is always a plan into the region, so the controller can always plan again"
+        },
+        {
+          "id": "stability",
+          "kind": "claim",
+          "text": "under two mild conditions the dot settles at the rest point (its own sentence)",
+          "follows": "descent",
+          "uses": []
+        },
+        {
+          "id": "lyapunov-name",
+          "kind": "concept",
+          "names": "descent",
+          "text": "a bill that only falls along the motion is called a Lyapunov function"
+        },
+        {
+          "id": "asymptotic-stability",
+          "kind": "concept",
+          "names": "stability",
+          "text": "settling at the rest point like this is called asymptotic stability (a sentence of its own: P5)"
+        },
+        {
+          "id": "one-step-bill",
+          "kind": "concept",
+          "uses": [
+            "end-cost",
+            "end-region"
+          ],
+          "text": "the bill with one step left, V_1; with none left it is the end cost inside the region, infinite outside"
+        },
+        {
+          "id": "terminal-names",
+          "kind": "concept",
+          "names": "end-cost",
+          "text": "in the literature the end cost is the terminal cost and the region the terminal set (one sentence, at the first close-up)"
+        },
+        {
+          "id": "one-step-test",
+          "kind": "star",
+          "text": "the test on the boundary term alone: a reference step that lowers W by at least its cost, i.e. V_1 <= V_0",
+          "uses": [
+            "reference-step",
+            "end-cost",
+            "end-region",
+            "stage-cost"
+          ]
+        },
+        {
+          "id": "window-free",
+          "kind": "claim",
+          "text": "the test never mentions the window length",
+          "follows": "one-step-test"
+        },
+        {
+          "id": "one-step-example",
+          "kind": "claim",
+          "example": true,
+          "uses": [
+            "one-step-test"
+          ],
+          "text": "the simplest mass on a spring: the end cost 0.6 against the one-step bill 0.59, so the test passes, and each step pays its cost"
+        },
+        {
+          "id": "ratio",
+          "kind": "claim",
+          "follows": "one-step-example",
+          "text": "both bills grow with q squared, so passing at one point means passing everywhere"
+        },
+        {
+          "id": "textbook-weight",
+          "kind": "claim",
+          "follows": "one-step-example",
+          "side": true,
+          "text": "the textbook weight 1 fails the test by about one percent; why is a story for a later episode"
+        }
+      ],
       "takeaway": {
-        "sentence": "If one step of the recursion does not raise the remaining action, then for every window length the remaining action falls by at least the action just spent.",
+        "sentence": "If one step from the end region lowers the end cost by at least that step's cost, then for every window length the bill still to pay falls by at least the cost of each step.",
         "tex": [
-          "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
           "V_1\\le V_0\\ \\Longrightarrow\\ V_N(q^+)-V_N(q)\\le -L_d(q,q^+)\\quad\\text{for every }N"
         ]
       },
@@ -53,22 +184,20 @@
       "recap": [],
       "series_context": {
         "at_s": 50,
-        "spoken": "This is the first of seven episodes on why receding-window control converges, told with one idea from mechanics, the remaining action. Each episode stands on its own; together they go from this one-line argument to a robot arm under gravity.",
+        "spoken": "This is the first of eight episodes on why receding-window control converges, told with one idea from mechanics, the remaining action. Each episode stands on its own; together they go from this one-line argument to a robot arm under gravity.",
         "frame": {
-          "heading": "Episode 1 of 7",
+          "heading": "Episode 1 of 8",
           "builds_on": []
         }
       },
-      "teaser": "In the next episode, we let the step shrink to zero, and the recursion turns into the Hamilton-Jacobi equation, with a momentum that nobody put in.",
+      "teaser": "In the next episode, the bill builds itself one step at a time, and as the step shrinks to zero that recursion turns into the Hamilton-Jacobi equation, with a momentum that nobody put in.",
       "material": {
         "section_ids": [
           "sec-idea",
           "sec-problem",
           "sec-steps",
           "sec-window",
-          "sec-bellman",
           "sec-terminal",
-          "sec-monotone",
           "sec-descent",
           "sec-onestep",
           "sec-split"
@@ -78,39 +207,43 @@
           "merged/window_split.py",
           "note/sec10_general_N_descent.py"
         ],
-        "notes": "Shows: the window problem as stage cost plus boundary term, the principle of optimality as the recursion, the one-step test (A1, A2 merged as V1 <= V0), monotonicity of the Bellman operator, the descent inequality and recursive feasibility. Worked numbers on the scalar example m = kappa = 1, h = 0.1, rectangle rule with the boundary weight 1.2 x 1/2 q^2: V1 = 0.585714 <= W = 0.6 at q = 1, drop 0.118786 >= action 0.107398 (note/sec4_3_one_step_example.py, 'rect 1.2'); V_N(1) falling with N, 0.5857, 0.5743, 0.5518, 0.5351, 0.5269 for N = 1, 2, 5, 10, 20 (merged/window_split.py (b)); optional: the 3-D example, descent holds for N = 1, 2, 3, 5 and 8 in every sampled case (note/sec10_general_N_descent.py). Why the weight is 1.2 and not 1 is left for the discretization episode: say only that this boundary term passes the test. Left out: comparison functions and the class-K sandwich of asymptotic stability (one sentence: positivity of the stage cost turns descent into asymptotic stability), the explicit-candidate proof as a full derivation (show it as the picture of a shifted path plus one reference step instead, it is the intuition), the MPC translation table (use the MPC words in narration once)."
+        "notes": "Idea budget (2026-11-07): the recursion, the principle of optimality and monotonicity moved to episode 2, V_N falling with N with them. Shows: the window problem as stage cost plus boundary term, the principle of optimality as the recursion, the one-step test (A1, A2 merged as V1 <= V0), monotonicity of the Bellman operator, the descent inequality and recursive feasibility. Worked numbers on the scalar example m = kappa = 1, h = 0.1, rectangle rule with the boundary weight 1.2 x 1/2 q^2: V1 = 0.585714 <= W = 0.6 at q = 1, drop 0.118786 >= action 0.107398 (note/sec4_3_one_step_example.py, 'rect 1.2'); V_N(1) falling with N, 0.5857, 0.5743, 0.5518, 0.5351, 0.5269 for N = 1, 2, 5, 10, 20 (merged/window_split.py (b)); optional: the 3-D example, descent holds for N = 1, 2, 3, 5 and 8 in every sampled case (note/sec10_general_N_descent.py). Why the weight is 1.2 and not 1 is left for the discretization episode: say only that this boundary term passes the test. Left out: comparison functions and the class-K sandwich of asymptotic stability (one sentence: positivity of the stage cost turns descent into asymptotic stability), the explicit-candidate proof as a full derivation (show it as the picture of a shifted path plus one reference step instead, it is the intuition), the MPC translation table (use the MPC words in narration once)."
       },
       "outline": [
         {
           "beat": "Hook: plan, take one step, throw the rest away, repeat; why should it converge?",
-          "min": 0.75
+          "min": 0.8
         },
         {
-          "beat": "The window problem: stage cost as a Lagrangian, boundary term W, terminal region; the remaining action V_N as the least action still to pay",
-          "min": 1.75
+          "beat": "Title beat and roadmap: what the controller still has to pay; why one step always lowers it; the one test that makes that true, checked on an example",
+          "min": 0.4
         },
         {
-          "beat": "Principle of optimality: the tail of an optimal path is optimal; the recursion built from the boundary term outwards",
-          "min": 1.75
+          "beat": "The bill: window, stage cost, end cost, region, the remaining action V_N (pretraining, each named on its own object, then a summary)",
+          "min": 1.9
         },
         {
-          "beat": "The one-step test on the boundary term: a reference step that lowers W by at least the action spent, i.e. V1 <= V0",
-          "min": 1.5
+          "beat": "The main think prompt: after one step, is there a plan from the new point that costs no more than today's bill minus the step? (\"pause here if you like\", 4 s held)",
+          "min": 0.35
         },
         {
-          "beat": "Monotonicity: a cheaper arrival makes the departure cheaper; V_N <= V_{N-1} <= ... <= V_0; the descent inequality for every N, drawn as a shifted path plus one reference step",
-          "min": 2.25
+          "beat": "Why it falls: the shifted plan plus one reference step; the descent for every N (held 3 s, restated in words); feasibility; stability in two sentences (Lyapunov function, asymptotic stability)",
+          "min": 3.0
         },
         {
-          "beat": "Numbers on the scalar example: one step checked, V_N falling with N; what the window length does and does not change",
-          "min": 1.25
+          "beat": "The one-step test read as a bill: V_1 <= V_0 (held 3 s, restated); the test never mentions the window: more on that next time",
+          "min": 2.2
         },
         {
-          "beat": "Outro: takeaway card, teaser",
-          "min": 0.75
+          "beat": "The simplest example: the test passes (0.6 against 0.59), each step pays its cost; one point settles every point; the textbook weight fails by a hair",
+          "min": 1.9
+        },
+        {
+          "beat": "Recap (opens with its question), then outro: takeaway card, teaser",
+          "min": 1.2
         }
       ],
-      "story_beat": "Poses the series question and answers its discrete half: the remaining action is a Lyapunov function, certified by a one-step test that does not depend on the window length.",
+      "story_beat": "Poses the series question and answers its discrete half: one test on one step, at the end of the window, makes the remaining action fall for every window length.",
       "target_viewer": "Students and engineers who have heard of MPC and want the stability argument in one line",
       "difficulty": 2,
       "entry_point": true
@@ -118,16 +251,70 @@
     {
       "number": 2,
       "kind": "middle",
-      "title": "From Steps to Rates: Momentum and the Hamilton-Jacobi Certificate",
-      "short_title": "Rule and Certificate",
-      "hook": "Make the time step of a controller smaller and smaller. The recursion that plans its moves turns into the Hamilton-Jacobi equation of classical mechanics, and a momentum appears that nobody put in. Out of a single minimization come two different things: a controller and a proof.",
-      "length_min": 10,
+      "title": "From Steps to Rates: The Recursion Becomes the Hamilton-Jacobi Equation",
+      "short_title": "From Steps to Rates",
+      "hook": "Make the time step of a controller smaller and smaller. The recursion that plans its moves turns into the Hamilton-Jacobi equation, and a momentum appears that nobody put in.",
+      "length_min": 8.5,
+      "ideas": [
+        {
+          "id": "recursion",
+          "kind": "claim",
+          "text": "the bill builds itself one step at a time: V_N = min{L_d + V_(N-1)}, V_0 = W on the region (Bellman's recursion), the stepping stone to the Hamilton-Jacobi equation",
+          "uses": [
+            "remaining-action"
+          ]
+        },
+        {
+          "id": "optimal-tail",
+          "kind": "concept",
+          "names": "recursion",
+          "text": "Bellman's principle of optimality: the name of that bookkeeping, the tail of a best plan is a best plan"
+        },
+        {
+          "id": "monotonicity",
+          "kind": "claim",
+          "follows": "recursion",
+          "uses": [
+            "one-step-test"
+          ],
+          "seconds": 30,
+          "text": "one more step of planning never raises the bill: V_N <= V_(N-1) <= ... <= V_0, by induction from the test at the end of the window"
+        },
+        {
+          "id": "window-ladder",
+          "kind": "claim",
+          "follows": "recursion",
+          "text": "on the example the bill falls window by window: ten steps, twenty steps"
+        },
+        {
+          "id": "time-to-go",
+          "kind": "concept",
+          "text": "the time left in the window, with the step h shrinking to zero"
+        },
+        {
+          "id": "hj-equation",
+          "kind": "star",
+          "text": "the recursion with a vanishing step is the time-to-go Hamilton-Jacobi equation, a balance between moving downhill on V and paying L",
+          "uses": [
+            "recursion",
+            "time-to-go"
+          ],
+          "seconds": 120
+        },
+        {
+          "id": "momentum",
+          "kind": "concept",
+          "text": "the momentum p = -grad V",
+          "uses": [
+            "remaining-action"
+          ]
+        }
+      ],
       "takeaway": {
-        "sentence": "Shrinking the step turns the recursion into the Hamilton-Jacobi equation; one minimization gives the controller, its argmin, and the certificate, the sign of its minimum, which covers every window length.",
+        "sentence": "The bill builds itself one step at a time; shrink the step and that recursion becomes the time-to-go Hamilton-Jacobi equation, whose slope is a momentum.",
         "tex": [
-          "\\partial_\\vartheta V_\\vartheta=-H\\big(q,-\\nabla V_\\vartheta\\big),\\qquad p=-\\nabla V",
-          "v^*=\\arg\\min_v\\big[L+\\nabla W\\cdot v\\big]",
-          "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0"
+          "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
+          "\\partial_\\vartheta V_\\vartheta=\\min_v\\big[L+\\nabla V_\\vartheta\\cdot v\\big],\\qquad p=-\\nabla V"
         ]
       },
       "prerequisites": {
@@ -144,69 +331,66 @@
           ],
           "seconds": 30,
           "card": [
-            "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
             "V_1\\le V_0\\ \\Longrightarrow\\ V_N(q^+)-V_N(q)\\le -L_d(q,q^+)\\quad\\text{for every }N"
           ],
-          "restates": "The remaining action is the least action still to be paid from the current point. Built step by step from the boundary term, it can only fall with a longer window once one step does not raise it, and then it drops by at least the action just spent, for every window length."
+          "restates": "The remaining action is the least total still to pay. One test, on one step at the end of the window, makes it fall by at least each step's cost, for every window length.",
+          "ideas": [
+            "descent",
+            "one-step-test"
+          ]
         }
       ],
       "series_context": {
         "at_s": 45,
-        "spoken": "This is episode two of seven on why receding-window control converges. Last time the argument worked with steps; here we let the step shrink to zero and watch mechanics appear.",
+        "spoken": "This is episode two of eight on why receding-window control converges. Last time the argument worked with steps; here the bill builds itself one step at a time, and we let the step shrink to zero.",
         "frame": {
-          "heading": "Episode 2 of 7",
+          "heading": "Episode 2 of 8",
           "builds_on": [
             "The Remaining Action"
           ]
         }
       },
-      "teaser": "In the next episode, we solve the Hamilton-Jacobi equation by hand on the simplest example, and the optimal path turns out to balance on top of a hill.",
+      "teaser": "In the next episode, one minimization gives two different things: the controller, and the certificate that proves it.",
       "material": {
         "section_ids": [
+          "sec-bellman",
+          "sec-monotone",
           "sec-hj",
           "sec-hjderiv",
-          "sec-momentum",
-          "sec-rhc",
-          "sec-infinitesimal",
-          "sec-allwindows",
-          "sec-stationary"
+          "sec-momentum"
         ],
         "scripts": [
           "note/sec5_6_symbolic_checks.py"
         ],
-        "notes": "Three ideas: (1) the time-to-go form of the Hamilton-Jacobi equation from the recursion with a step of length h; (2) the momentum p = -grad V and the Legendre transform min_v[L - p v] = -H; (3) the infinitesimal window: argmin = rule, minimum value = certificate H(q,-grad W) >= 0. That the certificate at zero window covers every window length is STATED with one picture (V_theta non-increasing in theta), not argued: the receding-window rate identity and the monotonicity step stay out (the hilltop episode shows it in closed form with the tanh formula). Example: quadratic Lagrangian, W = cV_inf, H = (c^2-1)/2 q^T Q q (closed form; confirmed for c in {0.5, 0.9, 1, 1.3, 2} by note/sec5_6_symbolic_checks.py): c = 1 exact, c > 1 certifies, c < 1 converges without a certificate, the first good argmin with a failed certificate. LQR as the rule with the Riccati weight, one sentence. Left out: the costate sign conventions table (one sentence that the MPC costate is +grad V), viscosity solutions (a clause), the receding-window rate identity derived in full (state it), the 'why L cannot be dropped' singular case (a clause: it is why a torque cost appears on robots)."
+        "notes": "Option (c) of the idea budget: the recursion, monotonicity, the Hamilton-Jacobi equation in its min form and the momentum. The Legendre transform, the Hamiltonian, the rule and the certificate are the next episode's."
       },
       "outline": [
         {
-          "beat": "Hook: shrink the step; mechanics appears; two outputs of one minimization",
-          "min": 0.75
+          "beat": "Hook: shrink the step; the recursion turns into mechanics",
+          "min": 0.8
         },
         {
-          "beat": "Recap: the remaining action falls",
-          "min": 0.5
+          "beat": "Recap: the remaining action falls (opens with its question)",
+          "min": 0.55
+        },
+        {
+          "beat": "The bill builds itself: Bellman's recursion; one more step of planning never raises the bill (an induction from the test); the bill falls window by window",
+          "min": 2.45
         },
         {
           "beat": "From steps to rates: one step of length h, the chain rule, the time-to-go Hamilton-Jacobi equation as a balance between moving downhill on V and paying L",
-          "min": 2.0
+          "min": 2.75
         },
         {
-          "beat": "Momentum p = -grad V and the Legendre transform; the Hamiltonian of the quadratic example",
-          "min": 2.0
-        },
-        {
-          "beat": "The infinitesimal window: V becomes W; the rule v* = argmin[L + grad W . v] and the certificate H(q,-grad W) >= 0; stated with one picture: it covers every window length",
-          "min": 2.25
-        },
-        {
-          "beat": "Scaled candidates W = cV: over-estimate certifies, under-estimate converges but is not certified; argmin versus certificate",
-          "min": 1.75
+          "beat": "The slope of the bill is a momentum, p = -grad V",
+          "min": 1.1
         },
         {
           "beat": "Outro: takeaway card, teaser",
-          "min": 0.75
+          "min": 0.8
         }
       ],
-      "story_beat": "Takes the continuous limit and splits the story's central object in two: the controller (argmin) and its certificate (the sign of the minimum), the thread every later episode returns to.",
+      "story_beat": "Builds the bill one step at a time and takes the continuous limit: the recursion becomes the time-to-go Hamilton-Jacobi equation, and its slope is a momentum.",
       "target_viewer": "Viewers comfortable with gradients and a first course in optimal control",
       "difficulty": 3,
       "entry_point": true
@@ -214,16 +398,64 @@
     {
       "number": 3,
       "kind": "middle",
-      "title": "The Hilltop: A Stable Path Balanced on an Unstable Hill",
-      "short_title": "The Hilltop",
-      "hook": "The best way to bring a point to rest turns out to be the path of a ball balanced on top of an upside-down hill: push it too hard and it rolls over, too softly and it rolls back. Only one push arrives, and the remaining action is what finds it.",
-      "length_min": 11,
+      "title": "Rule and Certificate: One Minimization, Two Answers",
+      "short_title": "Rule and Certificate",
+      "hook": "Out of a single minimization come two different things: a controller and a proof. And a controller can be exactly right while its proof fails.",
+      "length_min": 9.5,
+      "ideas": [
+        {
+          "id": "legendre",
+          "kind": "concept",
+          "text": "the Legendre transform from cost to energy",
+          "seconds": 60
+        },
+        {
+          "id": "hamiltonian",
+          "kind": "concept",
+          "text": "the Hamiltonian H(q, p)",
+          "uses": [
+            "legendre",
+            "momentum"
+          ]
+        },
+        {
+          "id": "quadratic-hamiltonian",
+          "kind": "claim",
+          "text": "the Hamiltonian of the quadratic example",
+          "example": true,
+          "uses": [
+            "hamiltonian"
+          ]
+        },
+        {
+          "id": "rule-and-certificate",
+          "kind": "star",
+          "text": "the infinitesimal window: the rule v* = argmin[L + grad W . v] and the certificate H(q, -grad W) >= 0, for every window length",
+          "uses": [
+            "hj-equation",
+            "hamiltonian"
+          ]
+        },
+        {
+          "id": "scaled-candidates",
+          "kind": "claim",
+          "text": "W = cV: an over-estimate certifies, an under-estimate converges but is not certified",
+          "uses": [
+            "rule-and-certificate"
+          ]
+        },
+        {
+          "id": "argmin-vs-certificate",
+          "kind": "claim",
+          "text": "the controller and its certificate are different things",
+          "follows": "scaled-candidates"
+        }
+      ],
       "takeaway": {
-        "sentence": "On the hilltop the only finite-action path rides the zero-energy stable manifold, generated by the remaining action; with W = cV and c >= 1 every finite window pays down at least what it spends.",
+        "sentence": "One minimization gives the controller, its argmin, and the certificate, the sign of its minimum, which covers every window length; an over-estimated boundary term certifies, an under-estimated one converges without a certificate.",
         "tex": [
-          "H=\\frac{p^2}{2m}-\\tfrac12\\kappa q^2=0",
-          "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2,\\qquad p=-V'(q)",
-          "V_\\vartheta(q)=\\tfrac12\\sqrt{m\\kappa}\\,\\frac{c+\\tanh\\omega\\vartheta}{1+c\\tanh\\omega\\vartheta}\\,q^2"
+          "v^*=\\arg\\min_v\\big[L+\\nabla W\\cdot v\\big]",
+          "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0"
         ]
       },
       "prerequisites": {
@@ -236,9 +468,154 @@
       },
       "recap": [
         {
-          "title": "Recap: momentum and the certificate",
+          "title": "Recap: from steps to rates",
           "from": [
             2
+          ],
+          "seconds": 35,
+          "card": [
+            "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
+            "\\partial_\\vartheta V_\\vartheta=\\min_v\\big[L+\\nabla V_\\vartheta\\cdot v\\big],\\qquad p=-\\nabla V"
+          ],
+          "ideas": [
+            "hj-equation",
+            "momentum"
+          ],
+          "restates": "The bill builds itself one step at a time, and as the step shrinks that recursion becomes the Hamilton-Jacobi equation; the slope of the bill is a momentum."
+        }
+      ],
+      "series_context": {
+        "at_s": 45,
+        "spoken": "This is episode three of eight on why receding-window control converges. Last time the step shrank to zero and a momentum appeared; here one minimization gives two answers.",
+        "frame": {
+          "heading": "Episode 3 of 8",
+          "builds_on": [
+            "From Steps to Rates"
+          ]
+        }
+      },
+      "teaser": "In the next episode, we solve the Hamilton-Jacobi equation by hand on the simplest example, and the optimal path turns out to balance on top of a hill.",
+      "material": {
+        "section_ids": [
+          "sec-momentum",
+          "sec-rhc",
+          "sec-infinitesimal",
+          "sec-allwindows",
+          "sec-stationary"
+        ],
+        "scripts": [
+          "note/sec5_6_symbolic_checks.py"
+        ],
+        "notes": "Option (c) of the idea budget: the Legendre transform, the Hamiltonian and its quadratic example, the rule and the certificate, and the scaled candidates."
+      },
+      "outline": [
+        {
+          "beat": "Hook: one minimization, two answers",
+          "min": 0.8
+        },
+        {
+          "beat": "Recap: from steps to rates (opens with its question)",
+          "min": 0.65
+        },
+        {
+          "beat": "The Legendre transform: from cost to energy, the Hamiltonian; the quadratic example",
+          "min": 2.65
+        },
+        {
+          "beat": "The infinitesimal window: V becomes W; the rule v* = argmin[L + grad W . v] and the certificate H(q,-grad W) >= 0; it covers every window length",
+          "min": 2.65
+        },
+        {
+          "beat": "Scaled candidates W = cV: an over-estimate certifies, an under-estimate converges but is not certified; the controller is not its certificate",
+          "min": 1.85
+        },
+        {
+          "beat": "Outro: takeaway card, teaser",
+          "min": 0.8
+        }
+      ],
+      "story_beat": "Splits the story's central object in two: the controller (argmin) and its certificate (the sign of the minimum), the thread every later episode returns to.",
+      "target_viewer": "Viewers comfortable with gradients and a first course in optimal control",
+      "difficulty": 3,
+      "entry_point": true
+    },
+    {
+      "number": 4,
+      "kind": "middle",
+      "title": "The Hilltop: A Stable Path Balanced on an Unstable Hill",
+      "short_title": "The Hilltop",
+      "hook": "The best way to bring a point to rest turns out to be the path of a ball balanced on top of an upside-down hill: push it too hard and it rolls over, too softly and it rolls back. Only one push arrives, and the remaining action is what finds it.",
+      "length_min": 9.0,
+      "ideas": [
+        {
+          "id": "inverted-potential",
+          "kind": "concept",
+          "text": "the cost read as kinetic minus an inverted potential: the optimal path moves like a ball on this hill (the bridge from Hamilton's equations, which stay in the explainer)",
+          "seconds": 45
+        },
+        {
+          "id": "phase-plane",
+          "kind": "concept",
+          "text": "the (q, p) plane and its saddle"
+        },
+        {
+          "id": "separatrix",
+          "kind": "star",
+          "text": "finite action picks the zero-energy separatrix, the only path that arrives",
+          "uses": [
+            "inverted-potential",
+            "phase-plane",
+            "hamiltonian"
+          ]
+        },
+        {
+          "id": "v-generates",
+          "kind": "star",
+          "text": "the remaining action generates it: V = 1/2 sqrt(m kappa) q^2, p = -V', Vdot = -L",
+          "uses": [
+            "separatrix",
+            "momentum"
+          ]
+        },
+        {
+          "id": "finite-windows",
+          "kind": "claim",
+          "text": "W = cV and the tanh formula: with c >= 1 every finite window pays down at least what it spends",
+          "uses": [
+            "v-generates",
+            "scaled-candidates"
+          ]
+        },
+        {
+          "id": "c-cases",
+          "kind": "claim",
+          "text": "c = 0, 1, above and below 1",
+          "follows": "finite-windows"
+        }
+      ],
+      "takeaway": {
+        "sentence": "On the hilltop the only finite-action path rides the zero-energy stable manifold, generated by the remaining action; with W = cV and c >= 1 every finite window pays down at least what it spends.",
+        "tex": [
+          "H=\\frac{p^2}{2m}-\\tfrac12\\kappa q^2=0",
+          "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2,\\qquad p=-V'(q)",
+          "V_\\vartheta(q)=\\tfrac12\\sqrt{m\\kappa}\\,\\frac{c+\\tanh\\omega\\vartheta}{1+c\\tanh\\omega\\vartheta}\\,q^2"
+        ]
+      },
+      "prerequisites": {
+        "must": [
+          2,
+          3
+        ],
+        "helpful": [
+          1
+        ]
+      },
+      "recap": [
+        {
+          "title": "Recap: momentum and the certificate",
+          "from": [
+            2,
+            3
           ],
           "seconds": 35,
           "card": [
@@ -246,15 +623,20 @@
             "v^*=\\arg\\min_v\\big[L+\\nabla W\\cdot v\\big]",
             "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0"
           ],
-          "restates": "Letting the step shrink turns the recursion into the Hamilton-Jacobi equation. Minus the gradient of the remaining action is a momentum, and the minimum of cost plus the rate of change of the boundary term is minus a Hamiltonian. Its argmin is the controller; its sign is the certificate."
+          "restates": "Letting the step shrink turns the recursion into the Hamilton-Jacobi equation. Minus the gradient of the remaining action is a momentum, and the minimum of cost plus the rate of change of the boundary term is minus a Hamiltonian. Its argmin is the controller; its sign is the certificate.",
+          "ideas": [
+            "momentum",
+            "rule-and-certificate"
+          ]
         }
       ],
       "series_context": {
         "at_s": 45,
-        "spoken": "This is episode three of seven on why receding-window control converges. We take the equation from the episode on rule and certificate and solve it completely, on an example small enough to hold in your head.",
+        "spoken": "This is episode four of eight on why receding-window control converges. We take the equation from the episode on rule and certificate and solve it completely, on an example small enough to hold in your head.",
         "frame": {
-          "heading": "Episode 3 of 7",
+          "heading": "Episode 4 of 8",
           "builds_on": [
+            "From Steps to Rates",
             "Rule and Certificate"
           ]
         }
@@ -274,7 +656,7 @@
           "note/fig3_phase_portrait.py",
           "checks/torque_momentum_share.py"
         ],
-        "notes": "The intuition episode, a good entry point from search. Ideas: (1) characteristics: along the optimal path p = -grad V obeys Hamilton's equations, so optimal paths are extremals; (2) the hilltop L = 1/2 m v^2 + 1/2 kappa q^2 read as T - U with U = -1/2 kappa q^2: saddle, finite action selects the H = 0 separatrix, V = 1/2 sqrt(m kappa) q^2 generates it, v* = -omega q, Vdot = -L; (3) finite windows with W = cV: the tanh formula and its four cases. Numbers are closed forms (m = kappa = 1 for the animation), checked symbolically by note/sec5_6_symbolic_checks.py; the phase portrait is the idea of note/fig3_phase_portrait.py, redrawn in Manim. The c-family is a closed form; checks/torque_momentum_share.py integrates the Riccati equation for c in {0, 0.5, 1, 1.2, 3} and agrees to 4.6e-12, monotone up for c < 1, flat at 1, down above (usable for an animated P_theta(c) family). Wording for c < 1: the loop still converges and the remaining action still falls, only more slowly than the action spent. One closing sentence on the two Lagrangians: the hill belongs to the cost we chose, not to any robot. Left out: Jacobi fields and conjugate points (a clause: no conjugate point, so a true minimum), the principal-function sign table, the general Riccati stable subspace (a sentence), the stability-of-equilibria literature (Lagrange-Dirichlet converses, Painleve-Wintner, gyroscopic and Kapitza stabilization): fascinating, but a different story with no numbers to show."
+        "notes": "Idea budget (2026-11-07): Hamilton's equations and the extremals are left to the explainer (nothing later builds on them; one bridge sentence instead); The intuition episode, a good entry point from search. Ideas: (1) characteristics: along the optimal path p = -grad V obeys Hamilton's equations, so optimal paths are extremals; (2) the hilltop L = 1/2 m v^2 + 1/2 kappa q^2 read as T - U with U = -1/2 kappa q^2: saddle, finite action selects the H = 0 separatrix, V = 1/2 sqrt(m kappa) q^2 generates it, v* = -omega q, Vdot = -L; (3) finite windows with W = cV: the tanh formula and its four cases. Numbers are closed forms (m = kappa = 1 for the animation), checked symbolically by note/sec5_6_symbolic_checks.py; the phase portrait is the idea of note/fig3_phase_portrait.py, redrawn in Manim. The c-family is a closed form; checks/torque_momentum_share.py integrates the Riccati equation for c in {0, 0.5, 1, 1.2, 3} and agrees to 4.6e-12, monotone up for c < 1, flat at 1, down above (usable for an animated P_theta(c) family). Wording for c < 1: the loop still converges and the remaining action still falls, only more slowly than the action spent. One closing sentence on the two Lagrangians: the hill belongs to the cost we chose, not to any robot. Left out: Jacobi fields and conjugate points (a clause: no conjugate point, so a true minimum), the principal-function sign table, the general Riccati stable subspace (a sentence), the stability-of-equilibria literature (Lagrange-Dirichlet converses, Painleve-Wintner, gyroscopic and Kapitza stabilization): fascinating, but a different story with no numbers to show."
       },
       "outline": [
         {
@@ -282,24 +664,20 @@
           "min": 0.75
         },
         {
-          "beat": "Recap: momentum and the certificate",
+          "beat": "Recap: momentum and the certificate (opens with its question)",
           "min": 0.6
         },
         {
-          "beat": "Characteristics: following the Hamilton-Jacobi equation along the optimal path gives Hamilton's equations; optimal paths are extremals, and the boundary term fixes the arrival momentum",
-          "min": 2.25
+          "beat": "The hilltop: the cost read as kinetic minus an inverted potential, so the optimal path moves like a ball on this hill; the saddle in the (q, p) plane; finite action picks the zero-energy separatrix",
+          "min": 2.6
         },
         {
-          "beat": "The hilltop: the cost read as kinetic minus an inverted potential; the saddle in the (q, p) plane; finite action picks the zero-energy separatrix",
-          "min": 2.5
-        },
-        {
-          "beat": "The remaining action generates the separatrix: V = 1/2 sqrt(m kappa) q^2, p = -V', Vdot = -L; the phase portrait animated",
-          "min": 2.0
+          "beat": "The remaining action generates it: V = 1/2 sqrt(m kappa) q^2, p = -V', Vdot = -L; the phase portrait animated",
+          "min": 2.35
         },
         {
           "beat": "Finite windows: W = cV and the tanh formula; c = 0, 1, above and below 1",
-          "min": 2.0
+          "min": 2.1
         },
         {
           "beat": "Outro: takeaway card, teaser",
@@ -312,12 +690,75 @@
       "entry_point": true
     },
     {
-      "number": 4,
+      "number": 5,
       "kind": "middle",
       "title": "When Is One Step Exact? The Trap in the Textbook Terminal Weight",
       "short_title": "One Exact Step",
       "hook": "Take the textbook terminal weight, the continuous-time Riccati solution, discretize with the simplest rule and run the controller. The state converges perfectly, and yet the proof that it converges fails at every single step.",
-      "length_min": 10,
+      "length_min": 11.5,
+      "ideas": [
+        {
+          "id": "exact-lagrangian",
+          "kind": "concept",
+          "text": "the exact discrete Lagrangian: the action of the extremal over one step"
+        },
+        {
+          "id": "rectangle-rule",
+          "kind": "concept",
+          "text": "the rectangle-rule cost of one step"
+        },
+        {
+          "id": "bellman-operator",
+          "kind": "concept",
+          "text": "one step of the recursion as an operator B on boundary terms",
+          "uses": [
+            "recursion"
+          ]
+        },
+        {
+          "id": "fixed-point",
+          "kind": "star",
+          "text": "one step is exact when W is a fixed point, B W = W; then V_N = W for every N",
+          "uses": [
+            "bellman-operator",
+            "one-step-test"
+          ]
+        },
+        {
+          "id": "riccati-fixed",
+          "kind": "claim",
+          "text": "with the exact Lagrangian the Riccati weight is the fixed point; with the rectangle rule the fixed point is P_d",
+          "uses": [
+            "fixed-point",
+            "exact-lagrangian",
+            "rectangle-rule"
+          ]
+        },
+        {
+          "id": "inflate",
+          "kind": "star",
+          "text": "the textbook weight fails the test while q still converges; it passes only if inflated by P_d/P",
+          "uses": [
+            "riccati-fixed"
+          ]
+        },
+        {
+          "id": "tables",
+          "kind": "claim",
+          "text": "the tables: equality for the exact pair, 0.909 shrink, 20 percent inflation restores the test",
+          "example": true,
+          "uses": [
+            "inflate"
+          ]
+        },
+        {
+          "id": "coda",
+          "kind": "claim",
+          "text": "the exact pair only moves the cut between window and tail; the inflated pair's total falls toward P_d/2",
+          "follows": "fixed-point",
+          "side": true
+        }
+      ],
       "takeaway": {
         "sentence": "One step is exact when the boundary term is a fixed point of the discretized Bellman operator; with the rectangle rule the Riccati weight must be inflated by P_d/P.",
         "tex": [
@@ -329,44 +770,54 @@
       "prerequisites": {
         "must": [
           1,
-          3
+          2,
+          4
         ],
         "helpful": [
-          2
+          3
         ]
       },
       "recap": [
         {
-          "title": "Recap: the one-step test",
+          "title": "Recap: the one-step test and the recursion",
           "from": [
-            1
+            1,
+            2
           ],
           "seconds": 25,
           "card": [
             "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
             "V_1\\le V_0\\ \\Longrightarrow\\ V_N(q^+)-V_N(q)\\le -L_d(q,q^+)\\quad\\text{for every }N"
           ],
-          "restates": "The remaining action falls by at least the action just spent, for every window length, as soon as one step of the recursion does not raise the boundary term."
+          "restates": "The remaining action falls by at least the action just spent, for every window length, as soon as one step of the recursion does not raise the boundary term.",
+          "ideas": [
+            "one-step-test",
+            "recursion"
+          ]
         },
         {
           "title": "Recap: the hilltop's remaining action",
           "from": [
-            3
+            4
           ],
           "seconds": 25,
           "card": [
             "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2,\\qquad p=-V'(q)"
           ],
-          "restates": "For the cost one half m v squared plus one half kappa q squared, the infinite-time remaining action is one half root m kappa times q squared, the continuous-time Riccati weight, and its momentum is minus its slope."
+          "restates": "For the cost one half m v squared plus one half kappa q squared, the infinite-time remaining action is one half root m kappa times q squared, the continuous-time Riccati weight, and its momentum is minus its slope.",
+          "ideas": [
+            "v-generates"
+          ]
         }
       ],
       "series_context": {
         "at_s": 45,
-        "spoken": "This is episode four of seven on why receding-window control converges. We bring the continuous answer back to the steps a digital controller actually takes, and ask when one step is already the whole story.",
+        "spoken": "This is episode five of eight on why receding-window control converges. We bring the continuous answer back to the steps a digital controller actually takes, and ask when one step is already the whole story.",
         "frame": {
-          "heading": "Episode 4 of 7",
+          "heading": "Episode 5 of 8",
           "builds_on": [
             "The Remaining Action",
+            "From Steps to Rates",
             "The Hilltop"
           ]
         }
@@ -392,31 +843,31 @@
       "outline": [
         {
           "beat": "Hook: the state converges, the proof fails at every step",
-          "min": 0.75
-        },
-        {
-          "beat": "Recaps: the one-step test; the hilltop's remaining action",
           "min": 0.85
         },
         {
-          "beat": "Two ways to cost one step: the exact discrete Lagrangian (the action of the extremal) and the rectangle rule",
-          "min": 1.75
-        },
-        {
-          "beat": "Exactness is a fixed point: B W = W; with the exact Lagrangian the Riccati weight is a fixed point, with the rectangle rule the fixed point is P_d",
-          "min": 2.0
-        },
-        {
-          "beat": "The tables: exact pair has equality; textbook weight fails the test while q still shrinks by 0.909; inflating by 20 percent restores it; the threshold P_d/P",
-          "min": 2.85
-        },
-        {
-          "beat": "Coda, about 30 s, no derivation: the window/tail table; the exact pair only moves the cut, the inflated pair's total falls toward P_d/2",
+          "beat": "Recaps: the one-step test; the hilltop's remaining action",
           "min": 1.0
         },
         {
+          "beat": "Two ways to cost one step: the exact discrete Lagrangian (the action of the extremal) and the rectangle rule",
+          "min": 2.05
+        },
+        {
+          "beat": "Exactness is a fixed point: B W = W; with the exact Lagrangian the Riccati weight is a fixed point, with the rectangle rule the fixed point is P_d",
+          "min": 2.3
+        },
+        {
+          "beat": "The tables: exact pair has equality; textbook weight fails the test while q still shrinks by 0.909; inflating by 20 percent restores it; the threshold P_d/P",
+          "min": 3.3
+        },
+        {
+          "beat": "Coda, about 30 s, no derivation: the window/tail table; the exact pair only moves the cut, the inflated pair's total falls toward P_d/2",
+          "min": 1.15
+        },
+        {
           "beat": "Outro: takeaway card, teaser",
-          "min": 0.8
+          "min": 0.95
         }
       ],
       "story_beat": "Brings the continuous answer back to digital steps and turns argmin versus certificate into a practical warning: exactness belongs to the pair of discretization and boundary term.",
@@ -425,12 +876,58 @@
       "entry_point": true
     },
     {
-      "number": 5,
+      "number": 6,
       "kind": "middle",
       "title": "Speed Limits: The Right Controller with the Wrong Certificate",
       "short_title": "Speed Limits",
       "hook": "Put a speed limit on the hilltop. The best controller simply clips its speed, and it is truly optimal. Yet the remaining action we trusted no longer certifies it: the controller was right all along, and only the boundary term was wrong.",
       "length_min": 9,
+      "ideas": [
+        {
+          "id": "admissible-velocities",
+          "kind": "concept",
+          "text": "limits as a set of admissible velocities"
+        },
+        {
+          "id": "constrained-hamiltonian",
+          "kind": "star",
+          "text": "the constrained Hamiltonian is never larger than the free one",
+          "uses": [
+            "hamiltonian",
+            "admissible-velocities"
+          ]
+        },
+        {
+          "id": "projection",
+          "kind": "claim",
+          "text": "the argmin becomes a projection, a clip for a box; the Legendre map saturates",
+          "uses": [
+            "constrained-hamiltonian",
+            "rule-and-certificate"
+          ]
+        },
+        {
+          "id": "stronger-certificate",
+          "kind": "claim",
+          "text": "the certificate is stronger, the certified region smaller",
+          "follows": "constrained-hamiltonian"
+        },
+        {
+          "id": "clipped-hilltop",
+          "kind": "star",
+          "text": "with a speed limit the clipped law is optimal; the unconstrained V fails beyond q_s, the constrained one certifies",
+          "uses": [
+            "projection",
+            "v-generates"
+          ]
+        },
+        {
+          "id": "action-paid",
+          "kind": "claim",
+          "text": "the constrained remaining action is the action actually paid",
+          "follows": "clipped-hilltop"
+        }
+      ],
       "takeaway": {
         "sentence": "Limits saturate the rule and strengthen the certificate; with a speed limit the clipped law is optimal, but only the constrained remaining action certifies it.",
         "tex": [
@@ -441,33 +938,37 @@
       },
       "prerequisites": {
         "must": [
-          2,
-          3
+          3,
+          4
         ],
         "helpful": [
-          4
+          5
         ]
       },
       "recap": [
         {
           "title": "Recap: rule, certificate and the hilltop",
           "from": [
-            2,
-            3
+            3,
+            4
           ],
           "seconds": 45,
           "card": [
             "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0",
             "V(q)=\\tfrac12\\sqrt{m\\kappa}\\,q^2,\\qquad p=-V'(q)"
           ],
-          "restates": "One minimization of cost plus the rate of change of the boundary term gives the controller, its argmin, and the certificate, the sign of minus a Hamiltonian. On the hilltop the exact boundary term is one half root m kappa times q squared, and its momentum is minus its slope."
+          "restates": "One minimization of cost plus the rate of change of the boundary term gives the controller, its argmin, and the certificate, the sign of minus a Hamiltonian. On the hilltop the exact boundary term is one half root m kappa times q squared, and its momentum is minus its slope.",
+          "ideas": [
+            "rule-and-certificate",
+            "v-generates"
+          ]
         }
       ],
       "series_context": {
         "at_s": 45,
-        "spoken": "This is episode five of seven on why receding-window control converges. Real controllers have limits; here we see what a limit does to the rule and to its certificate, on the same hilltop as before.",
+        "spoken": "This is episode six of eight on why receding-window control converges. Real controllers have limits; here we see what a limit does to the rule and to its certificate, on the same hilltop as before.",
         "frame": {
-          "heading": "Episode 5 of 7",
+          "heading": "Episode 6 of 8",
           "builds_on": [
             "Rule and Certificate",
             "The Hilltop"
@@ -518,12 +1019,63 @@
       "entry_point": false
     },
     {
-      "number": 6,
+      "number": 7,
       "kind": "middle",
       "title": "A Two-Link Arm: PD Control Falls Out of the Rule",
       "short_title": "The Two-Link Arm",
       "hook": "Take a two-link arm under gravity, write down a cost and an energy-like terminal term, and ask the one-step rule for the best torque. Out comes PD control with gravity compensation, the controller from 1981, and a precise answer to which costs that energy can prove.",
       "length_min": 10,
+      "ideas": [
+        {
+          "id": "two-link-arm",
+          "kind": "concept",
+          "text": "two links, gravity, inertia that changes with pose; input = torque minus gravity"
+        },
+        {
+          "id": "velocity-momentum",
+          "kind": "claim",
+          "text": "only the velocity momentum sets the torque",
+          "follows": "rule-and-certificate"
+        },
+        {
+          "id": "composite-energy",
+          "kind": "concept",
+          "text": "the composite energy of Slotine and Li and its rate"
+        },
+        {
+          "id": "pd-falls-out",
+          "kind": "star",
+          "text": "the rule gives PD control with gravity compensation; the inertia cancels",
+          "uses": [
+            "composite-energy",
+            "rule-and-certificate",
+            "two-link-arm"
+          ]
+        },
+        {
+          "id": "no-feedforward",
+          "kind": "claim",
+          "text": "the feed-forward is not selected",
+          "follows": "pd-falls-out"
+        },
+        {
+          "id": "matched-cost",
+          "kind": "star",
+          "text": "the certificate needs a matched cost: spring, position and velocity weights",
+          "uses": [
+            "pd-falls-out"
+          ]
+        },
+        {
+          "id": "mismatched-fail",
+          "kind": "claim",
+          "text": "the Slotine-Li spring and a too-large position weight fail near the target, though the loop converges",
+          "example": true,
+          "uses": [
+            "matched-cost"
+          ]
+        }
+      ],
       "takeaway": {
         "sentence": "For the composite energy the infinitesimal-window rule is PD control with gravity compensation; it is certified only when the stage cost matches the energy: spring, position and velocity weights.",
         "tex": [
@@ -534,33 +1086,35 @@
       },
       "prerequisites": {
         "must": [
-          2
+          3
         ],
         "helpful": [
           1,
-          3
+          4
         ]
       },
       "recap": [
         {
           "title": "Recap: rule and certificate",
           "from": [
-            2
+            3
           ],
           "seconds": 35,
           "card": [
-            "\\partial_\\vartheta V_\\vartheta=-H\\big(q,-\\nabla V_\\vartheta\\big),\\qquad p=-\\nabla V",
             "v^*=\\arg\\min_v\\big[L+\\nabla W\\cdot v\\big]",
             "\\min_v\\big[L+\\dot W\\big]\\le 0\\ \\Longleftrightarrow\\ H\\big(q,-\\nabla W\\big)\\ge 0"
           ],
-          "restates": "In the limit of an infinitesimal window, minimizing cost plus the rate of change of the boundary term gives the controller, its argmin, and the sign of that minimum, minus a Hamiltonian, is the certificate: the boundary term falls at least as fast as action is spent."
+          "restates": "In the limit of an infinitesimal window, minimizing cost plus the rate of change of the boundary term gives the controller, its argmin, and the sign of that minimum, minus a Hamiltonian, is the certificate: the boundary term falls at least as fast as action is spent.",
+          "ideas": [
+            "rule-and-certificate"
+          ]
         }
       ],
       "series_context": {
         "at_s": 50,
-        "spoken": "This is episode six of seven on why receding-window control converges. Everything so far was a point on a line; now it is a robot, with inertia that changes with its pose and gravity pulling on it.",
+        "spoken": "This is episode seven of eight on why receding-window control converges. Everything so far was a point on a line; now it is a robot, with inertia that changes with its pose and gravity pulling on it.",
         "frame": {
-          "heading": "Episode 6 of 7",
+          "heading": "Episode 7 of 8",
           "builds_on": [
             "Rule and Certificate"
           ]
@@ -616,12 +1170,61 @@
       "entry_point": true
     },
     {
-      "number": 7,
+      "number": 8,
       "kind": "finale",
       "title": "The Receding Window on the Arm: Descent at Every Step",
       "short_title": "Windows on the Arm",
       "hook": "Run a receding-window controller on a two-link arm, five milliseconds per step, and check one inequality at every step: the action still to pay must fall by at least the action just spent. It holds every time. Yet a ten-step window spends almost five times the action of the simple PD law it generalizes.",
       "length_min": 10,
+      "ideas": [
+        {
+          "id": "arm-terminal-test",
+          "kind": "star",
+          "text": "on the arm, torque limits fix the terminal region, and the step size decides whether W passes (5 ms) or must be inflated (10 ms)",
+          "uses": [
+            "one-step-test",
+            "matched-cost",
+            "inflate"
+          ]
+        },
+        {
+          "id": "solvable-sets",
+          "kind": "claim",
+          "text": "one step cannot start where ten can: the solvable sets",
+          "uses": [
+            "arm-terminal-test"
+          ]
+        },
+        {
+          "id": "closed-loop-descent",
+          "kind": "star",
+          "text": "descent at every step for N = 10, 20, 40",
+          "uses": [
+            "descent",
+            "arm-terminal-test"
+          ]
+        },
+        {
+          "id": "descent-ratio",
+          "kind": "claim",
+          "text": "the descent ratio",
+          "follows": "closed-loop-descent"
+        },
+        {
+          "id": "longer-window",
+          "kind": "claim",
+          "text": "a longer window lowers the remaining action, not necessarily the action paid",
+          "uses": [
+            "solvable-sets"
+          ]
+        },
+        {
+          "id": "torque-limits",
+          "kind": "claim",
+          "text": "short windows run at their torque limits",
+          "follows": "longer-window"
+        }
+      ],
       "takeaway": {
         "sentence": "On the arm the receding window descends at every step once the discrete one-step test holds, which needs a small step; longer windows start from more places but need not pay less.",
         "tex": [
@@ -633,11 +1236,11 @@
       "prerequisites": {
         "must": [
           1,
-          6
+          7
         ],
         "helpful": [
-          4,
-          5
+          5,
+          6
         ]
       },
       "recap": [
@@ -648,29 +1251,35 @@
           ],
           "seconds": 25,
           "card": [
-            "V_N(q)=\\min_{q'}\\big\\{L_d(q,q')+V_{N-1}(q')\\big\\},\\quad V_0=W\\ \\text{on}\\ \\Omega",
             "V_1\\le V_0\\ \\Longrightarrow\\ V_N(q^+)-V_N(q)\\le -L_d(q,q^+)\\quad\\text{for every }N"
           ],
-          "restates": "Once one step of the recursion does not raise the boundary term, the remaining action falls by at least the action just spent, for every window length, and a longer window can start from more places."
+          "restates": "Once one step at the end of the window does not raise the boundary term, the remaining action falls by at least the action just spent, for every window length.",
+          "ideas": [
+            "descent",
+            "one-step-test"
+          ]
         },
         {
           "title": "Recap: PD control from the rule",
           "from": [
-            6
+            7
           ],
           "seconds": 30,
           "card": [
             "W=\\tfrac12 s^\\top M(q)\\,s+\\tfrac12 e^\\top K_e e,\\qquad s=\\dot e+\\Gamma e",
             "\\tau^*=g(q)-K_D\\dot e-K_P e,\\qquad K_D=R^{-1},\\ K_P=R^{-1}\\Gamma"
           ],
-          "restates": "On the two-link arm, with the composite energy of Slotine and Li as boundary term and a cost on torque minus gravity, the one-step rule is PD control with gravity compensation, and a matched cost makes that energy a certificate."
+          "restates": "On the two-link arm, with the composite energy of Slotine and Li as boundary term and a cost on torque minus gravity, the one-step rule is PD control with gravity compensation, and a matched cost makes that energy a certificate.",
+          "ideas": [
+            "pd-falls-out"
+          ]
         }
       ],
       "series_context": {
         "at_s": 55,
-        "spoken": "This is the last of seven episodes on why receding-window control converges. We have the arm, its PD law and its certificate; now we run the receding window on it and test the series' first inequality at every step.",
+        "spoken": "This is the last of eight episodes on why receding-window control converges. We have the arm, its PD law and its certificate; now we run the receding window on it and test the series' first inequality at every step.",
         "frame": {
-          "heading": "Episode 7 of 7",
+          "heading": "Episode 8 of 8",
           "builds_on": [
             "The Remaining Action",
             "The Two-Link Arm"
@@ -734,9 +1343,9 @@
     }
   ],
   "provenance": {
-    "proposal": "runs/2026-11-01-series-plan-variational-whole-body-control/series_plan/series.remaining-action.v2.json",
-    "plan_run": "runs/2026-11-01-series-plan-variational-whole-body-control",
-    "red_team": "runs/2026-11-01-series-plan-variational-whole-body-control/review/series_plan/summary.json",
-    "written_at": "2026-11-01T14:19:42+00:00"
+    "proposal": "pacing proposal (8 episodes), rebuilt by tools/series.py validate under the idea budget; not run through the series red team",
+    "plan_run": null,
+    "red_team": null,
+    "written_at": "2026-11-07T11:09:19+00:00"
   }
 }
