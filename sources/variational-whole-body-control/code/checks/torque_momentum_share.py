@@ -6,7 +6,10 @@
 2. Discrete "torque = velocity momentum" with Gauss's weight, one degree of freedom:
        zero-order hold:   T0 tau_0 = pi_v + (h/2) pi_q
        symplectic Euler:  T0 tau_0 = pi_v +  h    pi_q        with pi = -grad V_{N-1}(z_1),
-   and the share of the first torque supplied by the position momentum.
+   the end-of-step position-momentum term as a percentage of T0 tau_0, and, at every node j, with
+   pi_j = -grad V_{N-j}(z_j):
+       symplectic Euler:  T0 tau_j = pi_{v,j}                 (node where the torque is applied)
+       zero-order hold:   T0 tau_j = (pi_{v,j} + pi_{v,j+1})/2 (mean over the step).
 3. First-instant stiffness of a 10 ms window: optimal time-varying torque (Riccati ODE) versus
    zero-order hold (closed form k d / (2 (T0 + d + k d^3 / (4 m)))).
 
@@ -56,11 +59,36 @@ def first_step(h, N, scheme):
     coef = h / 2 if scheme == 'zoh' else h
     resid = T0 * tau - (pi[1] + coef * pi[0])
     return tau, coef * pi[0] / (T0 * tau), resid
+def every_node(h, N, scheme):
+    A = np.array([[1.0, h], [0.0, 1.0]])
+    B = np.array([[h * h / (2 * m) if scheme == 'zoh' else h * h / m], [h / m]])
+    R = h * T0 / m
+    P = [np.diag([k, m])]
+    for _ in range(N):
+        Pn = P[-1]
+        P.append(A.T @ Pn @ A - (A.T @ Pn @ B) @ (B.T @ Pn @ A) / (R + (B.T @ Pn @ B)[0, 0]))
+    z, tau = [np.array([1.0, 0.0])], []
+    for j in range(N):
+        Pn = P[N - j - 1]
+        tau.append(-(((B.T @ Pn @ A) / (R + (B.T @ Pn @ B)[0, 0])) @ z[-1])[0])
+        z.append(A @ z[-1] + B[:, 0] * tau[-1])
+    piv = [-(P[N - j] @ z[j])[1] for j in range(N + 1)]       # pi_{v,j} = -grad_v V_{N-j}(z_j)
+    if scheme == 'se':
+        resid = max(abs(T0 * tau[j] - piv[j]) for j in range(N))
+    else:
+        resid = max(abs(T0 * tau[j] - 0.5 * (piv[j] + piv[j + 1])) for j in range(N))
+    return resid, piv
 for scheme, cases in (('zoh', [(0.010, 1), (0.005, 2), (0.001, 10)]), ('symplectic Euler', [(0.005, 2), (0.001, 10)])):
     for h, N in cases:
-        tau, share, resid = first_step(h, N, 'zoh' if scheme == 'zoh' else 'se')
-        print(f"{scheme:17s} h={h*1e3:4.1f} ms N={N:2d}: tau_0={tau:+.4f} N, position-momentum share = {100*share:5.1f}%, "
-              f"identity residual {abs(resid):.1e}")
+        sch = 'zoh' if scheme == 'zoh' else 'se'
+        tau, share, resid = first_step(h, N, sch)
+        resid_j, piv = every_node(h, N, sch)
+        print(f"{scheme:17s} h={h*1e3:4.1f} ms N={N:2d}: tau_0={tau:+.4f} N, end-of-step position-momentum term "
+              f"= {100*share:5.1f}% of T0 tau_0, identity residual {abs(resid):.1e}; at every node, residual against "
+              f"{'(pi_v,j + pi_v,j+1)/2' if sch == 'zoh' else 'pi_v,j'} {resid_j:.1e}")
+        if sch == 'zoh' and N == 1:
+            print(f"{'':17s} per unit q_0: -pi_v,0/T0 = {-piv[0]/T0:.4f} N/m, -pi_v,1/T0 = {-piv[1]/T0:.4f} N/m, "
+                  f"mean {-(piv[0]+piv[1])/(2*T0):.4f} N/m   (claims 2.864, -0.136, 1.36)")
 print()
 
 # ---------------------------------------------------------------- 3. first-instant stiffness, 10 ms window

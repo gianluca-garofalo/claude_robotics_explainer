@@ -44,7 +44,7 @@ expect = ["V_1 - W(q) = 0"]
 
 [[check]]
 script = "merged/fig_bases.py"
-sections = ["13.4", "Figure 7"]
+sections = ["11", "13.4", "Figure 7"]
 claims = "two bases for one torque: Theta_21 = 2.5, F = (3, 0.4)"
 timeout = 60
 expect = ["Theta_21 = 2.500000", "F = (3.000, 0.400)"]
@@ -260,4 +260,25 @@ script = "checks/torque_momentum_share.py"
 sections = ["5.2", "9.1", "16.1"]
 claims = "finite window with W = cV (closed form vs Riccati ODE); discrete torque = momentum shares under zero-order hold and symplectic Euler; 10 ms first-instant stiffness 2.86 vs 1.36 N/m"
 timeout = 120
-expect = ["position-momentum share = 110.0%", "position-momentum share =  35.5%", "position-momentum share =   5.5%", "position-momentum share =  53.7%", "position-momentum share =  10.5%", "stiffness P12(d)/T0 = 2.8635 N/m", "stiffness = 1.3636 N/m"]
+expect = ["term = 110.0% of T0 tau_0", "term =  35.5% of T0 tau_0", "term =   5.5% of T0 tau_0", "term =  53.7% of T0 tau_0", "term =  10.5% of T0 tau_0", "-pi_v,0/T0 = 2.8635 N/m, -pi_v,1/T0 = -0.1364 N/m, mean 1.3636 N/m", "stiffness P12(d)/T0 = 2.8635 N/m", "stiffness = 1.3636 N/m"]
+
+[[check]]
+script = "checks/midpoint_fixed_point.py"
+sections = ["6.3"]
+claims = "midpoint rule: the identity is exact (symbolic residual 0), the Riccati fixed point is a fixed point of the midpoint map"
+timeout = 120
+expect = ["symbolic residual of the midpoint identity: 0"]
+
+[[check]]
+script = "checks/torque_level.py"
+sections = ["11.5", "11.7", "18.2"]
+claims = "torque level of the two-link arm: Wbar_tau = 0.310 on the tau_2 = +30 face, faces of the torque box, random-ray search"
+timeout = 300
+expect = ["Wbar_tau = 0.309966", "W=0.311659", "range 0.3135 - 0.3689"]
+
+[[check]]
+script = "checks/terminal_set_window.py"
+sections = ["4.6", "5.2", "6.3"]
+claims = "terminal region on the hilltop: V_theta(1) = 1.404, first move -5.04, first N with V_N(1) = W(1) is 7"
+timeout = 120
+expect = ["V_theta(1) = L_d^E(1, r) + V(r) = 1.404143", "first move p/m = -d_1 L_d^E(1, r)/m = -5.041635", "first N with V_N(1) = W(1): 7"]

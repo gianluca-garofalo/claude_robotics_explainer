@@ -39,7 +39,7 @@ Three things are run by hand:
 | 6.5, 16.2 | `merged/window_split.py` | Splits $V_N(q_0)$ into window part and tail $W(q_N)$ for $N\in\{1,2,5,10,20,50\}$, for the exact pair and for the rectangle rule with $W=1.2\cdot\tfrac12q^2$. | numerical |
 | 6.3, 19 | `merged/riccati_threshold.py` | 3-D example: the smallest eigenvalue of $cP-T(cP)$ changes sign exactly at $c^\ast=\lambda_{\max}(P^{-1}P_d)=1.1055$. | numerical |
 | 5.2, 6.1, 6.3 | `merged/hilltop_extra.py` | SymPy: Jacobi field $\sinh\omega t$; closed form of $L_d^E$ equals the action of the extremal; one step with $L_d^E$ and $W=V$. | exact |
-| 13.4, Figure 7 | `merged/fig_bases.py` | Two-link arm at $q_d$: $\Theta_{21}=2.5$, $F=\Theta^\top\lambda=(3,0.4)$ for $\lambda=(2,0.4)$; writes `fig_bases.svg`. | numerical + figure |
+| 11, 13.4, Figure 7 | `merged/fig_bases.py` | Two-link arm at $q_d$: $\Theta_{21}=2.5$, $F=\Theta^\top\lambda=(3,0.4)$ for $\lambda=(2,0.4)$; writes `fig_bases.svg`. | numerical + figure |
 | 9.2, 10.1, 10.2, 13.2, 13.3, 13.4, 13.5, 14.2, 15.1 | `wbc/wbc_companion_checks.py` | Fixed-seed checks: Gauss = operational-space control, block LDLᵀ = dynamically consistent hierarchy, $F=L^\top\lambda$ and order dependence, power invariance. | numerical |
 | 7.1, 7.3, 19 | `merged/ineq_hilltop.py` | Speed limit on the hilltop: the clipped law and its cost $0.541667$, one-sided derivatives of $V_{\rm con}$ at $q_s$ ($C^2$, not $C^3$), the discrete step with $q-q'\le h\bar v$ ($\mu=0.45$). | numerical |
 | 8.5, 8.6, 8.7, 9.1 | `note/sec7_numerical_checks.py` | Second-order plants: the optimal torque formula against numerical optima for $R=I$ and $R=M^{-1}$, the Gauss identity; writes `num_results.json`. | numerical |
@@ -70,6 +70,9 @@ Three things are run by hand:
 | 9.2, 13.2, 13.3, 13.4 | `wbc_brainstorm/brainstorm_check1.py` | Hierarchy as block Gram–Schmidt / LDLᵀ in the $M^{-1}$ metric: Khatib's force as a Gauss multiplier, $\lambda=L^{-\top}F$, the order dependence of task forces (exploratory). | numerical |
 | 16.1 | `wbc_brainstorm/brainstorm_check2.py` | Finite-window (zero-order hold) argmin for a 1-DOF energy-type $W$; series in $\delta$ (exploratory). | exact |
 | 11.1 | `note/sec8_arm/pinocchio_crosscheck.py` | The arm model against Pinocchio (1000 random states); skew-symmetry of $\dot M-2C$. Manual: needs Pinocchio. | numerical |
+| 6.3 | `checks/midpoint_fixed_point.py` | Midpoint rule: the identity is exact (symbolic residual 0); the fixed point of the midpoint Riccati map, residuals at most 3e-14. | exact + numerical |
+| 11.5, 11.7, 18.2 | `checks/torque_level.py` | Torque level of the arm: $\bar W_\tau=0.310$ on the face $\tau_2=+30$, the other faces, 2e5-ray search (0.31-0.37, seed-dependent). | numerical + sampled |
+| 4.6, 5.2, 6.3 | `checks/terminal_set_window.py` | Terminal region on the hilltop: $V_\theta(1)=1.404$, first move $-5.04$, first $N$ with $V_N(1)=W(1)$ is 7. | numerical |
 | Figures 5, 6 | `note/sec8_arm/figs.py` | Figures 5 and 6 from the `cl_*.pkl` files of the full closed-loop runs. Manual. | figure |
 
 
