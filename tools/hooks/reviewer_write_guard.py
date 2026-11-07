@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""PreToolUse hook used in reviewer subagents (frontmatter): file tools may only write under runs/<run>/review/.
-
-Reviewers report problems; the writer fixes them. Keeping generation and review separate is what makes the
-review independent, so a reviewer that tries to edit the explainer, drafts, code or references is stopped here.
-Exit 2 blocks the call and tells the reviewer to put the fix in its report instead.
-"""
+"""PreToolUse hook of the reviewer subagents: file tools write only under runs/<run>/review/ (exit 2 otherwise)."""
 import sys
 if sys.version_info < (3, 7):          # fail closed: an old python3 must never let a blocked action through
     sys.stderr.write("Remaining Action hook: python3 %d.%d is too old (3.7 or later is needed); blocked to stay safe. "

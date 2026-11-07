@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
-"""PostToolUse hook (Edit|Write): validate run artifacts right after Claude writes them.
+"""PostToolUse hook (Edit|Write): lint or validate a run's explainer, draft parts and JSON records once written.
 
-A run folder is runs/<run>/ in the project, or any folder with a run.json (made by tools/run.py new, wherever --root
-put it), so runs outside the project are checked too. Outside a Claude Code session, or for a run the hook cannot
-see, run the same checks explicitly: python3 tools/validate.py <run folder>.
-
-  runs/<run>/explainer.html        static lint (tools/lint_html.py); notes that the file is generated from draft/
-  runs/<run>/draft/*.html          part lint (math delimiters, marker syntax, external resources)
-  runs/<run>/sources.json, scores.json, references.json, review/*.json   schema and policy validation
-
-Problems are printed to stderr with exit code 2, which Claude Code shows to Claude so it fixes them at once.
-Any other file: exit 0 immediately. Standard library only; typically under 0.3 s.
+A run is runs/<run>/ or any folder with a run.json; problems go to stderr with exit 2. Standard library only.
 """
 import sys
 if sys.version_info < (3, 7):          # fail closed: an old python3 must never let a blocked action through

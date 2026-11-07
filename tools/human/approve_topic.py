@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
-"""Record the human's approval of a topic (writes runs/<run>/approval.json).
+"""Record the user's approval of a topic in runs/<run>/approval.json (topic_approval "human").
 
-In human mode ("topic_approval": "human" in config/pipeline.json) this is the checkpoint between ranking and writing;
-in the default automatic mode tools/auto_select.py selects instead. In a Claude Code session the user types
-    /approve-topic runs/<run> <topic-id> [note]
-and the UserPromptExpansion hook (tools/hooks/record_approval.py) calls record() below. That hook event fires only
-for commands the user types, so Claude cannot approve a topic by itself; .claude/settings.json also denies Claude
-running this file and editing approval.json.
-
-Fallback without hooks (run it yourself in your own terminal, not through Claude):
-    python3 tools/human/approve_topic.py runs/<run> <topic-id> [--note "..."]
+Usage, in your own terminal (in a session the user types /approve-topic and tools/hooks/record_approval.py calls
+record(); Claude may not run this file):
+  python3 tools/human/approve_topic.py runs/<run> <topic-id> [--note "..."]
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from _common import CONFIG, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import ranking_inputs, read_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 
 
 class ApprovalError(Exception):
@@ -34,11 +27,13 @@ def record(run_arg: str, topic_id: str, via: str, note: str = "", session_id: st
     ranking_md, ranking_json = run / "ranking.md", run / "ranking.json"
     if not ranking_md.exists() or not ranking_json.exists():
         raise ApprovalError(f"{rel(run)} has no ranking yet: run tools/rank_topics.py first")
-    rk = json.loads(ranking_json.read_text(encoding="utf-8"))
-    current = {n: sha256_file(run / n) for n in ("sources.json", "scores.json") if (run / n).exists()}
-    current["config/rubric.json"] = sha256_file(CONFIG / "rubric.json")
+    rk = read_json(ranking_json)
+    try:
+        current = ranking_inputs(run)
+    except FileNotFoundError:
+        current = None
     if current != rk.get("inputs_sha256"):
-        raise ApprovalError("ranking.md is stale (sources.json, scores.json or the rubric changed): "
+        raise ApprovalError("ranking.md is stale (sources.json, scores.json, search.json or the rubric changed): "
                             "rerun tools/rank_topics.py and approve again")
     topic = next((t for t in rk["ranking"] if t["id"] == topic_id), None)
     if topic is None:
@@ -48,9 +43,9 @@ def record(run_arg: str, topic_id: str, via: str, note: str = "", session_id: st
     history = []
     if path.exists():
         try:
-            old = json.loads(path.read_text(encoding="utf-8"))
+            old = read_json(path)
             history = old.pop("history", []) + [old]
-        except json.JSONDecodeError:
+        except ValueError:
             history = []
     data = {
         "schema_version": 1,

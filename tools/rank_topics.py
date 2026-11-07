@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""Turn judged rubric scores into a ranked, cited ranking.md (deterministic).
+"""Rank the scouted topics from the judged scores, computed recency and search data: ranking.md and ranking.json.
 
 Usage:
   python3 tools/rank_topics.py runs/<run>             # writes ranking.md and ranking.json in the run
-  python3 tools/rank_topics.py runs/<run> --check     # validate inputs and print the table only
-
-Inputs:  run.json (run date), sources.json (scout), scores.json (ranker's judged scores with justifications),
-         search.json (tools/search_demand.py, optional), config/rubric.json (weights, recency bands, gates; humans
-         edit it, agents do not).
-Recency is computed here from the newest primary-source date; search demand and supply gap come from search.json;
-every other criterion is judged by the virality-ranker skill and only aggregated here. A computed criterion without
-data is unknown ("?"), never zero: the total renormalises the weights of the known criteria for that topic.
-The output is a heuristic, not a prediction.
+  python3 tools/rank_topics.py runs/<run> --check     # validate the inputs and print the table only
 """
 from __future__ import annotations
 
@@ -21,7 +13,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import CONFIG, load_json, parse_date, ranking_inputs, rel, resolve_run, sha256_file, write_json  # noqa: E402
+from _common import (CONFIG, load_json, md_cell as cell, parse_date, ranking_inputs, rel, resolve_run,  # noqa: E402
+                     sha256_file, write_json)
 import validate as V  # noqa: E402
 
 LABELS = {"recency": "Rec", "search_demand": "Search", "supply_gap": "Gap", "novelty": "Nov",
@@ -48,10 +41,6 @@ def search_data(run: Path) -> tuple[dict | None, bool]:
     if want is not None and want != sha256_file(run / "sources.json"):
         return None, True
     return data, False
-
-
-def cell(text) -> str:
-    return str(text).replace("|", "\\|").replace("\n", " ").strip()
 
 
 def compute(run: Path, sources: dict, scores: dict, rubric: dict) -> tuple[list[dict], str]:

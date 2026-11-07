@@ -215,6 +215,17 @@ class Report(RunFolder):
         st = run_tool("tools/run.py", "status", str(self.run_dir)).stdout
         self.assertIn("search.json was collected for an earlier sources.json", st)
 
+    def test_human_approval_of_a_ranking_with_search_data(self):
+        env = dict(os.environ, SEARCH_BACKEND="fake", SEARCH_FAKE_DATA=str(FIX / "search_fake.json"))
+        self.assertEqual(run_tool("tools/search_demand.py", str(self.run_dir), env=env).returncode, 0)
+        self.assertEqual(run_tool("tools/rank_topics.py", str(self.run_dir)).returncode, 0)
+        sys.path.insert(0, str(REPO / "tools" / "human"))
+        import approve_topic
+        self.assertEqual(approve_topic.record(str(self.run_dir), "T1", via="test")["topic_id"], "T1")
+        (self.run_dir / "search.json").write_text("{}")
+        with self.assertRaises(approve_topic.ApprovalError):
+            approve_topic.record(str(self.run_dir), "T1", via="test")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,24 +1,13 @@
 #!/usr/bin/env python3
-"""YouTube Data API v3 client for the staging and publishing jobs. It runs in GitHub Actions jobs that Claude never
-runs in; Claude Code's settings deny it locally.
+"""YouTube Data API client of the workflow's staging and publishing jobs (never run by an agent).
 
-Usage (credentials only from the environment: YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN):
+Usage (credentials from the environment: YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REFRESH_TOKEN):
   python3 tools/publish/youtube.py whoami
-  python3 tools/publish/youtube.py stage runs/<run> [--ledger site/ledger.json]   # private/unlisted upload, idempotent
+  python3 tools/publish/youtube.py stage runs/<run> [--ledger site/ledger.json]   # private upload, idempotent
   python3 tools/publish/youtube.py publish --video-id ID [--mode public|schedule] [--delay-hours 24]
   python3 tools/publish/youtube.py delete --video-id ID
   python3 tools/publish/youtube.py playlist runs/<run> --video-id ID [--ledger site/ledger.json]   # series episodes
-YOUTUBE_BACKEND=fake with YOUTUBE_FAKE_STATE=state.json runs everything against a local stand-in (tests, dry runs).
-
-Idempotency: before uploading, the ledger and the channel's latest uploads are searched for the run's marker
-("Run: <run>" in the description); a match is reused, so a retried job never uploads twice.
-Safety: the authorised channel's title must equal config/channel.json youtube.expected_channel_title.
-Quota (units; 10,000 per day by default): videos.insert 1,600 at the time of writing (Google changes this, check your
-quota page), captions.insert 400, thumbnails.set 50, videos.update 50, captions.list 50, the list calls 1 each.
-Videos uploaded by an API project that has not passed Google's YouTube API audit (projects created after 2020-07-28)
-stay private; `publish` detects this and says so. `playlist` adds a published series episode to the series playlist
-(found in the ledger or by title among the channel's playlists, created once), in episode order, and skips a video
-already in it: playlists.list 1 unit, playlists.insert and playlistItems.insert 50 each.
+  YOUTUBE_BACKEND=fake YOUTUBE_FAKE_STATE=state.json: a local stand-in (tests, dry runs)
 """
 from __future__ import annotations
 

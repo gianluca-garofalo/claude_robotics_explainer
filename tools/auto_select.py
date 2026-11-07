@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
-"""Automatic topic approval: pick the best eligible topic, with the reasons written down (deterministic).
+"""Automatic topic approval: the best eligible topic of ranking.json by a fixed rule, with its reasons logged.
 
 Usage:
-  python3 tools/auto_select.py runs/<run> [--published runs/<run>/published.json]
-
-Used when config/pipeline.json has "topic_approval": "auto" (the human reviews the finished video instead of the
-topic). The rule is fixed and inspectable: take the highest-ranked topic in ranking.json that passes the rubric gates,
-reaches auto_selection.min_total, and is not in the channel's ledger with a status listed in
-auto_selection.skip_ledger_statuses (default: published, staged or rejected; matched by slug or primary-source URL).
-Writes selection.json and selection.md (the logged reasoning, including why each better-ranked topic was skipped).
-Exit status 1 when no topic qualifies: the pipeline stops and nothing is written or uploaded.
+  python3 tools/auto_select.py runs/<run> [--published runs/<run>/published.json]   # selection.json, selection.md
+  Exit 1 when no topic qualifies (config/pipeline.json auto_selection): nothing is written or uploaded.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import CONFIG, load_json, ranking_inputs, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import (CONFIG, load_json, ranking_inputs, read_json, rel, resolve_run, sha256_file, utc_now,  # noqa: E402
+                     write_json)
 
 
 def ledger_index(path: Path | None, statuses) -> tuple[dict[str, str], dict[str, str]]:
     """slug -> status and primary-source URL -> status for ledger entries whose status is in `statuses`."""
     slugs, urls = {}, {}
     if path and path.exists():
-        data = json.loads(path.read_text(encoding="utf-8"))
-        for entry in data.get("runs", {}).values():
+        for entry in read_json(path).get("runs", {}).values():
             st = entry.get("status")
             if st in statuses:
                 if entry.get("slug"):

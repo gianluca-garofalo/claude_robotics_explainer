@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""Mark the CI checkout as a trusted workspace for Claude Code (GitHub Actions only).
+"""Mark the CI checkout as a trusted Claude Code workspace, so the subagents' frontmatter hooks run headless.
 
-  python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
-
-Headless runs never show the trust dialog, so the project's subagent frontmatter hooks (the reviewers' write guard)
-would not run. The Claude Code docs describe trusting a folder by hand: projects["<repository root>"]
-.hasTrustDialogAccepted = true in ~/.claude.json. This merges that one key into the file without touching the rest.
+  python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"   # sets projects[<root>].hasTrustDialogAccepted in ~/.claude.json
 """
 import json
 import sys

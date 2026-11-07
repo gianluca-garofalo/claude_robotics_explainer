@@ -1,26 +1,12 @@
 #!/usr/bin/env python3
-"""The hand-over package of a finished video, for the owner's own upload in YouTube Studio (deterministic).
+"""The hand-over package of a finished video for the owner's own upload: runs/<run>/deliver/ with SHA256SUMS.
 
 Usage:
-  python3 tools/deliver.py runs/<run> [--out DIR]
-
-Precondition: `tools/gate.py runs/<run> --stage release` passed for the current final video (review/gates.json:
-stage release, passed, the sha256 of video/final/<slug>.mp4). Writes runs/<run>/deliver/ (or --out):
-
-  <slug>.mp4, <slug>.srt, thumbnail.jpg   copies of video/final/
-  upload_sheet.md       title, description, tags, chapters, the music and its provenance, the settings to choose and the YouTube Studio checklist
-  final_cut_review.md   the final-cut review summary (review/final_cut/summary.md)
-  youtube.json          the metadata tools/video/metadata.py composed
-  series/<slug>/        an episode's series plan (series.json, PLAN.md): to commit when it was made in this session
-  SHA256SUMS            the hashes of the files above
-
-Nothing is uploaded or published: the owner downloads the folder, watches the video and uploads it by hand.
-`tools/series.py next` counts an episode with deliver/upload_sheet.md in the runs folder as delivered.
+  python3 tools/deliver.py runs/<run> [--out DIR]   # needs a passed release gate for the current final video
 """
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 import subprocess
 import sys
@@ -28,14 +14,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import CONFIG, REPO, load_json, rel, resolve_run, sha256_file, utc_now  # noqa: E402
+from _common import CONFIG, REPO, load_json, read_json, rel, resolve_run, sha256_file, utc_now  # noqa: E402
 import plan as P  # noqa: E402
 import review_package as RP  # noqa: E402
 
 CATEGORIES = {"1": "Film & Animation", "10": "Music", "22": "People & Blogs", "24": "Entertainment",
               "25": "News & Politics", "26": "Howto & Style", "27": "Education", "28": "Science & Technology"}
 LICENCES = {"youtube": "Standard YouTube License", "creativeCommon": "Creative Commons - Attribution"}
-SERIES = REPO / "series"                       # the plans (tests point it elsewhere)
+SERIES = REPO / "series"                       # tests point it elsewhere
 
 
 class NotReady(Exception):
@@ -50,7 +36,7 @@ def release_record(run: Path, video: Path) -> dict:
     if not gp.exists():
         raise NotReady("no review/gates.json: run tools/gate.py --stage final, the final-cut review and "
                        "tools/gate.py --stage release first")
-    g = json.loads(gp.read_text(encoding="utf-8"))
+    g = read_json(gp)
     if g.get("stage") != "release":
         raise NotReady(f"the last gate run was --stage {g.get('stage')}: run the final-cut review and "
                        "tools/gate.py --stage release first")
@@ -73,8 +59,7 @@ def description_for_studio(desc: str, marker: str) -> str:
 
 
 def plan_committed(folder: Path) -> bool | None:
-    """True when the series folder is committed and unchanged in this checkout, False when it is new or changed here
-    (a plan made in this session), None without git."""
+    """True when the series folder is committed unchanged, False when it is new or changed here, None without git."""
     try:
         r = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain", "--", rel(folder)], capture_output=True,
                            text=True, timeout=30)
@@ -85,24 +70,21 @@ def plan_committed(folder: Path) -> bool | None:
 
 def voice_text(run: Path) -> tuple[str, str]:
     """(service, model) of the narration from video/voice/manifest.json ('', '' without one)."""
-    mp = run / "video" / "voice" / "manifest.json"
-    if not mp.exists():
-        return "", ""
-    m = json.loads(mp.read_text(encoding="utf-8"))
+    m = read_json(run / "video" / "voice" / "manifest.json", {})
     return str(m.get("service") or ""), str(m.get("voice_model") or "")
 
 
 def music_section(run: Path) -> list[str]:
     """The upload sheet's "Music" section: what is in the mix, its licence, and what to do about a claim."""
     final = run / "video" / "final"
-    asm = json.loads((final / "assembly.json").read_text(encoding="utf-8"))
+    asm = read_json(final / "assembly.json")
     info = (asm.get("audio") or {}).get("music") or {}
     meas = (asm.get("audio") or {}).get("measured") or {}
     out = ["## Music", ""]
     if not info.get("used"):
         out += ["None: the narration only.", ""]
     else:
-        st = json.loads((final / "music.json").read_text(encoding="utf-8")) if (final / "music.json").exists() else {}
+        st = read_json(final / "music.json", {})
         out += [f"- Original, generated for this video by `{st.get('generator', info.get('generator'))}` "
                 f"{st.get('tool_version', '')} (preset `{st.get('preset')}`, seed {st.get('seed')}); no samples, no "
                 "third-party recording, nothing to attribute or license. Provenance: `video/final/music.json` "
@@ -126,17 +108,15 @@ def sheet(run: Path, meta: dict, files: dict[str, Path], gates: dict, plan: tupl
     topic = P.topic(run)
     series = P.is_series(run)
     sn, st = meta["snippet"], meta["status"]
-    asm = json.loads((run / "video" / "final" / "assembly.json").read_text(encoding="utf-8"))
-    cp = run / "video" / "final" / "chapters.json"
-    chapters = json.loads(cp.read_text(encoding="utf-8")) if cp.exists() else {"chapters": [], "valid": False}
+    asm = read_json(run / "video" / "final" / "assembly.json")
+    chapters = read_json(run / "video" / "final" / "chapters.json", {"chapters": [], "valid": False})
     dur = float(asm["duration"])
     service, model = voice_text(run)
     synthetic = bool(st.get("containsSyntheticMedia"))
     voice = (f"{service}{' (' + model + ')' if model else ''}" if service else "unknown")
     kids = "Yes, it is made for kids" if st.get("selfDeclaredMadeForKids") else "No, it is not made for kids"
     pl = (topic.get("playlist") or {}) if series else {}
-    ctx_p = run / "video" / "series_context.json"
-    ctx = json.loads(ctx_p.read_text(encoding="utf-8")) if ctx_p.exists() else {}
+    ctx = read_json(run / "video" / "series_context.json", {})
     what = (f"episode {topic['episode']} of {topic.get('episodes_total', '?')} of \"{topic['series_title']}\""
             if series else "single video")
     out = [f"# Upload sheet: {sn['title']}", "",
@@ -232,7 +212,7 @@ def build(run: Path, out: Path) -> list[Path]:
     yp = final / "youtube.json"
     if not yp.exists():
         raise NotReady(f"{rel(yp)} missing: run tools/video/metadata.py")
-    meta = json.loads(yp.read_text(encoding="utf-8"))
+    meta = read_json(yp)
     files = {"video": video, "captions": final / f"{P.topic(run)['slug']}.srt", "thumbnail": final / "thumbnail.jpg"}
     missing = [rel(p) for p in files.values() if not p.exists()]
     if missing:

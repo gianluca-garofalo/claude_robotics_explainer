@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Print the render matrix for GitHub Actions: one entry per scene of video/plan.json, as compact JSON.
+"""Print the render matrix of a run for GitHub Actions, one entry per scene of video/plan.json; exit 1 on a bad plan.
 
   python3 tools/ci/scene_matrix.py runs/<run>      # -> [{"id": "01", "file": "hilltop.py", "class": "Hilltop"}, ...]
-
-Fails (exit 1) when plan.json is unusable, so a broken plan stops the run before any render job starts.
 """
 import json
 import sys

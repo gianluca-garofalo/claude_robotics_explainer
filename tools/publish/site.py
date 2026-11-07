@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-"""Manage the GitHub Pages site (a checkout of the gh-pages branch): previews, published explainers, ledger, archive.
+"""The GitHub Pages site (a gh-pages checkout): previews, published explainers, index, ledger.json and archive.
 
-Usage (SITE is the gh-pages checkout; the workflow commits and pushes it afterwards):
+Usage (the workflow commits and pushes SITE afterwards):
   python3 tools/publish/site.py init SITE
   python3 tools/publish/site.py preview SITE runs/<run> --token T          # preview/<run>-<T>/ (noindex); prints its path
   python3 tools/publish/site.py promote SITE runs/<run> --token T [--video-id ID]   # explainers/<slug>/, index, ledger
   python3 tools/publish/site.py drop-preview SITE <run> --token T
   python3 tools/publish/site.py mark SITE runs/<run> --status staged|published|rejected [--video-id ID] [--reason R]
-                                                                          [--by LOGIN] [--linkedin URN]
-
-Published explainers live at explainers/<slug>/ with the explainer (index.html), its companion code (browsable, plus
-code.zip) and the review and gate summaries. ledger.json records every run (status, video id, slug, primary sources)
-and is what makes staging, publishing and topic selection idempotent; it never stores preview tokens. Rejected runs
-get archive/<run>.json with the reason.
+                                [--by LOGIN] [--linkedin URN] [--playlist ID]
 """
 from __future__ import annotations
 
@@ -27,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "video"))
-from _common import CONFIG, load_json, resolve_run, utc_now, write_json  # noqa: E402
+from _common import CONFIG, load_json, read_json, resolve_run, utc_now, write_json  # noqa: E402
 import plan as P  # noqa: E402
 
 NOINDEX = '<meta name="robots" content="noindex, nofollow">'
@@ -36,7 +31,7 @@ CODE_SKIP = {"__pycache__"}
 
 def ledger(site: Path) -> dict:
     p = site / "ledger.json"
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {
+    return read_json(p) if p.exists() else {
         "schema_version": 1, "channel": load_json(CONFIG / "channel.json")["channel_name"], "runs": {}}
 
 
@@ -141,8 +136,7 @@ def entry_for(run: Path, data: dict) -> dict:
     if P.is_series(run):
         e.update({"series": topic["series"], "episode": topic["episode"],
                   "explainer_path": f"explainers/{P.explainer_slug(run)}/"})
-    sp = run / "sources.json"
-    sources = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"candidates": []}
+    sources = read_json(run / "sources.json", {"candidates": []})
     cand = next((c for c in sources["candidates"] if c["id"] == topic["topic_id"]), {"sources": []})
     e["primary_urls"] = [s["url"] for s in cand["sources"] if s.get("primary") and s.get("relation", "subject") == "subject"]
     return e

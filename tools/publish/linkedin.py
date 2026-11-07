@@ -1,18 +1,9 @@
 #!/usr/bin/env python3
-"""Optional LinkedIn post after publication (publish job only; Claude never runs it).
+"""Optional LinkedIn post after publication (the workflow's publish job; never run by an agent).
 
-Usage:
-  python3 tools/publish/linkedin.py post runs/<run> --video-url URL [--explainer-url URL] [--ledger site/ledger.json]
-  python3 tools/publish/linkedin.py post ... --dry-run          # print the request, send nothing
-
-Environment: LINKEDIN_ACCESS_TOKEN (member token with w_member_social, from the "Share on LinkedIn" product),
-LINKEDIN_AUTHOR_URN (urn:li:person:<id>), LINKEDIN_VERSION (YYYYMM, a version LinkedIn currently supports).
-Member tokens expire after about 60 days and standard apps get no refresh token: renew it by hand (SETUP-AUTOMATION.md).
-An expired or missing token makes this step report and skip, never fail the publication.
-LINKEDIN_BACKEND=fake with LINKEDIN_FAKE_STATE=file.json records the post locally (tests).
-Idempotency: a run whose ledger entry already has a LinkedIn post is skipped.
-Links follow the run's own decision (video/final/youtube.json "links", from links.include or the pipeline's "links"
-input): with links off the post shares the video only (linkedin.commentary_template_video), never the explainer.
+Usage (LINKEDIN_ACCESS_TOKEN, LINKEDIN_AUTHOR_URN, LINKEDIN_VERSION in the environment; without them it skips):
+  python3 tools/publish/linkedin.py post runs/<run> --video-url URL [--explainer-url URL] [--ledger L] [--dry-run]
+  LINKEDIN_BACKEND=fake LINKEDIN_FAKE_STATE=file.json: records the post locally (tests)
 """
 from __future__ import annotations
 
@@ -26,16 +17,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "video"))
-from _common import CONFIG, load_json, resolve_run  # noqa: E402
+from _common import CONFIG, load_json, read_json, resolve_run  # noqa: E402
 import plan as P  # noqa: E402
+from review_package import links_on  # noqa: E402
 
 ENDPOINT = "https://api.linkedin.com/rest/posts"
-
-
-def links_on(run: Path) -> bool:
-    yp = run / "video" / "final" / "youtube.json"
-    m = json.loads(yp.read_text(encoding="utf-8")) if yp.exists() else {}
-    return bool(m.get("links", {}).get("included", bool(m.get("explainer_url"))))
 
 
 def payload(run: Path, video_url: str, explainer_url: str, author: str) -> dict:
@@ -65,7 +51,7 @@ def main() -> int:
     a = ap.parse_args()
     run = resolve_run(a.run)
     if a.ledger and Path(a.ledger).exists():
-        entry = json.loads(Path(a.ledger).read_text()).get("runs", {}).get(run.name, {})
+        entry = read_json(a.ledger).get("runs", {}).get(run.name, {})
         if entry.get("linkedin_post"):
             print(json.dumps({"skipped": "already posted", "post": entry["linkedin_post"]}))
             return 0
@@ -76,7 +62,7 @@ def main() -> int:
         return 0
     if os.environ.get("LINKEDIN_BACKEND") == "fake":
         state = Path(os.environ.get("LINKEDIN_FAKE_STATE", "linkedin_fake_state.json"))
-        posts = json.loads(state.read_text()) if state.exists() else []
+        posts = read_json(state, [])
         posts.append(body)
         state.write_text(json.dumps(posts, indent=2))
         print(json.dumps({"post": f"urn:li:share:fake{len(posts)}"}))

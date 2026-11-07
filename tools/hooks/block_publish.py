@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
-"""PreToolUse hook (Bash): block publishing and uploading commands, whatever form they take.
+"""PreToolUse hook (Bash): block publishing, uploading and approval commands in any spelling; exit 2 says why.
 
-Project rule with no exceptions: nothing is published from Claude Code (no git push, releases, PRs, package
-uploads, video uploads, live streams, remote copies), and nothing that stands for the user's approval is done from it
-(issue labels, deployment reviews through `gh api`, repository variables or secrets, workflow re-runs). The deny rules in .claude/settings.json stop the usual
-spellings; this hook also catches variants such as `git -C . push`, `sh -c '...'` and curl uploads.
-Exit 2 blocks the call and shows the reason to Claude. Standard library only; runs in a few milliseconds.
-Limits: it reads the command text, so a script that uploads from inside Python is not caught (see README).
+Standard library only. It reads the command text: an upload made from inside a script is not caught.
 """
 import sys
 from pathlib import Path
@@ -201,7 +196,7 @@ def main() -> int:
         print(f"Blocked by project policy: {r}. Nothing is published, pushed or uploaded from Claude Code in this "
               "project, and the approval that publishes a video (labels, deployment reviews, repository variables) "
               "is the user's alone. Publication happens only in the GitHub workflow after the user approves the "
-              "video (see CLAUDE.md). Prepare the files and tell the user what is ready instead.", file=sys.stderr)
+              "video (see AGENTS.md). Prepare the files and tell the user what is ready instead.", file=sys.stderr)
         return 2
     return 0
 

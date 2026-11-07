@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
-"""Run folders: create, report pipeline status, rename after approval, package for local archiving.
+"""Run folders: create one, report its pipeline status, rename it after the topic approval, zip it.
 
 Usage:
   python3 tools/run.py new [--focus "legged locomotion"] [--slug scouting] [--date YYYY-MM-DD] [--root runs]
-                          [--sources DIR] [--series DIR]   # covered.json from other folders (the tests' fixtures)
+                          [--window-days N] [--ledger L] [--sources DIR] [--series DIR]   # the last two: tests
   python3 tools/run.py status runs/<run> [--json]
-  python3 tools/run.py finalize runs/<run>        # after topic approval: rename to runs/<date>-<slug>
-  python3 tools/run.py package runs/<run>         # deterministic zip next to the run (local only, never uploaded)
-
-A run folder holds every artifact of one pass through the pipeline:
-  run.json  sources.json  scores.json  ranking.md/.json  selection.json|approval.json  draft/  references.json  code/
-  explainer.html  review/  video/
-Status is computed from the files themselves (existence, validity, freshness), never stored, so it cannot drift.
+  python3 tools/run.py finalize runs/<run>        # after the topic approval: rename to runs/<date>-<slug>
+  python3 tools/run.py package runs/<run> [--out ZIP]   # deterministic zip next to the run (never uploaded)
 """
 from __future__ import annotations
 
@@ -24,8 +19,8 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import (RUNS, SLUG_RE, TEMPLATES, CONFIG, die, load_json, parse_date, ranking_inputs, rel,  # noqa: E402
-                     resolve_run, sha256_file, today_local, write_json)
+from _common import (RUNS, SLUG_RE, TEMPLATES, CONFIG, die, load_json, parse_date, ranking_inputs, read_json,  # noqa: E402
+                     rel, resolve_run, sha256_file, today_local, write_json)
 import validate as V  # noqa: E402
 
 SUBDIRS = ["draft", "code/figures", "code/logs", "review", "video/scenes", "video/data", "video/renders",
@@ -90,7 +85,7 @@ def status(run: Path) -> list[dict]:
         add("scout", "todo", "sources.json missing (robotics-news-scout)")
     else:
         rep = V.validate_file("sources", src, run)
-        data = json.loads(src.read_text(encoding="utf-8")) if not rep.errors else {}
+        data = read_json(src) if not rep.errors else {}
         n = len(data.get("candidates", []))
         add("scout", "fail" if rep.errors else "done",
             f"{len(rep.errors)} error(s) in sources.json" if rep.errors else
@@ -102,7 +97,7 @@ def status(run: Path) -> list[dict]:
     elif not rk.exists() or not (run / "ranking.md").exists():
         add("rank", "todo", "run tools/rank_topics.py")
     else:
-        r = json.loads(rk.read_text(encoding="utf-8"))
+        r = read_json(rk)
         sj = run / "search.json"
         search_stale = sj.exists() and load_json(sj).get("sources_sha256") not in (None, sha256_file(run / "sources.json"))
         if search_stale:
@@ -124,7 +119,7 @@ def status(run: Path) -> list[dict]:
         else:
             add("approval", "waiting", f"the user types /approve-topic {rel(run)} <topic-id>", human=True)
     else:
-        a = json.loads(ap.read_text(encoding="utf-8"))
+        a = read_json(ap)
         if not (run / "ranking.md").exists() or a.get("ranking_sha256") != sha256_file(run / "ranking.md"):
             add("approval", "stale", "ranking.md changed after the topic was approved: approve again"
                 + ("" if auto else " (the user)"), human=not auto)
@@ -150,7 +145,7 @@ def status(run: Path) -> list[dict]:
     if not logs.exists():
         add("code checks", "todo", "run tools/run_code_checks.py")
     else:
-        s = json.loads(logs.read_text(encoding="utf-8"))
+        s = read_json(logs)
         bad = [c["script"] for c in s.get("checks", []) if not c.get("ok")]
         if bad:
             add("code checks", "fail", "failing: " + ", ".join(bad))
@@ -163,7 +158,7 @@ def status(run: Path) -> list[dict]:
     if not rc.exists():
         add("render check", "todo", "node tools/check_html.js explainer.html --json review/check_html.json")
     else:
-        r = json.loads(rc.read_text(encoding="utf-8"))
+        r = read_json(rc)
         if not _newer(rc, [html]):
             add("render check", "stale", "explainer.html changed since the render check")
         else:
@@ -173,7 +168,7 @@ def status(run: Path) -> list[dict]:
     if not rs.exists():
         add("review", "todo", "explainer-review (five reviewers, verification, tools/merge_reviews.py)")
     else:
-        s = json.loads(rs.read_text(encoding="utf-8"))
+        s = read_json(rs)
         open_ = [f for f in s.get("findings", []) if f.get("severity") in ("blocker", "major")
                  and f.get("verdict") != "refuted" and f.get("status", "open") == "open"]
         add("review", "fail" if open_ else "done",
@@ -182,27 +177,27 @@ def status(run: Path) -> list[dict]:
 
     final = run / "video" / "final" / "check.json"
     drafts = run / "video" / "checks" / "check.json"
-    renders = run / "video" / "renders" / "check.json"         # a local final render of every scene, before assembly
+    renders = run / "video" / "renders" / "check.json"         # final renders of the scenes, before assembly
     vc = next((p for p in (final, drafts, renders) if p.exists()), None)
     if vc is None:
         add("video", "todo", "manim-video-producer, then tools/render_video.sh --check")
     else:
-        v = json.loads(vc.read_text(encoding="utf-8"))
+        v = read_json(vc)
         what = {final: "final video checked", drafts: "draft renders checked at -ql (the narrated 1080p60 render "
                 "and assembly follow: finish-video in a session, the workflow in CI)",
                 renders: f"{len(v.get('videos', []))} final render(s) checked"}[vc]
         add("video", "done" if v.get("pass") else "fail", what)
     gp = run / "review" / "gates.json"
     if gp.exists():
-        gt = json.loads(gp.read_text(encoding="utf-8"))
+        gt = read_json(gp)
         bad = [c["name"] for c in gt["checks"] if not c["ok"]]
         add("gates", "done" if gt["passed"] else "fail", f"{gt['stage']}: " + ("all passed" if not bad else
                                                                                 "failed: " + ", ".join(bad)))
     else:
         add("gates", "todo", "python3 tools/gate.py " + rel(run) + " --stage pre-render")
     sheet = run / "deliver" / "upload_sheet.md"
-    released = gp.exists() and json.loads(gp.read_text(encoding="utf-8")).get("stage") == "release" and \
-        json.loads(gp.read_text(encoding="utf-8")).get("passed") is True
+    gates = read_json(gp, {})
+    released = gates.get("stage") == "release" and gates.get("passed") is True
     if sheet.exists():
         add("hand-over", "done", f"{rel(sheet.parent)}: the files for the owner's own upload")
     elif released:
@@ -240,8 +235,8 @@ def cmd_finalize(a) -> int:
     ap = next((run / n for n in ("selection.json", "approval.json") if (run / n).exists()), None)
     if ap is None:
         die("no selection.json or approval.json: no topic has been approved yet")
-    appr = json.loads(ap.read_text(encoding="utf-8"))
-    date = json.loads((run / "run.json").read_text(encoding="utf-8"))["run_date"]
+    appr = read_json(ap)
+    date = read_json(run / "run.json")["run_date"]
     want = run.parent / f"{date}-{appr['slug']}"
     if run == want:
         print(rel(run))

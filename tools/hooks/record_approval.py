@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""UserPromptExpansion hook for /approve-topic: write approval.json from the arguments the user typed.
+"""UserPromptExpansion hook for /approve-topic: writes approval.json from the arguments the user typed.
 
-The event fires only when the user types a command, never when Claude invokes a skill, so the approval cannot be
-produced by the model. On a problem the hook blocks the command and the reason is shown to the user.
-Input (stdin): the hook JSON with command_name, command_args, session_id. Output: hook JSON on stdout.
+The event fires only for a command the user types, so the model cannot approve a topic; a problem blocks the command.
 """
 import sys
 if sys.version_info < (3, 7):          # fail closed: an old python3 must never let a blocked action through

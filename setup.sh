@@ -3,8 +3,8 @@
 # Set up the local toolchain for the pipeline (Linux, WSL and macOS; runs under bash from any shell).
 #
 #   ./setup.sh                        # user-space setup: .venv (Manim, numpy, scipy, sympy, matplotlib, PyYAML,
-#                                     # Piper), the Piper voice model (.cache/piper/), npm packages (Playwright,
-#                                     # KaTeX 0.16.9), Chromium for Playwright, self-test
+#                                     # Piper, the Azure voice backend), the Piper voice model (.cache/piper/), npm
+#                                     # packages (Playwright, KaTeX 0.16.9), Chromium for Playwright, self-test
 #   ./setup.sh --check                # report what is present or missing; change nothing
 #   ./setup.sh --with-system-deps     # also install system packages with apt or Homebrew (sudo on Linux unless
 #                                     # root; apt runs non-interactively: a cloud environment's setup script)
@@ -77,7 +77,7 @@ node_ok=0; node_ready && node_ok=1
 report ".venv (Python env)" "$([ -x .venv/bin/python ] && echo 1 || echo 0)" "(created by ./setup.sh)" user
 report ".venv manim" "$([ -x .venv/bin/manim ] && echo 1 || echo 0)" "(installed by ./setup.sh)" user
 [ $NODE = 1 ] && report "node_modules (playwright, katex)" "$([ -d node_modules/playwright ] && [ -d node_modules/katex ] && echo 1 || echo 0)" "(installed by ./setup.sh)" user
-# the narration voice: drafts are silent and need none; final renders need the Piper model (no other voice stands in)
+# final renders need their voice: no other voice stands in
 if [ -x .venv/bin/python ]; then
   voice_state="$(.venv/bin/python templates/manim/voice.py check piper 2>/dev/null || true)"
   printf '  %-34s %s\n' "piper voice (final renders)" "${voice_state#piper: }"
@@ -138,9 +138,8 @@ echo "== Python venv (.venv)"
 [ -x .venv/bin/python ] || "$PYBIN" -m venv .venv
 # a fresh pip/setuptools inside the venv avoids Debian's patched system pip (install_layout errors)
 .venv/bin/python -m pip install --upgrade pip setuptools wheel
-.venv/bin/python -m pip install -r requirements.txt
-# Optional: the unofficial Google Trends client for tools/search_demand.py (failure is fine: Trends is then
-# recorded as unavailable and the ranking renormalises)
+.venv/bin/python -m pip install -r requirements.txt -r requirements-voice.txt
+# optional: without it Google Trends is recorded as unavailable
 .venv/bin/python -m pip install -r requirements-search.txt \
   || echo "note: optional requirements-search.txt not installed; Google Trends will be recorded as unavailable"
 
@@ -159,8 +158,7 @@ fi
 
 if [ $VOICE_MODEL = 1 ]; then
   echo "== Piper voice model (default narration voice: offline, no key)"
-  # from huggingface.co (rhasspy/piper-voices) into .cache/piper/ (git-ignored), with its MODEL_CARD (licence);
-  # drafts are silent and need no model; final renders stop without it (there is no fallback voice)
+  # from huggingface.co (rhasspy/piper-voices) into .cache/piper/, with its MODEL_CARD (licence)
   .venv/bin/python tools/video/piper_model.py fetch \
     || echo "note: Piper voice model not downloaded (see the message above): final renders stop until it is here" \
             "(run ./setup.sh again); drafts are silent and need none" >&2

@@ -1,19 +1,10 @@
 #!/usr/bin/env python3
-"""Write the single review message the human receives (the body of the review issue), deterministically.
+"""Write review/package.md, the one message the owner reviews the video from (the body of the review issue).
 
 Usage:
   python3 tools/review_package.py runs/<run> --video-id ID --preview-url URL --workflow-url URL
                                   [--approval-mode environment|label] [--token T] [--source-run-id N]
-
-An empty --video-id means manual YouTube mode (repository variable YOUTUBE_UPLOAD=manual, used until the API
-project passes Google's audit): the reviewer watches the MP4 from the run-final artifact instead of a private upload.
-
-Collects: links to the private video and to the explainer preview, why the topic was chosen (selection.md), every
-gate result (review/gates.json), the review findings by severity and what was done about them (review/summary.json),
-the claims that are unverified or disputed (sources.json), the upload status (publish/stage.json), the final-cut review
-(review/final_cut/summary.json), the YouTube Studio steps the API cannot do (end screen, cards, official series), and
-the checklist.
-Writes review/package.md. A hidden comment carries the run metadata the label-based approval workflow needs.
+  An empty --video-id is manual YouTube mode: the owner watches the MP4 of the run-final artifact.
 """
 from __future__ import annotations
 
@@ -24,41 +15,36 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import CONFIG, load_json, rel, resolve_run  # noqa: E402
+from _common import CONFIG, load_json, md_cell, read_json, rel, resolve_run  # noqa: E402
 import plan as P  # noqa: E402
 
 SEV = ["blocker", "major", "minor", "nit"]
 
 
 def cell(s) -> str:
-    return str(s).replace("|", "/").replace("\n", " ").strip()
+    return md_cell(s, "/")
 
 
 def links_on(run) -> bool:
     """The run's links decision, recorded by tools/video/metadata.py in youtube.json."""
-    yp = run / "video" / "final" / "youtube.json"
-    if not yp.exists():
-        return False
-    m = json.loads(yp.read_text(encoding="utf-8"))
+    m = read_json(run / "video" / "final" / "youtube.json", {})
     return bool(m.get("links", {}).get("included", bool(m.get("explainer_url"))))
 
 
 def voice_lines(run) -> list[str]:
     """The narration source: the service (and Piper voice model) and how its word timings were obtained."""
-    man = run / "video" / "voice" / "manifest.json"
-    if not man.exists():
+    m = read_json(run / "video" / "voice" / "manifest.json", None)
+    if m is None:
         return []
-    m = json.loads(man.read_text(encoding="utf-8"))
     model = f" {m['voice_model']}" if m.get("voice_model") else ""
     return [f"- Narration: {m.get('service')}{model} (word timings {m.get('timings', 'unknown')})"]
 
 
 def studio_steps(run, series: bool) -> list[str]:
     """The manual YouTube Studio steps the API cannot do (end screen, cards, official series), with exact times."""
-    asm_p = run / "video" / "final" / "assembly.json"
-    if not asm_p.exists():
+    asm = read_json(run / "video" / "final" / "assembly.json", None)
+    if asm is None:
         return []
-    asm = json.loads(asm_p.read_text(encoding="utf-8"))
     dur = asm["duration"]
 
     def mmss(t):
@@ -71,7 +57,7 @@ def studio_steps(run, series: bool) -> list[str]:
            + "plus Subscribe, in the empty right part of the frame"]
     ctx_p = run / "video" / "series_context.json"
     if series and ctx_p.exists():
-        ctx = json.loads(ctx_p.read_text(encoding="utf-8"))
+        ctx = read_json(ctx_p)
         for sg in asm["segments"]:
             if sg.get("role") == "recap":
                 out.append(f"- [ ] Optional card at {mmss(sg['start'])}: the full episode this recap restates "
@@ -87,7 +73,7 @@ def final_cut_lines(run) -> list[str]:
     p = run / "review" / "final_cut" / "summary.json"
     if not p.exists():
         return ["", "### Final-cut review", "", "- not run (tools/video/final_frames.py, then the final-cut-review skill)"]
-    s = json.loads(p.read_text(encoding="utf-8"))
+    s = read_json(p)
     counts = {k: sum(f["severity"] == k for f in s["findings"]) for k in SEV}
     out = ["", "### Final-cut review (someone watched the assembled video)", "",
            ("- Independent reviewer subagent; blocker and major findings checked by a verifier. "
@@ -114,15 +100,12 @@ def main() -> int:
     run = resolve_run(a.run)
     channel = load_json(CONFIG / "channel.json")
     plan, topic = P.load(run), P.topic(run)
-    gates = json.loads((run / "review" / "gates.json").read_text(encoding="utf-8"))
-    sp_ = run / "review" / "summary.json"
-    summary = json.loads(sp_.read_text(encoding="utf-8")) if sp_.exists() else {"findings": []}
-    stage = json.loads((run / "publish" / "stage.json").read_text(encoding="utf-8")) \
-        if (run / "publish" / "stage.json").exists() else {}
-    asm = json.loads((run / "video" / "final" / "assembly.json").read_text(encoding="utf-8"))
-    chapters = json.loads((run / "video" / "final" / "chapters.json").read_text(encoding="utf-8"))
-    sp = run / "sources.json"
-    sources = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"candidates": []}
+    gates = read_json(run / "review" / "gates.json")
+    summary = read_json(run / "review" / "summary.json", {"findings": []})
+    stage = read_json(run / "publish" / "stage.json", {})
+    asm = read_json(run / "video" / "final" / "assembly.json")
+    chapters = read_json(run / "video" / "final" / "chapters.json")
+    sources = read_json(run / "sources.json", {"candidates": []})
     cand = next((c for c in sources["candidates"] if c["id"] == topic["topic_id"]), {"central_claims": [], "sources": []})
     series = P.is_series(run)
     preview = a.preview_url.rstrip("/") + "/"
@@ -190,14 +173,13 @@ def main() -> int:
         out += ["| ID | Severity | Verdict | Status | Location | Issue |", "|---|---|---|---|---|---|"]
         out += [f"| {f['id']} | {f['severity']} | {f['verdict']} | {f['status']} | {cell(f['location'])} | "
                 f"{cell(f['issue'])} |" for f in summary["findings"]]
-    vs_p = run / "review" / "video" / "summary.json"
-    vsum = json.loads(vs_p.read_text(encoding="utf-8")) if vs_p.exists() else {"findings": []}
+    vsum = read_json(run / "review" / "video" / "summary.json", {"findings": []})
     out += ["", "### Video design", ""]
     for phase in ("draft", "final"):
         for tool in ("check_design", "check_reading"):
             rp = run / "review" / "design" / phase / f"{tool}.json"
             if rp.exists():
-                r = json.loads(rp.read_text(encoding="utf-8"))
+                r = read_json(rp)
                 out.append(f"- {tool.replace('_', ' ')} ({phase} renders): {r['summary']['errors']} error(s), "
                            f"{r['summary']['warnings']} warning(s)")
     vc = {s: sum(f["severity"] == s for f in vsum["findings"]) for s in SEV}

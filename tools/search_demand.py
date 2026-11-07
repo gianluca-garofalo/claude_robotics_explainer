@@ -1,29 +1,10 @@
 #!/usr/bin/env python3
-"""Search demand and supply gap of each candidate topic, from search data, with the evidence written down.
+"""Search demand and supply gap (0-5) of each scouted topic from YouTube suggestions, the YouTube Data API and
+Google Trends, with the evidence, in search.json; a source that fails is unknown, never zero.
 
 Usage:
-  python3 tools/search_demand.py runs/<run>            # after the scout, before tools/rank_topics.py; writes search.json
-  SEARCH_BACKEND=fake SEARCH_FAKE_DATA=file.json ...    # recorded responses (tests); nothing leaves the machine
-
-Queries: each candidate's "search_queries" in sources.json (the phrases a viewer would type, chosen by the scout),
-else words from its title; at most max_queries_per_topic (config/search.json). Sources, each optional and isolated:
-  autocomplete  YouTube search suggestions (suggestqueries.google.com, ds=yt): unofficial, no key, no quota
-  youtube       YouTube Data API v3 search.list (100 quota units per call) + videos.list (1 unit): views and dates of
-                recent relevant videos; needs $YOUTUBE_API_KEY; capped at max_api_queries_per_run
-  trends        Google Trends through the unofficial pytrends client if it is installed (requirements-search.txt):
-                all of a topic's queries in one comparison; the score uses the mean of their means
-Every query of every source is tried; a source that answers only some queries is "partial (k/n)" and the failed
-queries are listed with their reasons. search.json records the hash of the sources.json it was made from, so a later
-edit of sources.json makes it stale (tools/rank_topics.py then treats the search criteria as unknown).
-Scores, 0-5, written to search.json and used by tools/rank_topics.py (computed, never judged):
-  search_demand = weighted mean of the sources that answered: views (median views of the recent relevant videos,
-                  1.25 * (log10 v - 2)), autocomplete (matching suggestions, 1 point each up to 5), trends (mean
-                  interest / 20); weights in config/search.json, renormalised over the sources that answered
-  supply_gap    = 5 - 0.6 * competition - 0.4 * strongest competitor, from YouTube only (competition =
-                  2.2 * log10(1 + recent relevant videos), strongest = 1.25 * (log10 max views - 2))
-A source that fails is recorded as unavailable with the reason; a criterion with no source is unknown (null), never
-zero, and the ranking renormalises the weights. Search measures the long tail of views from search; viral spikes
-come mostly from suggested and browse traffic, which no lookup here sees.
+  python3 tools/search_demand.py runs/<run>            # after the scout, before tools/rank_topics.py
+  SEARCH_BACKEND=fake SEARCH_FAKE_DATA=file.json ...    # recorded answers (tests); nothing leaves the machine
 """
 from __future__ import annotations
 
@@ -230,7 +211,6 @@ def collect(run: Path, backend, cfg: dict) -> dict:
     for cand in sources["candidates"]:
         queries = default_queries(cand, cfg["max_queries_per_topic"])
         ev = {"queries": queries}
-        # autocomplete: every query; failures per query are kept
         acq, errs = [], []
         for q in queries:
             try:
@@ -242,7 +222,6 @@ def collect(run: Path, backend, cfg: dict) -> dict:
                 errs.append({"query": q, "reason": _status(str(exc)[:200])})
         st = _summary(len(acq), errs, len(queries))
         ev["autocomplete"] = {"status": "ok" if acq else st, "coverage": st, "queries": acq, "errors": errs}
-        # YouTube Data API: every query until the per-run cap
         vids, errs, answered = {}, [], 0
         for q in queries:
             if api_calls >= cfg["max_api_queries_per_run"]:
@@ -269,7 +248,7 @@ def collect(run: Path, backend, cfg: dict) -> dict:
                              "top": [{k: v[k] for k in ("title", "channel", "published", "views")} for v in top[:3]]}
         else:
             ev["youtube"] = {"status": st, "coverage": st, "errors": errs}
-        # Google Trends: all queries in one comparison (values are relative within it); mean of the queries' means
+        # Trends values are relative within one comparison, so all queries go in one request
         if cfg.get("trends", {}).get("enabled", True):
             try:
                 per = backend.trends(queries)

@@ -1,31 +1,18 @@
 #!/usr/bin/env python3
-"""What the channel already covers, for the scout's coverage check (deterministic).
+"""What the channel already covers (ledger, source documents, series plans), written to runs/<run>/covered.json.
 
 Usage:
-  python3 tools/coverage.py runs/<run>          # writes runs/<run>/covered.json (tools/run.py new runs it too)
-  options: --sources DIR (folder of source documents, default sources/), --series DIR (folder of series plans,
-           default series/); the tests point both at fixtures
-
-Collects, each with its keywords:
-  ledger    runs in published.json (the ledger: ledger.json on the Pages branch, copied in by CI; tools/run.py new
-            creates an empty one locally) with status published, staged or rejected
-  source    every source document in sources/ (the explainers the series are made from): its title and each
-            top-level section title
-  series    every series in series/: its title and each episode title
-The scout reads covered.json and records per candidate {"status": "new" | "partly_covered" | "covered", "by": [...]};
-tools/validate.py warns when a candidate called new shares keywords with a covered item, and tools/rank_topics.py
-excludes covered candidates.
+  python3 tools/coverage.py runs/<run> [--sources DIR] [--series DIR]   # defaults sources/ and series/ (tools/run.py new runs it)
 """
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import REPO, rel, resolve_run, utc_now, write_json  # noqa: E402
+from _common import REPO, read_json, rel, resolve_run, utc_now, write_json  # noqa: E402
 
 GENERIC = re.compile(r"^(abstract|references|verification status|synthesis|conclusions?|outlook|appendix.*|"
                      r"setting, notation and road map|notation.*)$", re.I)
@@ -59,11 +46,10 @@ def explainer_items(html: Path) -> list[dict]:
 
 
 def build(run: Path, series_root: Path | None = None, sources_root: Path | None = None) -> dict:
-    """series_root: the folder holding <slug>/series.json (default series/); sources_root: the folder holding
-    <name>/explainer.html (default sources/). A file that cannot be read is listed in "skipped", never fatal."""
+    """A file that cannot be read goes in "skipped"; it never stops the build."""
     items = []
     led_p = run / "published.json"
-    led = json.loads(led_p.read_text(encoding="utf-8")) if led_p.exists() else {"runs": {}}
+    led = read_json(led_p, {"runs": {}})
     for name, e in led.get("runs", {}).items():
         if e.get("status") in ("published", "staged", "rejected"):
             items.append({"source": "ledger", "title": e.get("title") or name, "where": name, "status": e["status"],
@@ -79,7 +65,7 @@ def build(run: Path, series_root: Path | None = None, sources_root: Path | None 
     ser_root = Path(series_root or REPO / "series")
     for sp in sorted(ser_root.glob("*/series.json")):
         try:
-            s = json.loads(sp.read_text(encoding="utf-8"))
+            s = read_json(sp)
             items.append({"source": "series", "title": s["title"], "where": rel(sp), "status": "series",
                           "keywords": keywords(s["title"])})
             for ep in s.get("episodes", []):
