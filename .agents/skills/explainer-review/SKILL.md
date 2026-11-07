@@ -29,7 +29,7 @@ context with that file's body as the prompt.
    `review/resolutions.json` (`{"resolutions": [{"finding": "TC-2", "status": "fixed" | "wontfix", "note": "..."}]}`),
    rebuild with `--strict`, rerun the code and render checks, then `merge_reviews.py`.
 6. **Second round, once.** If a blocker was fixed, rerun only the reviewer whose finding it was, on the changed
-   sections (it updates its report: reviewer-contract.md, Second round), verify its new serious findings and merge.
+   sections (a round file: reviewer-contract.md, Second round), verify its new serious findings and merge.
    Never more than two rounds: report what is still open.
 7. Show the user the summary table and the open items. The gate stops a run with an open blocker or confirmed major,
    or a serious finding never verified.

@@ -26,8 +26,8 @@ context with that file's body as the prompt.
 6. **Release gate.** `python3 tools/gate.py runs/<run> --stage release`: the final gates passed for this video and no
    blocker or confirmed major is open.
 7. **Fix.** A confirmed blocker sends the run back: fix the scenes with the `manim-video-producer` skill (never the
-   reviewer's files), render again, assemble, run the final gates, then this skill again (the reviewer updates its
-   report: [reviewer-contract.md](../explainer-review/reviewer-contract.md), Second round); record decisions in
+   reviewer's files), render again, assemble, run the final gates, then this skill again (the reviewer writes a round
+   file: [reviewer-contract.md](../explainer-review/reviewer-contract.md), Second round); record decisions in
    `review/final_cut/resolutions.json`. In CI the release gate stops the run before the private upload, the job
    summary lists the findings, and the fix happens in a new run.
 

@@ -49,10 +49,10 @@ Every reviewer and the finding-verifier follow this file.
 
 ## Second round
 
-If your report already exists, this is a second round: update that file. Keep every earlier finding unchanged, with
-its id, and number new findings after the highest id. Never drop or renumber a finding: verdicts (`verify/<id>.json`)
-and the writer's `resolutions.json` are matched by id. A problem that persists after a fix the writer recorded is a
-new finding that names the earlier id.
+If your report already exists, this is a later round: leave it as it is and write `<reviewer>.round2.json`
+(`round3`, ...) beside it, numbering new findings after the highest id of the earlier rounds. `merge_reviews.py` reads
+every round and stops on an id used twice or on a verdict (`verify/<id>.json`) or resolution whose finding no report
+holds. A problem that persists after a fix the writer recorded is a new finding that names the earlier id.
 
 ## Severity
 
