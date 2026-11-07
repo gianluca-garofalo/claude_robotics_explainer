@@ -124,6 +124,25 @@ class MergeAndGate(unittest.TestCase):
                                                          "note": "Bridging sentence added at the start of 6.2."}]})
         self.assertNotIn("LR-1", self.merge()["open_blocker_major"])
 
+    def merge_fails(self):
+        r = subprocess.run([sys.executable, str(REPO / "tools" / "merge_reviews.py"), str(self.run)],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        return r.stderr
+
+    def test_a_later_round_keeps_the_earlier_findings(self):
+        self.write("resolutions.json", {"resolutions": [{"finding": "LR-1", "status": "fixed", "note": "Bridged."}]})
+        self.write("linear-reader.round2.json", report("linear-reader", ("LR-3", "minor")))
+        s = self.merge()
+        self.assertEqual({f["id"]: f["status"] for f in s["findings"] if f["id"].startswith("LR-")},
+                         {"LR-1": "fixed", "LR-2": "open", "LR-3": "open"})
+        self.assertEqual([r.get("round", 1) for r in s["reviewers"] if r["reviewer"] == "linear-reader"], [1, 2])
+        self.write("linear-reader.round2.json", report("linear-reader", ("LR-2", "minor")))
+        self.assertIn("LR-2 is in linear-reader.json and in linear-reader.round2.json", self.merge_fails())
+        (self.run / "review" / "linear-reader.round2.json").unlink()
+        self.write("linear-reader.json", report("linear-reader", ("LR-2", "minor")))     # round 1 rewritten
+        self.assertIn("LR-1, which no report holds", self.merge_fails())
+
     def test_ledger_in_summary(self):
         self.write("symbol_ledger.json", ledger(P_SWITCH, {"symbol": "H", "uses": [
             {"section": "5.2", "location": "equation (14)", "meaning": "Hamiltonian", "change": "first"}]}))

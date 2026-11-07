@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
-"""Run every script listed in <folder>/code/checks.toml and record the evidence in code/logs/.
+"""Run the scripts listed in <folder>/code/checks.toml and record the evidence in code/logs/; exit 1 if one fails.
 
 Usage:
-  python3 tools/run_code_checks.py runs/<run> [--only SCRIPT] [--python PYTHON]
-  python3 tools/run_code_checks.py sources/<name> [--logs DIR]       # runs in a temporary copy (see below)
-
-Each script runs from its own folder with a timeout (MPLBACKEND=Agg, PYTHONHASHSEED=0). A check passes when the
-script exits 0, every `expect` substring appears in its output and every `produces` file exists afterwards.
-Output: code/logs/<script>.log (stdout+stderr) and code/logs/summary.json, or the same files in --logs DIR. Exit
-status 1 if any check fails. Warnings: scripts under code/ missing from the manifest, manifest scripts missing from
-code/README.md.
-
-A run folder's scripts run in place: the figures and files they write belong to the run. A source document
-(sources/<name>/, or any folder given with --copy) is read-only: its folder is copied to a temporary directory, the
-scripts run there and their outputs are checked there and then discarded, so the source stays byte-identical except
-for code/logs/ (the evidence of the last run, written on purpose), or byte-identical with --logs DIR.
+  python3 tools/run_code_checks.py runs/<run> [--only SCRIPT] [--python PYTHON]   # --only: update that entry only
+  python3 tools/run_code_checks.py sources/<name> [--logs DIR]   # runs in a temporary copy: the source stays as it is
 """
 from __future__ import annotations
 
@@ -29,7 +18,7 @@ import tomllib
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import read_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 
 
 def _copy_ignore(root: Path):
@@ -40,6 +29,13 @@ def _copy_ignore(root: Path):
             skip.add("logs")
         return skip
     return ignore
+
+
+def _previous(path: Path) -> dict:
+    try:
+        return read_json(path, {})
+    except ValueError:
+        return {}
 
 
 def main() -> int:
@@ -59,9 +55,8 @@ def main() -> int:
     if not manifest.exists():
         print(f"error: {rel(manifest)} missing", file=sys.stderr)
         return 1
-    checks = tomllib.loads(manifest.read_text(encoding="utf-8")).get("check", [])
-    if a.only:
-        checks = [c for c in checks if c.get("script") == a.only]
+    listed = tomllib.loads(manifest.read_text(encoding="utf-8")).get("check", [])
+    checks = [c for c in listed if c.get("script") == a.only] if a.only else listed
     if not checks:
         print("error: no [[check]] entries to run", file=sys.stderr)
         return 1
@@ -77,30 +72,38 @@ def main() -> int:
         print(f"running in a temporary copy of {rel(run)} (its files stay as they are"
               f"{'' if a.logs else ' apart from code/logs/'})")
     try:
-        results = _run_checks(checks, code, work, logs, a.python)
+        ran = _run_checks(checks, code, work, logs, a.python)
     finally:
         if tmp:
             shutil.rmtree(tmp, ignore_errors=True)
 
-    listed = {c["script"] for c in tomllib.loads(manifest.read_text(encoding="utf-8")).get("check", [])}
+    scripts = [c["script"] for c in listed]
     readme = (code / "README.md").read_text(encoding="utf-8") if (code / "README.md").exists() else ""
     warnings = []
     for py in sorted(code.rglob("*.py")):
         r = py.relative_to(code).as_posix()
         if r.startswith(("logs/", "figures/")) or "__pycache__" in r:
             continue
-        if r not in listed:
+        if r not in scripts:
             warnings.append(f"{r} is not in checks.toml (fine for helper modules imported by checks)")
-    for s in sorted(listed):
+    for s in sorted(set(scripts)):
         if Path(s).name not in readme:
             warnings.append(f"{s} is not described in code/README.md")
     for w in warnings:
         print(f"warning: {w}")
+    results, manifest_sha = ran, sha256_file(manifest)
+    if a.only:                                    # keep the other scripts' last results, in the manifest's order
+        prev = _previous(logs / "summary.json")
+        kept = {c.get("script"): c for c in prev.get("checks", []) if c.get("script") != a.only}
+        entries = kept | {r["script"]: r for r in ran}
+        results = [entries[s] for s in dict.fromkeys(scripts) if s in entries]
+        if any(s in kept for s in scripts) and prev.get("manifest_sha256") != manifest_sha:
+            manifest_sha = prev.get("manifest_sha256")    # the kept results ran under another checks.toml
     write_json(logs / "summary.json", {"schema_version": 1, "ran_at": utc_now(), "python": Path(a.python).name,
-                                        "manifest_sha256": sha256_file(manifest), "checks": results,
+                                        "manifest_sha256": manifest_sha, "checks": results,
                                         "warnings": warnings, "ran_in": "temporary copy" if copy else "in place"})
-    failed = [r for r in results if not r["ok"]]
-    print(f"run_code_checks: {'FAIL' if failed else 'ok'} ({len(results) - len(failed)}/{len(results)} passed); "
+    failed = [r for r in ran if not r["ok"]]
+    print(f"run_code_checks: {'FAIL' if failed else 'ok'} ({len(ran) - len(failed)}/{len(ran)} passed); "
           f"logs in {rel(logs)}")
     return 1 if failed else 0
 

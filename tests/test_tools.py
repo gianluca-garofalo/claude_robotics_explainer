@@ -293,6 +293,36 @@ class CodeChecksOnASource(unittest.TestCase):
             self.assertEqual((d / "code" / "fig.svg").read_text(), "<svg>regenerated</svg>")
             self.assertTrue((d / "code" / "side_output.json").exists())
 
+    def test_only_updates_its_entry_and_the_gate_wants_every_script(self):
+        import gate
+        with tempfile.TemporaryDirectory() as tmp:
+            d = self.make(Path(tmp), "runs")
+            (d / "video").mkdir()
+            (d / "video" / "plan.json").write_text('{"scenes": []}')
+            (d / "code" / "second.py").write_text("print('SECOND 7')\n")
+            with open(d / "code" / "checks.toml", "a") as fh:
+                fh.write('[[check]]\nscript = "second.py"\nexpect = ["SECOND 7"]\n')
+
+            def summary_and_gate():
+                g = gate.Gates()
+                gate.pre_render(d, g, {})
+                row = next(c for c in g.checks if c["name"] == "companion code checks")
+                s = json.loads((d / "code" / "logs" / "summary.json").read_text())
+                return [(c["script"], c["ok"]) for c in s["checks"]], row
+            r = self.check(d, "--only", "second.py")
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            checks, row = summary_and_gate()
+            self.assertEqual(checks, [("second.py", True)])
+            self.assertFalse(row["ok"])
+            self.assertIn("not run: ['make_fig.py']", row["detail"])
+            self.assertEqual(self.check(d).returncode, 0)
+            self.assertTrue(summary_and_gate()[1]["ok"])
+            (d / "code" / "second.py").write_text("print('SECOND 8')\n")
+            self.assertEqual(self.check(d, "--only", "second.py").returncode, 1)
+            checks, row = summary_and_gate()
+            self.assertEqual(checks, [("make_fig.py", True), ("second.py", False)])
+            self.assertIn("failing: ['second.py']", row["detail"])
+
 
 class DocShellBlocks(unittest.TestCase):
     """Command blocks in the documents paste into zsh as well as bash (tools/lint_project.py --docs)."""

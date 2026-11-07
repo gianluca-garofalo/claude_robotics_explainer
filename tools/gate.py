@@ -252,9 +252,11 @@ def pre_render(run: Path, g: Gates, cfg: dict):
         stale = [c["script"] for c in s["checks"] if c.get("sha256") != sha256_file(run / "code" / c["script"])]
         if s.get("manifest_sha256") != sha256_file(run / "code" / "checks.toml"):
             stale.append("checks.toml")
-        ok = not bad and not stale and bool(s["checks"])
+        listed = tomllib.loads((run / "code" / "checks.toml").read_text(encoding="utf-8")).get("check", [])
+        unrun = [c.get("script") for c in listed if c.get("script") not in {x["script"] for x in s["checks"]}]
+        ok = not bad and not stale and not unrun and bool(s["checks"])
         return ok, (f"{len(s['checks'])} script(s) passed" if ok else
-                    f"failing: {bad}; changed since the run: {stale}")
+                    f"failing: {bad}; changed since the run: {stale}" + (f"; not run: {unrun}" if unrun else ""))
     g.guard("companion code checks", code_checks)
 
     def figures():

@@ -1,50 +1,42 @@
 #!/usr/bin/env python3
-"""Merge reviewer reports into one ranked summary (deterministic).
+"""Merge a run's reviewer reports, every round, into one ranked review/summary.json and summary.md.
 
 Usage:
-  python3 tools/merge_reviews.py runs/<run>                 # explainer reviews: review/*.json -> review/summary.*
-  python3 tools/merge_reviews.py runs/<run> --set video     # video design review: review/video/ -> review/video/summary.*
-  python3 tools/merge_reviews.py runs/<run> --set final_cut # final-cut review of the assembled video: review/final_cut/
-  python3 tools/merge_reviews.py runs/<plan run> --set series_plan   # red team of a series plan: review/series_plan/
-
-Reads review/<reviewer>.json (one per reviewer subagent), review/verify/<finding-id>.json (verdicts of the
-finding-verifier subagents on blocker and major findings) and, if present, review/resolutions.json (how the
-writer handled each finding: {"resolutions": [{"finding", "status": "fixed"|"wontfix", "note"}]}) and, for the
-explainer, review/symbol_ledger.json (the presentation-reviewer's symbol ledger: its changes of meaning are listed in
-the summary for the writer).
-Writes review/summary.json and review/summary.md, findings sorted by severity, then verdict, then id.
-A blocker or major finding is open until it is refuted by verification or resolved by the writer.
-Exit status 1 if an input file is invalid; 0 otherwise (the open count is printed).
+  python3 tools/merge_reviews.py runs/<run> [--set explainer|video|final_cut|series_plan]   # review/ or review/<set>/
+  A later round is <reviewer>.round2.json (round3, ...) beside the earlier report, its finding ids new; exit 1 on an
+  invalid report, a finding id in two reports, or a resolution or verdict whose finding no report holds.
 """
 from __future__ import annotations
 
 import argparse
-import json
+import hashlib
+import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
+from _common import md_cell as cell, read_json, rel, resolve_run, sha256_file, utc_now, write_json  # noqa: E402
 import validate as V  # noqa: E402
 
 SEV_ORDER = {"blocker": 0, "major": 1, "minor": 2, "nit": 3}
 VERDICT_ORDER = {"confirmed": 0, "uncertain": 1, "unverified": 2, "refuted": 3}
 SKIP = V.NOT_REVIEWS
+ROUND_RE = re.compile(r"^(?P<name>.+?)(?:\.round(?P<n>\d+))?\.json$")
 
 
 def scenes_sha256(run: Path) -> str:
     """One hash over the scene sources and the video plan: what a video design review looked at."""
-    import hashlib
     h = hashlib.sha256()
-    files = sorted((run / "video" / "scenes").glob("*.py")) + [run / "video" / "plan.json"]
-    for f in files:
+    for f in sorted((run / "video" / "scenes").glob("*.py")) + [run / "video" / "plan.json"]:
         if f.exists():
             h.update(f.name.encode() + b"\0" + f.read_bytes() + b"\0")
     return h.hexdigest()
 
 
-def cell(s) -> str:
-    return str(s).replace("|", "\\|").replace("\n", " ").strip()
+def report_files(rv: Path) -> list[tuple[Path, int]]:
+    """The reports in rv with their round number, each reviewer's rounds in order."""
+    found = [(p, ROUND_RE.match(p.name)) for p in rv.glob("*.json") if p.name not in SKIP]
+    return [(p, int(m["n"] or 1)) for p, m in sorted(found, key=lambda x: (x[1]["name"] + ".json", int(x[1]["n"] or 1)))]
 
 
 def main() -> int:
@@ -55,15 +47,13 @@ def main() -> int:
     run = resolve_run(a.run)
     rv = run / "review" if a.set == "explainer" else run / "review" / a.set
     reports, bad = [], False
-    for p in sorted(rv.glob("*.json")):
-        if p.name in SKIP:
-            continue
+    for p, rnd in report_files(rv):
         rep = V.validate_file("review", p, run)
         if rep.errors:
             rep.print()
             bad = True
             continue
-        reports.append(json.loads(p.read_text(encoding="utf-8")))
+        reports.append(dict(read_json(p), _round=rnd, _file=p.name))
     verdicts = {}
     for vp in sorted((rv / "verify").glob("*.json")):
         rep = V.validate_file("verdict", vp, run)
@@ -71,7 +61,7 @@ def main() -> int:
             rep.print()
             bad = True
             continue
-        v = json.loads(vp.read_text(encoding="utf-8"))
+        v = read_json(vp)
         verdicts[v["finding"]] = v
     ledger = None
     lp = rv / "symbol_ledger.json"
@@ -81,15 +71,30 @@ def main() -> int:
             rep.print()
             bad = True
         else:
-            ledger = json.loads(lp.read_text(encoding="utf-8"))
-    res = {}
+            ledger = read_json(lp)
     rp = rv / "resolutions.json"
-    if rp.exists():
-        res = {r["finding"]: r for r in json.loads(rp.read_text(encoding="utf-8")).get("resolutions", [])}
+    res = {r["finding"]: r for r in read_json(rp, {}).get("resolutions", [])}
     if bad:
         return 1
     if not reports:
         print("error: no reviewer reports in review/", file=sys.stderr)
+        return 1
+    where, errors = {}, []
+    for r in reports:
+        for f in r["findings"]:
+            if f["id"] in where:
+                errors.append(f"finding {f['id']} is in {where[f['id']]} and in {r['_file']}: a later round numbers its "
+                              "findings after the earlier rounds'")
+            where[f["id"]] = r["_file"]
+    for what, ids in ((rel(rp), res), (rel(rv / "verify"), verdicts)):
+        orphans = sorted(set(ids) - set(where))
+        if orphans:
+            errors.append(f"{what} names {', '.join(orphans)}, which no report holds: a later round goes in "
+                          "<reviewer>.round2.json and leaves the earlier report as it was (restore it: its findings "
+                          "are in summary.json)")
+    if errors:
+        for e in errors:
+            print(f"error: {e}", file=sys.stderr)
         return 1
 
     findings = []
@@ -118,8 +123,8 @@ def main() -> int:
     summary = {"schema_version": 1, "merged_at": utc_now(), "set": a.set,
                "explainer_sha256": sha256_file(html) if html.exists() else None,
                "scenes_sha256": scenes_sha256(run) if a.set == "video" else None, **extra,
-               "reviewers": [{"reviewer": r["reviewer"], "findings": len(r["findings"]), "summary": r["summary"]}
-                             for r in reports],
+               "reviewers": [dict({"reviewer": r["reviewer"], "findings": len(r["findings"]), "summary": r["summary"]},
+                                  **({"round": r["_round"]} if r["_round"] > 1 else {})) for r in reports],
                "open_blocker_major": [f["id"] for f in open_serious], "unverified_blocker_major": unverified_serious,
                "findings": findings}
     if ledger is not None:
@@ -139,7 +144,9 @@ def main() -> int:
                f"session that made it ({', '.join(extra['reviewed_by'])}). The gate marks the review as not independent.",
                ""]
     md += ["| Reviewer | Findings | Summary |", "|---|---|---|"]
-    md += [f"| {r['reviewer']} | {len(r['findings'])} | {cell(r['summary'])} |" for r in reports]
+    for r in reports:
+        label = r["reviewer"] + (f" (round {r['_round']})" if r["_round"] > 1 else "")
+        md.append(f"| {label} | {len(r['findings'])} | {cell(r['summary'])} |")
     md += ["", f"**Open blocker/major findings: {len(open_serious)}**"
            + (f" ({', '.join(f['id'] for f in open_serious)})" if open_serious else "") + ".", ""]
     if unverified_serious:
