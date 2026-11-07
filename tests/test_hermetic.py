@@ -1,7 +1,7 @@
 """The tests depend only on fixtures (python3 -m unittest): a guard so that coupling to what the owner may change
 cannot creep back.
 
-Rules (CONTRIBUTING.md, Testing):
+Rules (AGENTS.md, Changing the pipeline):
 - no test file reads the real sources/ or series/ (by path, including sources/<name> and series/<slug>) or the live
   config/ (a source's name or a series slug on its own is not flagged: it may be an ordinary word); tests use tests/fixtures/ (testenv.SOURCES, testenv.CONFIG, the fixture series);
 - every test module and dry run calls testenv.activate() before it imports a tool, so every tool, in the process and

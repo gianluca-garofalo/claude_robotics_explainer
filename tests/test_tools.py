@@ -318,7 +318,7 @@ class DocShellBlocks(unittest.TestCase):
 
     def test_project_documents_are_clean(self):
         docs = [str(p) for p in (REPO / "README.md", REPO / "SETUP-AUTOMATION.md", REPO / "CONTRIBUTING.md",
-                                 REPO / "CLOUD-SESSION.md")]
+                                 REPO / "AGENTS.md")]
         r = subprocess.run([sys.executable, str(REPO / "tools" / "lint_project.py"), "--docs", *docs],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout)
