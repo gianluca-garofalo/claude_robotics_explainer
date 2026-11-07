@@ -1,5 +1,3 @@
-# Archive a run that was not approved (reusable): records the reason, removes the preview, keeps the video private
-# (or deletes it when config/channel.json says "on_reject": "delete") and closes the review issue.
 name: Archive a run that was not approved
 
 on:

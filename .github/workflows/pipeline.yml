@@ -1,7 +1,4 @@
-# Remaining Action explainer pipeline: news -> explainer -> narrated video -> private upload -> human review -> publish.
-# Series mode (Run workflow, mode: series) makes one episode of a series from an existing explainer instead.
-# The only human step is the video review: the `publish` job waits for your approval (environment `publish` with you as
-# required reviewer). Nothing is public before that. SETUP-AUTOMATION.md lists the one-time setup.
+# Nothing is public before the `publish` job, which waits for the owner's approval (environment `publish`).
 name: Explainer pipeline
 
 on:
@@ -245,9 +242,8 @@ jobs:
           python3 tools/build_explainer.py "$RUN" --strict
           node tools/check_html.js "$RUN/explainer.html" --offline --json "$RUN/review/check_html.json"
       - name: Independent review and fixes (Claude)
-        # Five reviewer subagents plus one verifier per serious finding: a review of a long (19-section) explainer used
-        # about 1.3 M subagent tokens, plus about 0.5 M for verification. If this step stops at its budget, raise the
-        # repository variable CLAUDE_BUDGET_REVIEW_USD (SETUP-AUTOMATION.md, step 7); the default stays 25.
+        # A long explainer's review takes about 1.8 M subagent tokens: if this step stops at its budget, raise the
+        # repository variable CLAUDE_BUDGET_REVIEW_USD.
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -349,10 +345,8 @@ jobs:
 
   gate:
     name: Gates before rendering (fresh checkout, the repository's own tools)
-    # Claude could change any file in its own job's workspace, tools included. So the checks that decide whether the
-    # run goes on are re-run here, on a clean checkout, with the run folder as data: code checks (the explainer must
-    # be reproducible from code/), strict build and render check (news mode), silent draft renders with layout logs,
-    # the design and reading-time checks, then tools/gate.py (which also requires the video design review).
+    # The agent could change any file of its own job, tools included: the checks that decide whether the run goes on
+    # run again here, on a clean checkout, with the run folder as data.
     needs: [preflight, produce, episode]
     if: >-
       always() && needs.preflight.result == 'success' && inputs.stop_after != 'produce' &&
@@ -521,7 +515,7 @@ jobs:
     env:
       RUN: ${{ needs.gate.outputs.run }}
       SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
-      # links in the description: this run's `links` input, else links.include in config/channel.json (default off)
+      # this run's `links` input, else links.include in config/channel.json
       INCLUDE_LINKS: ${{ inputs.links != 'config' && inputs.links || '' }}
       MANIM: /opt/venv/bin/manim
     steps:
@@ -574,8 +568,8 @@ jobs:
 
   final-review:
     name: Claude - final-cut review of the assembled video (a separate reviewer watches it)
-    # After the final render and before the private upload. Like every Claude job: read-only token, no environment,
-    # no secret but the Claude key. Only review/final_cut/ leaves this job; the stage job merges nothing else.
+    # Like every agent job: read-only token, no environment, no secret but the Claude key; only review/final_cut/
+    # leaves this job.
     needs: [preflight, gate, assemble]
     if: inputs.stop_after != 'produce' && inputs.stop_after != 'render'
     runs-on: ubuntu-24.04

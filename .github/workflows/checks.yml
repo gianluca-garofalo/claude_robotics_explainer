@@ -1,4 +1,3 @@
-# Checks for changes to this repository (no secrets, nothing published).
 name: Checks
 
 on:

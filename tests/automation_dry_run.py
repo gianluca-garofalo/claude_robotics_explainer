@@ -1,33 +1,9 @@
 #!/usr/bin/env python3
-"""End-to-end dry run of the automated pipeline after Claude's part, with YouTube and LinkedIn stubbed.
+"""End-to-end dry run of the automated pipeline after the agent's part, YouTube and LinkedIn stubbed, news and
+series mode; skips itself (exit 0, says why) without ffmpeg, Manim or Node with Playwright.
 
 Usage:
   python3 tests/automation_dry_run.py [--keep]
-
-Needs ffmpeg, Manim with manim-voiceover (MANIM, .venv/bin/manim or manim on PATH), Node with Playwright; skips
-itself (exit 0, says why) when one is missing. Nothing leaves the machine: YOUTUBE_BACKEND=fake and
-LINKEDIN_BACKEND=fake record every call in local JSON files, and the "site" is a temporary folder.
-
-Steps: new run from fictional fixtures; search demand from recorded answers; rank; automatic topic approval with
-logged reasons; finalize; code checks,
-strict build, render check; review merge; narrated scene from the template, draft render;
-pre-render gates; narration synthesized once from the parsed scene files with the keyless default voice (Piper; when
-its voice model is not here, explicitly silent, and the final gates run with --allow-silent) and every text-to-speech
-key removed from the environment; final scene render from that narration
-(VOICE_SERVICE=recorded, as in CI), assembly with captions and chapters (no channel card), thumbnail,
-metadata; final gates; the final-cut review (frames and contact sheets of the assembled video, a fixture report, an
-open blocker refused by the release gate, then the release gate); private upload (fake) twice, to prove the second one
-reuses the first video; Pages preview,
-ledger and review package; publication (fake), promotion of the explainer, LinkedIn (fake); the "unaudited API project"
-case, where YouTube keeps the video private; rejection archive; a second selection that skips the published topic;
-draft and final design and reading-time checks from the layout logs, and a video design review (fixture report);
-series mode (schema 2, on the fixture series of tests/series_fixture.py): with approval required, an unapproved plan
-and a plan edited after its approval are refused; under the optional setting (config/pipeline.json) an unapproved plan
-starts with a note; episode 2 of the approved plan starts fresh from the source document (explainer, code, data, its
-series context, no scenes), then runs with a series context and an outro written here around a stand-in body through
-the session's finish (narration, final render, assembly, final gates, final-cut review, release gate, the hand-over
-package of tools/deliver.py, refused before the release gate) and on to a published video added once to the series
-playlist (the workflow's path).
 """
 from __future__ import annotations
 

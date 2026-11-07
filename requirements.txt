@@ -1,16 +1,9 @@
-# Python environment for the pipeline (installed into .venv by setup.sh).
-# Tested on Ubuntu 24.04 with Python 3.13: manim 0.22.1 (ManimPango 0.7.1, pycairo 1.29.2, av 19.0.2),
-# numpy 2.5, scipy 1.18, sympy 1.14, matplotlib 3.11, PyYAML 6.0.
 # manim needs Cairo/Pango development headers to build, ffmpeg, and TeX Live + dvisvgm for MathTex (see setup.sh).
 -r requirements-tools.txt
 manim==0.22.1
 scipy>=1.11
 sympy>=1.12
 matplotlib>=3.8
-manim-voiceover>=0.4      # narrated scenes (VoiceoverScene); the offline draft voice needs nothing else
-piper-tts>=1.8,<2         # default narration voice: Piper, offline neural text to speech, no key (GPL-3.0-or-later);
-                          # its voice model is downloaded once: python3 tools/video/piper_model.py fetch
-
-# Cloud text-to-speech backend (Azure AI Speech, voice.service "azure"): requirements-voice.txt (in the CI image).
-# YouTube / LinkedIn clients for the publishing jobs: requirements-publish.txt (never needed by Claude).
-quadprog>=0.1.12          # small QPs: the torque box of the two-link arm (companion script merged/ineq_arm.py)
+manim-voiceover>=0.4
+piper-tts>=1.8,<2         # the keyless voice (GPL-3.0-or-later); its model: python3 tools/video/piper_model.py fetch
+quadprog>=0.1.12          # the source's companion script merged/ineq_arm.py

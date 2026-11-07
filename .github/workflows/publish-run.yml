@@ -1,5 +1,4 @@
-# Publication of an approved run (reusable). Called by the pipeline (environment `publish`: the job waits until you
-# approve it) or by approve-by-label.yml (environment `publish-label`). Claude never runs in this workflow.
+# No agent runs here: it starts only from an approved environment (`publish` or `publish-label`).
 name: Publish an approved run
 
 on:

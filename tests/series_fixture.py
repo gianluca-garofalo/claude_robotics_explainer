@@ -1,5 +1,4 @@
-"""A schema-2 series for the tests and the dry runs: tests/fixtures/series/fixture-series.json (two episodes adapted
-from the curator's plan), with the source explainer's current hash and, unless approve=False, the owner's approval (in series.json)."""
+"""The schema-2 fixture series (tests/fixtures/series/fixture-series.json) for the tests and the dry runs."""
 import json
 import sys
 from pathlib import Path
@@ -15,7 +14,7 @@ from _common import sha256_file  # noqa: E402
 
 
 def make_series(root: Path, approve: bool = True, edit=None) -> Path:
-    """Write <root>/series/fixture-series/series.json (and plan_approval.json); returns the series folder."""
+    """Write <root>/series/fixture-series/series.json, approved unless approve=False; returns its folder."""
     data = json.loads((REPO / "tests" / "fixtures" / "series" / "fixture-series.json").read_text(encoding="utf-8"))
     data["explainer_sha256"] = sha256_file(REPO / data["source"] / "explainer.html")
     if edit:
@@ -30,8 +29,7 @@ def make_series(root: Path, approve: bool = True, edit=None) -> Path:
 
 
 def scenes_beyond_helpers(run: Path) -> list[str]:
-    """The files in <run>/video/scenes/ other than unchanged copies of the templates/manim helpers (the scene template
-    is a scene, not a helper): an episode started without kept scenes has none."""
+    """Files in <run>/video/scenes/ besides unchanged copies of the templates/manim helpers."""
     tpl = REPO / "templates" / "manim"
     helpers = {p.name: p.read_bytes() for p in tpl.glob("*.py") if p.name != "scene_template.py"}
     return sorted(p.name for p in (run / "video" / "scenes").glob("*.py") if helpers.get(p.name) != p.read_bytes())

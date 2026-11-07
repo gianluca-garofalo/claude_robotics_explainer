@@ -1,5 +1,4 @@
-"""Tests for the scout and ranking rules found in a live test: read levels, claim roles, subject sources, provisional
-claims, unknown recency, run windows, coverage, network status, stale search data, hook scope (python3 -m unittest)."""
+"""Scout and ranking rules: read levels, claim roles, subject sources, recency, windows, coverage, search data."""
 import copy
 import json
 import os

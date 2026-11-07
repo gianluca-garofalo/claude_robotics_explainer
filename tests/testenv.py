@@ -1,11 +1,4 @@
-"""The test environment: every test and dry run imports this module first.
-
-The tests never depend on what the owner may change: the preferences in config/, the source documents in sources/,
-the series plans in series/ and the wording of the documents. activate() points every tool, in this process and in
-the subprocesses it starts, at tests/fixtures/config, a frozen copy of the preferences the tests were written for
-($RA_CONFIG_DIR for tools/, $VIDEO_CONFIG and $CHANNEL_CONFIG for the scene helpers). Source documents come from
-tests/fixtures/sources (SOURCE below); tests/test_sources_smoke.py is the only test that reads sources/.
-"""
+"""Points every tool, in this process and its subprocesses, at tests/fixtures (config, sources): import it first."""
 from __future__ import annotations
 
 import copy
@@ -30,8 +23,7 @@ def environ(config: Path = CONFIG) -> dict:
 
 
 def variant(folder: Path, edits: dict) -> Path:
-    """A copy of the fixture configuration in folder/config with edits merged in ({"pipeline": {"series":
-    {"plan_approval": "required"}}}); returns the folder to pass as $RA_CONFIG_DIR (see env())."""
+    """folder/config: the fixture configuration with edits merged in, e.g. {"pipeline": {"series": {...}}}."""
     out = Path(folder) / "config"
     out.mkdir(parents=True, exist_ok=True)
 
@@ -51,16 +43,14 @@ def env(config: Path = CONFIG, **extra) -> dict:
     return dict(os.environ, **environ(config), **extra)
 
 
-# Credentials and per-machine choices the tools read from the environment. A test that needs one sets it itself;
-# otherwise a developer's or a cloud session's own keys would change what the tests see.
+# a developer's or a cloud session's own keys and choices must not change what the tests see
 MACHINE_ENV = ("VOICE_SERVICE", "AZURE_SUBSCRIPTION_KEY", "AZURE_SERVICE_REGION", "ANTHROPIC_API_KEY",
                "CLAUDE_CODE_OAUTH_TOKEN", "YOUTUBE_API_KEY", "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
                "YOUTUBE_REFRESH_TOKEN", "LINKEDIN_ACCESS_TOKEN", "LINKEDIN_AUTHOR_URN")
 
 
 def activate() -> None:
-    """Point this process and its subprocesses at the fixtures (idempotent). Called first in every test module and
-    dry run, before any tool is imported; tool modules imported earlier are pointed at the fixture as well."""
+    """Idempotent; tool modules imported earlier are pointed at the fixtures as well."""
     for k in MACHINE_ENV:               # credentials and choices of this machine never reach a test
         os.environ.pop(k, None)
     os.environ.update(environ())

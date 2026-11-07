@@ -1,5 +1,3 @@
-# Build the CI image (docker/Dockerfile) and push it to GitHub Container Registry as
-# ghcr.io/<owner>/<repo>/explainer-ci:latest. Layers are cached in the GitHub Actions cache.
 name: CI image
 
 on:

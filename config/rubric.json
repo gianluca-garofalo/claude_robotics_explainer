@@ -52,11 +52,7 @@
     "claim_roles_counted": ["central"],
     "max_unverified_central_claims": 0,
     "max_provisional_central_claims": null,
-    "definitions": "A primary source counts for the gate only with relation 'subject' (it presents this candidate's own work); prior work cited for novelty does not. Only claims with role 'central' (what the explainer would rely on: the method, the main result, the key number) are counted; limitations and context are never counted, so stating caveats costs nothing. 'provisional' claims (primary source seen only as a search tool's abstract, typically because the network blocked it) are allowed and flagged for re-verification before writing; null means no limit."
+    "definitions": "Only subject primary sources and central claims count; provisional claims pass, flagged for re-verification (null: no limit)."
   },
-  "tie_breakers": ["teachability", "visual_potential", "audience_fit"],
-  "changelog": [
-    "v2 (2026-10): search_demand 0.15 and supply_gap 0.10 added (computed from search data); recency 0.15 -> 0.10, novelty, visual_potential and audience_fit 0.20 -> 0.15, teachability 0.25 -> 0.20.",
-    "v2.1 (2026-10-31): gates count only central claims and subject primary sources; provisional claims allowed and flagged; recency unknown without a dated subject source."
-  ]
+  "tie_breakers": ["teachability", "visual_potential", "audience_fit"]
 }

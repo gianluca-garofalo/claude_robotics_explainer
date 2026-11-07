@@ -1,4 +1,4 @@
-"""Unit tests for the automation tools: topic selection, video plan, chapters, metadata (python3 -m unittest)."""
+"""Topic selection, video plan, chapters, metadata."""
 import json
 import os
 import shutil

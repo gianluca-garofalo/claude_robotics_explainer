@@ -1,6 +1,4 @@
-# Label-based approval, for private repositories whose plan has no required reviewers on environments.
-# Active only when the repository variable APPROVAL_MODE is "label". Only the GitHub user named in APPROVER_LOGIN
-# counts: a label added by anyone else, or by a bot, does nothing. Claude never holds a token that can label issues.
+# For plans without required reviewers on environments. Only APPROVER_LOGIN's label counts, never a bot's.
 name: Approve by label
 
 on:

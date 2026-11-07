@@ -6,7 +6,7 @@
   "links": {
     "include": false,
     "footer": "Every number in the video comes from a script you can run: the explainer and its code are linked above.",
-    "note": "Off by default: the video never refers to the explainer, code or site, and the description carries no link to them. Turn it on here, or for one run with the pipeline's 'links' input, to add the explainer and code links to the YouTube description only (never inside the video); that needs SITE_BASE_URL."
+    "note": "Off: no link anywhere; on: the explainer and code links go in the YouTube description only (needs SITE_BASE_URL)."
   },
   "language": "en",
   "youtube": {
@@ -40,7 +40,7 @@
     },
     "azure_voice": "en-US-Steffan:DragonHDLatestNeural",
     "block_end_pause_s": 0.75,
-    "pacing_note": "v7 (owner, 2026-11-07, joint pacing recommendation rules P8, P10 and P20): every narration block ends with a hold of the picture of block_end_pause_s (a scene wait in RAScene, never audio: Azure drops a break after the last word, measured 2026-11-07); a block that ends with its own [pause S] holds S instead ([pause 0]: none). Inside a block [pause S] is an SSML break of at most voice.azure.max_break_ms. A block marked [slow] (a derivation or an argument) is read as a whole at voice.azure.slow_rate_pct; ordinary narration stays at rate_pct. The owner chose this on 2026-11-07 in a blind listening test of three Steffan HD takes of the descent passage, with the same breaks and holds: the whole block at -15 % (chosen), the key sentences alone at -15 %, and at -20 %. The sentence-level [key] of the joint recommendation is retired. Measured the same day on three derivation passages, three takes each: a slow block lasts 5-8 % longer (the rate model, 92/85, says 8 %), reads 152-174 words per minute with the planned pauses left out (ordinary: 162-183), its sentence-end pauses are as long as ordinary ones (0.88 against 0.83 s on the stem), and no pause inside a sentence reaches 0.7 s. The pace cap first adds breaks of up to pace_break_max_s at the sentence ends, then slows the block down to pace_min_rate_pct, then flags it for a rewrite; no block or sentence is ever read below min_rate_pct (-20: below it Steffan HD drags words, measured on v6), whatever this file says (templates/manim/voice.py RATE_FLOOR_PCT). block_end_pause_s is 0.75 s since round 2 with the learning-science reviewer (2026-11-07): measured on the narration stem, as rule P8 measures, v6's ordinary sentence ends inside blocks are silent for a median 1.01 s and its block ends for 0.30 s (the stem counts the voice's sentence-final decay as silence), so a 0.75 s hold brings block boundaries to about 1.05 s, never shorter than an ordinary sentence boundary; the joint file's 0.6 s would leave them at about 0.90 s.",
+    "pacing_note": "Every narration block ends on a picture hold of block_end_pause_s, or of S when it ends with [pause S]; a [slow] block reads at azure.slow_rate_pct.",
     "azure": {
       "rate_pct": -8,
       "min_rate_pct": -20,
@@ -48,11 +48,11 @@
       "pace_min_rate_pct": -15,
       "pace_break_max_s": 0.5,
       "max_break_ms": 4000,
-      "max_break_note": "Measured 2026-11-07 on en-US-Steffan:DragonHDLatestNeural, TTS only (28 single-break takes of 1-12 s): no 5 s cap (12 s came back at 12.1-12.3 s), but long breaks are unreliable: up to 4 s, 2 of 18 takes stretched the pause by 3.5-5.6 s; 5-8 s, 5 of 10 takes by 3.4-15 s (voice_anomaly() retakes them). A break comes out 0.0-0.3 s longer than asked; two adjacent breaks add up; a break after the last word is dropped. A pause longer than 4 s ends the block and holds the picture (RAScene), never audio.",
+      "max_break_note": "The longest SSML break: a longer pause ends the block and holds the picture instead.",
       "max_wpm": 160,
       "ellipsis_pause_s": 0.7,
       "style": null,
-      "note": "Owner decision 2026-11-06: Azure en-US-Steffan:DragonHDLatestNeural is the narrator of the Remaining Action series (chosen over en-US-SamuelMultilingualNeural and others in a matched-pace comparison: about 150 words per minute, a 400 ms break between blocks, prosody rate -8 %). rate_pct -8 gives Steffan HD about 147-156 words per minute (measured 2026-11-06); a block faster than max_wpm (160, the top of the spoken-script standard's 140-160) is paced in the order of rule P20 (voice.pacing_note: breaks first, then a slower rate down to pace_min_rate_pct, then a rewrite; v6 slowed blocks to -30 %, which dragged words, so min_rate_pct is -20 since 2026-11-07). HD voices honour <prosody rate> and <break> and ignore mstts:silence (never used). Pauses come only from the service (punctuation, prosody rate, an ellipsis as a <break> of ellipsis_pause_s, a [pause S] as a <break> of S) and from holds of the picture between blocks; the audio is never cut, padded or spliced. HD takes are not deterministic: a take with an unplanned gap, an over-long word or a pace under min_wpm is synthesized again (up to retries times). Keys AZURE_SUBSCRIPTION_KEY and AZURE_SERVICE_REGION come from the environment only. Piper stays installed as the keyless voice (render_video.sh --voice piper); drafts are silent.",
+      "note": "A block over max_wpm gets breaks, then a slower rate down to pace_min_rate_pct (never below min_rate_pct); a take with a gap or under min_wpm is made again, up to retries times.",
       "min_wpm": 110,
       "retries": 3
     },
@@ -76,14 +76,14 @@
     },
     "draft_words_per_minute": 150,
     "disclosure": "Script, figures and animations were produced with an AI-assisted pipeline, checked by scripts and independent reviewers, and approved by a human before publication.",
-    "policy": "Voice policy (README.md): one canonical narrator per series; changes only at series boundaries, announced; AI voices never presented as real or as different people; a second voice only as a named, disclosed character; the back catalogue is re-voiced on a change; rendered narration WAVs are archived; the reference paragraph is rendered at each change."
+    "policy": "One narrator per series, AI narration always disclosed (README.md, voice policy)."
   },
   "video": {
     "quality": "h",
     "min_duration_s": 45,
     "max_duration_s": 1200,
     "loudness_lufs": -14,
-    "loudness_note": "Integrated loudness of the final mix (EBU R128), set by a fixed gain after a measurement pass; YouTube normalises to about -14 LUFS and turns quieter videos up never. The true-peak ceiling is music.true_peak_dbtp, measured after AAC encoding. Owner decision 2026-11-04 (was -16)."
+    "loudness_note": "Integrated loudness of the final mix (EBU R128); the true-peak ceiling is music.true_peak_dbtp."
   },
   "linkedin": {
     "commentary_template": "New on Remaining Action: {title}. {summary} Explainer with equations, code and sources: {explainer_url} Video: {video_url}",
@@ -120,7 +120,7 @@
       "recap": "low",
       "body": "low"
     },
-    "note": "Owner decision 2026-11-04, route A: original music only. tools/video/music.py synthesises it (seeded by the run slug unless seed is set; preset calm-pad), tools/video/assemble.py mixes it: the bed sits bed_in_gaps_lu below the narration's loudness in pauses and bed_under_voice_lu below it while the narration speaks (a sidechain duck with look-ahead), the motif sting on the title beat after the hook ('hook_title') and on the outro ('outro') at sting_lu. Per scene (plan.json scenes \"music\": bed | low | off, default modes_by_role) after the coherence principle (Moreno and Mayer 2000: background music under narrated explanation lowers recall and transfer): the bed in the hook, title beat and outro, 'low' (low_under_voice_lu, at least 20 LU under the voice) or 'off' under explanation; a swell of transition_swell_s at every cut. tools/gate.py requires the provenance stamp video/final/music.json for any music in the mix. Licensed or commissioned tracks (route B) are not supported yet: source must stay 'generated'; enabled false gives a voice-only mix. Stings (2026-11-04, after the v2 final-cut review FC-1): placed in a pause of the narration so that they end sting_margin_s before the next word (music.py sting_slot()), and ducked under the voice by sting_duck_db as a safety net; the final gate requires every music element to stay at least music_under_voice_max_lu under the narration while it speaks (EBU R128 momentary loudness of the mixed music against the narration's integrated loudness, over whole spoken words). bed_under_voice_lu -16 -> -18 (2026-11-04): with -16 the bed's own swells and bells reached -11.5 LU over words in episode 1 v2.",
+    "note": "Original music from tools/video/music.py, mixed per scene (plan.json 'music', else modes_by_role): the bed sits bed_in_gaps_lu under the narration in pauses and bed_under_voice_lu under it while it speaks; source must stay 'generated'.",
     "sting_s": 3.2,
     "sting_margin_s": 0.2,
     "sting_duck_db": 14,

@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
-"""End-to-end dry run of the pipeline's deterministic parts on fictional fixtures.
+"""End-to-end dry run of the pipeline's deterministic parts on fictional fixtures; nothing leaves the machine.
 
 Usage:
-  python3 tests/dry_run.py [--keep] [--skip-browser] [--skip-video]
-
-No network, no Claude session, nothing published. Steps: create a run in a temporary folder, validate the
-fixture sources and scores, rank, simulate the user's /approve-topic through the real UserPromptExpansion hook
-script (and a rejected one), finalize the run name, run the code checks, build the explainer, lint it strictly,
-exercise the PostToolUse and PreToolUse hooks, merge fixture review reports, render-check the HTML (if Playwright
-is installed), render the Manim template into the run at -ql (if Manim is installed), evaluate the review
-workflow script with stubbed agents (if Node is installed), report status and package the run.
-Exit status 1 if any step fails; skipped steps are listed with the reason.
+  python3 tests/dry_run.py [--keep] [--skip-browser] [--skip-video]   # exit 1 if a step fails; skips say why
 """
 from __future__ import annotations
 

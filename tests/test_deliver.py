@@ -1,4 +1,4 @@
-"""Unit tests for tools/deliver.py, the hand-over package of a finished video (python3 -m unittest)."""
+"""tools/deliver.py, the hand-over package of a finished video."""
 import hashlib
 import json
 import shutil

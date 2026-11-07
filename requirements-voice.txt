@@ -1,4 +1,2 @@
-# Optional cloud text-to-speech backend (CI image; the keys come from GitHub secrets): Azure AI Speech, neural voices
-# with word timings (voice.service "azure"). The default voice, Piper, is offline and needs no key: it is in
-# requirements.txt.
+# The channel voice (voice.service "azure"); its keys come from the environment at run time, not at install.
 manim-voiceover[azure]>=0.4

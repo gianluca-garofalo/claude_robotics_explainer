@@ -1,5 +1,4 @@
-"""Unit tests for series plans (schema 2): validation, the owner's plan approval, start, plan sections as sources
-(python3 -m unittest)."""
+"""Series plans (schema 2): validation, the owner's approval, start, from-source and next, write."""
 import copy
 import json
 import shutil
@@ -208,9 +207,7 @@ class Validate(unittest.TestCase):
 
 
 class Approval(unittest.TestCase):
-    """Plan approval, under both settings of config/pipeline.json series.plan_approval (each test names the setting
-    it runs with, in a variant of the fixture configuration): "required" refuses an unapproved or changed plan,
-    "optional" starts it with an informational note; --require-approval asks for the approval whatever the setting."""
+    """Plan approval under both settings of series.plan_approval, and --require-approval."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="series-approval-"))
@@ -284,8 +281,7 @@ class Approval(unittest.TestCase):
 
 
 class FromSourceAndNext(unittest.TestCase):
-    """from-source finds the series made from a source in release order; next skips episodes whose hand-over package
-    exists in the runs folder; a source without companion code gets an empty code/ for the episode's own scripts."""
+    """from-source in release order, next past delivered episodes, a source without companion code."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="series-source-"))
