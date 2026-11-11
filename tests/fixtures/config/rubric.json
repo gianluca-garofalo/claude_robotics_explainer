@@ -52,7 +52,7 @@
       "weight": 0.15,
       "description": "How naturally the core idea becomes an original animation (motion, geometry, phase portraits, forces)."
     },
-    "audience_fit": {
+    "expertise_fit": {
       "weight": 0.15,
       "description": "Relevance to robotics and control researchers and students (MPC, whole-body control, estimation, learning for control)."
     },
@@ -80,7 +80,7 @@
   "tie_breakers": [
     "teachability",
     "visual_potential",
-    "audience_fit"
+    "expertise_fit"
   ],
   "changelog": [
     "v2 (2026-10): search_demand 0.15 and supply_gap 0.10 added (computed from search data); recency 0.15 -> 0.10, novelty, visual_potential and audience_fit 0.20 -> 0.15, teachability 0.25 -> 0.20.",

@@ -6,7 +6,7 @@
       "scores": {
         "novelty": {"score": 3, "why": "Fixture: a known certificate applied in a new setting.", "sources": ["S1"]},
         "visual_potential": {"score": 4, "why": "Fixture: a shrinking value function animates naturally.", "sources": []},
-        "audience_fit": {"score": 5, "why": "Fixture: receding-horizon control is core to the audience.", "sources": []},
+        "expertise_fit": {"score": 4, "why": "Fixture: receding-horizon control is core to the channel's expertise.", "sources": []},
         "teachability": {"score": 5, "why": "Fixture: a scalar toy model reproduces the effect in a few lines.", "sources": ["S1"]},
         "hype_risk": {"score": 1, "why": "Fixture: the paper states its assumptions; coverage is sober.", "sources": ["S1", "S2"]}
       },
@@ -18,7 +18,7 @@
       "scores": {
         "novelty": {"score": 3, "why": "Fixture: a new benchmark, not a new method.", "sources": ["S3"]},
         "visual_potential": {"score": 3, "why": "Fixture: contact switching is visual but needs a simulator.", "sources": []},
-        "audience_fit": {"score": 4, "why": "Fixture: manipulation researchers would use it.", "sources": []},
+        "expertise_fit": {"score": 4, "why": "Fixture: contact-rich planning is core to the channel's expertise.", "sources": []},
         "teachability": {"score": 2, "why": "Fixture: hard to reduce to a toy model without the simulator.", "sources": []},
         "hype_risk": {"score": 1, "why": "Fixture: code release with documentation, no superlatives.", "sources": ["S3"]}
       },
@@ -30,7 +30,7 @@
       "scores": {
         "novelty": {"score": 4, "why": "Fixture: the video suggests a new capability, but nothing documents it.", "sources": ["S4"]},
         "visual_potential": {"score": 5, "why": "Fixture: the motion is spectacular, but the footage is not ours.", "sources": []},
-        "audience_fit": {"score": 4, "why": "Fixture: humanoids attract the audience.", "sources": []},
+        "expertise_fit": {"score": 4, "why": "Fixture: an autonomous humanoid is robot AI with a control angle.", "sources": []},
         "teachability": {"score": 1, "why": "Fixture: no equations or data to build a toy model from.", "sources": []},
         "hype_risk": {"score": 5, "why": "Fixture: the autonomy claim rests on a video only.", "sources": ["S4"]}
       },

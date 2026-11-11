@@ -18,7 +18,7 @@ from _common import (CONFIG, load_json, md_cell as cell, parse_date, ranking_inp
 import validate as V  # noqa: E402
 
 LABELS = {"recency": "Rec", "search_demand": "Search", "supply_gap": "Gap", "novelty": "Nov",
-          "visual_potential": "Vis", "audience_fit": "Aud", "teachability": "Teach", "hype_risk": "Hype (-)"}
+          "visual_potential": "Vis", "expertise_fit": "Fit", "teachability": "Teach", "hype_risk": "Hype (-)"}
 
 
 def recency_score(days: int | None, crit: dict) -> int | None:

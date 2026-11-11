@@ -1,6 +1,6 @@
 ---
 name: virality-ranker
-description: Scores the scouted candidate topics with the project's explicit rubric (novelty, visual potential, audience fit, teachability, hype risk; recency, search demand and supply gap computed from dates and search data), with written reasons and cited sources, and produces the run's ranking.md. Use after the scout, when asked which topic is most likely to go viral, or as stage 3 of /produce-explainer.
+description: Scores the scouted candidate topics with the project's explicit rubric (novelty, visual potential, expertise fit, teachability, hype risk; recency, search demand and supply gap computed from dates and search data), with written reasons and cited sources, and produces the run's ranking.md. Use after the scout, when asked which topic is most likely to go viral, or as stage 3 of /produce-explainer.
 argument-hint: "runs/<run>"
 ---
 
@@ -34,7 +34,7 @@ anchors in [rubric.md](rubric.md) before scoring.
 {"schema_version": 1, "topics": [{"id": "T1",
   "scores": {"novelty": {"score": 4, "why": "...", "sources": ["S1"]},
              "visual_potential": {"score": 5, "why": "...", "sources": []},
-             "audience_fit": {"score": 4, "why": "...", "sources": []},
+             "expertise_fit": {"score": 4, "why": "...", "sources": []},
              "teachability": {"score": 3, "why": "...", "sources": ["S1"]},
              "hype_risk": {"score": 1, "why": "...", "sources": ["S1", "S2"]}},
   "proposed_angle": "...", "animation_idea": "..."}]}

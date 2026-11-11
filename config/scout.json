@@ -23,10 +23,20 @@
     "www.theverge.com",
     "www.wired.com"
   ],
+  "focus": [
+    "robot learning with control structure: learned dynamics or policies with certificates, RL combined with MPC",
+    "foundation or vision-language-action models acting through controllers",
+    "optimal control, MPC and whole-body control",
+    "contact-rich planning",
+    "Lagrangian and variational mechanics",
+    "state estimation"
+  ],
   "search_angles": [
+    "robot learning with control structure: learned dynamics or policies with stability or safety certificates, reinforcement learning combined with MPC",
+    "foundation and vision-language-action models that act through robot controllers (MPC, whole-body or impedance control)",
+    "optimal control, MPC and whole-body control results for humanoids, legged robots and manipulators",
+    "contact-rich planning and manipulation, Lagrangian and variational mechanics, state estimation for robots",
     "new robotics papers this week (locomotion, manipulation, humanoids, aerial, field robots)",
-    "robot control and model predictive control results",
-    "robot learning results with released code or data",
     "official lab or company robotics announcements with a technical report",
     "robotics conference news (ICRA, IROS, RSS, CoRL, Humanoids)"
   ],

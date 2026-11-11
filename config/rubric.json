@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "disclaimer": "The ranking is a transparent heuristic for choosing what to explain next. It is not a prediction of views, shares or impact. Search demand measures what people already look for, which drives the long tail of views from search; viral spikes come mostly from suggested and browse traffic, which no lookup here measures.",
   "formula": "total = 100 * max(0, sum_known(w_i * s_i) / (5 * sum_known(w_i)) - w_hype * hype_risk / 5), with s_i and hype_risk on a 0-5 scale and sum_i(w_i) = 1; a computed criterion whose data could not be collected is unknown, not zero, and the weights of the known criteria are renormalised",
   "criteria": {
@@ -12,7 +12,7 @@
       "source": "dates"
     },
     "search_demand": {
-      "weight": 0.15,
+      "weight": 0.1,
       "computed": true,
       "source": "search",
       "description": "How much people already search for the topic: views of recent relevant YouTube videos, YouTube search suggestions and Google Trends interest, combined by tools/search_demand.py (computed, not judged; unknown when no source could be read)."
@@ -24,16 +24,16 @@
       "description": "How little good recent coverage exists: few recent relevant YouTube videos and weak competitors score high (computed by tools/search_demand.py from the YouTube Data API; unknown without an API key)."
     },
     "novelty": {
-      "weight": 0.15,
+      "weight": 0.1,
       "description": "How new the idea or capability is relative to the published state of the art."
     },
     "visual_potential": {
       "weight": 0.15,
       "description": "How naturally the core idea becomes an original animation (motion, geometry, phase portraits, forces)."
     },
-    "audience_fit": {
-      "weight": 0.15,
-      "description": "Relevance to robotics and control researchers and students (MPC, whole-body control, estimation, learning for control)."
+    "expertise_fit": {
+      "weight": 0.25,
+      "description": "Closeness to the channel's expertise (optimal control, MPC, whole-body control, contact-rich planning, Lagrangian and variational mechanics, estimation) and, best, where it meets AI (robot learning with control structure, learned dynamics or policies with certificates, foundation and vision-language-action models acting through controllers, RL combined with MPC)."
     },
     "teachability": {
       "weight": 0.2,
@@ -54,5 +54,5 @@
     "max_provisional_central_claims": null,
     "definitions": "Only subject primary sources and central claims count; provisional claims pass, flagged for re-verification (null: no limit)."
   },
-  "tie_breakers": ["teachability", "visual_potential", "audience_fit"]
+  "tie_breakers": ["teachability", "visual_potential", "expertise_fit"]
 }

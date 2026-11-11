@@ -9,22 +9,23 @@ argument-hint: "runs/<run> [focus]"
 Input: a run folder (`python3 tools/run.py new [--window-days N] [--root DIR]` makes one, anywhere) and an optional
 focus. Output: `<run>/sources.json` (format in [sources-format.md](sources-format.md)), clean under
 `python3 tools/validate.py <run>`: run it yourself before you finish (the hook on save sees only this session's files).
-Read `config/scout.json` (candidates, search angles, domains, exclusions) and the run's `run.json`: its `window_days`
-is this run's search window, and `sources.json` carries the same. [source-policy.md](source-policy.md) says what is
-primary, what each read level permits and what a claim may say.
+Read `config/scout.json` (candidates, focus areas, search angles, domains, exclusions) and the run's `run.json`: its
+`window_days` is this run's search window, and `sources.json` carries the same. [source-policy.md](source-policy.md)
+says what is primary, what each read level permits and what a claim may say.
 
 ## Procedure
 
 1. **Search** within the window. WebSearch has no date filter, so put the dates in the queries: the month and year
    ("October 2026"), arXiv identifiers of the window's months (`site:arxiv.org 2610` for October 2026), conference
-   names with the year. One query per search angle of the config, plus the focus; record every query you ran in
+   names with the year. One query per search angle of the config, plus the focus argument; record every query you ran in
    `queries`. When arxiv.org is reachable, its subject listings (`arxiv.org/list/cs.RO/2026-10`,
    `arxiv.org/list/cs.RO/recent`) are the most complete dated index: filter titles there and record the listing as a
    query, in few requests (arXiv rate-limits bursts).
 2. **Group** results into candidates: one technical idea per candidate, not one article. Drop what matches `exclude`.
    Set each candidate's `coverage` from the run's `covered.json` (made from the ledger `published.json`, `sources/` and
    `series/`): `new`, `partly_covered` (say how the angle differs) or `covered` (drop it, or keep it marked so the
-   ranking excludes it), with `by` naming the covered items. Keep between `min_candidates` and `max_candidates`.
+   ranking excludes it), with `by` naming the covered items. Keep between `min_candidates` and `max_candidates`;
+   prefer candidates in the config's `focus` areas, and keep at least two of them whenever the window has them.
 3. **Read the primary source** of each candidate in the policy's access order, and record the level reached in `read`
    (with `via` when read elsewhere) and its `authors` as the record lists them (the video's description credits them;
    the video never names them). Every failure goes into `unreadable` with `reason` and `cause` (`network_policy`
