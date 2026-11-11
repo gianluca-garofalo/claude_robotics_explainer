@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
- * Browser check of the reader features of an explainer page (dark mode, equation links with Back, contents drawer).
+ * Browser check of the reader features of an explainer page (dark mode, equation links with Back and previews,
+ * contents drawer).
  *
  *   node tools/check_html_features.js PAGE.html [--katex-dist DIR] [--shots DIR] [--json OUT.json]
  */
@@ -21,6 +22,46 @@ try { ({ chromium } = require('playwright')); } catch (e) { console.error('playw
 const url = 'file://' + path.resolve(file);
 const results = [];
 const check = (name, ok, detail) => { results.push({ name, ok: !!ok, detail: detail || '' }); };
+
+// Runs in the page: the equation preview card (.eq-tip) as the reader sees it, for the i-th equation reference.
+// The equation it should show is the display whose number the link reads, compared by its TeX source.
+function previewState(i) {
+  const a = document.querySelectorAll('a.eqref')[i], tip = document.querySelector('.eq-tip');
+  const n = a.textContent.replace(/[()]/g, '').trim();
+  const tex = el => { const t = el && el.querySelector('annotation[encoding="application/x-tex"]');
+    return t ? t.textContent.trim() : ''; };
+  const eq = [...document.querySelectorAll('.katex-display')].find(d => !(tip && tip.contains(d))
+    && [...d.querySelectorAll('.tag')].some(t => t.textContent.includes(`(${n})`)));
+  const st = { n, want: tex(eq), shown: !!tip && !tip.hidden && tip.getBoundingClientRect().width > 0 };
+  const k = st.shown ? tip.querySelector('.katex') : null;
+  if (!k) return st;
+  const lum = c => { const v = (c.match(/[0-9.]+/g) || []).slice(0, 3).map(x => x / 255)
+    .map(x => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+  const ratio = (f, g) => (Math.max(lum(f), lum(g)) + 0.05) / (Math.min(lum(f), lum(g)) + 0.05);
+  const tw = document.createTreeWalker(tip, NodeFilter.SHOW_TEXT);
+  let label = '', labelEl = null;                                    // the card's words outside the formula
+  while (tw.nextNode()) {
+    const p = tw.currentNode.parentElement;
+    if (!p.closest('.katex')) { label += tw.currentNode.nodeValue; labelEl = labelEl || p; }
+  }
+  const b = tip.getBoundingClientRect(), r = a.getBoundingClientRect(), cw = document.documentElement.clientWidth;
+  const bg = getComputedStyle(tip).backgroundColor, ink = getComputedStyle(k).color;
+  return Object.assign(st, {
+    right: !!st.want && tex(tip) === st.want, label: label.replace(/\s+/g, ' ').trim(),
+    rendered: k.getBoundingClientRect().width > 0 && !tip.querySelector('.katex-error'),
+    numbered: !!tip.querySelector('.tag'),
+    aria: !!tip.id && a.getAttribute('aria-describedby') === tip.id && tip.getAttribute('role') === 'tooltip',
+    inside: b.left >= -0.5 && b.right <= cw + 0.5,
+    beside: (b.top >= r.bottom - 1 && b.top - r.bottom < 24) || (b.bottom <= r.top + 1 && r.top - b.bottom < 24),
+    overflow: document.documentElement.scrollWidth > cw + 1,
+    contrast: Math.round(Math.min(ratio(ink, bg), labelEl ? ratio(getComputedStyle(labelEl).color, bg) : 0) * 10) / 10,
+    dark: lum(bg) < lum(ink),
+  });
+}
+// The card shows the referenced equation, rendered, without its number, under a label that names it.
+const previewOk = s => s.shown && s.right && s.rendered && !s.numbered && s.aria && s.label.includes(`(${s.n})`);
+const previewText = s => (s ? JSON.stringify(s, (key, v) => (key === 'want' ? undefined : v)) : 'none');
 
 async function route(ctx) {
   await ctx.route('**/*', r => {
@@ -44,6 +85,26 @@ async function open(browser, opts) {
     .catch(() => {});
   await page.waitForTimeout(300);
   return { ctx, page };
+}
+
+async function hoverRef(page, i) {                 // the pointer on the i-th equation reference, then the card
+  await page.evaluate(i => document.querySelectorAll('a.eqref')[i]
+    .scrollIntoView({ block: 'center', behavior: 'instant' }), i);
+  await page.waitForTimeout(150);
+  await page.hover(`a.eqref >> nth=${i}`);
+  await page.waitForTimeout(500);
+  return page.evaluate(previewState, i);
+}
+
+async function pointerAway(page) {                 // the right edge of the window, beside the text
+  const w = await page.evaluate(() => document.documentElement.clientWidth);
+  await page.mouse.move(w - 2, 300);
+  await page.waitForTimeout(500);
+}
+
+function previewGone(i) {                          // runs in the page
+  const t = document.querySelector('.eq-tip');
+  return (!t || t.hidden) && !document.querySelectorAll('a.eqref')[i].hasAttribute('aria-describedby');
 }
 
 (async () => {
@@ -180,6 +241,68 @@ async function open(browser, opts) {
       check(`no horizontal overflow at ${w} px (${scheme})`, sw <= w + 1, `scrollWidth ${sw}`);
       await ctx.close();
     }
+  }
+
+  // 5. equation preview: pointing at an equation reference, or reaching it with Tab, shows that equation next to the
+  //    link; moving away or Esc hides it; at 390 px in dark mode it fits the screen, and a tap still jumps
+  {
+    const { ctx, page } = await open(browser, { viewport: { width: 1400, height: 900 }, colorScheme: 'light' });
+    const refs = await page.evaluate(() => {                 // the first reference and one to another equation
+      const n = [...document.querySelectorAll('a.eqref')].map(a => a.textContent.replace(/[()]/g, '').trim());
+      return n.length ? [0, n.findIndex(x => x !== n[0])].filter(i => i >= 0) : [];
+    });
+    if (refs.length) {
+      const s1 = await hoverRef(page, refs[0]);
+      await pointerAway(page);
+      const gone = await page.evaluate(previewGone, refs[0]);
+      const hovered = refs.length > 1 ? [s1, await hoverRef(page, refs[1])] : [s1];
+      const hint = s1.shown ? '' : '; no card: rebuild the page, or python3 tools/html_features.py reinject PAGE --write';
+      check('equation preview: pointing at a reference shows its equation (KaTeX, no number) next to the link',
+            hovered.every(s => previewOk(s) && s.inside && s.beside), hovered.map(previewText).join(' ') + hint);
+      check('equation preview: moving the pointer away hides it', s1.shown && gone, '');
+      check('equation preview: readable in the light theme (contrast 4.5 or more)',
+            s1.shown && s1.contrast >= 4.5 && !s1.dark, s1.shown ? `${s1.contrast}:1` : 'no card');
+      await pointerAway(page);
+      let k = -1;
+      for (let t = 0; t < 400 && k < 0; t++) {
+        await page.keyboard.press('Tab');
+        k = await page.evaluate(() => [...document.querySelectorAll('a.eqref')].indexOf(document.activeElement));
+      }
+      await page.waitForTimeout(900);                        // the smooth scroll to the focused link
+      const sk = k >= 0 ? await page.evaluate(previewState, k) : null;
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(150);
+      const esc = k >= 0 && await page.evaluate(previewGone, k);
+      check('equation preview: Tab to a reference shows it, Esc hides it', !!sk && previewOk(sk) && sk.beside && esc,
+            previewText(sk) + (esc ? '' : ' (still shown after Esc)'));
+    } else {
+      check('equation preview', false, 'no a.eqref on the page');
+    }
+    await ctx.close();
+  }
+  {                                                          // a phone in dark mode: the widest equation, then a tap
+    const { ctx, page } = await open(browser, { viewport: { width: 390, height: 844 }, colorScheme: 'dark', hasTouch: true });
+    const i = await page.evaluate(() => {                    // the reference to the widest equation
+      const wide = n => Math.max(0, ...[...document.querySelectorAll('.katex-display')]
+        .filter(d => [...d.querySelectorAll('.tag')].some(t => t.textContent.includes(`(${n})`)))
+        .map(d => d.querySelector('.katex').scrollWidth));
+      const w = [...document.querySelectorAll('a.eqref')].map(a => wide(a.textContent.replace(/[()]/g, '').trim()));
+      return w.indexOf(Math.max(...w));
+    });
+    if (i >= 0) {
+      const sp = await hoverRef(page, i);
+      check('equation preview at 390 px, dark: on screen, no horizontal overflow, readable (contrast 4.5 or more)',
+            previewOk(sp) && sp.inside && !sp.overflow && sp.dark && sp.contrast >= 4.5, previewText(sp));
+      await pointerAway(page);
+      const href = await page.evaluate(i => document.querySelectorAll('a.eqref')[i].getAttribute('href'), i);
+      await page.tap(`a.eqref >> nth=${i}`);
+      await page.waitForTimeout(800);
+      const tap = await page.evaluate(() => ({ hash: location.hash,
+        card: (t => !!t && !t.hidden)(document.querySelector('.eq-tip')) }));
+      check('equation preview: a tap jumps to the equation and leaves no card', tap.hash === href && !tap.card,
+            JSON.stringify(tap));
+    }
+    await ctx.close();
   }
   await browser.close();
   const failed = results.filter(r => !r.ok);

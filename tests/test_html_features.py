@@ -232,15 +232,41 @@ KATEX = os.environ.get("KATEX_DIST") or str(REPO / "node_modules" / "katex" / "d
 @unittest.skipUnless(shutil.which("node") and Path(KATEX, "katex.min.js").exists(),
                      "needs node, Playwright with Chromium and a local KaTeX ($KATEX_DIST)")
 class Browser(unittest.TestCase):
-    def test_reader_features_in_a_browser(self):
-        r = subprocess.run(["node", "tools/check_html_features.js", str(SOURCE), "--katex-dist", KATEX], cwd=REPO,
-                           capture_output=True, text=True, timeout=900)
+    checked = None                      # check_html_features.js on the fixture source, run once for the tests below
+
+    def features(self) -> str:
+        """The output of check_html_features.js on the fixture source with the current blocks (reinject)."""
+        if Browser.checked is None:
+            tmp = Path(tempfile.mkdtemp())
+            try:
+                page = tmp / "explainer.html"
+                r = subprocess.run([sys.executable, "tools/html_features.py", "reinject", str(SOURCE), "-o", str(page)],
+                                   cwd=REPO, capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                Browser.checked = subprocess.run(["node", "tools/check_html_features.js", str(page), "--katex-dist",
+                                                  KATEX], cwd=REPO, capture_output=True, text=True, timeout=900)
+            finally:
+                shutil.rmtree(tmp, ignore_errors=True)
+        r = Browser.checked
         if r.returncode == 3:
             self.skipTest(r.stderr.strip()[:200])
         self.assertEqual(r.returncode, 0, r.stdout[-3000:])
+        return r.stdout
+
+    def test_reader_features_in_a_browser(self):
+        out = self.features()
         for needle in ("Back returns to the reading position", "phone: Tab stays inside the open drawer",
                        "no horizontal overflow at 360 px (dark)", "KaTeX renders without errors"):
-            self.assertIn("ok    " + needle, r.stdout)
+            self.assertIn("ok    " + needle, out)
+
+    def test_equation_preview_in_a_browser(self):
+        """Pointing at an equation reference, or reaching it with Tab, shows that equation beside the link; Esc hides
+        it; at 390 px in dark mode it stays on screen and readable; a tap still jumps. reinject brings it to a page
+        injected earlier."""
+        out = self.features()
+        for needle in ("pointing at a reference shows its equation", "moving the pointer away hides it",
+                       "Tab to a reference shows it, Esc hides it", "at 390 px, dark", "a tap jumps to the equation"):
+            self.assertRegex(out, r"(?m)^ok +equation preview\b.*" + re.escape(needle))
 
     def test_phone_reading_measurements(self):
         """check_html.js measures equation numbers off screen, figure labels and numbers broken in table cells; the

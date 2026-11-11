@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Reader features the build injects into explainer pages: dark mode, equation links with Back, collapsible contents.
+"""Reader features the build injects into explainer pages: dark mode, equation links with Back and previews,
+collapsible contents.
 
 Usage:
   python3 tools/html_features.py reinject PAGE.html            # dry run: which blocks would be replaced
@@ -31,7 +32,7 @@ def _vars(d: dict) -> str:
 
 
 CSS = """
-  /* Reader features (tools/html_features.py): dark mode, equation links, collapsible contents */
+  /* Reader features (tools/html_features.py): dark mode, equation links and previews, collapsible contents */
   :root { %(light)s }
   :root[data-theme="dark"] { %(dark)s color-scheme: dark; }
   :root[data-theme="dark"] .algorithm { box-shadow: 0 0 0 1px var(--border); }
@@ -62,6 +63,17 @@ CSS = """
     color: var(--text); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 999px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); cursor: pointer; }
   .eq-back[hidden] { display: none; }
+  /* equation preview (the body script): pointing at an equation reference, or reaching it with the keyboard, shows a
+     copy of that equation in a card next to the link; on touch screens a tap still jumps to the equation */
+  .eq-tip { position: absolute; top: 0; left: 0; z-index: 140; box-sizing: border-box; max-width: calc(100vw - 16px);
+    padding: 0.4rem 0.9rem 0.55rem; color: var(--text); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; box-shadow: 0 6px 22px rgba(15, 23, 42, 0.16); line-height: 1.4; }
+  .eq-tip[hidden] { display: none; }
+  :root[data-theme="dark"] .eq-tip { background: var(--bg-secondary); box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5); }
+  .eq-tip-head { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; }
+  .eq-tip-body { overflow-x: auto; overflow-y: hidden; }
+  .eq-tip .katex-display { margin: 0.25em 0 0 !important; padding: 0 !important; overflow: visible !important; }
+  .eq-tip .katex-display > .katex { max-width: none; text-align: left; }   /* the card is as wide as the formula */
   @media (max-width: 800px) {
     html.js nav.toc { position: fixed; top: 0; left: 0; bottom: 0; width: min(85vw, 320px); height: 100%%;
       transform: translateX(-105%%); transition: transform 0.25s ease; border-right: 1px solid var(--border);
@@ -106,7 +118,7 @@ CSS = """
   }
   @media print {
     :root, :root[data-theme="dark"] { %(light_print)s color-scheme: light; }
-    .reader-controls, .toc-toggle, .toc-backdrop, .eq-back { display: none !important; }
+    .reader-controls, .toc-toggle, .toc-backdrop, .eq-back, .eq-tip { display: none !important; }
   }
 """
 
@@ -216,6 +228,105 @@ BODY_SCRIPT = """<script>
     }, { passive: true });
     window.addEventListener('popstate', function () { back.hidden = true; jumpY = null; });
   }
+
+  /* Equation preview: pointing at an equation reference (or reaching it with the keyboard) shows a copy of that
+     equation next to the link, without its number, under a line that names it and its section. The card is built
+     only when first needed, so loading does no extra work. On touch screens a tap still jumps to the equation. */
+  var tip = null, tipHead = null, tipBody = null, tipFor = null, showT = null, hideT = null;
+  function eqTarget(a) {              /* the display after the anchor the link points at */
+    var el = document.getElementById((a.getAttribute('href') || '').slice(1));
+    while (el && el.classList.contains('eq-anchor')) el = el.nextElementSibling;     /* one anchor per label */
+    return el && (el.classList.contains('katex-display') ? el : el.querySelector('.katex-display'));
+  }
+  function sectionOf(d) {             /* "Section 4.2": the number of the last heading before the equation */
+    var hs = document.querySelectorAll('article h2, article h3'), h = null, m, i;
+    for (i = 0; i < hs.length && hs[i].compareDocumentPosition(d) & Node.DOCUMENT_POSITION_FOLLOWING; i++) h = hs[i];
+    m = h && h.textContent.trim().match(/^[0-9]+(?:[.][0-9]+)*/);
+    return m ? 'Section ' + m[0] : '';
+  }
+  function fitTip() {                 /* the card's width: the formula's own width, within the screen */
+    var max = document.documentElement.clientWidth - 16, extra, need;
+    tip.style.width = ''; tip.style.left = '0px'; tip.style.top = '0px'; tipBody.style.fontSize = '';
+    extra = tip.offsetWidth - tipBody.clientWidth;                  /* the card's padding and border */
+    need = tipBody.scrollWidth;                                     /* KaTeX boxes can reach a little past their line */
+    if (need + extra > max) {  /* too wide: set smaller, down to three quarters of its size; beyond that it scrolls */
+      tipBody.style.fontSize = Math.max(0.75, (max - extra - 4) / need) + 'em';
+      need = tipBody.scrollWidth;
+    }
+    tip.style.width = Math.ceil(Math.min(max, need + extra)) + 'px';
+  }
+  function placeTip(a) {              /* below the link, or above it when only the space above fits the card */
+    var vw = document.documentElement.clientWidth, vh = window.innerHeight, r = a.getBoundingClientRect(),
+        w = tip.offsetWidth, h = tip.offsetHeight, left, below;
+    left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, vw - 8 - w));
+    below = r.bottom + 8 + h <= vh - 8 || r.top - 8 - h < 8;
+    tip.style.left = left + window.scrollX + 'px';
+    tip.style.top = (below ? r.bottom + 6 : r.top - 6 - h) + window.scrollY + 'px';
+  }
+  function showTip(a) {
+    var d = eqTarget(a), c, sec;
+    clearTimeout(showT); clearTimeout(hideT);
+    if (!d) return;
+    if (!tip) {
+      tip = document.createElement('div'); tip.className = 'eq-tip'; tip.setAttribute('role', 'tooltip');
+      tip.id = 'ra-eq-tip';           /* not an eq- name: the build gives those to equation anchors */
+      tipHead = document.createElement('div'); tipHead.className = 'eq-tip-head';
+      tipBody = document.createElement('div'); tipBody.className = 'eq-tip-body';
+      tip.appendChild(tipHead); tip.appendChild(tipBody); document.body.appendChild(tip);
+    }
+    if (tipFor && tipFor !== a) tipFor.removeAttribute('aria-describedby');
+    tipFor = a; a.setAttribute('aria-describedby', tip.id);
+    sec = sectionOf(d);
+    tipHead.textContent = 'Equation (' + a.textContent.replace(/[()]/g, '').trim() + ')'   /* the link reads (3) or 3 */
+      + (sec ? ' · ' + sec : '');
+    c = d.cloneNode(true); c.classList.remove('tag-below');
+    [].forEach.call(c.querySelectorAll('.tag'), function (t) { t.parentNode.removeChild(t); });
+    [].forEach.call(c.querySelectorAll('[id]'), function (x) { x.removeAttribute('id'); });
+    tipBody.textContent = ''; tipBody.appendChild(c);
+    tip.style.fontSize = getComputedStyle(d.parentNode).fontSize;   /* the size the equation has where it stands */
+    tip.hidden = false; fitTip(); placeTip(a);
+  }
+  function hideTip() {
+    clearTimeout(showT); clearTimeout(hideT);
+    if (!tip || tip.hidden) return;
+    tip.hidden = true;
+    if (tipFor) { tipFor.removeAttribute('aria-describedby'); tipFor = null; }
+  }
+  function refOf(t) { return t && t.closest ? t.closest('a.eqref') : null; }
+  function inTip(t) { return !!(tip && t && tip.contains(t)); }
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType === 'touch') return;
+    var a = refOf(e.target);
+    if (a) {
+      clearTimeout(hideT);
+      if (a === tipFor) return;
+      clearTimeout(showT);
+      if (tipFor) showTip(a);                                   /* moving between references: switch at once */
+      else showT = setTimeout(function () { showTip(a); }, 120);
+    } else if (inTip(e.target)) clearTimeout(hideT);            /* the card itself keeps it open */
+  });
+  document.addEventListener('pointerout', function (e) {
+    if (e.pointerType === 'touch' || !(refOf(e.target) || inTip(e.target))) return;
+    var to = e.relatedTarget;
+    if (to && (inTip(to) || (tipFor && refOf(to) === tipFor))) return;   /* still on the link or its card */
+    clearTimeout(showT); clearTimeout(hideT); hideT = setTimeout(hideTip, 250);
+  });
+  document.addEventListener('focusin', function (e) {
+    var a = refOf(e.target), keyboard = true;
+    if (!a) return;
+    try { keyboard = a.matches(':focus-visible'); } catch (err) {}
+    if (keyboard) showTip(a);
+  });
+  document.addEventListener('focusout', function (e) { if (tipFor && refOf(e.target) === tipFor) hideTip(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hideTip(); });
+  document.addEventListener('click', function (e) { if (refOf(e.target)) hideTip(); });
+  window.addEventListener('resize', hideTip);
+  var placeQueued = false;           /* scrolling (also Tab's smooth scroll to a link) re-places the card */
+  window.addEventListener('scroll', function () {
+    if (!tipFor || placeQueued) return;
+    placeQueued = true;
+    requestAnimationFrame(function () { placeQueued = false; if (tipFor) placeTip(tipFor); });
+  }, { passive: true });
 
   /* After KaTeX has rendered (deferred scripts run before DOMContentLoaded): numbers in table cells never break
      across lines, a figure keeps its labels at MIN_LABEL px or more (scrolling sideways if it must), a numbered
