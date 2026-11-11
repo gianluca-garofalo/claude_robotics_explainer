@@ -109,12 +109,10 @@ jobs:
         id: start
         run: |
           mkdir -p "$TMPDIR"
-          run="$(python3 tools/run.py new --focus "$FOCUS")"
+          ledger=()
+          if [ -f .ledger/ledger.json ]; then ledger=(--ledger .ledger/ledger.json); fi
+          run="$(python3 tools/run.py new --focus "$FOCUS" "${ledger[@]}")"
           echo "run=$run" >> "$GITHUB_OUTPUT"
-          if [ -f .ledger/ledger.json ]; then
-            cp .ledger/ledger.json "$run/published.json"
-            python3 tools/coverage.py "$run"
-          fi
           rm -rf .ledger
           python3 tools/ci/trust_workspace.py "$GITHUB_WORKSPACE"
       - name: Scout (Claude)
