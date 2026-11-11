@@ -117,6 +117,23 @@ class Run(unittest.TestCase):
         self.assertIn(("pauses", "narration"), checks)
         self.assertEqual(set(stats["scene_sha256"]), {"s01.py", "s02.py"})
 
+    def test_a_recap_may_repeat_a_result_word_for_word(self):
+        result = "Shift the old plan by one step, and cap it with a reference step inside the region."
+        self.make([("Hook", ["Why should a controller that keeps changing its mind ever arrive?"]),
+                   ("Body", [result + " Then the bill can only fall."]),
+                   ("Recap", ["What made the bill fall? " + result])])
+        plan_p = self.run / "video" / "plan.json"
+        plan = json.loads(plan_p.read_text())
+
+        def repeated(plan):
+            plan_p.write_text(json.dumps(plan))
+            fd, _ = CS.check(self.run, "draft", dict(CS.DEFAULTS))
+            return [x["where"] for x in fd.items if x["check"] == "stock" and "said in" in x["detail"]]
+        self.assertEqual(repeated(plan), ["Body, Recap"])                  # a body scene repeating another
+        self.assertEqual(repeated(dict(plan, ideas=[{"kind": "recap", "scene": "Recap", "says": "What made"}])), [])
+        plan["scenes"][2].update(role="recap", recap_of=1)
+        self.assertEqual(repeated(plan), [])                               # an earlier episode's recap
+
     def test_spoken_hook_passes(self):
         self.make([("Hook", [SPOKEN])])
         fd, _ = CS.check(self.run, "draft", dict(CS.DEFAULTS))
@@ -159,6 +176,19 @@ class Run(unittest.TestCase):
         self.assertAlmostEqual(stats["audio"]["longest_mid_pause_s"], 0.25, places=2)  # not 0.0: the true longest
         self.assertFalse([x for x in fd.items if x["check"] == "pace" and "no audio" in x["detail"]])   # key found
         self.assertFalse([x for x in fd.items if x["check"] == "pauses" and "[" in x["detail"]])        # no markup
+
+    def test_a_fault_every_take_had_is_reported(self):
+        text = "Every step costs something, and the costs pile up. Then the plan ends."
+        self.make([("Hook", [text])])
+        self.voice(text, [], 4.6)
+        man_p = self.run / "video" / "voice" / "manifest.json"
+        man = json.loads(man_p.read_text())
+        next(iter(man["blocks"].values()))["fault"] = "a 0.27 s silence inside a phrase, after 'costs'"
+        man_p.write_text(json.dumps(man))
+        fd, _ = CS.check(self.run, "final", dict(CS.DEFAULTS))
+        found = [x for x in fd.items if x["check"] == "voice"]
+        self.assertEqual([(x["where"], x["severity"]) for x in found], [("Hook", "warning")])
+        self.assertIn("inside a phrase", found[0]["detail"])
 
     def test_final_without_audio_says_so(self):
         self.make([("Hook", [SPOKEN])])

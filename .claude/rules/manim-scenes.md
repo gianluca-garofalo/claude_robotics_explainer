@@ -99,6 +99,7 @@ measured by the check named in each heading.
     (`[pause 2]` for a stretch break). A longer pause ends the block.
   - `[pause S]` after a block's last word: a hold of the picture, any length; use holds for 2.5 s and more, and
     `[pause 1.5]` only there. Other blocks end with `voice.block_end_pause_s`; `[pause 0]`: none.
+  - `[pause 0]` only when the sentence continues into the next block (P8).
   - `[slow]` first in a derivation or argument (its steps, result and "so what"): the whole block at
     `voice.azure.slow_rate_pct`; hook, title beat, recaps, transitions and outro never (P10, `slow_share_max`).
     Shorten a block the voice manifest flags `rewrite` (P20).

@@ -139,6 +139,28 @@ class Reading(unittest.TestCase):
         ev = [[0.0, 0, 0, 0, 1, 1, 0], [1.0, 1, 0, 0, 1, 1, 1], [2.5, 0, 0, 0, 1, 1, 0], [3.0, 1, 0, 0, 1, 1, 1]]
         self.assertEqual(CR.intervals(ev, 4.0), [(1.0, 2.5), (3.0, 4.0)])
 
+    def test_narration_rate_of_short_blocks_is_no_pace(self):
+        n = CR.VS.VOICE.rate_min_words(json.loads((testenv.CONFIG / "video.json").read_text()))
+
+        def block(start, words):                                        # 200 words per minute
+            return {"start": start, "duration": 60.0 * words / 200, "words": words, "text": "word " * words}
+        log = {"duration": 20.0, "voiceovers": [block(0.0, n - 1), block(5.0, n)]}
+        findings, stats = [], {}
+        CR.scene_reading("S", log, dict(RM.DEFAULTS), findings, stats)
+        self.assertEqual([f["t"] for f in findings if f["check"] == "narration-rate"], [5.0])
+        self.assertEqual(len(stats["S"]["narration_wpm"]), 2)          # both measured, the short one not judged
+        d = Path(tempfile.mkdtemp())
+        try:
+            (d / "S.layout.json").write_text(json.dumps({"scenes": {"S": log}}))
+            cfg = testenv.variant(d, {"video": {"pacing": {"rate_min_words": n - 1}}})   # the one key, lowered
+            subprocess.run([sys.executable, str(REPO / "tools" / "video" / "check_reading.py"), "--layout",
+                            str(d / "S.layout.json"), "--out", str(d / "out")], capture_output=True,
+                           env=testenv.env(cfg))
+            rep = json.loads((d / "out" / "check_reading.json").read_text())
+            self.assertEqual(len([f for f in rep["findings"] if f["check"] == "narration-rate"]), 2)
+        finally:
+            shutil.rmtree(d)
+
 
 class Search(unittest.TestCase):
     CFG = {"demand_weights": {"views": 0.5, "autocomplete": 0.3, "trends": 0.2}, "published_within_days": 730,

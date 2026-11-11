@@ -165,6 +165,27 @@ class TakeCheck(unittest.TestCase):
         self.assertIn("planned 3 s pause", voice.voice_anomaly(self.bounds(0.4), self.TEXT, 4.6))
         self.assertIn("gap", voice.voice_anomaly(self.bounds(8.0), self.TEXT, 12.2))
 
+    def test_silences_in_the_audio_are_judged_by_the_words_around_them(self):
+        text = "Each step costs, and the bill falls by real amounts."
+
+        def judge(starts, silences, text=text):
+            words = voice.mask_markup(text).split()
+            return voice.voice_anomaly(take(*[(w, t, 0.25) for w, t in zip(words, starts)]), text, starts[-1] + 0.5,
+                                       silences=silences)
+        gap = [0.1, 0.4, 0.7, 1.0, 1.3, 1.6, 1.9, 2.2, 2.5, 3.1]              # 0.3 s of silence after "real"
+        self.assertIn("inside a phrase, after 'real'", judge(gap, [(2.75, 3.05)]))
+        self.assertEqual(judge(gap, None), "")                                  # the word timings alone miss it
+        self.assertEqual(judge(gap, [(2.75, 2.9)]), "")                         # a short one is speech
+        comma = [0.1, 0.4, 0.7, 1.4, 1.7, 2.0, 2.3, 2.6, 2.9, 3.2]
+        self.assertEqual(judge(comma, [(0.95, 1.4)]), "")                       # the comma asks for it
+        early = [0.1, 0.4, 0.7, 1.0, 1.7, 2.0, 2.3, 2.6, 2.9, 3.2]              # "and" reported before the pause
+        self.assertEqual(judge(early, [(1.1, 1.55)]), "")
+        planned = "Each step costs, and the bill falls by [pause 1] real amounts."
+        held = [0.1, 0.4, 0.7, 1.0, 1.3, 1.6, 1.9, 2.2, 3.45, 3.75]
+        self.assertEqual(judge(held, [(2.45, 3.45)], planned), "")
+        held = [0.1, 0.4, 0.7, 1.0, 1.3, 1.6, 1.9, 2.2, 5.05, 5.35]
+        self.assertIn("gap before 'real'", judge(held, [(2.45, 5.05)], planned))   # far longer than planned
+
     def test_the_pace_leaves_planned_pauses_out(self):
         text = "Before we go on, try this yourself and pause here if you like. [pause 4] Ready?"
         ws = [(w, 0.3 * k, 0.25) for k, w in enumerate(text.split()[:13])] + [("Ready?", 3.9 + 4.1, 0.4)]
@@ -207,8 +228,9 @@ class FakeAzure:
 
 
 class PaceCap(unittest.TestCase):
-    """Rule P20: a block too fast for the house pace gets breaks at its sentence ends first, then a slower rate, never
-    below the limit, then a rewrite flag; a slow block starts at the slow rate and is never slowed further."""
+    """Rule P20: a block too fast for the house pace gets breaks at its sentence ends first, then one slower rate, never
+    below its floor, then a rewrite flag beyond a tolerance; a block under rate_min_words words is not paced; a slow
+    block starts at the slow rate and is never slowed further."""
 
     def service(self, per_word):
         svc = voice.AzureSpeechService.__new__(voice.AzureSpeechService)
@@ -221,9 +243,11 @@ class PaceCap(unittest.TestCase):
         svc.get_audio_basename = lambda data: "block"
         return svc, fake
 
-    def run_block(self, per_word, text):
+    def run_block(self, per_word, text, **settings):
         tmp = Path(tempfile.mkdtemp())
         svc, fake = self.service(per_word)
+        for k, v in settings.items():
+            setattr(svc, k, v)
         real = voice.audio_duration
         voice.audio_duration = lambda p: fake.duration
         try:
@@ -245,12 +269,42 @@ class PaceCap(unittest.TestCase):
     def test_then_slower_then_rewrite_never_below_the_limits(self):
         d, fake = self.run_block(0.22, self.TEXT)                 # far too fast
         made = d["input_data"]
+        floor = voice.AzureSpeechService.pace_min_rate_pct
         self.assertEqual(made["pace"], "rewrite")
-        self.assertEqual(made["applied_rate_pct"], -15.0)         # pace_min_rate_pct
+        self.assertEqual(made["applied_rate_pct"], floor)
         every = [r for ssml in fake.calls for r in rates(ssml)]
         self.assertGreaterEqual(min(every), voice.RATE_FLOOR_PCT)
-        self.assertGreaterEqual(min(every), -15.0)                # never past the cap's slowest rate
-        self.assertEqual(made["slowest_rate_pct"], -15.0)
+        self.assertGreaterEqual(min(every), floor)                # never past the cap's slowest rate
+        self.assertEqual(made["slowest_rate_pct"], floor)
+
+    def test_breaks_then_one_small_rate_change(self):
+        d, fake = self.run_block(0.22, self.TEXT)
+        self.assertNotIn("<break", fake.calls[0])
+        self.assertIn("<break", fake.calls[1])                    # breaks first, at the base rate
+        floor = voice.AzureSpeechService.pace_min_rate_pct
+        self.assertEqual([rates(x) for x in fake.calls], [[-8.0], [-8.0], [floor]])   # then one slower take
+
+    def test_rewrite_only_beyond_the_tolerance(self):
+        d, _ = self.run_block(0.267, self.TEXT)                   # after the breaks and the floor: just over max_wpm
+        made = d["input_data"]
+        limit = 160 * (1 + voice.AzureSpeechService.pace_rewrite_tolerance_pct / 100)
+        self.assertTrue(160 < made["speech_wpm"] <= limit, made["speech_wpm"])
+        self.assertEqual(made["pace"], "slowed")                  # take-to-take spread, not a block to rewrite
+        d, _ = self.run_block(0.267, self.TEXT, pace_rewrite_tolerance_pct=0.0)
+        self.assertEqual(d["input_data"]["pace"], "rewrite")
+
+    def test_a_short_block_is_never_paced(self):
+        n = voice.rate_min_words(json.loads((testenv.CONFIG / "video.json").read_text()))
+        words = ("Why does the bill fall step after step and never climb back up while the controller keeps "
+                 "planning").split()
+        d, fake = self.run_block(0.22, " ".join(words[:n - 1]) + "?")    # a short question, far over max_wpm
+        made = d["input_data"]
+        self.assertEqual((made["pace"], made["applied_rate_pct"], len(fake.calls)), ("ok", -8.0, 1))
+        self.assertNotIn("max_wpm", made)                         # its cache key: made without the cap
+        self.assertGreater(made["speech_wpm"], 200)
+        d, fake = self.run_block(0.22, " ".join(words[:n]) + "?")
+        self.assertNotEqual(d["input_data"]["pace"], "ok")        # n words: capped
+        self.assertGreater(len(fake.calls), 1)
 
     def test_a_slow_block_is_read_slowly_as_a_whole(self):
         plain, _ = self.run_block(0.34, self.TEXT)                # at -8 %: 162 words per minute, a little fast
@@ -484,6 +538,52 @@ class Rules(unittest.TestCase):
         self.assertNotIn(("P10", "block d"), sev)                          # a slow block at the slow rate
         self.assertNotIn(("P10", "block e"), sev)                          # at a slower slow rate, above the floor
         self.assertEqual(sev[("P10", "block f")], "error")                 # the floor holds for slow blocks too
+
+    def test_p16_the_recap_chapter_is_short_by_design(self):
+        self.make([(1.0, "Every step of the plan adds a small cost to the bill, and the bill keeps track.")], [],
+                  body_s=80.0)
+        (self.run / "video" / "checks" / "Recap.layout.json").write_text(json.dumps({"scenes": {"Recap": {
+            "duration": 25.0, "voiceovers": [vo(1.0, "What made the bill fall? Each step paid its way.")]}}}))
+        plan = json.loads((self.run / "video" / "plan.json").read_text())
+        recap = {"file": "s.py", "class": "Recap", "role": "body", "chapter": "Recap"}
+        plan["scenes"].insert(3, recap)
+
+        def p16(plan):
+            (self.run / "video" / "plan.json").write_text(json.dumps(plan))
+            fd, _ = CP.check(self.run, "draft", CFG)
+            return [x["where"] for x in fd.items if x["rule"] == "P16"]
+        self.assertEqual(p16(plan), ["Recap"])                             # a short body chapter
+        idea = {"kind": "recap", "scene": "Recap", "says": "What made the bill fall"}
+        self.assertEqual(p16(dict(plan, ideas=[idea])), [])                # the recap before the outro (P15)
+        plan["scenes"][-1]["chapter"] = "Recap"
+        self.assertEqual(p16(dict(plan, ideas=[idea])), [])                # with the outro under its title
+        recap.update(role="recap", recap_of=1)
+        self.assertEqual(p16(plan), [])                                    # an earlier episode's recap
+
+    def test_p8_a_sentence_that_ends_a_block_needs_its_pause(self):
+        first = vo(1.0, "It steers robot arms, legged robots and cars. [pause 0]")
+        end = first["start"] + first["duration"]
+
+        def p8(text, gap):
+            fd, _ = self.make([first, vo(end + gap, text)], [])
+            return [x for x in fd.items if x["rule"] == "P8" and "sentence ending" in x["detail"]]
+        self.assertEqual(len(p8("Yet nothing in that recipe rules out circling forever.", 0.1)), 1)
+        self.assertEqual(p8("Yet nothing in that recipe rules out circling forever.", 0.8), [])   # the default hold
+        first = vo(1.0, "It steers robot arms, legged robots [pause 0]")
+        end = first["start"] + first["duration"]
+        self.assertEqual(p8("and cars, all with the same recipe.", 0.1), [])   # the sentence goes on
+
+    def test_a_fault_every_take_had_is_reported(self):
+        self.make([(1.0, "One block.")], [])
+        (self.run / "video" / "voice").mkdir(parents=True)
+        (self.run / "video" / "voice" / "manifest.json").write_text(json.dumps({"blocks": {
+            "a": {"applied_rate_pct": -8.0, "fault": "a 0.27 s silence inside a phrase, after 'real'"},
+            "b": {"applied_rate_pct": -8.0, "fault": ""}}}))
+        shutil.copytree(self.run / "video" / "checks", self.run / "video" / "renders")
+        fd, _ = CP.check(self.run, "final", CFG)
+        found = [x for x in fd.items if x["rule"] == "voice"]
+        self.assertEqual([(x["where"], x["severity"]) for x in found], [("block a", "warning")])
+        self.assertIn("inside a phrase", found[0]["detail"])
 
     def test_p18_results_must_be_in_the_series_budget(self):
         (self.run / "episode.json").write_text(json.dumps({"ideas": [

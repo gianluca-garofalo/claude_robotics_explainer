@@ -124,7 +124,9 @@
     "title_beat": "title_beat_max_s and title_beat_min_speech: one spoken sentence over the title, then the body (check_series.py warnings).",
     "thumbnail_min_ink": "The share of a picture-layout thumbnail's picture that carries ink at 168 x 94 (warning).",
     "script": "The spoken-script standard of tools/video/check_script.py (pause marks, contractions, connectives, rhythm, stock phrases, pace): report only until calibrated.",
-    "pacing": "Rules P1-P20 of tools/video/check_pacing.py and the idea budget (plan) of tools/video/idea_budget.py: warnings, except three errors, which block the gate."
+    "pacing": "Rules P1-P20 of tools/video/check_pacing.py and the idea budget (plan) of tools/video/idea_budget.py: warnings, except three errors, which block the gate.",
+    "rate_min_words": "Under this many words, a block's words per minute measure one short sentence, not a pace: no pace cap (P20) and no narration-rate finding; tunable.",
+    "sentence_gap_min_s": "A block that ends a sentence leaves at least this much silence before the next block (P8); tunable."
   },
   "equation_numbers": false,
   "self_contained": {
@@ -422,9 +424,11 @@
     "block_pause_median_s": 0.6,
     "block_vs_sentence_min": 0.9,
     "chapter_turn_pause_s": 1.0,
+    "sentence_gap_min_s": 0.6,
     "body_wpm_max": 135.0,
     "rate_floor_pct": -20.0,
     "block_rate_min_pct": -15.0,
+    "rate_min_words": 12,
     "key_wpm_min": 120.0,
     "key_max_vs_median": 1.0,
     "slow_share_max": 0.67,

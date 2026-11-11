@@ -5,8 +5,9 @@ Usage:
   python3 tools/video/check_reading.py runs/<run> --stage draft|final [--out DIR]
   python3 tools/video/check_reading.py --layout X.layout.json [--out DIR]          # one scene
 
-Checks: display-time, words-on-screen, narration-rate, recall-load (the reading model of
-templates/manim/reading_model.py; thresholds in config/video.json "reading" and "recall"). Exit status 1 on an error.
+Checks: display-time, words-on-screen, narration-rate (blocks of pacing.rate_min_words or more), recall-load (the
+reading model of templates/manim/reading_model.py; thresholds in config/video.json "reading" and "recall"). Exit status
+1 on an error.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ from _common import CONFIG, rel, resolve_run, sha256_file  # noqa: E402
 import check_design as CD  # noqa: E402
 import checks  # noqa: E402
 import reading_model as RM  # noqa: E402
+import voice_script as VS  # noqa: E402
 from checks import intervals  # noqa: E402
 
 
@@ -91,13 +93,13 @@ def scene_reading(name: str, log: dict, cfg: dict, findings: list, stats: dict, 
                          "severity": "error" if peak > cfg["max_words_on_screen_error"] else "warning",
                          "detail": f"{peak:.0f} words and equation terms on screen at once "
                                    f"(limit {cfg['max_words_on_screen_warn']})"})
-    rates = []
+    rates, least = [], int(cfg.get("rate_min_words", VS.VOICE.RATE_MIN_WORDS))   # a shorter block's rate is no pace
     for v in log.get("voiceovers", []):
         if v["duration"] <= 0 or v["words"] < 4:
             continue
         wpm = 60.0 * v["words"] / v["duration"]
         rates.append(round(wpm))
-        if wpm > cfg["narration_wpm_warn"]:
+        if wpm > cfg["narration_wpm_warn"] and v["words"] >= least:
             findings.append({"check": "narration-rate", "scene": name, "t": round(v["start"], 2),
                              "severity": "error" if wpm > cfg["narration_wpm_error"] else "warning",
                              "detail": f"narration at {wpm:.0f} words per minute (target {cfg['narration_wpm_target']}): "
@@ -167,6 +169,7 @@ def main() -> int:
     a = ap.parse_args()
     video_cfg = json.loads((CONFIG / "video.json").read_text(encoding="utf-8"))
     cfg = dict(RM.DEFAULTS, **video_cfg.get("reading", {}))
+    cfg["rate_min_words"] = VS.VOICE.rate_min_words(video_cfg)
     findings, stats, logs = [], {}, []
     if a.layout:
         run, lp = None, Path(a.layout)

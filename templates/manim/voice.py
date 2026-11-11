@@ -89,20 +89,37 @@ def spoken_words(text):
     return len(_SPOKEN.findall(strip_markup(remove_bookmarks(text))))
 
 
-def pacing_limit(start=None):
-    """reading.narration_wpm_target of config/video.json: the words per minute a synthesized block stays under."""
+def video_config(start=None):
+    """config/video.json of the repository (searched upwards), or $VIDEO_CONFIG; {} when there is none."""
     path = os.environ.get("VIDEO_CONFIG")
     if not path:
         root = repo_root(start)
         path = str(root / "config" / "video.json") if root else None
     try:
-        return float(json.loads(Path(path).read_text(encoding="utf-8")).get("reading", {})
-                     .get("narration_wpm_target", 150)) if path else 150.0
+        return json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
     except (OSError, ValueError):
+        return {}
+
+
+def pacing_limit(start=None):
+    """reading.narration_wpm_target of config/video.json: the words per minute a synthesized block stays under."""
+    try:
+        return float(video_config(start).get("reading", {}).get("narration_wpm_target", 150))
+    except ValueError:
         return 150.0
 
 
+def rate_min_words(video_cfg):
+    """pacing.rate_min_words of config/video.json (as a dict): a block with fewer words has no pace cap and no
+    narration-rate limit, as its words per minute measure one short sentence, not a pace."""
+    return int((video_cfg.get("pacing") or {}).get("rate_min_words", RATE_MIN_WORDS))
+
+
 RATE_FLOOR_PCT = -20.0      # no block is ever read slower: below it the voice drags words
+PACE_MIN_RATE_PCT = -12.0   # voice.azure.pace_min_rate_pct: the slowest rate the pace cap may set
+PACE_REWRITE_TOLERANCE_PCT = 5.0    # voice.pace_rewrite_tolerance_pct: "rewrite" only this far over max_wpm
+RATE_MIN_WORDS = 12         # pacing.rate_min_words of config/video.json
+MID_PHRASE_GAP_MAX_S = 0.2  # voice.mid_phrase_gap_max_s: the longest silence a take keeps inside a phrase
 PAUSE_TAG = re.compile(r"\[pause\s+(\d+(?:\.\d+)?)\s*s?\]", re.I)
 MARKUP = re.compile(r"\[(?:pause\s+\d+(?:\.\d+)?\s*s?|slow)\]", re.I)
 _SLOW_TAG = re.compile(r"\[slow\]", re.I)
@@ -110,6 +127,7 @@ _RETIRED_KEY = re.compile(r"\[/?key\]", re.I)
 _ANY_TAG = re.compile(r"\[[^\[\]\n]{0,40}\]")
 _ELLIPSIS_END = ("...", "…")
 _SENTENCE_END = (".", "!", "?")
+_PHRASE_END = (".", ",", ";", ":", "!", "?", "…", "—", "–", "-")
 _WORD = re.compile(r"\S+")
 
 
@@ -376,10 +394,66 @@ def pause_report(bounds, text, duration, plan):
     return out
 
 
+def audio_silences(path, below_db=30.0, min_s=0.12):
+    """[(start s, end s)] of the silences of an audio file, min_s or longer: 10 ms frames below_db under its speech
+    level (the 90th percentile of the frame levels); None when it cannot be read."""
+    try:
+        import numpy as np
+        pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                             capture_output=True, check=True).stdout
+    except (ImportError, OSError, subprocess.CalledProcessError):
+        return None
+    x = np.frombuffer(pcm[:len(pcm) // 2 * 2], dtype=np.int16).astype(np.float64) / 32768.0
+    n = len(x) // 160
+    if not n:
+        return None
+    level = 20.0 * np.log10(np.sqrt((x[:n * 160].reshape(n, 160) ** 2).mean(axis=1)) + 1e-9)
+    out, start = [], None
+    for i, quiet in enumerate(list(level < np.percentile(level, 90) - below_db) + [False]):
+        if quiet and start is None:
+            start = i
+        elif not quiet and start is not None:
+            if i - start >= round(min_s / 0.01):
+                out.append((round(start * 0.01, 2), round(i * 0.01, 2)))
+            start = None
+    return out
+
+
+def _phrase_end(word):
+    """Whether the text asks for a pause after a word: punctuation at its end, or a dash of its own."""
+    return str(word).rstrip("\"')]’”").endswith(_PHRASE_END)
+
+
+def _silence_fault(silences, timed, toks, plan, duration, max_gap_s, mid_phrase_gap_max_s, early_s=0.15):
+    """Why the silences measured in a take are wrong ("" when they are not): one inside a phrase longer than
+    mid_phrase_gap_max_s, or any longer than max_gap_s plus the pauses planned there. timed: [(start s, index in
+    toks)] of the words with a timing; a silence starting within early_s of a word's start counts at the boundary
+    before that word too (its start is often reported early)."""
+    for s, e in silences:
+        if s <= 0.05 or e >= duration - 0.05:
+            continue
+        j = next((k for k, (t, _) in enumerate(timed) if t >= s - 0.05), None)
+        if not j:                                     # before the first word or after the last
+            continue
+        (t_b, w_b), w_a = timed[j - 1], timed[j][1]
+        first = w_b - 1 if s - t_b < early_s and w_b > 0 else w_b
+        planned = sum(v for n, v in plan.items() if first < n <= w_a)
+        marked = planned > 0 or any(_phrase_end(toks[i][1]) for i in range(first, w_a)) \
+            or toks[w_a][1][:1] in "(—–"
+        if not marked and e - s > mid_phrase_gap_max_s + 1e-9:
+            return f"a {e - s:.2f} s silence inside a phrase, after {toks[w_b][1]!r}"
+        if e - s > max_gap_s + planned:
+            return f"a {e - s:.1f} s gap before {toks[w_a][1]!r}"
+    return ""
+
+
 def voice_anomaly(bounds, text, duration, ellipsis_pause_s=0.7, max_gap_s=1.3, max_word_s=1.6, max_tail_s=1.5,
-                  min_wpm=110, pace_break_s=0.0, verify_min_s=1.0, verify_tol_s=0.35):
-    """Why a synthesized take does not sound like speech ("" when it does): a stretched or lost pause, an over-long
-    word or tail, or a pace under min_wpm, judged from its word timings and the pauses planned in text."""
+                  min_wpm=110, pace_break_s=0.0, verify_min_s=1.0, verify_tol_s=0.35, silences=None,
+                  mid_phrase_gap_max_s=MID_PHRASE_GAP_MAX_S):
+    """Why a synthesized take does not sound like speech ("" when it does): a stretched or lost pause, a silence inside
+    a phrase, an over-long word or tail, or a pace under min_wpm, judged from its word timings, the pauses planned in
+    text and the silences measured in its audio (audio_silences(); without them, the gaps between the timings, which
+    miss a silence a reported word length takes in)."""
     words = [b for b in bounds or [] if b.get("duration_milliseconds") is not None]
     if not words:
         return "no word timings"
@@ -406,7 +480,7 @@ def voice_anomaly(bounds, text, duration, ellipsis_pause_s=0.7, max_gap_s=1.3, m
             here = [plan[n] for n in at]
             if not here and prev_text.rstrip("\"')]").endswith(_ELLIPSIS_END):
                 here = [ellipsis_pause_s]                # an ellipsis read from the timing itself
-            if gap > max_gap_s + sum(here):
+            if silences is None and gap > max_gap_s + sum(here):
                 return f"a {gap:.1f} s gap before {b.get('text')!r}"
             for s in here if w is not None else []:
                 if s >= verify_min_s and gap < s - verify_tol_s:
@@ -414,6 +488,11 @@ def voice_anomaly(bounds, text, duration, ellipsis_pause_s=0.7, max_gap_s=1.3, m
         prev_end, prev_text = start + length, str(b.get("text", ""))
         if w is not None:
             prev_w = w
+    if silences is not None:
+        timed = [(float(b["audio_offset"]) / AUDIO_OFFSET_RESOLUTION, index[id(b)]) for b in words if id(b) in index]
+        why = _silence_fault(silences, timed, toks, plan, duration, max_gap_s, mid_phrase_gap_max_s)
+        if why:
+            return why
     if duration - prev_end > max_tail_s:
         return f"{duration - prev_end:.1f} s of audio after the last word"
     speech = duration - sum(plan.values())
@@ -486,11 +565,12 @@ def piper_model(cfg=None, start=None):
 
 
 class PiperService(SpeechService):
-    """Piper, offline: one WAV per block, synthesized sentence by sentence, slowed down to max_wpm."""
+    """Piper, offline: one WAV per block, synthesized sentence by sentence, a block of rate_min_words or more slowed
+    down to max_wpm."""
 
     def __init__(self, model, voice=DEFAULT_PIPER_VOICE, length_scale=None, noise_scale=None, noise_w_scale=None,
                  speaker=None, sentence_pause_s=0.25, max_wpm=None, question_pause_s=None, ellipsis_pause_s=None,
-                 slow_factor=1.0, **kwargs):
+                 slow_factor=1.0, rate_min_words=RATE_MIN_WORDS, **kwargs):
         self.model = Path(model)
         self.voice_name = voice
         self.synthesis = {"length_scale": length_scale, "noise_scale": noise_scale, "noise_w_scale": noise_w_scale,
@@ -499,6 +579,7 @@ class PiperService(SpeechService):
         self.question_pause_s = None if question_pause_s is None else float(question_pause_s)
         self.ellipsis_pause_s = None if ellipsis_pause_s is None else float(ellipsis_pause_s)
         self.max_wpm = max_wpm
+        self.rate_min_words = int(rate_min_words)
         self.slow_factor = float(slow_factor or 1.0)    # a [slow] block: length_scale stretched by this
         self._voice = None
         super().__init__(**kwargs)
@@ -522,7 +603,8 @@ class PiperService(SpeechService):
                 "pauses_by_ending": [pause_after("?", self.sentence_pause_s, self.question_pause_s),
                                      pause_after("...", self.sentence_pause_s, ellipsis=self.ellipsis_pause_s)],
                 **settings}
-        if self.max_wpm:
+        capped = bool(self.max_wpm) and spoken_words(raw) >= self.rate_min_words    # a shorter block's rate is no pace
+        if capped:
             data["max_wpm"] = self.max_wpm
         cached = self.get_cached_result(data, cache_dir)
         if cached is not None:
@@ -552,7 +634,7 @@ class PiperService(SpeechService):
         audio, spans = synth(settings)
         for _ in range(2):                                   # slow the block down to max_wpm
             wpm = 60.0 * spoken_words(raw) / max(len(audio) / rate, 1e-6)
-            if not self.max_wpm or wpm <= self.max_wpm:
+            if not capped or wpm <= self.max_wpm:
                 break
             settings = dict(settings, length_scale=(settings.get("length_scale") or 1.0) * wpm / self.max_wpm * 1.02)
             audio, spans = synth(settings)
@@ -605,7 +687,7 @@ def azure_settings(cfg):
     a.setdefault("retries", 3)
     a.setdefault("min_wpm", 110)
     a.setdefault("slow_rate_pct", -15)
-    a.setdefault("pace_min_rate_pct", -15)
+    a.setdefault("pace_min_rate_pct", PACE_MIN_RATE_PCT)
     a.setdefault("pace_break_max_s", 0.5)
     a.setdefault("max_break_ms", 4000)
     a["min_rate_pct"] = max(RATE_FLOOR_PCT, float(a.get("min_rate_pct", RATE_FLOOR_PCT)))
@@ -616,25 +698,34 @@ def azure_settings(cfg):
 
 
 class AzureSpeechService(SpeechService):
-    """Azure AI Speech: azure_ssml(), the reported word timings, faulty takes made again (voice_anomaly()), and a block
-    faster than max_wpm paced by breaks at sentence ends, then a slower rate, then a "rewrite" flag. The key and
-    region come from the environment and are never stored."""
+    """Azure AI Speech: azure_ssml(), the reported word timings, faulty takes made again (voice_anomaly() with the
+    silences of the audio), and a block of rate_min_words or more faster than max_wpm paced by breaks at sentence ends,
+    then by one slower rate down to pace_min_rate_pct, then flagged "rewrite" when still faster by more than
+    pace_rewrite_tolerance_pct. The key and region come from the environment and are never stored."""
 
     min_rate_pct = RATE_FLOOR_PCT        # class defaults also serve a service built without __init__ (tests)
     slow_rate_pct = -15.0
-    pace_min_rate_pct = -15.0
+    pace_min_rate_pct = PACE_MIN_RATE_PCT
     pace_break_max_s = 0.5
+    pace_rewrite_tolerance_pct = PACE_REWRITE_TOLERANCE_PCT
+    rate_min_words = RATE_MIN_WORDS
+    mid_phrase_gap_max_s = MID_PHRASE_GAP_MAX_S
     max_break_s = None
 
     def __init__(self, voice=DEFAULT_AZURE_VOICE, rate_pct=0, ellipsis_pause_s=0.7, style=None, max_wpm=None,
                  min_rate_pct=RATE_FLOOR_PCT, output_format="Audio48Khz192KBitRateMonoMp3", retries=3, min_wpm=110,
-                 slow_rate_pct=-15, pace_min_rate_pct=-15, pace_break_max_s=0.5, max_break_ms=None, **kwargs):
+                 slow_rate_pct=-15, pace_min_rate_pct=PACE_MIN_RATE_PCT, pace_break_max_s=0.5, max_break_ms=None,
+                 pace_rewrite_tolerance_pct=PACE_REWRITE_TOLERANCE_PCT, rate_min_words=RATE_MIN_WORDS,
+                 mid_phrase_gap_max_s=MID_PHRASE_GAP_MAX_S, **kwargs):
         self.voice_name = voice
         self.min_rate_pct = max(RATE_FLOOR_PCT, float(min_rate_pct))
         self.rate_pct = max(self.min_rate_pct, float(rate_pct or 0))
         self.slow_rate_pct = min(self.rate_pct, max(self.min_rate_pct, float(slow_rate_pct)))
         self.pace_min_rate_pct = max(self.min_rate_pct, float(pace_min_rate_pct))
         self.pace_break_max_s = float(pace_break_max_s or 0.0)
+        self.pace_rewrite_tolerance_pct = float(pace_rewrite_tolerance_pct or 0.0)
+        self.rate_min_words = int(rate_min_words)
+        self.mid_phrase_gap_max_s = float(mid_phrase_gap_max_s)
         self.max_break_s = float(max_break_ms) / 1000.0 if max_break_ms else None
         self.ellipsis_pause_s = float(ellipsis_pause_s)
         self.style = style
@@ -679,7 +770,8 @@ class AzureSpeechService(SpeechService):
             bounds = self._synthesize(ssml, tmp)
             duration = audio_duration(tmp)
             fault = voice_anomaly(bounds, raw, duration, self.ellipsis_pause_s, min_wpm=self.min_wpm,
-                                  pace_break_s=pace_break_s)
+                                  pace_break_s=pace_break_s, silences=audio_silences(tmp),
+                                  mid_phrase_gap_max_s=self.mid_phrase_gap_max_s)
             if fault:
                 print(f"voice: take {n} of block {block_key(text)} rejected ({fault})", file=sys.stderr)
             if best is None or (best[3] and not fault) or (fault and best[3] and duration < best[2]):
@@ -697,13 +789,15 @@ class AzureSpeechService(SpeechService):
         cache_dir = cache_dir or self.cache_dir
         raw = remove_bookmarks(text)
         slow = slow_block(raw)
+        words = spoken_words(raw)
+        capped = bool(self.max_wpm) and words >= self.rate_min_words     # a shorter block's rate is no pace
         data = {"input_text": " ".join(raw.split()), "service": "azure", "voice": self.voice_name,
                 "rate_pct": self.rate_pct, "ellipsis_pause_s": self.ellipsis_pause_s, "style": self.style,
                 "format": self.output_format,
                 "pace": [self.pace_break_max_s, self.pace_min_rate_pct, self.min_rate_pct]}
         if slow:
             data["slow_rate_pct"] = self.slow_rate_pct
-        if self.max_wpm:
+        if capped:
             data["max_wpm"] = self.max_wpm
         cached = self.get_cached_result(data, cache_dir)
         if cached is not None:
@@ -712,27 +806,24 @@ class AzureSpeechService(SpeechService):
         out = Path(cache_dir) / name
         planned = pause_plan(raw, self.ellipsis_pause_s)              # planned pauses do not count in the pace
         planned_s = sum(planned.values())
-        words = spoken_words(raw)
         ends = len(pause_plan(raw, self.ellipsis_pause_s, 1.0)) - len(planned)   # sentence ends free for a break
         rate, brk, pace = self.slow_rate_pct if slow else self.rate_pct, 0.0, "ok"   # a slow block starts slow
         ssml, bounds, duration, takes, fault = self._take(text, rate, out)
 
         def wpm():
             return 60.0 * words / max(duration - planned_s, 1e-6)
-        if self.max_wpm and wpm() > self.max_wpm:                     # the pace cap
+        if capped and wpm() > self.max_wpm:                           # the pace cap
             if ends and self.pace_break_max_s > 0:                    # 1. short breaks at the sentence ends
                 need = 60.0 * words / self.max_wpm - (duration - planned_s)
                 brk = min(self.pace_break_max_s, max(0.1, math.ceil(100.0 * need / ends) / 100.0))
                 ssml, bounds, duration, more, fault = self._take(text, rate, out, brk)
                 takes, pace = takes + more, "breaks"
-            for _ in range(2):                                        # 2. a slower rate, never below the limit
-                if wpm() <= self.max_wpm or rate <= self.pace_min_rate_pct:
-                    break
+            if wpm() > self.max_wpm and rate > self.pace_min_rate_pct:   # 2. one slower rate, down to the floor
                 factor = wpm() / self.max_wpm * 1.02                  # how much longer the speech must last
                 rate = max(self.pace_min_rate_pct, ((1.0 + rate / 100.0) / factor - 1.0) * 100.0)
                 ssml, bounds, duration, more, fault = self._take(text, rate, out, brk)
                 takes, pace = takes + more, "slowed"
-            if wpm() > self.max_wpm:                                  # 3. the words must change
+            if wpm() > self.max_wpm * (1.0 + self.pace_rewrite_tolerance_pct / 100.0):   # 3. the words must change
                 pace = "rewrite"
                 print(f"voice: block {block_key(text)} still at {wpm():.0f} words per minute with "
                       f"{brk:g} s breaks and a rate of {rate:.0f} %: shorten or split it (pace cap, rule P20)",
@@ -816,18 +907,23 @@ def speech_service(scene_dir=None, name=None, cache_dir=None):
                             noise_scale=p.get("noise_scale"), noise_w_scale=p.get("noise_w_scale"),
                             speaker=p.get("speaker"), sentence_pause_s=p.get("sentence_pause_s", 0.25),
                             question_pause_s=p.get("question_pause_s"), ellipsis_pause_s=p.get("ellipsis_pause_s"),
-                            max_wpm=pacing_limit(scene_dir), slow_factor=slow_factor(cfg), **kw)
+                            max_wpm=pacing_limit(scene_dir), slow_factor=slow_factor(cfg),
+                            rate_min_words=rate_min_words(video_config(scene_dir)), **kw)
     if name == "azure":
         _need(*KEYS["azure"])
         ok, why = available("azure", scene_dir)
         if not ok:
             raise RuntimeError(f"voice service azure: {why}; no other voice is used in its place")
         a = azure_settings(cfg)
+        tolerance = cfg.get("pace_rewrite_tolerance_pct", PACE_REWRITE_TOLERANCE_PCT)
+        gap = cfg.get("mid_phrase_gap_max_s", MID_PHRASE_GAP_MAX_S)
         return AzureSpeechService(voice=a["voice"], rate_pct=a["rate_pct"], ellipsis_pause_s=a["ellipsis_pause_s"],
                                   style=a["style"], min_rate_pct=a["min_rate_pct"], retries=a["retries"],
                                   min_wpm=a["min_wpm"], max_wpm=a.get("max_wpm") or pacing_limit(scene_dir),
                                   slow_rate_pct=a["slow_rate_pct"], pace_min_rate_pct=a["pace_min_rate_pct"],
-                                  pace_break_max_s=a["pace_break_max_s"], max_break_ms=a["max_break_ms"], **kw)
+                                  pace_break_max_s=a["pace_break_max_s"], max_break_ms=a["max_break_ms"],
+                                  pace_rewrite_tolerance_pct=tolerance, mid_phrase_gap_max_s=gap,
+                                  rate_min_words=rate_min_words(video_config(scene_dir)), **kw)
     raise ValueError(f"unknown voice service {name!r} ({', '.join(SERVICES)})")
 
 

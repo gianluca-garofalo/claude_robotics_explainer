@@ -320,6 +320,44 @@ class Choice(unittest.TestCase):
         finally:
             shutil.rmtree(tmp)
 
+    @unittest.skipUnless(HAVE_FFMPEG, "needs ffmpeg")
+    def test_a_silence_inside_a_phrase_is_taken_again(self):
+        import numpy as np
+        text = "Each step takes off a little, and the bill falls by real amounts."
+        rate, gaps = 16000, []
+        tone = 0.3 * np.sin(2 * np.pi * 220 * np.arange(int(0.3 * rate)) / rate)
+
+        def fake(ssml, out):
+            """0.3 s of tone a word, 0.05 s between words, gaps[0] after "real"; each reported length takes the
+            silence after its word in, as Azure's do."""
+            gap = gaps.pop(0)
+            parts, bounds, t = [np.zeros(int(0.1 * rate))], [], 0.1
+            for w in text.split():
+                after = gap if w == "real" else 0.05
+                bounds.append({"audio_offset": int(t * TICK), "text": w.strip(".,"),
+                               "duration_milliseconds": int(round((0.3 + after) * 1000))})
+                parts += [tone, np.zeros(int(after * rate))]
+                t += 0.3 + after
+            voice._write_wav(out, (np.concatenate(parts) * 32767).astype(np.int16).tobytes(), rate)
+            return bounds
+        tmp = Path(tempfile.mkdtemp())
+        try:
+            svc = voice.AzureSpeechService.__new__(voice.AzureSpeechService)
+            svc.voice_name, svc.ellipsis_pause_s, svc.style, svc.retries, svc.min_wpm = "V", 0.7, None, 2, 110
+            svc._synthesize = fake
+            gaps[:] = [0.3, 0.05]                                             # the second take is clean
+            _, _, _, takes, fault = svc._take(text, -8, tmp / "a.wav")
+            self.assertEqual((takes, fault), (2, ""))
+            gaps[:] = [0.3, 0.3, 0.3]                                         # every take has it: kept, with the fault
+            _, _, _, takes, fault = svc._take(text, -8, tmp / "a.wav")
+            self.assertEqual(takes, 3)
+            self.assertIn("inside a phrase, after 'real'", fault)
+            gaps[:] = [0.3]
+            bounds = fake("", tmp / "b.wav")                                  # the word timings alone miss it
+            self.assertEqual(voice.voice_anomaly(bounds, text, voice.audio_duration(tmp / "b.wav")), "")
+        finally:
+            shutil.rmtree(tmp)
+
     def test_proxy_settings(self):
         self.assertEqual(voice.proxy_settings({"HTTPS_PROXY": "http://user:pw@127.0.0.1:3128"}),
                          ("127.0.0.1", 3128, "user", "pw"))
@@ -496,6 +534,11 @@ words = "Every frame reads it, so nothing on screen is typed by hand."
 fd = fast.generate_from_text(words, cache_dir=str(out))
 with wave.open(str(out / fd["original_audio"])) as w:
     res["paced_wpm"] = 60 * voice.spoken_words(words) / (w.getnframes() / w.getframerate())
+short = "So nothing on screen is typed by hand."         # under pacing.rate_min_words: not slowed
+fs = fast.generate_from_text(short, cache_dir=str(out))
+with wave.open(str(out / fs["original_audio"])) as w:
+    res["short_wpm"] = 60 * voice.spoken_words(short) / (w.getnframes() / w.getframerate())
+res["short_capped"] = "max_wpm" in fs["input_data"]
 print(json.dumps(res))
 '''
 
@@ -543,6 +586,8 @@ class Services(unittest.TestCase):
             self.assertTrue(res["cached"])
             self.assertLessEqual(res["paced_wpm"], 150.5)                                 # slowed to the house rate
             self.assertGreater(res["paced_wpm"], 120)
+            self.assertGreater(res["short_wpm"], 300)                                     # a short block: as read
+            self.assertFalse(res["short_capped"])
         finally:
             shutil.rmtree(tmp)
 

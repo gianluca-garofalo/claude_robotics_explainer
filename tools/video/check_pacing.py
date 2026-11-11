@@ -12,7 +12,8 @@ Rules (thresholds in config/video.json "pacing"):
   P5  new terms                    P12 spoken numbers              P19 holds (check_engagement.py)
   P6  silence after results        P13 equation holds              P20 blocks to rewrite
   P7  stretches without a pause    P14 picture before words
-  ideas, coverage, markup: declared ideas not found, detected ideas not declared, markup the voice cannot say.
+  ideas, coverage, markup: declared ideas not found, detected ideas not declared, markup the voice cannot say;
+  voice: blocks every take of which had a fault (video/voice/manifest.json).
 Exit status 1 on an error.
 """
 from __future__ import annotations
@@ -32,6 +33,7 @@ sys.path.insert(0, str(HERE))
 from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
 import checks  # noqa: E402
 import idea_budget as IB  # noqa: E402
+import plan as P  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 VOICE = VS.VOICE
@@ -44,7 +46,7 @@ DEFAULTS = {
     "terms_per_sentence": 1, "terms_per_30": 2,
     "star_silence_s": 2.5, "star_silence_target_s": 3.0, "restatement_within_s": 10.0, "claim_silence_s": 1.5,
     "silence_long_s": 1.5, "stretch_warn_s": 45.0, "stretch_error_s": 90.0,
-    "block_pause_median_s": 0.6, "block_vs_sentence_min": 0.9, "chapter_turn_pause_s": 1.0,
+    "block_pause_median_s": 0.6, "block_vs_sentence_min": 0.9, "chapter_turn_pause_s": 1.0, "sentence_gap_min_s": 0.6,
     "body_wpm_max": 135.0,
     "rate_floor_pct": -20.0, "block_rate_min_pct": -15.0, "key_wpm_min": 120.0, "key_max_vs_median": 1.0,
     "slow_share_max": 0.67,
@@ -599,12 +601,20 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
         m = (a["words"][-1]["t1"] + b["words"][0]["t0"]) / 2
         g = max([s1 - s0 for s0, s1 in sil if s0 - 0.15 <= m <= s1 + 0.15] or [0.0])
         gaps.append(g)
-        if a["chapter"] != b["chapter"]:
+        turn = a["chapter"] != b["chapter"]
+        if turn:
             turns.append(g)
             if g < float(cfg["chapter_turn_pause_s"]):
                 fd.add("P8", "warning", b["scene"], f"{g:.1f} s between the chapters {a['chapter']!r} and "
                        f"{b['chapter']!r} (at least {cfg['chapter_turn_pause_s']:g} s: end the chapter's last block "
                        "with [pause 1.5])", b["words"][0]["t0"])
+        lead = b["words"][0]["t0"] - a["words"][-1]["t1"]
+        if checks.sentence_end(a["words"][-1]["w"]) and lead < float(cfg["sentence_gap_min_s"]) and not (
+                turn and g < float(cfg["chapter_turn_pause_s"])):
+            fd.add("P8", "warning", b["scene"], f"the next block starts {lead:.1f} s after the sentence ending "
+                   f"{a['text'][-30:]!r} (at least {cfg['sentence_gap_min_s']:g} s): end that block with its default "
+                   "pause or [pause S]; [pause 0] only when the sentence continues into the next block",
+                   b["words"][0]["t0"])
     paced = set()                                   # blocks the pace cap gave breaks: not their natural rhythm
     man_p = run / "video" / "voice" / "manifest.json"
     if stage == "final" and man_p.exists():
@@ -662,6 +672,9 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
         if m.get("pace") == "rewrite":
             fd.add("P20", "warning", f"block {key}", f"still too fast after breaks and the slowest allowed rate "
                    f"({m.get('speech_wpm', '?')} words per minute): shorten or split it ({str(m.get('text', ''))[:50]!r})")
+        if m.get("fault"):
+            fd.add("voice", "warning", f"block {key}", f"every take had a fault (the kept one: {m['fault']}): "
+                   f"synthesize it again, or reword it ({str(m.get('text', ''))[:50]!r})")
     for b in tl["blocks"]:
         if b.get("slow") and b["role"] in ("hook", "context", "recap", "outro"):
             fd.add("P10", "warning", b["scene"], f"a slow block ([slow]) in the {b['role']}: slow blocks are for the "
@@ -802,14 +815,18 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
         fd.add("P15", "warning", "video", "no recap before the outro (about 20 s, the starred results restated in "
                "the same plain words; a plan.json idea of kind recap)", hi)
 
-    # P16: chapter lengths
+    # P16: chapter lengths (a chapter whose body is a recap is short by design, P15)
     c_lo, c_hi = (float(x) for x in cfg["chapter_s"])
+    recaps = P.recap_scenes(tl["plan"])
+    role_of = {s["class"]: s["role"] for s in tl["scenes"]}
     stats["chapters"] = []
     for c in chs:
         if not c["roles"] & {"body"}:
             continue
         d = c["end"] - c["start"]
         stats["chapters"].append({"chapter": c["chapter"], "s": round(d, 1), "wpm": c.get("wpm")})
+        if {x for x in c["scenes"] if role_of[x] == "body"} <= recaps:
+            continue
         inner = any(i.get("kind") in ("summary", "restatement") and c["start"] + 0.25 * d <= i["t"] <= c["start"] + 0.85 * d
                     for i in ideas) or any(b - a >= float(cfg["star_silence_s"]) and c["start"] + 0.25 * d <= a <=
                                            c["start"] + 0.85 * d for a, b in sil)

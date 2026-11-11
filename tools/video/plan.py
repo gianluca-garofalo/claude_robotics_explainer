@@ -31,6 +31,15 @@ def is_series(run: Path) -> bool:
     return (run / "episode.json").exists()
 
 
+def recap_scenes(plan: dict) -> set[str]:
+    """Classes of the recap scenes: role "recap" (an earlier episode's) and the scene of each idea of kind "recap"
+    (the recap before the outro, a body scene)."""
+    scenes = [s for s in plan.get("scenes") or [] if isinstance(s, dict)]
+    ideas = [i for i in plan.get("ideas") or [] if isinstance(i, dict)]
+    return ({s.get("class") for s in scenes if s.get("role") == "recap"}
+            | {i.get("scene") for i in ideas if i.get("kind") == "recap"}) - {None}
+
+
 def explainer_slug(run: Path) -> str:
     """Where the explainer is published: the series' explainer for an episode, else the topic's own page."""
     t = topic(run)

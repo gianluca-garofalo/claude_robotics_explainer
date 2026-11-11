@@ -4,8 +4,9 @@
 Usage:
   python3 tools/video/check_script.py runs/<run> --stage draft|final [--out DIR] [--json]
 
-Checks: pauses, contractions, connectives, rhythm, stock, hype; at the final stage also pace and mid pause, from the
-narration audio in video/voice/ (thresholds in config/video.json "script"). Exit status 1 on an error.
+Checks: pauses, contractions, connectives, rhythm, stock, hype; at the final stage also pace, mid pause and voice (a
+fault every take of a block had), from the narration audio in video/voice/ (thresholds in config/video.json "script").
+Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE))
 from _common import CONFIG, load_json, rel, resolve_run, sha256_file  # noqa: E402
 import checks  # noqa: E402
+import plan as P  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 DEFAULTS = {
@@ -165,7 +167,7 @@ def phrase_in(phrase: str, text: str) -> bool:
 # --------------------------------------------------------------------------- the run's narration
 
 def narration(run: Path) -> list[dict]:
-    """[{"class", "file", "role", "blocks", "raw", "resets"}] of the scenes with narration, in plan order."""
+    """[{"class", "file", "role", "recap", "blocks", "raw", "resets"}] of the scenes with narration, in plan order."""
     plan_p = run / "video" / "plan.json"
     plan = json.loads(plan_p.read_text(encoding="utf-8")) if plan_p.exists() else {}
     by_class = {}
@@ -176,9 +178,10 @@ def narration(run: Path) -> list[dict]:
     out = []
     order = [s for s in plan.get("scenes", []) if s.get("class") in by_class] if plan.get("scenes") else \
         [{"class": c} for c in by_class]
+    recaps = P.recap_scenes(plan)
     for s in order:
         f, raws = by_class[s["class"]]
-        out.append({"class": s["class"], "file": f.name, "role": s.get("role", "body"),
+        out.append({"class": s["class"], "file": f.name, "role": s.get("role", "body"), "recap": s["class"] in recaps,
                     "blocks": [VS.spoken(t) for t in raws], "raw": raws,
                     "resets": [r.get("says", "") for r in s.get("metaphor_resets", []) if r.get("says")]})
     return out
@@ -259,6 +262,9 @@ def audio_stats(run: Path, scenes: list[dict], cfg: dict, fd: checks.Findings) -
             if not b:
                 fd.add("pace", "warning", sc["class"], f"no audio for block {key} ({text[:50]!r}): stale narration")
                 continue
+            if b.get("fault"):
+                fd.add("voice", "warning", sc["class"], f"block {key}: every take had a fault (the kept one: "
+                       f"{b['fault']}): synthesize it again, or reword it ({clean(text)[:50]!r})")
             w = len(words(clean(text)))
             sec = float(b.get("seconds") or 0.0)
             sw, ss = sw + w, ss + sec
@@ -346,8 +352,10 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
     if w["sentence_spread"] < cfg["sentence_spread_min"]:
         fd.add("rhythm", "warning", "narration", f"sentence length spread {w['sentence_spread']} words (at least "
                f"{cfg['sentence_spread_min']}): a flat rhythm")
-    # stock: phrases said in more than one scene (overlapping n-grams merged into the whole phrase)
-    phrases = repeated_phrases([(sc["class"], " ".join(sc["blocks"])) for sc in scenes], int(cfg["stock_ngram"]))
+    # stock: phrases said in more than one scene (overlapping n-grams merged into the whole phrase); recap scenes are
+    # left out, as a recap restates results word for word on purpose (P15)
+    phrases = repeated_phrases([(sc["class"], " ".join(sc["blocks"])) for sc in scenes if not sc["recap"]],
+                               int(cfg["stock_ngram"]))
     allow = [a.lower() for a in cfg["refrain_allow"]]
     def refrain(ph: str) -> bool:                 # what is left once the deliberate refrains are taken out
         for a in allow:
