@@ -5,8 +5,8 @@ Usage:
   python3 tools/video/check_design.py runs/<run> --stage draft|final [--out DIR] [--no-frames]
   python3 tools/video/check_design.py --layout X.layout.json [--video X.mp4] [--out DIR]   # one scene
 
-Checks: spacing, alignment, panels, overlap, safe-area, glyph-size, contrast, palette, clutter, space, motion,
-margins, thumbnail (thresholds in config/video.json "design" and "palette"). Exit status 1 on an error.
+Checks: spacing, alignment, panels, shared-axis, overlap, safe-area, glyph-size, contrast, palette, clutter, space,
+motion, margins, thumbnail (thresholds in config/video.json "design" and "palette"). Exit status 1 on an error.
 """
 from __future__ import annotations
 
@@ -366,6 +366,37 @@ def panel_findings(name: str, t: float, texts: list, paths: list, gfx, d: dict, 
                     f"its area empty in one block: fill or enlarge its content", key=("empty", round(e[0], 1)))
 
 
+def axis_lines(paths: list, d: dict) -> list[tuple[float, float, float, int]]:
+    """(left x, right x, y, path id) of the visible horizontal axis lines (no ticks) of a frame."""
+    out = []
+    for p in paths:
+        pts = p["points"]
+        if not p.get("axis") or len(pts) < 2 or p["stroke_opacity"] < 0.3:
+            continue
+        xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+        if max(ys) - min(ys) <= 0.01 and max(xs) - min(xs) >= d.get("shared_axis_min_length", 1.0):
+            out.append((min(xs), max(xs), sum(ys) / len(ys), p["id"]))
+    return out
+
+
+def shared_axis_findings(name: str, t: float, paths: list, d: dict, rep) -> None:
+    """Stacked plots whose horizontal axes have one length but different left ends: one instant is not one vertical
+    line through them (common.py stacked_axes())."""
+    lines = axis_lines(paths, d)
+    lo, hi = d.get("shared_axis_offset_min", 0.03), d.get("shared_axis_offset_max", 1.0)
+    for i, a in enumerate(lines):
+        for b in lines[i + 1:]:
+            la, lb = a[1] - a[0], b[1] - b[0]
+            if abs(a[2] - b[2]) < 0.1 or abs(la - lb) > d.get("shared_axis_length_tol", 0.01) * max(la, lb):
+                continue                                    # not stacked, or axes of different lengths
+            off = abs(a[0] - b[0])
+            if min(a[1], b[1]) - max(a[0], b[0]) >= d.get("shared_axis_overlap_min", 0.8) * max(la, lb) and \
+                    lo <= off <= hi:
+                rep.add("shared-axis", "error", name, t, f"stacked plots share an axis but are offset by {off:.2f} "
+                        "units: line them up with stacked_axes()", key=tuple(sorted((a[3], b[3]))),
+                        offset=round(off, 3))
+
+
 def motion_checks(name: str, log: dict, d: dict, rep) -> dict:
     """Text overlaps while things move and readouts whose width changes, from the probe's timeline."""
     items = [x for x in log.get("timeline", []) if not x.get("axis") and x.get("events")]
@@ -480,6 +511,7 @@ def scene_checks(name: str, log: dict, frame: dict, cfg: dict, palette: dict, re
         space_findings(name, t, usage, d, rep, role)
         alignment_findings(name, t, front_t, d, rep)
         panel_findings(name, t, front_t, front_p, gfx, d, rep, role)
+        shared_axis_findings(name, t, front_p, d, rep)
         if usage.get("coverage"):
             stats.setdefault("space_coverage", []).append(usage["coverage"])
         stats["max_elements"] = max(stats["max_elements"], elements)

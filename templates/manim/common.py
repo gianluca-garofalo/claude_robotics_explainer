@@ -198,6 +198,48 @@ def legend_table(rows, aligns=None, col_gap=0.3, row_gap=0.22, min_widths=None):
     return table
 
 
+def stacked_axes(y_ranges, x_range, x_length, y_lengths=None, center=ORIGIN, buff=0.5, **kw):
+    """Plots that share one horizontal axis (time), top to bottom: one Axes per y_range, all with the same x_range,
+    x_length and left edge, so one instant is one vertical line (time_cursor()). y_lengths: heights (default 2 each);
+    buff: the gap between plots; center: the middle of the stack; other keywords go to every Axes (default: no tips,
+    axes in GRID, no numbers). Returns a VGroup of the Axes."""
+    y_ranges = [list(r) for r in y_ranges]
+    heights = [2.0] * len(y_ranges) if y_lengths is None else [float(h) for h in y_lengths]
+    if not y_ranges or len(heights) != len(y_ranges):
+        raise ValueError("stacked_axes() needs at least one y_range and one y_length per y_range")
+    kw.setdefault("tips", False)
+    kw["axis_config"] = {"color": GRID, "include_numbers": False, **(kw.get("axis_config") or {})}
+    plots, top = VGroup(), 0.0
+    for yr, h in zip(y_ranges, heights):
+        ax = Axes(x_range=list(x_range), y_range=yr, x_length=x_length, y_length=h, **kw)
+        ax.shift(np.array([0.0, top, 0.0]) - ax.c2p(x_range[0], yr[1]))      # left edge at x = 0, top at `top`
+        plots.add(ax)
+        top -= h + buff
+    height = sum(heights) + buff * (len(heights) - 1)
+    return plots.shift(np.array(center, dtype=float) - np.array([x_length / 2, -height / 2, 0.0]))
+
+
+def time_cursor(axes_list, tracker, color=INK, stroke_width=2):
+    """One vertical line through all the plots of `axes_list` (stacked_axes()) at the x of tracker.get_value() (or of
+    tracker() for a function), kept inside the x range and redrawn as it moves. Plots that do not share the horizontal
+    axis raise ValueError."""
+    plots = list(axes_list)
+    value = tracker.get_value if hasattr(tracker, "get_value") else tracker
+    lo, hi = sorted(plots[0].x_range[:2])
+    for ax in plots[1:]:
+        if any(abs(ax.c2p(v, ax.y_range[0])[0] - plots[0].c2p(v, plots[0].y_range[0])[0]) > 0.01 for v in (lo, hi)):
+            raise ValueError("time_cursor(): the plots do not share their horizontal axis; build them with "
+                             "stacked_axes()")
+
+    def make():
+        t = min(max(float(value()), lo), hi)
+        x = plots[0].c2p(t, plots[0].y_range[0])[0]
+        top = max(ax.c2p(t, ax.y_range[1])[1] for ax in plots)
+        bottom = min(ax.c2p(t, ax.y_range[0])[1] for ax in plots)
+        return Line([x, bottom, 0], [x, top, 0], color=color, stroke_width=stroke_width)
+    return always_redraw(make)
+
+
 def load_data(default_name, here):
     """The arrays of ../data/<default_name> ($SCENE_DATA overrides the path), or None without the file."""
     path = os.environ.get("SCENE_DATA", os.path.join(here, "..", "data", default_name))

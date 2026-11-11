@@ -533,6 +533,58 @@ class AttachAndLegendTable(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+@unittest.skipUnless(_manim() and shutil.which("ffmpeg"), "needs Manim with manim-voiceover ($MANIM or .venv) and ffmpeg")
+class StackedAxesAndCursor(unittest.TestCase):
+    """common.py stacked_axes() stacks plots on one horizontal axis, and time_cursor() is one line through them."""
+
+    def test_render(self):
+        tmp = Path(tempfile.mkdtemp(prefix="stacked-test-"))
+        try:
+            scenes = tmp / "video" / "scenes"
+            scenes.mkdir(parents=True)
+            for f in ("common.py", "voice.py", "reading_model.py"):
+                shutil.copy(REPO / "templates" / "manim" / f, scenes / f)
+            (scenes / "t.py").write_text(
+                "from manim import *\nfrom common import *\n\n"
+                "class T(RAScene):\n    def construct(self):\n"
+                "        plots = stacked_axes([[0, 1, 0.5], [-1, 1, 1], [0, 4, 2]], [0, 10, 2], 7.0,\n"
+                "                             y_lengths=[1.6, 1.0, 1.6], center=[0.5, 0.0, 0], buff=0.5)\n"
+                "        k = ValueTracker(2.5)\n"
+                "        cursor = time_cursor(plots, k)\n"
+                "        try:\n"
+                "            time_cursor([Axes(x_length=4).shift(LEFT * 0.3), Axes(x_length=4).shift(DOWN * 3)], k)\n"
+                "        except ValueError:\n"
+                "            pass\n"
+                "        else:\n"
+                "            raise AssertionError('time_cursor() took plots that do not share their axis')\n"
+                "        curves = VGroup(*[ax.plot_line_graph([0, 5, 10], [lo, hi, lo], add_vertex_dots=False,\n"
+                "                                             line_color=c, stroke_width=6)\n"
+                "                          for ax, (lo, hi), c in zip(plots, ((0.2, 0.8), (-0.5, 0.5), (1, 3)),\n"
+                "                                                     (BLUE, AMBER, GREEN))])\n"
+                "        self.play(Create(plots), Create(curves), run_time=0.5)\n"
+                "        self.add(cursor)\n"
+                "        self.play(k.animate.set_value(7.5), run_time=0.5)\n"
+                "        self.wait(1.5)\n", encoding="utf-8")
+            env = dict(os.environ, MANIM=_manim(), VOICE_SERVICE="silent")
+            r = subprocess.run(["bash", str(REPO / "tools" / "render_video.sh"), str(tmp), "--check", "--voice", "silent",
+                                "--scene", "t.py:T"], capture_output=True, text=True, env=env, cwd=REPO)
+            self.assertEqual(r.returncode, 0, r.stdout[-1500:] + r.stderr[-1500:])
+            layout = tmp / "video" / "checks" / "T.layout.json"
+            last = [x for x in json.loads(layout.read_text())["scenes"]["T"]["snapshots"] if x["settled"]][-1]
+            lines = CD.axis_lines(last["paths"], {})
+            self.assertEqual(sorted(round(y, 2) for _, _, y, _ in lines), [-2.6, 0.0, 1.0])   # top to bottom, buff
+            self.assertEqual({(round(x0, 3), round(x1, 3)) for x0, x1, _, _ in lines}, {(-3.0, 4.0)})
+            cursor = [p for p in last["paths"] if p["live"] and not p["axis"]]
+            self.assertEqual(len(cursor), 1, cursor)
+            (cx0, cy0), (cx1, cy1) = cursor[0]["points"]
+            self.assertAlmostEqual(cx0, -3.0 + 0.75 * 7.0, places=2)                      # t = 7.5 of 0 to 10
+            self.assertAlmostEqual(cx1, cx0, places=3)
+            self.assertEqual(sorted((round(cy0, 2), round(cy1, 2))), [-2.6, 2.6])        # through every plot
+            self.assertEqual([f for f in design_findings(layout) if f["check"] == "shared-axis"], [])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 def _shape(i, top, bbox, fill=0.0):
     return {"id": i, "order": i, "top": top, "live": False, "axis": False, "bbox": bbox, "stroke_width": 3.0,
             "stroke_opacity": 1.0, "stroke_color": "#818cf8", "fill_opacity": fill, "fill_color": "#818cf8",
@@ -663,6 +715,39 @@ class PanelBalance(unittest.TestCase):
     def test_a_panel_with_a_large_hole_warns(self):
         boxes = [[-6.0, 1.6, -1.0, 2.0], [-6.0, -3.0, -1.0, -2.6], [-6.0, -0.7, -5.4, -0.3]]
         self.assertTrue(any("empty in one block" in x["detail"] for x in self.frame(boxes)))
+
+
+class SharedAxis(unittest.TestCase):
+    """Stacked plots with horizontal axes of one length start at one x (common.py stacked_axes()), else an error."""
+
+    @staticmethod
+    def found(*lines, axis=True):
+        paths = [dict(_axis(i + 1, i + 1, (x0, y), (x0 + n, y)), axis=axis) for i, (x0, y, n) in enumerate(lines)]
+        return scene_findings([_settled(1.0, [], paths)], check="shared-axis")
+
+    def test_offset_stacked_axes_are_an_error(self):
+        f = self.found((-0.25, -0.7, 6.4), (-0.55, -3.0, 6.4))
+        self.assertEqual([x["severity"] for x in f], ["error"])
+        self.assertAlmostEqual(f[0]["offset"], 0.3)
+
+    def test_aligned_staggered_or_different_axes_pass(self):
+        for lines in (((-0.45, 0.1, 6.4), (-0.46, -2.4, 6.4)),          # aligned within rounding
+                      ((-4.0, 1.0, 8.0), (-2.8, -2.0, 8.0)),            # staggered by more than a unit
+                      ((-0.25, -0.7, 6.4), (-0.55, -3.0, 6.2)),         # different lengths
+                      ((-1.0, 1.0, 2.0), (-0.5, -2.0, 2.0))):           # overlapping by 75 %
+            self.assertEqual(self.found(*lines), [], lines)
+
+    def test_ticks_and_plotted_lines_do_not_count(self):
+        self.assertEqual(self.found((-0.35, 1.3, 0.2), (-0.39, 0.7, 0.2)), [])
+        self.assertEqual(self.found((-0.25, -0.7, 6.4), (-0.55, -3.0, 6.4), axis=False), [])
+
+    def test_the_offset_pair_of_a_render(self):
+        found = design_findings(FIX / "design" / "stacked_plots_offset.layout.json")
+        self.assertEqual([(f["check"], f["severity"]) for f in found], [("shared-axis", "error")], found)
+        self.assertAlmostEqual(found[0]["offset"], 0.3, places=2)
+
+    def test_the_same_frame_built_with_stacked_axes_passes(self):
+        self.assertEqual(design_findings(FIX / "design" / "stacked_plots_aligned.layout.json"), [])
 
 
 class SpaceUsage(unittest.TestCase):

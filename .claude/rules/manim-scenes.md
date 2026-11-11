@@ -62,6 +62,8 @@ measured by the check named in each heading.
   swapped in later with `table.place()`); never per-row `next_to` plus a shift.
 - Split layouts: both sides end at about the same height, or the shorter is centred on the taller; a growing side
   column grows around the middle.
+- Plots that share an axis (time) are stacked with `stacked_axes()`, with the same range, length and left edge, so one
+  instant is one vertical line.
 - `swap_caption()` between captions, never `Transform`. Fade whole groups out (fading one member splits the group);
   labels that leave early get their own group.
 - No `MovingCameraScene` (the checks read object coordinates): zoom by scaling the world group.

@@ -1,0 +1,1318 @@
+{
+ "schema_version": 1,
+ "tool": "tests/fixtures/design (extracted from a layout_probe log)",
+ "frame": {
+  "width": 14.222222222222221,
+  "height": 8.0,
+  "pixel_width": 854,
+  "pixel_height": 480,
+  "fps": 15.0,
+  "background": "#0f172a"
+ },
+ "note": "Tiny draft render (-ql, 2026-11-11) of the frame of a news video's Cubic scene with both plots: position (y_range -2.5 to 2.5, y_length 3) and jerk (y_range -0.2 to 0.2, y_length 1.2) against time, both Axes(x_range=[0, 10, 2], x_length=6.4) placed by hand at x = 2.9 and 2.6, a stand-in for the world top left and the effort equation bottom left; the settled snapshot at t = 3.0 s. Must produce one shared-axis error (left ends -0.25 and -0.55: offset 0.30) and nothing else.",
+ "scenes": {
+  "Cubic": {
+   "snapshots": [
+    {
+     "t": 3.0,
+     "settled": true,
+     "label": "wait",
+     "texts": [
+      {
+       "id": 6,
+       "kind": "math",
+       "content": "\\text{effort} = \\int \\lVert \\ddot x \\rVert^2 \\, dt",
+       "bbox": [
+        -5.029,
+        -2.715,
+        -2.171,
+        -1.885
+       ],
+       "font_size": 36.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 34,
+       "top": 3,
+       "live": false,
+       "axis": false,
+       "lines": 1
+      },
+      {
+       "id": 29,
+       "kind": "text",
+       "content": "time (s)",
+       "bbox": [
+        4.626,
+        -1.197,
+        5.882,
+        -0.9
+       ],
+       "font_size": 24.0,
+       "color": "#94a3b8",
+       "opacity": 1.0,
+       "order": 55,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1,
+       "attached": true,
+       "attached_to": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+       ]
+      },
+      {
+       "id": 30,
+       "kind": "text",
+       "content": "position (m)",
+       "bbox": [
+        0.0,
+        0.639,
+        1.952,
+        0.961
+       ],
+       "font_size": 24.0,
+       "color": "#94a3b8",
+       "opacity": 1.0,
+       "order": 63,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1,
+       "attached": true,
+       "attached_to": [
+        13,
+        14,
+        15,
+        16,
+        17
+       ]
+      },
+      {
+       "id": 31,
+       "kind": "text",
+       "content": "0",
+       "bbox": [
+        -0.334,
+        -2.626,
+        -0.166,
+        -2.374
+       ],
+       "font_size": 24.0,
+       "color": "#94a3b8",
+       "opacity": 1.0,
+       "order": 76,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1,
+       "attached": true,
+       "attached_to": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+       ]
+      },
+      {
+       "id": 32,
+       "kind": "text",
+       "content": "10",
+       "bbox": [
+        5.967,
+        -2.626,
+        6.333,
+        -2.374
+       ],
+       "font_size": 24.0,
+       "color": "#94a3b8",
+       "opacity": 1.0,
+       "order": 78,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1,
+       "attached": true,
+       "attached_to": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+       ]
+      },
+      {
+       "id": 33,
+       "kind": "text",
+       "content": "jerk",
+       "bbox": [
+        2.333,
+        -2.72,
+        2.967,
+        -2.398
+       ],
+       "font_size": 24.0,
+       "color": "#e2e8f0",
+       "opacity": 1.0,
+       "order": 81,
+       "top": 6,
+       "live": false,
+       "axis": false,
+       "lines": 1,
+       "attached": true,
+       "attached_to": [
+        34
+       ]
+      }
+     ],
+     "paths": [
+      {
+       "id": 1,
+       "order": 1,
+       "top": 0,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -5.8,
+        0.4,
+        -1.4,
+        2.8
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -1.4,
+         2.7
+        ],
+        [
+         -1.5,
+         2.8
+        ],
+        [
+         -1.5,
+         2.8
+        ],
+        [
+         -5.7,
+         2.8
+        ],
+        [
+         -5.7,
+         2.8
+        ],
+        [
+         -5.8,
+         2.7
+        ],
+        [
+         -5.8,
+         2.7
+        ],
+        [
+         -5.8,
+         0.5
+        ],
+        [
+         -5.8,
+         0.5
+        ],
+        [
+         -5.7,
+         0.4
+        ],
+        [
+         -5.7,
+         0.4
+        ],
+        [
+         -1.5,
+         0.4
+        ],
+        [
+         -1.5,
+         0.4
+        ],
+        [
+         -1.4,
+         0.5
+        ],
+        [
+         -1.4,
+         0.5
+        ],
+        [
+         -1.4,
+         2.7
+        ]
+       ]
+      },
+      {
+       "id": 2,
+       "order": 2,
+       "top": 0,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -5.4,
+        0.9,
+        -1.8,
+        2.3
+       ],
+       "stroke_width": 3.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#818cf8",
+       "fill_opacity": 0.0,
+       "fill_color": "#818cf8",
+       "points": [
+        [
+         -5.4,
+         0.9
+        ],
+        [
+         -1.8,
+         2.3
+        ]
+       ]
+      },
+      {
+       "id": 3,
+       "order": 3,
+       "top": 0,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -5.4,
+        0.9,
+        -1.8,
+        2.3
+       ],
+       "stroke_width": 3.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#fbbf24",
+       "fill_opacity": 0.0,
+       "fill_color": "#fbbf24",
+       "points": [
+        [
+         -5.4,
+         2.3
+        ],
+        [
+         -1.8,
+         0.9
+        ]
+       ]
+      },
+      {
+       "id": 4,
+       "order": 4,
+       "top": 0,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -4.64,
+        1.11,
+        -4.36,
+        1.39
+       ],
+       "stroke_width": 0.0,
+       "stroke_opacity": 0.0,
+       "stroke_color": "#818cf8",
+       "fill_opacity": 1.0,
+       "fill_color": "#818cf8",
+       "points": [
+        [
+         -4.36,
+         1.25
+        ],
+        [
+         -4.401,
+         1.349
+        ],
+        [
+         -4.401,
+         1.349
+        ],
+        [
+         -4.5,
+         1.39
+        ],
+        [
+         -4.5,
+         1.39
+        ],
+        [
+         -4.599,
+         1.349
+        ],
+        [
+         -4.599,
+         1.349
+        ],
+        [
+         -4.64,
+         1.25
+        ],
+        [
+         -4.64,
+         1.25
+        ],
+        [
+         -4.599,
+         1.151
+        ],
+        [
+         -4.599,
+         1.151
+        ],
+        [
+         -4.5,
+         1.11
+        ],
+        [
+         -4.5,
+         1.11
+        ],
+        [
+         -4.401,
+         1.151
+        ],
+        [
+         -4.401,
+         1.151
+        ],
+        [
+         -4.36,
+         1.25
+        ]
+       ]
+      },
+      {
+       "id": 5,
+       "order": 5,
+       "top": 0,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -4.64,
+        1.81,
+        -4.36,
+        2.09
+       ],
+       "stroke_width": 0.0,
+       "stroke_opacity": 0.0,
+       "stroke_color": "#fbbf24",
+       "fill_opacity": 1.0,
+       "fill_color": "#fbbf24",
+       "points": [
+        [
+         -4.36,
+         1.95
+        ],
+        [
+         -4.401,
+         2.049
+        ],
+        [
+         -4.401,
+         2.049
+        ],
+        [
+         -4.5,
+         2.09
+        ],
+        [
+         -4.5,
+         2.09
+        ],
+        [
+         -4.599,
+         2.049
+        ],
+        [
+         -4.599,
+         2.049
+        ],
+        [
+         -4.64,
+         1.95
+        ],
+        [
+         -4.64,
+         1.95
+        ],
+        [
+         -4.599,
+         1.851
+        ],
+        [
+         -4.599,
+         1.851
+        ],
+        [
+         -4.5,
+         1.81
+        ],
+        [
+         -4.5,
+         1.81
+        ],
+        [
+         -4.401,
+         1.851
+        ],
+        [
+         -4.401,
+         1.851
+        ],
+        [
+         -4.36,
+         1.95
+        ]
+       ]
+      },
+      {
+       "id": 7,
+       "order": 7,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.25,
+        -0.8,
+        6.15,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.25,
+         -0.7
+        ],
+        [
+         6.15,
+         -0.7
+        ]
+       ]
+      },
+      {
+       "id": 8,
+       "order": 9,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        1.03,
+        -0.8,
+        1.03,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         1.03,
+         -0.8
+        ],
+        [
+         1.03,
+         -0.6
+        ]
+       ]
+      },
+      {
+       "id": 9,
+       "order": 10,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        2.31,
+        -0.8,
+        2.31,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         2.31,
+         -0.8
+        ],
+        [
+         2.31,
+         -0.6
+        ]
+       ]
+      },
+      {
+       "id": 10,
+       "order": 11,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        3.59,
+        -0.8,
+        3.59,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         3.59,
+         -0.8
+        ],
+        [
+         3.59,
+         -0.6
+        ]
+       ]
+      },
+      {
+       "id": 11,
+       "order": 12,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        4.87,
+        -0.8,
+        4.87,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         4.87,
+         -0.8
+        ],
+        [
+         4.87,
+         -0.6
+        ]
+       ]
+      },
+      {
+       "id": 12,
+       "order": 13,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        6.15,
+        -0.8,
+        6.15,
+        -0.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         6.15,
+         -0.8
+        ],
+        [
+         6.15,
+         -0.6
+        ]
+       ]
+      },
+      {
+       "id": 13,
+       "order": 14,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.35,
+        -2.2,
+        -0.15,
+        0.8
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.25,
+         -2.2
+        ],
+        [
+         -0.25,
+         0.8
+        ]
+       ]
+      },
+      {
+       "id": 14,
+       "order": 16,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.35,
+        -1.9,
+        -0.15,
+        -1.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.15,
+         -1.9
+        ],
+        [
+         -0.35,
+         -1.9
+        ]
+       ]
+      },
+      {
+       "id": 15,
+       "order": 17,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.35,
+        -1.3,
+        -0.15,
+        -1.3
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.15,
+         -1.3
+        ],
+        [
+         -0.35,
+         -1.3
+        ]
+       ]
+      },
+      {
+       "id": 16,
+       "order": 18,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.35,
+        -0.1,
+        -0.15,
+        -0.1
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.15,
+         -0.1
+        ],
+        [
+         -0.35,
+         -0.1
+        ]
+       ]
+      },
+      {
+       "id": 17,
+       "order": 19,
+       "top": 1,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.35,
+        0.5,
+        -0.15,
+        0.5
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.15,
+         0.5
+        ],
+        [
+         -0.35,
+         0.5
+        ]
+       ]
+      },
+      {
+       "id": 18,
+       "order": 21,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.55,
+        -3.1,
+        5.85,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.55,
+         -3.0
+        ],
+        [
+         5.85,
+         -3.0
+        ]
+       ]
+      },
+      {
+       "id": 19,
+       "order": 23,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        0.73,
+        -3.1,
+        0.73,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         0.73,
+         -3.1
+        ],
+        [
+         0.73,
+         -2.9
+        ]
+       ]
+      },
+      {
+       "id": 20,
+       "order": 24,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        2.01,
+        -3.1,
+        2.01,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         2.01,
+         -3.1
+        ],
+        [
+         2.01,
+         -2.9
+        ]
+       ]
+      },
+      {
+       "id": 21,
+       "order": 25,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        3.29,
+        -3.1,
+        3.29,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         3.29,
+         -3.1
+        ],
+        [
+         3.29,
+         -2.9
+        ]
+       ]
+      },
+      {
+       "id": 22,
+       "order": 26,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        4.57,
+        -3.1,
+        4.57,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         4.57,
+         -3.1
+        ],
+        [
+         4.57,
+         -2.9
+        ]
+       ]
+      },
+      {
+       "id": 23,
+       "order": 27,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        5.85,
+        -3.1,
+        5.85,
+        -2.9
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         5.85,
+         -3.1
+        ],
+        [
+         5.85,
+         -2.9
+        ]
+       ]
+      },
+      {
+       "id": 24,
+       "order": 28,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.65,
+        -3.6,
+        -0.45,
+        -2.4
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.55,
+         -3.6
+        ],
+        [
+         -0.55,
+         -2.4
+        ]
+       ]
+      },
+      {
+       "id": 25,
+       "order": 30,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.65,
+        -3.6,
+        -0.45,
+        -3.6
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.45,
+         -3.6
+        ],
+        [
+         -0.65,
+         -3.6
+        ]
+       ]
+      },
+      {
+       "id": 26,
+       "order": 31,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.65,
+        -3.3,
+        -0.45,
+        -3.3
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.45,
+         -3.3
+        ],
+        [
+         -0.65,
+         -3.3
+        ]
+       ]
+      },
+      {
+       "id": 27,
+       "order": 32,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.65,
+        -2.7,
+        -0.45,
+        -2.7
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.45,
+         -2.7
+        ],
+        [
+         -0.65,
+         -2.7
+        ]
+       ]
+      },
+      {
+       "id": 28,
+       "order": 33,
+       "top": 2,
+       "live": false,
+       "axis": true,
+       "bbox": [
+        -0.65,
+        -2.4,
+        -0.45,
+        -2.4
+       ],
+       "stroke_width": 2.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#334155",
+       "fill_opacity": 0.0,
+       "fill_color": "#334155",
+       "points": [
+        [
+         -0.45,
+         -2.4
+        ],
+        [
+         -0.65,
+         -2.4
+        ]
+       ]
+      },
+      {
+       "id": 35,
+       "order": 51,
+       "top": 4,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -0.25,
+        -1.78,
+        6.15,
+        0.38
+       ],
+       "stroke_width": 4.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#818cf8",
+       "fill_opacity": 0.0,
+       "fill_color": "#818cf8",
+       "points": [
+        [
+         -0.25,
+         0.38
+        ],
+        [
+         -0.09,
+         0.376
+        ],
+        [
+         0.07,
+         0.364
+        ],
+        [
+         0.262,
+         0.341
+        ],
+        [
+         0.422,
+         0.314
+        ],
+        [
+         0.582,
+         0.28
+        ],
+        [
+         0.742,
+         0.24
+        ],
+        [
+         0.902,
+         0.195
+        ],
+        [
+         1.062,
+         0.145
+        ],
+        [
+         1.222,
+         0.09
+        ],
+        [
+         1.382,
+         0.03
+        ],
+        [
+         1.574,
+         -0.046
+        ],
+        [
+         1.734,
+         -0.114
+        ],
+        [
+         1.894,
+         -0.185
+        ],
+        [
+         2.054,
+         -0.258
+        ],
+        [
+         2.214,
+         -0.334
+        ],
+        [
+         2.374,
+         -0.412
+        ],
+        [
+         2.534,
+         -0.491
+        ],
+        [
+         2.694,
+         -0.571
+        ],
+        [
+         2.854,
+         -0.651
+        ],
+        [
+         3.046,
+         -0.749
+        ],
+        [
+         3.206,
+         -0.829
+        ],
+        [
+         3.366,
+         -0.909
+        ],
+        [
+         3.526,
+         -0.988
+        ],
+        [
+         3.686,
+         -1.066
+        ],
+        [
+         3.846,
+         -1.142
+        ],
+        [
+         4.006,
+         -1.215
+        ],
+        [
+         4.166,
+         -1.286
+        ],
+        [
+         4.326,
+         -1.354
+        ],
+        [
+         4.518,
+         -1.43
+        ],
+        [
+         4.678,
+         -1.49
+        ],
+        [
+         4.838,
+         -1.545
+        ],
+        [
+         4.998,
+         -1.595
+        ],
+        [
+         5.158,
+         -1.64
+        ],
+        [
+         5.318,
+         -1.68
+        ],
+        [
+         5.478,
+         -1.714
+        ],
+        [
+         5.638,
+         -1.741
+        ],
+        [
+         5.83,
+         -1.764
+        ],
+        [
+         5.99,
+         -1.776
+        ],
+        [
+         6.15,
+         -1.78
+        ]
+       ]
+      },
+      {
+       "id": 34,
+       "order": 53,
+       "top": 5,
+       "live": false,
+       "axis": false,
+       "bbox": [
+        -0.55,
+        -2.87,
+        5.85,
+        -2.87
+       ],
+       "stroke_width": 4.0,
+       "stroke_opacity": 1.0,
+       "stroke_color": "#e2e8f0",
+       "fill_opacity": 0.0,
+       "fill_color": "#e2e8f0",
+       "points": [
+        [
+         -0.55,
+         -2.87
+        ],
+        [
+         5.85,
+         -2.87
+        ]
+       ]
+      }
+     ],
+     "elements": 7
+    }
+   ],
+   "timeline": [],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 3.0
+  }
+ }
+}
