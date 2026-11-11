@@ -82,6 +82,56 @@ def music_line(run: Path) -> str:
     return "Music: original, generated for this video." if used and load_json(st_p).get("source") == "generated" else ""
 
 
+def _work_ids(url: str | None, title: str | None, arxiv: str | None = None, doi: str | None = None) -> set[str]:
+    """A work's normalised URL, arXiv id (also read from an arXiv URL), DOI (also from a doi.org URL) and title."""
+    ids = set()
+    if url:
+        u = re.sub(r"^https?://(?:www\.)?", "", url.strip().lower()).rstrip("/")
+        ids.add(f"url:{u}")
+        m = re.search(r"arxiv\.org/(?:abs|pdf)/([^?#]+?)(?:v\d+)?(?:\.pdf)?$", u)
+        arxiv = arxiv or (m.group(1) if m else None)
+        m = re.search(r"\b(10\.\d{4,9}/\S+)$", u)
+        doi = doi or (m.group(1) if m else None)
+    if arxiv:
+        ids.add("arxiv:" + re.sub(r"v\d+$", "", arxiv.strip().lower()))
+    if doi:
+        ids.add(f"doi:{doi.strip().lower()}")
+    if title:
+        ids.add("title:" + " ".join(re.findall(r"[a-z0-9]+", title.lower())))
+    return ids
+
+
+def with_authors(run: Path, sources: list[dict]) -> list[dict]:
+    """The sources, each with the authors of its own record, else of the same work in references.json ([] if none)."""
+    rp = run / "references.json"
+    refs = load_json(rp).get("references", []) if rp.exists() else []
+    out = []
+    for s in sources:
+        mine = _work_ids(s.get("url"), s.get("title"))
+        found = next((r.get("authors") for r in refs
+                      if mine & _work_ids(r.get("url"), r.get("title"), r.get("arxiv"), r.get("doi"))), None)
+        out.append(dict(s, authors=list(s.get("authors") or found or [])))
+    return out
+
+
+def author_names(authors: list[str]) -> str:
+    """As the explainer lists them: "A", "A and B", "A, B, and C"; more than ten: the first three, et al."""
+    if len(authors) > 10:
+        return ", ".join(authors[:3]) + ", et al."
+    if len(authors) <= 2:
+        return " and ".join(authors)
+    return ", ".join(authors[:-1]) + ", and " + authors[-1]
+
+
+def source_line(s: dict) -> str:
+    """A primary source in the description: title, authors (unless only the publisher), publisher and URL."""
+    authors = [a for a in s.get("authors") or [] if a.strip()]
+    if [a.lower() for a in authors] == [s["publisher"].lower()]:
+        authors = []
+    by = f", by {author_names(authors)}" if authors else ""
+    return f"- {s['title']}{by} ({s['publisher']}): {s['url']}"
+
+
 def links_included(channel: dict, override: str | None = None) -> bool:
     """--links or $INCLUDE_LINKS (on/off/true/false) when given, else links.include."""
     v = (override if override is not None else os.environ.get("INCLUDE_LINKS", "")).strip().lower()
@@ -109,7 +159,7 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
     sp = run / "sources.json"
     sources = json.loads(sp.read_text(encoding="utf-8")) if sp.exists() else {"candidates": []}
     cand = next((c for c in sources["candidates"] if c["id"] == topic["topic_id"]), {"sources": []})
-    primary = [s for s in cand["sources"] if s.get("primary")][:5]
+    primary = with_authors(run, [s for s in cand["sources"] if s.get("primary")][:5])
     chs = []
     cp = run / "video" / "final" / "chapters.json"
     if cp.exists():
@@ -141,7 +191,7 @@ def build(run: Path, site_base: str, include_links: bool | None = None) -> dict:
                       f"Code that reproduces every number: {code_url}", ""]
         if n_sources:
             parts.append("Primary sources:")
-            parts += [f"- {s['title']} ({s['publisher']}): {s['url']}" for s in primary[:n_sources]]
+            parts += [source_line(s) for s in primary[:n_sources]]
             parts.append("")
         if chs:
             parts += ["Chapters:"] + [c["label"] for c in chs] + [""]

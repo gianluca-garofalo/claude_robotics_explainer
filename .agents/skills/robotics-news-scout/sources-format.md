@@ -27,8 +27,8 @@
       "search_queries": ["humanoid contact forces", "whole body control explained"],
       "sources": [
         {"id": "S1", "url": "https://arxiv.org/abs/0000.00000", "title": "Paper title", "publisher": "arXiv",
-         "kind": "preprint", "primary": true, "relation": "subject", "published": "2026-10-21",
-         "accessed": "2026-10-30", "read": "full", "notes": "v2 posted 2026-10-25"},
+         "authors": ["A. Author", "B. Author"], "kind": "preprint", "primary": true, "relation": "subject",
+         "published": "2026-10-21", "accessed": "2026-10-30", "read": "full", "notes": "v2 posted 2026-10-25"},
         {"id": "S2", "url": "https://example.org/news", "title": "Article title", "publisher": "Example News",
          "kind": "news", "primary": false, "relation": "context", "published": "2026-10-22",
          "accessed": "2026-10-30", "read": "full"},
@@ -46,7 +46,8 @@ What the validator enforces:
 - Ids `T1..` and `S1..` (source ids unique across the file); kebab-case slugs; the summary's length; `window_days`
   equal to the run's (`run.json`).
 - `primary: true` only for paper, preprint, official_post, code, dataset; every primary source has a `relation`; `via`
-  is an http(s) URL; `read` is one of the levels of source-policy.md.
+  is an http(s) URL; `read` is one of the levels of source-policy.md; `authors` (optional, as the record lists them)
+  is a list: the video's description credits them.
 - ISO dates, none after the run date; the newest dated `subject` primary source lies inside the window (error); a
   candidate without one gets a warning (recency unknown; the gate fails without a subject primary source).
 - Claims: `role` (missing counts as central, with a warning) and `status`; `verified` needs a primary source read at

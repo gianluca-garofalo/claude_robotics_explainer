@@ -26,7 +26,8 @@ primary, what each read level permits and what a claim may say.
    `series/`): `new`, `partly_covered` (say how the angle differs) or `covered` (drop it, or keep it marked so the
    ranking excludes it), with `by` naming the covered items. Keep between `min_candidates` and `max_candidates`.
 3. **Read the primary source** of each candidate in the policy's access order, and record the level reached in `read`
-   (with `via` when read elsewhere). Every failure goes into `unreadable` with `reason` and `cause` (`network_policy`
+   (with `via` when read elsewhere) and its `authors` as the record lists them (the video's description credits them;
+   the video never names them). Every failure goes into `unreadable` with `reason` and `cause` (`network_policy`
    when the session's network refused the host): never drop a source silently, never summarise a page you did not see.
 4. **Relation** of each source: `subject`, `prior_work` or `context` (policy). Only a dated `subject` primary source
    inside the window makes a candidate current.

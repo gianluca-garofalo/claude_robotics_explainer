@@ -1,0 +1,118 @@
+{
+ "schema_version": 1,
+ "tool": "layout_probe",
+ "note": "Fixture for tests/test_selfcontained.py: a news video that says the same on its own terms.",
+ "frame": {
+  "width": 14.222,
+  "height": 8.0,
+  "pixel_width": 1920,
+  "pixel_height": 1080,
+  "fps": 60.0,
+  "background": "#0f172a"
+ },
+ "scenes": {
+  "Hook": {
+   "snapshots": [],
+   "timeline": [
+    {
+     "id": 1,
+     "kind": "text",
+     "content": "a million robots, no collisions",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       6.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    },
+    {
+     "id": 2,
+     "kind": "text",
+     "content": "solve only for the touches",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       6.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       12.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    }
+   ],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 20.0
+  },
+  "Limits": {
+   "snapshots": [],
+   "timeline": [
+    {
+     "id": 1,
+     "kind": "text",
+     "content": "idealized robots, in simulation",
+     "font_size": 32.0,
+     "lines": 1,
+     "live": false,
+     "axis": false,
+     "events": [
+      [
+       1.0,
+       1,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ],
+      [
+       12.0,
+       0,
+       -1.0,
+       -0.2,
+       1.0,
+       0.2,
+       1.0
+      ]
+     ]
+    }
+   ],
+   "voiceovers": [],
+   "sections": [],
+   "duration": 20.0
+  }
+ }
+}

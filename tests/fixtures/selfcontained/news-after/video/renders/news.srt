@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:04,000
+A million robots, and not one collision. How?
+
+2
+00:00:05,000 --> 00:00:08,000
+A planner that solves only for the touches handled a million robots.
+
+3
+00:00:09,000 --> 00:00:12,000
+So far that's only idealized robots in simulation, so the numbers may still change.

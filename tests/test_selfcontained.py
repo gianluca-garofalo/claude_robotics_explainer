@@ -1,5 +1,5 @@
 """Unit tests for the self-contained video rule (tools/video/check_selfcontained.py), the equation-number setting,
-the links setting of the metadata, and the series "fresh" start (python3 -m unittest)."""
+the links setting and the source credits of the metadata, and the series "fresh" start (python3 -m unittest)."""
 import json
 import os
 import shutil
@@ -113,6 +113,42 @@ class Rules(unittest.TestCase):
                 self.assertEqual(SC.check_items(items([tex], kind="math"), st), [], tex)
 
 
+class Publication(unittest.TestCase):
+    """A video never names the publication it covers or its authors; the description credits them."""
+    RULE = "publication or its authors"
+
+    def found(self, texts):
+        return [f["match"] for f in SC.check_items(items(texts), settings()) if f["rule"] == self.RULE]
+
+    def test_news_video_fails_wherever_it_names_the_publication(self):
+        found = [f for f in SC.check(FIX / "news-before", "final") if f["rule"] == self.RULE]
+        self.assertEqual({f["source"] for f in found}, {"narration", "captions", "screen", "chapter"})
+        self.assertEqual({f["match"].lower() for f in found},
+                         {"authors", "the paper", "preprint", "arxiv", "the study"})
+        self.assertTrue(all(f.get("detail") for f in found))
+
+    def test_the_same_video_on_its_own_terms_passes(self):
+        self.assertEqual(SC.check(FIX / "news-after", "final"), [])
+
+    def test_a_reference_fails_the_check(self):
+        r = run_cli("--srt", str(FIX / "news-before" / "video" / "renders" / "news.srt"))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("publication or its authors 'The paper'", r.stdout)
+
+    def test_references_fail(self):
+        for text in ("This paper shows it", "in their study", "an article in a journal", "a recent publication",
+                     "Lee et al. showed", "the researchers found", "a pre-print", "the paper's main result",
+                     "its co-authors"):
+            with self.subTest(text=text):
+                self.assertTrue(self.found([text]))
+
+    def test_ordinary_words_pass(self):
+        ok = ["a sheet of paper", "the paper cup", "a paper-thin margin", "tricks that paper over the gap",
+              "a planner that studies the contacts", "the study of motion", "an article of clothing",
+              "a journal bearing", "Researchers have long assumed it", "we study the pendulum", "the authority"]
+        self.assertEqual(SC.check_items(items(ok), settings()), [])
+
+
 class EquationNumbers(unittest.TestCase):
     """config/video.json equation_numbers: false rejects every label; true allows the video's own sequence only."""
 
@@ -173,6 +209,60 @@ class Links(unittest.TestCase):
             os.environ.pop("INCLUDE_LINKS", None)
             if old is not None:
                 os.environ["INCLUDE_LINKS"] = old
+
+
+class Credits(unittest.TestCase):
+    """The description's primary sources name their authors: the source's own record, else the run's references.json."""
+
+    def setUp(self):
+        self.run = Path(tempfile.mkdtemp(prefix="sc-credits-"))
+
+    def tearDown(self):
+        shutil.rmtree(self.run, ignore_errors=True)
+
+    def references(self, *entries):
+        refs = [dict({"key": f"ref{i}", "type": "preprint", "year": 2026,
+                      "verification": {"status": "verified", "checked_against": ["record"]}}, **e)
+                for i, e in enumerate(entries)]
+        (self.run / "references.json").write_text(json.dumps({"schema_version": 1, "references": refs}))
+
+    def test_authors_from_the_record_or_the_same_work_in_the_references(self):
+        self.references({"authors": ["J. Doe", "R. Roe"], "title": "Planning a million robots", "arxiv": "2611.01234"},
+                        {"authors": ["K. Lee"], "title": "Contact-implicit planning", "doi": "10.1000/xyz.12"},
+                        {"authors": ["M. Kim"], "title": "Learned dynamics with certificates",
+                         "url": "https://example.org/kim"})
+        sources = [{"url": "https://example.org/own", "title": "Own record", "authors": ["A. Author"]},
+                   {"url": "https://arxiv.org/abs/2611.01234v2", "title": "A title that differs"},
+                   {"url": "https://doi.org/10.1000/XYZ.12", "title": "Another title"},
+                   {"url": "https://example.org/kim/", "title": "Kim's page"},
+                   {"url": "https://example.org/other", "title": "Learned Dynamics, with Certificates"},
+                   {"url": "https://example.org/none", "title": "No record names its authors"}]
+        self.assertEqual([s["authors"] for s in metadata.with_authors(self.run, sources)],
+                         [["A. Author"], ["J. Doe", "R. Roe"], ["K. Lee"], ["M. Kim"], ["M. Kim"], []])
+
+    def test_description_names_the_authors(self):
+        shutil.copy(REPO / "tests" / "fixtures" / "run" / "sources.json", self.run / "sources.json")
+        self.references({"authors": ["J. Doe", "R. Roe", "K. Lee"], "title": "Fixture paper A",
+                         "url": "https://example.org/fixture/paper-a"})
+        (self.run / "selection.json").write_text(json.dumps({"topic_id": "T1", "slug": "fixture-descent-certificate"}))
+        (self.run / "video").mkdir()
+        (self.run / "video" / "plan.json").write_text(json.dumps({"title": "A title", "summary": "A summary.",
+                                                                 "tags": ["control"]}))
+        desc = metadata.build(self.run, "", False)["snippet"]["description"].splitlines()
+        self.assertIn("- Fixture paper A, by J. Doe, R. Roe, and K. Lee (Example Proceedings): "
+                      "https://example.org/fixture/paper-a", desc)
+        self.assertIn("- Fictional classic MPC paper (Example Proceedings): "
+                      "https://example.org/fixture/classic-mpc-paper", desc)              # no record names its authors
+
+    def test_author_lists(self):
+        s = {"title": "T", "publisher": "Example Lab", "url": "https://example.org/t"}
+        lines = {n: metadata.source_line(dict(s, authors=[f"A{i}" for i in range(1, n + 1)])) for n in (1, 2, 3, 12)}
+        self.assertEqual(lines[1], "- T, by A1 (Example Lab): https://example.org/t")
+        self.assertIn(", by A1 and A2 (", lines[2])
+        self.assertIn(", by A1, A2, and A3 (", lines[3])
+        self.assertIn(", by A1, A2, A3, et al. (", lines[12])
+        self.assertEqual(metadata.source_line(dict(s, authors=["Example Lab"])),
+                         "- T (Example Lab): https://example.org/t")                   # the publisher is no author
 
 
 class FreshStart(unittest.TestCase):

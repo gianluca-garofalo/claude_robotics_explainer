@@ -76,7 +76,9 @@ Remaining Action, one run folder per video. People read README.md.
 - Reviewers write only under `review/`; the writer fixes and records decisions in `review/resolutions.json`.
 - "Remaining Action" appears on the outro (`outro()`) and the thumbnail only; thumbnail and metadata come from tools.
 - Self-contained videos: no text, narration, caption or chapter refers to the explainer, code, files, data, links or
-  the description; no equation labels ((13), "Eq. 3"; `equation_numbers` in `config/video.json`). Other episodes by
+  the description; no equation labels ((13), "Eq. 3"; `equation_numbers` in `config/video.json`). Nothing names the
+  publication a video covers or its authors ("the paper", "the authors", a preprint): the result on its own terms,
+  caveats as facts about the evidence ("so far only in simulation"); the description credits them. Other episodes by
   title or meaning only (series context, recaps, outro, or a result shown here), never by equation number or as
   required viewing. Show an equation again or name its meaning; numbers through `fmt()`; chapters are the plan's
   titles; explainer and code links only in the description, when links are on.

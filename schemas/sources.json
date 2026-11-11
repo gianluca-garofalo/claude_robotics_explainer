@@ -68,6 +68,8 @@
         "id": {"type": "string", "pattern": "^S\\d+$", "description": "S1, S2, ..., unique across the file"},
         "url": {"$ref": "defs.json#/$defs/url"},
         "title": {"$ref": "defs.json#/$defs/text"},
+        "authors": {"type": "array", "items": {"$ref": "defs.json#/$defs/text"},
+                    "description": "as the record lists them; the video's description credits them"},
         "publisher": {"$ref": "defs.json#/$defs/text"},
         "kind": {"enum": ["paper", "preprint", "official_post", "code", "dataset",
                           "news", "press_release", "video", "social", "other"]},

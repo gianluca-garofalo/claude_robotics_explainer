@@ -15,6 +15,10 @@ new terms per block: `engagement.notation_words_per_token`, `jargon_new_per_bloc
 picture). Spell out the symbols you do say ("x dot"). Say only numbers the explainer states, as a person says them
 ("about one point two eight").
 
+Say what was found, never who published it: the result on its own terms ("a planner that solves only for the touches
+handled a million robots"), caveats as facts about the evidence ("so far only idealized robots in simulation"), never
+"the paper", "the authors" or "a preprint" (check_selfcontained.py); the description credits the source.
+
 ## The ten criteria
 
 Each is scored 1-5 under its key: 1 fails throughout, 3 mixed, 5 holds everywhere.

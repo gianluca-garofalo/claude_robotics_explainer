@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Self-contained check: nothing a viewer sees or hears points outside the video or carries an equation label.
+"""Self-contained check: nothing a viewer sees or hears points outside the video (the explainer, files, links, the
+publication it covers or its authors) or carries an equation label.
 
 Usage:
   python3 tools/video/check_selfcontained.py runs/<run> [--stage draft|final]
@@ -32,6 +33,16 @@ DEFAULT_ALLOW = [r"\b(?:two|three|four|five|six|seven|n|k|multi|single|\d+)-link
                  r"\blinks? (?:lengths?|mass(?:es)?|angles?|frames?|inertias?|\d+)\b",
                  r"\b(?:first|second|third|each|every|end|distal|proximal|lower|upper|rigid|robot|arm) links?\b",
                  r"\bcolou?r code\b"]
+# a publication by a determiner and a noun ("the paper", "this study"), not the material ("the paper cup", "a
+# paper-thin margin"), the verb ("tricks that paper over it", "a planner that studies") or "the study of motion"
+DET = r"(?:the|this|these|those|their|its|his|her|our|an?)"
+PAPER = r"papers?(?![\w-])(?!\s+(?:over|cups?|towels?|bags?|(?:air)?planes?|cranes?|sheets?|boxe?s?)\b)"
+PUBLICATION = re.compile(
+    rf"\b(?:{DET}|that)\s+(?:{PAPER}|articles?\b(?!\s+of\b))|\b{DET}\s+stud(?:y|ies)\b(?!\s+of\b)"
+    r"|\bpre-?prints?\b|\bpublications?\b|\bjournals?\b(?!\s+bearings?\b)|\barxiv\b|\bauthors?\b"
+    r"|\b(?:the|these|those|their|its)\s+researchers?\b|\bet\.?\s+al\b\.?", re.I)
+HINT = {"publication or its authors": "say the result and its caveats on their own terms; the description credits "
+                                      "the source"}
 
 # (rule, regex): plain text (narration, captions, chapters, on-screen Text, \text{} inside math)
 PLAIN = [
@@ -47,6 +58,7 @@ PLAIN = [
     ("the video's description", re.compile(r"\b(?:in|see|check|from) the description\b|\bdescription (?:below|box)\b"
                                            r"|\bpinned comment\b", re.I)),
     ("link", re.compile(r"\blink(?:s|ed|ing)?\b", re.I)),
+    ("publication or its authors", PUBLICATION),
     ("hard prerequisite", re.compile(
         r"\byou\s+(?:must|need\s+to|have\s+to|should)\s+(?:have\s+)?(?:watched|watch|seen|see)\b"
         r"|\bmake\s+sure\s+(?:you(?:'|’)ve|you\s+have)\s+(?:watched|seen)\b|\bwatch\s+(?:[\w'’]+\s+){0,6}?first\b"
@@ -121,7 +133,8 @@ def scan_plain(text: str, st: dict) -> list[dict]:
         return not any(a <= m.start() < b for a, b in spans)
 
     out = [{"rule": "cross-episode equation number", "match": t[a:b].strip()} for a, b in spans]
-    out += [{"rule": r, "match": m.group().strip()} for r, rx in PLAIN for m in rx.finditer(t) if free(m)]
+    out += [{"rule": r, "match": m.group().strip(), **({"detail": HINT[r]} if r in HINT else {})}
+            for r, rx in PLAIN for m in rx.finditer(t) if free(m)]
     out += [{"rule": "circled number", "match": m.group(), "label": m.group()} for m in CIRCLED.finditer(t)
             if free(m)]
     out += [{"rule": "equation label", "match": m.group(), "label": m.group(1)} for m in PLAIN_LABEL.finditer(t)
@@ -297,8 +310,9 @@ def write_report(run: Path, stage: str, findings: list[dict]) -> Path:
     write_json(out / "check_selfcontained.json", {"schema_version": 1, "stage": stage, "checked_at": utc_now(),
                                                   "passed": not findings, "findings": clean})
     md = [f"# Self-contained check ({stage})", "",
-          f"{len(findings)} finding(s). The video must not point to the explainer, code, files or links, nor carry "
-          "equation labels (config/video.json equation_numbers) or another episode's equation numbers.", ""]
+          f"{len(findings)} finding(s). The video must not point to the explainer, code, files, links, the "
+          "publication it covers or its authors, nor carry equation labels (config/video.json equation_numbers) or "
+          "another episode's equation numbers.", ""]
     if findings:
         md += ["| Source | Where | Rule | Match | Text |", "|---|---|---|---|---|"]
         md += [f"| {f['source']} | {f['where']} | {f['rule']} | {f['match'].replace('|', '/')} | "

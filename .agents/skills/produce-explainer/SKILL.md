@@ -33,7 +33,8 @@ runs the same stages unattended.
    `node tools/check_html.js runs/<run>/explainer.html --json runs/<run>/review/check_html.json`.
 7. **Review.** The `explainer-review` skill. Fix confirmed blockers and majors, rebuild, repeat step 6. At most two
    rounds; then report what is open instead of looping.
-8. **Video.** The `manim-video-producer` skill (a standalone video: it declares its own ideas).
+8. **Video.** The `manim-video-producer` skill (a standalone video: it declares its own ideas and never names the
+   publication it covers or its authors; the description credits them).
 9. **Gates.** `python3 tools/gate.py runs/<run> --stage pre-render` must pass. In GitHub Actions (`$GITHUB_ACTIONS` is
    `true`) stop: the workflow renders, assembles, has the final cut reviewed, uploads privately and asks the user.
 10. **Finish.** Elsewhere, invoke the `finish-video` skill on the run. The explainer itself is not published from a

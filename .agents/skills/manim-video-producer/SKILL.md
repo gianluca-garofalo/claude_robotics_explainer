@@ -7,7 +7,8 @@ argument-hint: "runs/<run> [number of scenes]"
 # Manim video producer
 
 Precondition: the explainer passed review (`python3 tools/run.py status runs/<run>`), or the run is a series episode
-(`episode.json`, from the `produce-episode` skill); any other run is a standalone video. Read first: AGENTS.md
+(`episode.json`, from the `produce-episode` skill); any other run is a standalone video, which tells the news on its
+own terms and never names the publication it covers or its authors (spoken-script.md). Read first: AGENTS.md
 (Conventions), `.claude/rules/manim-scenes.md` and [spoken-script.md](spoken-script.md).
 
 Output in `runs/<run>/video/`: `storyboard.md`, `scenes/*.py` with `common.py`, `voice.py` and `reading_model.py`,
