@@ -1,6 +1,6 @@
 ---
 name: manim-video-producer
-description: Produces the narrated Manim (Community Edition) scenes for a finished explainer of the Remaining Action channel - a storyboard that chooses less and different material than the explainer to tell one story, voice-over text, scenes driven by data from the run's code/, video/plan.json (title, summary, tags, chapters, roles, ideas, thumbnail) - and checks them with draft renders, the design, number-format, reading-time, self-contained, structure, engagement, spoken-script and pacing checks and an independent video design review. Use after the explainer passed review, for a series episode, or when asked for a Manim animation of an explainer.
+description: Produces the narrated Manim (Community Edition) scenes for a finished explainer of the Remaining Action channel - a storyboard that chooses less and different material than the explainer to tell one story, voice-over text, scenes driven by data from the run's code/, video/plan.json (title, summary, tags, chapters, roles, ideas, thumbnail) - and checks them with draft renders, the design, number-format, reading-time, self-contained, structure, engagement, spoken-script, pacing and sync checks and an independent video design review. Use after the explainer passed review, for a series episode, or when asked for a Manim animation of an explainer.
 argument-hint: "runs/<run> [number of scenes]"
 ---
 
@@ -44,8 +44,8 @@ render, assembly, final-cut review and hand-over come after the gates (`finish-v
    (the video's own terms). `python3 tools/ci/scene_matrix.py runs/<run>` must accept it.
 6. **Draft check.** `bash tools/render_video.sh runs/<run> --check`, then `python3 tools/video/<check>.py runs/<run>
    --stage draft` for `check_design`, `check_reading`, `check_numbers`, `check_selfcontained`, `check_series`,
-   `check_engagement`, `check_script` and `check_pacing` (silent drafts keep the planned pauses: the draft timeline is
-   the final one). Fix every error; read every warning.
+   `check_engagement`, `check_script`, `check_pacing` and `check_sync` (silent drafts keep the planned pauses: the
+   draft timeline is the final one). Fix every error; read every warning.
 7. **Design review.** Run each named agent (`.claude/agents/<name>.md`) as a subagent; if your tool has no such agent,
    use a general-purpose subagent or a fresh context with that file's body as the prompt. The `video-design-reviewer`
    gets the run path; then one `finding-verifier` per blocker or major `VD-` finding without a verdict; then

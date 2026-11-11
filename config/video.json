@@ -519,5 +519,10 @@
         "consequence"
       ]
     }
+  },
+  "sync": {
+    "_note": "Temporal contiguity (Mayer, Multimedia Learning): a picture, label or equation appears with the words that name it (tools/video/check_sync.py; warnings until calibrated).",
+    "lead_max_s": 1.0,
+    "errors_block_gate": false
   }
 }

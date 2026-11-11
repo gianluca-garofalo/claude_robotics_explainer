@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "title": "Fixture: pictures on their words",
+  "summary": "Fixture video for tools/video/check_sync.py (fictional): pictures and labels shown before, and on, the words that name them.",
+  "tags": ["test fixture"],
+  "scenes": [{"file": "s01_robots.py", "class": "Robots", "role": "hook", "chapter": "Robots", "picture": "schematic"}],
+  "thumbnail": {"scene": "Robots", "time": 1.0, "text": "On the word"}
+}

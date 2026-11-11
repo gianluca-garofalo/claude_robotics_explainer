@@ -674,3 +674,42 @@ class RAScene(VoiceoverScene):
         for m in [x for mob in leaving for x in text_items(mob)]:
             self._shown.pop(id(m), None)              # gone, or now showing new content: its clock restarts
         self._stamp()
+
+    @staticmethod
+    def _word_offset(text, phrase, occurrence=1):
+        """Character offset in `text` where the occurrence-th `phrase` starts, matched word by word, ignoring case,
+        punctuation and the pacing markup; ValueError when the text says it fewer times."""
+        from voice import mask_markup
+        word = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
+
+        def words(s):
+            return [(m.start(), m.group().lower().replace("’", "'")) for m in word.finditer(mask_markup(s))]
+        said, want = words(text), [w for _, w in words(phrase)]
+        if not want:
+            raise ValueError(f"no word to wait for in {phrase!r}")
+        hits = [said[i][0] for i in range(len(said) - len(want) + 1)
+                if [w for _, w in said[i:i + len(want)]] == want]
+        if not 1 <= int(occurrence) <= len(hits):
+            times = f"is said {len(hits)} time(s), not {occurrence}," if hits else "is not said"
+            raise ValueError(f"{phrase!r} {times} in this voiceover block: {strip_markup(text)[:90]!r}")
+        return hits[int(occurrence) - 1]
+
+    def time_until_word(self, phrase, occurrence=1, lead=0.0):
+        """Seconds from now until the current voiceover block says `phrase` (a word or words of its text, the
+        occurrence-th time), minus `lead`; 0 once past. Timed like a bookmark, from the voice's word timings."""
+        tr = getattr(self, "current_tracker", None)
+        if tr is None or getattr(tr, "_ra_held", False):
+            raise RuntimeError(f"time_until_word({phrase!r}) needs a `with self.voiceover(...)` block around it")
+        text = _remove_bookmarks(tr.data["input_text"])          # the text the word timings' offsets refer to
+        offset = self._word_offset(text, phrase, occurrence)
+        interp = getattr(tr, "time_interpolator", None)
+        if interp is None:
+            raise RuntimeError("this voiceover has no word timings: wait_until_word needs them, as bookmarks do")
+        heard = tr.data.get("transcribed_text")
+        scale = len(heard.strip()) / max(len(text), 1) if heard else 1.0
+        return max(tr.start_t + interp.interpolate(offset * scale) - float(lead) - self._now(), 0.0)
+
+    def wait_until_word(self, phrase, occurrence=1, lead=0.0):
+        """Wait until the current voiceover block says `phrase` (time_until_word()), e.g. before the play() that shows
+        the picture the words name: self.wait_until_word("cars")."""
+        self.safe_wait(self.time_until_word(phrase, occurrence, lead))

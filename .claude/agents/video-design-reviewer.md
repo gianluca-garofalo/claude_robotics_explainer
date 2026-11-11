@@ -19,10 +19,11 @@ You review the design of scenes you did not make, in `runs/<run>/video/`. Read
 `video/storyboard.md` and `video/plan.json`.
 
 Inputs: `python3 tools/video/<check>.py runs/<run> --stage draft` for `check_design`, `check_reading`,
-`check_numbers`, `check_selfcontained`, `check_series`, `check_engagement`, `check_script` and `check_pacing` write the
-reports (`<check>.md`), frames (`frames/<Class>/t<seconds>.png`) and contact sheets (`<Class>-sheet.jpg`) to
-`review/design/draft/`; rerun them if missing or older than the renders (`video/checks/<Class>_ql.mp4`). Extract other
-frames with `ffmpeg -ss <t> -i <file> -frames:v 1 <png>` into `review/video/frames/`. The narration in order:
+`check_numbers`, `check_selfcontained`, `check_series`, `check_engagement`, `check_script`, `check_pacing` and
+`check_sync` write the reports (`<check>.md`), frames (`frames/<Class>/t<seconds>.png`) and contact sheets
+(`<Class>-sheet.jpg`) to `review/design/draft/`; rerun them if missing or older than the renders
+(`video/checks/<Class>_ql.mp4`). Extract other frames with `ffmpeg -ss <t> -i <file> -frames:v 1 <png>` into
+`review/video/frames/`. The narration in order:
 `python3 tools/video/voice_script.py runs/<run> --out runs/<run>/review/video/SCRIPT.md`.
 
 Read the images (PNG, JPG) scene by scene. A reported overlap is a finding unless the frame shows it is invisible (say
@@ -53,7 +54,9 @@ why). Check:
 9. Pacing (`check_pacing.md`): audit the declarations first (its "possible undeclared claim" lines are candidates). A
    P6 or P7 error, or more starred results than P1 allows, is `major`. Judge the warnings against the frames and the
    storyboard's pacing plan: holds and restatements, roadmap, summaries, recap, think prompts, pictures before words,
-   the pretraining segment, `[slow]` on every derivation or argument and nothing else.
+   the pretraining segment, `[slow]` on every derivation or argument and nothing else. A picture, label or equation
+   shown more than about a second before the words that name it is `major` (`check_sync.md`, and the frames for
+   pictures): name the time and the words.
 10. Thumbnail, when `video/final/` exists (`video/final/thumbnail.jpg`, `review/design/final/thumbnail_168x94.png`):
     the title legible at both sizes, nothing busy behind it, one bold image true to the video.
 11. Scores: the `rubric`, and the `spoken_script` from the narration read aloud in order.

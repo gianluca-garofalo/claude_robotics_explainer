@@ -166,6 +166,11 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
         st = r.get("stats", {})
         return (f"longest stretch without a pause {st.get('longest_stretch_s', '-')} s, pauses "
                 f"{st.get('pause_share', '-')} of the body, declared ideas {st.get('declared') or 'none'}")
+
+    def sync_detail(r):
+        st = r.get("stats", {})
+        return (f"{st.get('early', '-')} label(s) or equation(s) before their words, {st.get('unanchored', '-')} "
+                "play(s) showing several pictures off their words")
     g.guard(f"engagement: motion, transforms, narration, text ({stage})",
             measured("check_engagement", "engagement", "warnings only", by_layout, f"{stage} renders of",
                      engagement_detail))
@@ -174,6 +179,9 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
     g.guard(f"pacing: ideas per minute, pauses, holds (rules P1-P20; {stage})",
             measured("check_pacing", "pacing", "reported, not blocking unless pacing.errors_block_gate", by_layout,
                      f"{stage} renders of", pacing_detail))
+    g.guard(f"sync: pictures, labels and equations on their words ({stage})",
+            measured("check_sync", "sync", "reported, not blocking unless sync.errors_block_gate",
+                     lambda r: by_layout(r) + by_scene_files(r), f"{stage} renders or scene files of", sync_detail))
 
 
 def scene_urls(run: Path) -> list[str]:

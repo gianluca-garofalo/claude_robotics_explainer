@@ -36,7 +36,9 @@ Go through every contact sheet in order, then open single frames wherever someth
    (tanh = 1.00 for 0.995), numbers contradicting each other between scenes; watch live readouts pass through zero or
    a limit, which the check can miss.
 4. Narration and picture: what a caption names at its start ("the green ball", "this term") is visible then; nothing
-   shown contradicts the narration; no long static stretch unrelated to what is said.
+   shown contradicts the narration; no long static stretch unrelated to what is said. A picture, label or equation
+   shown more than about a second before the words that name it is `major` (`check_sync.md`): name the time and the
+   words.
 5. Reading: text that leaves before it can be read; two things to read while the narration talks about a third.
 6. Leftovers after a transition (`after-scene`, `scene-change` frames): elements that should be gone, half-faded
    remains, an earlier label over the new scene.

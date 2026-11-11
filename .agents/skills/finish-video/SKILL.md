@@ -38,7 +38,8 @@ uploads it in YouTube Studio.
    tools/video/thumbnail.py runs/<run>`, `python3 tools/video/metadata.py runs/<run>` (links as `config/channel.json`
    sets them). Then, each with `runs/<run> --stage final`: `check_design.py --no-frames` again (the thumbnail),
    `check_selfcontained.py`, `check_numbers.py`, `check_pacing.py` (on the narration stem and the word timings; its
-   errors send the run to stage 8) and, for an episode, `check_series.py`.
+   errors send the run to stage 8), `check_sync.py` (labels against the narration's word timings) and, for an
+   episode, `check_series.py`.
 6. **Final gates.** `python3 tools/gate.py runs/<run> --stage final --require-links`.
 7. **Final-cut review.** Invoke the `final-cut-review` skill on the run: frames, the independent reviewer, a verifier
    per blocker and major finding, the merge, then `python3 tools/gate.py runs/<run> --stage release`.

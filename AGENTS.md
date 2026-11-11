@@ -28,8 +28,8 @@ Remaining Action, one run folder per video. People read README.md.
   tools/run_code_checks.py runs/<run>`.
 - Reviews: `python3 tools/merge_reviews.py runs/<run>` (`--set video`: the video review).
 - Video drafts: `bash tools/render_video.sh runs/<run> --check`, then `check_design.py`, `check_reading.py`,
-  `check_selfcontained.py`, `check_numbers.py`, `check_series.py`, `check_engagement.py` (warnings first) and
-  `check_script.py` (report only) from `tools/video/`, each with `runs/<run> --stage draft`.
+  `check_selfcontained.py`, `check_numbers.py`, `check_series.py`, `check_engagement.py` and `check_sync.py`
+  (warnings first) and `check_script.py` (report only) from `tools/video/`, each with `runs/<run> --stage draft`.
 - Voice: `voice.service` in `config/channel.json`: `azure` (the channel voice, Steffan HD,
   `en-US-Steffan:DragonHDLatestNeural`, -8 %; `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION` in the environment,
   never in a file), `piper` (keyless), `recorded`, `silent`. Drafts are silent; a final render whose voice fails

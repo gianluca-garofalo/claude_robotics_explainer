@@ -18,8 +18,12 @@ measured by the check named in each heading.
 - Voice-over text is a string literal (adjacent literals allowed; no f-strings, variables or conditionals): the
   narration is synthesized from the parsed files without running them, and the pre-render gate fails otherwise.
 - Time animations to the narration: `run_time=tracker.duration` or `tracker.get_remaining_duration()`,
+  `self.wait_until_word("cars")` for any word or words of the block (`self.time_until_word(...)` as a `run_time`),
   `self.wait_until_bookmark("x")` for a word marked `<bookmark mark='x'/>`; never a fixed `run_time`. Piper's word
-  timings are estimated per sentence: keep bookmarked animations tolerant of a few tenths of a second.
+  timings are estimated per sentence: keep word-timed animations tolerant of a few tenths of a second.
+- Reveal on the word (check_sync.py, `sync`): each new picture, label or equation appears when the narration names
+  it: `self.wait_until_word("cars")` before its `play()`; never a group whose members are named later in one
+  `LaggedStart` at the block's start; the hook's opening frame is the exception.
 - Render with `bash tools/render_video.sh runs/<run> --check`, never bare `manim`.
 - Only the palette and helpers of `common.py`; every colour meaning also said in text and listed in `video/README.md`;
   one colour per quantity (`ceq()`, `quantities`).

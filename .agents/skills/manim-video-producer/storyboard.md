@@ -56,7 +56,8 @@ Audience: robotics and control researchers and students. Rules: AGENTS.md (Conve
 - Objects carried into the title beat and the body:
 - Music mode (bed | low | off):
 - Data (`data/<file>.npz` from `code/<script>.py`, or the closed forms used):
-- On screen (each item, how long it stays, the reading time it needs; what moves in each block):
+- On screen (each item, the words it appears on (`wait_until_word`), how long it stays, the reading time it needs;
+  what moves in each block):
 - Colours (the palette of `common.py`; every meaning also in text):
 - End card (the one equation or sentence to remember):
 
