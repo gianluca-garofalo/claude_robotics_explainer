@@ -19,9 +19,11 @@ media/
 client_secret*.json
 
 # Run artifacts: runs are local working folders. To keep one in git, review it and force-add it
-# (git add -f runs/<run>). Delete the two lines below to track runs in git.
+# (git add -f runs/<run>). Delete the first two lines below to track runs in git. runs/ledger/ is tracked: one
+# file per video handed over (tools/deliver.py), the channel's record of made topics.
 runs/*
 !runs/README.md
+!runs/ledger/
 
 # Packaged runs, render-check screenshots
 *.zip

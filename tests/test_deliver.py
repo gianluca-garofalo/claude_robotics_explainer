@@ -12,8 +12,18 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import testenv  # noqa: E402
 testenv.activate()                  # fixture config and sources, before any tool is imported
+sys.path.insert(0, str(REPO / "tools"))
 SLUG = "the-hilltop"
 RUN_NAME = "2026-11-14-the-hilltop"
+FIX = REPO / "tests" / "fixtures" / "run"
+
+
+def load_deliver():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("ra_deliver", REPO / "tools" / "deliver.py")
+    D = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(D)
+    return D
 
 
 def fake_run(root: Path, synthetic: bool = True, release: bool = True) -> Path:
@@ -23,6 +33,8 @@ def fake_run(root: Path, synthetic: bool = True, release: bool = True) -> Path:
     final.mkdir(parents=True)
     (run / "review" / "final_cut").mkdir(parents=True)
     (run / "video" / "voice").mkdir(parents=True)
+    (run / "run.json").write_text(json.dumps({"schema_version": 1, "run_date": "2026-11-14", "mode": "series"}))
+    (run / "video" / "plan.json").write_text(json.dumps({"schema_version": 1, "title": "The hilltop: only one push"}))
     (run / "episode.json").write_text(json.dumps({
         "schema_version": 2, "mode": "series", "series": "fixture-series", "series_title": "Fixture series",
         "episode": 2, "episodes_total": 2, "title": "The hilltop", "slug": SLUG, "topic_id": "EP02",
@@ -82,6 +94,7 @@ class Deliver(unittest.TestCase):
         self.assertIn("another version of the video", r.stderr)
         gp.write_text(json.dumps(dict(json.loads(gp.read_text()), passed=False)))
         self.assertEqual(deliver(run).returncode, 1)
+        self.assertFalse((self.tmp / "runs" / "ledger").exists())        # no hand-over, no ledger entry
 
     def test_package_and_upload_sheet(self):
         run = fake_run(self.tmp)
@@ -90,7 +103,7 @@ class Deliver(unittest.TestCase):
         d = run / "deliver"
         self.assertEqual(sorted(p.name for p in d.iterdir()),
                          sorted([f"{SLUG}.mp4", f"{SLUG}.srt", "thumbnail.jpg", "upload_sheet.md",
-                                 "final_cut_review.md", "youtube.json", "SHA256SUMS"]))
+                                 "final_cut_review.md", "youtube.json", f"ledger-{RUN_NAME}.json", "SHA256SUMS"]))
         self.assertEqual((d / f"{SLUG}.mp4").read_bytes(), (run / "video/final" / f"{SLUG}.mp4").read_bytes())
         sheet = (d / "upload_sheet.md").read_text()
         # what the sheet carries from the metadata, the manifest, the assembly and the series context
@@ -104,6 +117,7 @@ class Deliver(unittest.TestCase):
         self.assertNotIn(f"Run: {RUN_NAME}", sheet)          # the upload marker only serves automated uploads
         sums = dict(reversed(line.split("  ")) for line in (d / "SHA256SUMS").read_text().splitlines())
         self.assertEqual(sums[f"{SLUG}.mp4"], hashlib.sha256((d / f"{SLUG}.mp4").read_bytes()).hexdigest())
+        self.assertIn(f"ledger-{RUN_NAME}.json", sums)
         self.assertIn("0 blocker", (d / "final_cut_review.md").read_text())
 
     def test_own_voice_is_not_declared_synthetic(self):
@@ -114,10 +128,7 @@ class Deliver(unittest.TestCase):
         self.assertNotIn("tick **Yes**", sheet)              # own voice: no disclosure box to tick
 
     def test_the_series_plan_travels_with_the_episode(self):
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("ra_deliver", REPO / "tools" / "deliver.py")
-        D = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(D)
+        D = load_deliver()
         plans = self.tmp / "series"
         (plans / "fixture-series").mkdir(parents=True)
         (plans / "fixture-series" / "series.json").write_text('{"slug": "fixture-series"}\n')
@@ -132,8 +143,45 @@ class Deliver(unittest.TestCase):
         sheet = (d / "upload_sheet.md").read_text()
         self.assertIn("## Series plan", sheet)
 
+    def test_the_ledger_entry_outlives_the_run_folder(self):
+        import series as S
+        import validate
+        from _common import read_ledger
+        run = fake_run(self.tmp)
+        self.assertEqual(deliver(run).returncode, 0)
+        entry_p = self.tmp / "runs" / "ledger" / f"{RUN_NAME}.json"         # beside the run folders: runs/ledger/
+        self.assertEqual(entry_p.read_bytes(), (run / "deliver" / f"ledger-{RUN_NAME}.json").read_bytes())
+        self.assertEqual(validate.validate_file(validate.kind_for(entry_p), entry_p).errors, [])
+        entry = json.loads(entry_p.read_text())
+        self.assertEqual({k: entry[k] for k in ("run", "status", "run_date", "title", "slug", "series", "episode",
+                                                "primary_urls")},
+                         {"run": RUN_NAME, "status": "delivered", "run_date": "2026-11-14",
+                          "title": "The hilltop: only one push", "slug": SLUG, "series": "fixture-series", "episode": 2,
+                          "primary_urls": []})
+        sheet = (run / "deliver" / "upload_sheet.md").read_text()
+        self.assertIn(f"ledger-{RUN_NAME}.json", sheet)                    # the owner is told to commit it there
+        self.assertIn(f"runs/ledger/{RUN_NAME}.json", sheet)
+        shutil.rmtree(run)                          # a new checkout: the run folder is gone, the committed entry is not
+        runs = self.tmp / "runs"
+        self.assertEqual(S.episode_status({"slug": "fixture-series"}, read_ledger(runs=runs), runs), {2: "delivered"})
+
+    def test_a_news_entry_names_the_topic_s_own_primary_sources(self):
+        import validate
+        run = self.tmp / "runs" / "2026-11-14-fixture-descent-certificate"
+        (run / "video").mkdir(parents=True)
+        shutil.copy(FIX / "sources.json", run / "sources.json")
+        shutil.copy(FIX / "video" / "plan.json", run / "video" / "plan.json")
+        (run / "run.json").write_text(json.dumps({"schema_version": 1, "run_date": "2026-11-14"}))
+        (run / "selection.json").write_text(json.dumps({"schema_version": 1, "mode": "auto", "topic_id": "T1",
+                                                        "title": "Descent certificates",
+                                                        "slug": "fixture-descent-certificate"}))
+        e = load_deliver().ledger_entry(run)
+        self.assertEqual(e["primary_urls"], ["https://example.org/fixture/paper-a"])   # not its news or prior work
+        self.assertEqual((e["slug"], e["topic_id"], e["status"]), ("fixture-descent-certificate", "T1", "delivered"))
+        self.assertNotIn("series", e)
+        self.assertEqual(validate.schema_errors("ledger", e), [])
+
     def test_delivered_episode_counts_for_next(self):
-        sys.path.insert(0, str(REPO / "tools"))
         import series as S
         run = fake_run(self.tmp)
         self.assertEqual(S.delivered("fixture-series", self.tmp / "runs"), set())

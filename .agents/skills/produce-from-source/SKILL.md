@@ -33,18 +33,18 @@ under `sources/` is edited.
    - with `series.plan_approval` `required`, stop: the owner approves each plan (`./tools/human/approve_series.py
      series/<slug>`, in their own terminal) and types the command again. With `optional`, go on.
 2. **Episode.** The series named with `series <slug>`, else the first in release order with an episode left; the
-   episode number given, else `python3 tools/series.py next series/<slug>` (it counts the episodes delivered in this
-   checkout's `runs/`; a new session lacks earlier sessions' runs, so the owner names the number there). Say early which
-   episode you are making and why; when no number was given and the plan was committed before this session, add that
-   an earlier session may have made it, so the owner can stop you.
+   episode number given, else `python3 tools/series.py next series/<slug>` (it counts the episodes in the committed
+   `runs/ledger/` and those delivered in this checkout's `runs/`). Say early which episode you are making and why; when
+   no number was given and the plan was committed before this session, add that an earlier session may have made it,
+   so the owner can stop you.
 3. **Make it.** Read `.agents/skills/produce-episode/SKILL.md` and follow it with `series/<slug> <n>` (and `fresh` when
    given), starting with `python3 tools/series.py start series/<slug> --episode <n> --by produce-from-source`, through
    its finish stage (`finish-video`).
 4. **Hand over and report.** The `deliver/` files go to the owner (finish-video, stage 10). Report: the plan summary
    when it was made in this session, the episode and its run, the gate results, the final-cut findings and their
-   resolutions, the files sent, that the container is temporary, and the exact command for the next episode in a new
-   session: `/produce-from-source sources/<name> <next number>` (or with `series <slug>` when the next one is in
-   another series).
+   resolutions, the files sent (the owner commits `ledger-<run>.json` as `runs/ledger/<run>.json`), that the container
+   is temporary, and the exact command for the next episode in a new session:
+   `/produce-from-source sources/<name> <next number>` (or with `series <slug>` when the next one is in another series).
 
 ## Adding a new source
 

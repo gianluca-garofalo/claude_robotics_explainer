@@ -221,8 +221,8 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
                                                      "--require-links", "--video-quality", "l", "--min-duration", "10",
                                                      *(["--allow-silent"] if voice == "silent" else [])])
     step("series: hand-over package refused before the release gate", [PY, "tools/deliver.py", str(run)], expect=1,
-         check=lambda r: ("not ready to hand over" in r.stderr and not (run / "deliver").exists(),
-                          r.stderr.strip()[-110:]))
+         check=lambda r: ("not ready to hand over" in r.stderr and not (run / "deliver").exists() and
+                          not (run.parent / "ledger").exists(), r.stderr.strip()[-110:]))
     final_cut(run, " (series)")
     step("series: hand-over package for the owner's own upload (the session's path)", [PY, "tools/deliver.py", str(run)],
          check=lambda r: delivered(run))
@@ -257,13 +257,15 @@ def series_flow(tmp: Path, env: dict, site: Path, manim: str, voice: str) -> Non
 
 def delivered(run: Path) -> tuple[bool, str]:
     """deliver/: the video, captions and thumbnail as made, the upload sheet (episode line, chapters, the synthetic
-    content answer from the narration manifest, the end screen, no upload marker), the final-cut summary, the plan."""
+    content answer from the narration manifest, the end screen, no upload marker), the final-cut summary, the plan,
+    and a copy of the episode's ledger entry, runs/ledger/<run>.json."""
     d = run / "deliver"
     ep = json.loads((run / "episode.json").read_text())
     slug = ep["slug"]
     names = sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file())
     want = sorted([f"{slug}.mp4", f"{slug}.srt", "thumbnail.jpg", "upload_sheet.md", "final_cut_review.md",
-                   "youtube.json", "SHA256SUMS"])
+                   "youtube.json", f"ledger-{run.name}.json", "SHA256SUMS"])
+    entry = run.parent / "ledger" / f"{run.name}.json"
     sheet = (d / "upload_sheet.md").read_text()
     meta = json.loads((run / "video/final/youtube.json").read_text())
     synthetic = "**Yes**" if meta["status"]["containsSyntheticMedia"] else "**No**"
@@ -273,7 +275,9 @@ def delivered(run: Path) -> tuple[bool, str]:
           "Episode 2 of 2 · Fixture: two episodes of predictive control" in sheet and "## Chapters" in sheet and
           (all(c["label"] in sheet for c in chapters["chapters"]) if chapters["valid"] else "fewer than three" in sheet)
           and f"Altered or synthetic content: {synthetic}" in sheet and "End screen from" in sheet and
-          f"Run: {run.name}" not in sheet and "final-cut" in (d / "final_cut_review.md").read_text().lower())
+          f"Run: {run.name}" not in sheet and "final-cut" in (d / "final_cut_review.md").read_text().lower() and
+          entry.exists() and entry.read_bytes() == (d / f"ledger-{run.name}.json").read_bytes() and
+          json.loads(entry.read_text())["status"] == "delivered")
     return ok, f"{len(names)} files; synthetic content {synthetic.strip('*')}"
 
 

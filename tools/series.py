@@ -10,6 +10,7 @@ Usage:
   python3 tools/series.py list|next series/<slug> [--ledger site/ledger.json] [--root runs]
   python3 tools/series.py start series/<slug> --episode N|next [--ledger L] [--root runs] [--date D] [--by WHO]
                                 [--fresh] [--require-approval]   # --fresh: no kept scenes
+list, next and start read the channel's ledger: runs/ledger/*.json (videos handed over), merged with --ledger.
 """
 from __future__ import annotations
 
@@ -23,13 +24,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import (CONFIG, REPO, SLUG_RE, TEMPLATES, die, load_json, parse_date, read_json, rel,  # noqa: E402
-                     sha256_file, today_local, utc_now, write_json)
+from _common import (CONFIG, REPO, SLUG_RE, TEMPLATES, die, load_json, parse_date, read_json, read_ledger,  # noqa: E402
+                     rel, sha256_file, today_local, utc_now, write_json)
 import idea_budget as IB  # noqa: E402
 
 CLASS_RE = re.compile(r"^class ([A-Za-z_][A-Za-z0-9_]*)\([A-Za-z0-9_.]*Scene\):", re.M)
 DONE = {"published", "staged"}          # in the ledger: start refuses the episode again
-NEXT_DONE = DONE | {"delivered"}         # also skipped by `next`: its hand-over package exists in runs/
+NEXT_DONE = DONE | {"delivered"}         # made: skipped by `next`, enough for a prerequisite
+MADE = ("delivered", "staged", "published")   # an episode's status is its most advanced one
 STOP_WORDS = {"a", "an", "and", "as", "at", "by", "for", "in", "is", "of", "on", "or", "the", "to", "with"}
 VOLATILE = {"explainer_sha256", "created_at", "_proposal_notes", "provenance", "plan_approval"}   # not part of the plan
 HELPERS = ("common.py", "voice.py", "reading_model.py")
@@ -117,16 +119,19 @@ def delivered(slug: str, runs: Path | None = None) -> set[int]:
     return out
 
 
-def episode_status(series: dict, ledger: Path | None, runs: Path | None = None) -> dict[int, str]:
+def episode_status(series: dict, ledger: dict | None, runs: Path | None = None) -> dict[int, str]:
+    """Episode number -> status, from the ledger's entries (read_ledger) and the hand-over packages in runs/."""
     st = {n: "delivered" for n in delivered(series["slug"], runs)}
-    if ledger and ledger.exists():
-        for e in read_json(ledger).get("runs", {}).values():
-            if e.get("series") == series["slug"] and e.get("episode") is not None:
-                st[int(e["episode"])] = e.get("status", "")
+    rank = {name: i for i, name in enumerate(MADE)}
+    for e in (ledger or {}).get("runs", {}).values():
+        if e.get("series") == series["slug"] and e.get("episode") is not None:
+            n, status = int(e["episode"]), e.get("status", "")
+            if n not in st or rank.get(status, -1) > rank.get(st[n], -1):
+                st[n] = status
     return st
 
 
-def blocked_by(ep: dict, ledger: Path | None, runs: Path | None = None) -> list[str]:
+def blocked_by(ep: dict, ledger: dict | None, runs: Path | None = None) -> list[str]:
     """Must prerequisites in other series that are not published, staged or delivered yet."""
     out = []
     for r in (ep.get("prerequisites") or {}).get("must", []):
@@ -136,7 +141,7 @@ def blocked_by(ep: dict, ledger: Path | None, runs: Path | None = None) -> list[
     return out
 
 
-def _first_open(series: dict, ledger: Path | None, runs: Path | None) -> dict | None:
+def _first_open(series: dict, ledger: dict | None, runs: Path | None) -> dict | None:
     """The first episode in the plan's release order that is not done."""
     st = episode_status(series, ledger, runs)
     order = (series.get("release") or {}).get("order") or [e["number"] for e in series["episodes"]]
@@ -144,12 +149,12 @@ def _first_open(series: dict, ledger: Path | None, runs: Path | None) -> dict | 
     return next((by[n] for n in order if n in by and st.get(n) not in NEXT_DONE), None)
 
 
-def pick_next(series: dict, ledger: Path | None, sp: Path | None = None, runs: Path | None = None) -> dict | None:
+def pick_next(series: dict, ledger: dict | None, sp: Path | None = None, runs: Path | None = None) -> dict | None:
     nxt = _first_open(series, ledger, runs)
     return nxt if nxt is None or not blocked_by(nxt, ledger, runs) else None
 
 
-def next_reason(series: dict, ledger: Path | None, runs: Path | None = None) -> str:
+def next_reason(series: dict, ledger: dict | None, runs: Path | None = None) -> str:
     nxt = _first_open(series, ledger, runs)
     if nxt is None:
         return "every episode is published, in review or delivered"
@@ -159,7 +164,8 @@ def next_reason(series: dict, ledger: Path | None, runs: Path | None = None) -> 
 
 def cmd_list(a) -> int:
     p_, s = load_series(a.series)
-    st = episode_status(s, Path(a.ledger) if a.ledger else None, Path(a.root) if a.root else None)
+    runs = Path(a.root) if a.root else None
+    st = episode_status(s, read_ledger(a.ledger, runs), runs)
     print(f"{s['title']} ({s['slug']}), from {s['source']}; plan: {approval_state(p_, s)['detail']}")
     for e in s["episodes"]:
         kept = assets(p_, e)
@@ -173,8 +179,8 @@ def cmd_list(a) -> int:
 
 def cmd_next(a) -> int:
     sp, s = load_series(a.series)
-    ledger = Path(a.ledger) if a.ledger else None
     runs = Path(a.root) if a.root else None
+    ledger = read_ledger(a.ledger, runs)
     e = pick_next(s, ledger, sp, runs)
     if e is None:
         print(next_reason(s, ledger, runs), file=sys.stderr)
@@ -564,7 +570,7 @@ HOUSE_RULES = [
 ]
 
 
-def series_context(sp: Path, s: dict, ep: dict, ledger: Path | None) -> dict:
+def series_context(sp: Path, s: dict, ep: dict, ledger: dict | None) -> dict:
     """video/series_context.json: what the episode's series beats show (read by common.py at render time)."""
     n, total = ep["number"], len(s["episodes"])
     by_num = {e["number"]: e for e in s["episodes"]}
@@ -584,14 +590,12 @@ def series_context(sp: Path, s: dict, ep: dict, ledger: Path | None) -> dict:
         e = episode_of(r)
         short[ref_key(r)] = (e or {}).get("short_title", ref_key(r))
         takeaways[ref_key(r)] = (e or {}).get("takeaway")
-    published, playlist = {}, None
-    if ledger and ledger.exists():
-        led = read_json(ledger)
-        for e in led.get("runs", {}).values():
-            if e.get("status") == "published" and e.get("video_id") and e.get("episode") is not None:
-                key = str(e["episode"]) if e.get("series") == s["slug"] else f"{e.get('series')}:{e['episode']}"
-                published[key] = e["video_id"]
-        playlist = led.get("series", {}).get(s["slug"], {}).get("playlist_id")
+    published, led = {}, ledger or {}
+    for e in led.get("runs", {}).values():
+        if e.get("status") == "published" and e.get("video_id") and e.get("episode") is not None:
+            key = str(e["episode"]) if e.get("series") == s["slug"] else f"{e.get('series')}:{e['episode']}"
+            published[key] = e["video_id"]
+    playlist = led.get("series", {}).get(s["slug"], {}).get("playlist_id")
     nxt = by_num.get(n + 1)
     return {"schema_version": 1, "series": s["slug"], "series_title": s["title"], "episode": n, "episodes_total": total,
             "kind": ep["kind"], "title": ep["title"], "short_title": ep["short_title"],
@@ -673,8 +677,8 @@ def cmd_start(a) -> int:
         if not (REPO / "series" / other / "series.json").exists():
             die(f"{rel(sp)} follows series {other!r}, which is not in series/: its recaps and links need it")
     src = REPO / s["source"]
-    ledger = Path(a.ledger) if a.ledger else None
     runs = Path(a.root) if a.root else None
+    ledger = read_ledger(a.ledger, runs)
     if a.episode == "next":
         ep = pick_next(s, ledger, sp, runs)
         if ep is None:
@@ -683,7 +687,7 @@ def cmd_start(a) -> int:
         ep = next((e for e in s["episodes"] if str(e["number"]) == str(a.episode)), None)
         if ep is None:
             die(f"episode {a.episode} is not in {rel(sp)}")
-        status = episode_status(s, ledger).get(ep["number"])
+        status = episode_status(s, ledger, runs).get(ep["number"])
         if status in DONE:
             die(f"episode {ep['number']} is already {status} (ledger)")
     date = a.date or today_local()
@@ -719,7 +723,7 @@ def cmd_start(a) -> int:
         (run / "video" / d).mkdir(parents=True, exist_ok=True)
     ctx = series_context(sp, s, ep, ledger)
     for k in ctx["prerequisites"]["must"]:
-        if k not in ctx["published"] and ledger is not None:
+        if k not in ctx["published"] and a.ledger:
             print(f"note: episode {k}, which this one builds on, is not published yet (its recap keeps this episode "
                   "watchable alone)", file=sys.stderr)
     write_json(run / "video" / "series_context.json", ctx)
@@ -760,16 +764,18 @@ def main() -> int:
     w.add_argument("--replace", action="store_true", help="supersede an approved plan (the owner approves again)")
     w.add_argument("--allow-open-findings", action="store_true", help="write despite open red-team findings")
     w.add_argument("--root", help="folder that holds series/ (default: the repository; tests)")
+    ledger_help = "a ledger.json (the Pages ledger) to merge with runs/ledger/"
+    root_help = "folder of the run folders (default runs/): its ledger/ and the episodes delivered there count"
     for name in ("list", "next"):
         p = sub.add_parser(name)
         p.add_argument("series")
-        p.add_argument("--ledger")
-        p.add_argument("--root", help="folder of the run folders (default runs/): episodes delivered there count")
+        p.add_argument("--ledger", help=ledger_help)
+        p.add_argument("--root", help=root_help)
     st = sub.add_parser("start")
     st.add_argument("series")
     st.add_argument("--episode", required=True, help="episode number, or 'next'")
-    st.add_argument("--ledger")
-    st.add_argument("--root")
+    st.add_argument("--ledger", help=ledger_help)
+    st.add_argument("--root", help=root_help)
     st.add_argument("--date")
     st.add_argument("--by", default="local", help="who chose the episode (for the log)")
     st.add_argument("--fresh", action="store_true", help="copy no kept scenes (series/<slug>/episodes/epNN/); they "

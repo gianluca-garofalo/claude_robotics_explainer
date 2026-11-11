@@ -63,7 +63,8 @@ In **Auto** mode (when your organization offers it) most commands run without as
 3. Download what it sends, in that session (the container is temporary): `upload_sheet.md` (title, description,
    tags, chapters, settings, the YouTube Studio checklist), the MP4 and its `.srt`, `thumbnail.jpg`,
    `final_cut_review.md`, `youtube.json`, `SHA256SUMS`, and the first time the plan files: commit those under
-   `series/<slug>/` in your copy of the repository and push, or the next session plans again.
+   `series/<slug>/` in your copy of the repository and push, or the next session plans again. Also commit
+   `ledger-<run>.json` as `runs/ledger/<run>.json`: the channel's record of made topics.
 4. Watch the video and upload it in YouTube Studio with the sheet.
 
 When something is missing, the session says what: a host the network refused (add it under Allowed domains), the
@@ -135,7 +136,8 @@ changes text widths. Not yet tested on a Mac.
 
 ### Running it locally
 
-- `/produce-from-source sources/<name>` works as in the cloud; the hand-over stays in `runs/<run>/deliver/`.
+- `/produce-from-source sources/<name>` works as in the cloud; the hand-over stays in `runs/<run>/deliver/`, and
+  the `runs/ledger/<run>.json` it writes is for you to commit.
 - `/produce-explainer [focus]` runs the news stages, then makes and finishes the video the same way.
 - With `"topic_approval": "human"` in `config/pipeline.json` it stops after the ranking for you to type
   `/approve-topic runs/<run> <topic-id>`. If hooks are off (workspace not trusted, or an agent without hooks), run
@@ -170,7 +172,7 @@ sources/             source documents: explainer, companion code, data
 templates/           explainer/ (page), manim/ (scene helpers, voice), run/ (copied into new runs)
 tests/               unit tests, two dry runs, fixtures
 tools/               deterministic scripts; video/, publish/ (CI only), hooks/, human/, ci/
-runs/                your runs (git-ignored)
+runs/                your runs (git-ignored); ledger/: one committed record per video handed over
 .cache/piper/        the Piper voice model (git-ignored)
 ```
 

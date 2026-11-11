@@ -104,6 +104,21 @@ def utc_now() -> str:
     return _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat()
 
 
+def read_ledger(extra: Path | str | None = None, runs: Path | None = None) -> dict:
+    """The channel's ledger: <runs>/ledger/*.json (one entry per video handed over; runs/ by default) merged with
+    the ledger file `extra` (the Pages ledger.json), whose entries win field by field."""
+    led = load_json(Path(extra)) if extra else {"schema_version": 1}
+    entries = {}
+    for p in sorted((Path(runs) if runs else RUNS).joinpath("ledger").glob("*.json")):
+        e = load_json(p)
+        if not isinstance(e, dict):
+            die(f"{rel(p)} is not a ledger entry (a JSON object)")
+        entries[e.get("run") or p.stem] = {k: v for k, v in e.items() if k not in ("schema_version", "run")}
+    for name, e in (led.get("runs") or {}).items():
+        entries[name] = {**entries.get(name, {}), **e}
+    return {**led, "runs": entries}
+
+
 def ranking_inputs(run: Path) -> dict:
     """Content hashes of the files a ranking is computed from."""
     out = {n: sha256_file(run / n) for n in ("sources.json", "scores.json")}

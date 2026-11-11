@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (CONFIG, load_json, ranking_inputs, read_json, rel, resolve_run, sha256_file, utc_now,  # noqa: E402
                      write_json)
 
+SKIP_STATUSES = ["published", "staged", "rejected", "delivered"]   # default of auto_selection.skip_ledger_statuses
+
 
 def ledger_index(path: Path | None, statuses) -> tuple[dict[str, str], dict[str, str]]:
     """slug -> status and primary-source URL -> status for ledger entries whose status is in `statuses`."""
@@ -35,7 +37,7 @@ def select(run: Path, published: Path | None) -> tuple[dict | None, list[dict]]:
     if ranking_inputs(run) != rk.get("inputs_sha256"):
         raise SystemExit("error: ranking.json is stale; rerun tools/rank_topics.py first")
     sources = {c["id"]: c for c in load_json(run / "sources.json")["candidates"]}
-    slugs, urls = ledger_index(published, set(policy.get("skip_ledger_statuses", ["published", "staged", "rejected"])))
+    slugs, urls = ledger_index(published, set(policy.get("skip_ledger_statuses", SKIP_STATUSES)))
     skipped, chosen = [], None
     for t in rk["ranking"]:
         prim = [s["url"] for s in sources[t["id"]]["sources"]
@@ -66,10 +68,12 @@ def main() -> int:
     run = resolve_run(a.run)
     pub = Path(a.published) if a.published else run / "published.json"
     chosen, skipped = select(run, pub if pub.exists() else None)
+    skip = load_json(CONFIG / "pipeline.json").get("auto_selection", {}).get("skip_ledger_statuses", SKIP_STATUSES)
+    either = " or ".join(filter(None, [", ".join(skip[:-1]), skip[-1] if skip else ""]))
     lines = [f"# Topic selection: {run.name}", "",
              "Mode: automatic (config/pipeline.json). The rule: highest-ranked topic that passes the rubric gates, "
-             "reaches the minimum total and is not already published, staged or rejected on the channel. The human "
-             "review happens on the finished video, before anything is made public.", ""]
+             "reaches the minimum total" + (f" and is not already {either} on the channel" if skip else "") + ". The "
+             "human review happens on the finished video, before anything is made public.", ""]
     if skipped:
         lines += ["Skipped, in rank order:", ""]
         lines += [f"- {s['rank']}. {s['id']} {s['title']} (total {s['total']}): {'; '.join(s['reasons'])}" for s in skipped]

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run": "2026-11-07-remaining-action-ep01-why-does-mpc-converge-a-one-step",
+  "status": "delivered",
+  "delivered_at": "2026-11-07",
+  "run_date": "2026-11-07",
+  "title": "Why Does MPC Converge? A One-Step Proof",
+  "slug": "remaining-action-ep01-why-does-mpc-converge-a-one-step",
+  "topic_id": "EP01",
+  "primary_urls": [],
+  "series": "remaining-action",
+  "episode": 1
+}

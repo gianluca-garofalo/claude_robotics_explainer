@@ -2,8 +2,9 @@
 """Validate a run's JSON files against schemas/*.json, then the uniqueness, cross-file, date and policy rules.
 
 Usage:
-  python3 tools/validate.py runs/<run>         # every file that exists in the run
-  python3 tools/validate.py --kind KIND FILE   # KIND: sources scores references review verdict approval symbol_ledger
+  python3 tools/validate.py runs/<run>         # every file that exists in the run; runs/ledger: every entry
+  python3 tools/validate.py --kind KIND FILE   # KIND: sources scores references review verdict approval
+                                               # symbol_ledger ledger
 Exit status 1 on errors (warnings allowed).
 """
 from __future__ import annotations
@@ -26,7 +27,7 @@ try:
 except ImportError:                  # hooks import this module under any python3: schema_errors says what is missing
     Draft202012Validator = None
 
-KINDS = ("sources", "scores", "references", "review", "verdict", "approval", "symbol_ledger")
+KINDS = ("sources", "scores", "references", "review", "verdict", "approval", "symbol_ledger", "ledger")
 NOT_REVIEWS = {"summary.json", "check_html.json", "resolutions.json", "lint_html.json", "frames.json", "gates.json",
                "symbol_ledger.json"}           # pipeline records at the top of review/; tool outputs go in review/checks/
 REVIEW_SETS = ("video", "final_cut", "series_plan")         # review/<set>/ hold reports in the same format
@@ -340,6 +341,8 @@ def kind_for(path: Path) -> str | None:
         return name.split(".")[0]
     if name == "symbol_ledger.json" and parent.name == "review":
         return "symbol_ledger"
+    if name.endswith(".json") and parent.name == "ledger" and parent.parent.name == "runs":
+        return "ledger"
     if parent.name == "verify" and name.endswith(".json") and "review" in (parent.parent.name, parent.parent.parent.name):
         return "verdict"
     if name.endswith(".json") and name not in NOT_REVIEWS and (
@@ -352,6 +355,7 @@ def validate_run(run: Path) -> list[Report]:
     reports = [validate_file(n.split(".")[0], run / n, run) for n in ("sources.json", "scores.json",
                                                                       "references.json", "approval.json")
                if (run / n).exists()]
+    reports += [validate_file("ledger", p, run) for p in sorted(run.glob("*.json")) if kind_for(p) == "ledger"]
     rv = run / "review"
     if rv.is_dir():
         files = []

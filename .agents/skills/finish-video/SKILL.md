@@ -50,12 +50,13 @@ uploads it in YouTube Studio.
 9. **Package.** `python3 tools/deliver.py runs/<run>` writes `runs/<run>/deliver/`: the MP4, the `.srt`, the
    thumbnail, `upload_sheet.md` (title, description with "Episode n of N" and the chapters, tags, settings, the YouTube
    Studio checklist with the end-screen times and the altered or synthetic content answer), `final_cut_review.md`,
-   `youtube.json`, `SHA256SUMS`, and for an episode a copy of its series plan under `series/<slug>/`. It refuses
-   unless the release gate passed for this very video.
+   `youtube.json`, `ledger-<run>.json` (a copy of the `runs/ledger/<run>.json` it writes), `SHA256SUMS`, and for an
+   episode a copy of its series plan under `series/<slug>/`. It refuses unless the release gate passed for this very
+   video.
 10. **Hand over.** Send the files in `deliver/` to the owner with the session's file-sending tool: `upload_sheet.md`
-    first, then the MP4, the `.srt`, `thumbnail.jpg`, `final_cut_review.md` and, when the sheet says the plan is new in
-    this session, the plan files. Say plainly that the cloud container is temporary (download the files now) and that
-    nothing was uploaded, committed or pushed.
+    first, then the MP4, the `.srt`, `thumbnail.jpg`, `final_cut_review.md`, `ledger-<run>.json` (the owner commits it
+    as `runs/ledger/<run>.json`) and, when the sheet says the plan is new in this session, the plan files. Say plainly
+    that the cloud container is temporary (download the files now) and that nothing was uploaded, committed or pushed.
 11. **Report.** The files sent (names and sizes), the gate results, the final-cut findings and what was done about
     each, the narration voice, and what comes next (for a series: the next episode, `python3 tools/series.py next
     series/<slug>`, and the exact command to type in a new session).

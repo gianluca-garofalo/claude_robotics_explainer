@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The hand-over package of a finished video for the owner's own upload: runs/<run>/deliver/ with SHA256SUMS.
+"""The hand-over package of a finished video for the owner's own upload: runs/<run>/deliver/ with SHA256SUMS, and
+its entry in the channel's ledger, runs/ledger/<run>.json, which the owner commits.
 
 Usage:
   python3 tools/deliver.py runs/<run> [--out DIR]   # needs a passed release gate for the current final video
@@ -14,7 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "video"))
-from _common import CONFIG, REPO, load_json, read_json, rel, resolve_run, sha256_file, utc_now  # noqa: E402
+from _common import (CONFIG, REPO, load_json, read_json, rel, resolve_run, sha256_file, utc_now,  # noqa: E402
+                     write_json)
 import plan as P  # noqa: E402
 import review_package as RP  # noqa: E402
 
@@ -46,6 +48,26 @@ def release_record(run: Path, video: Path) -> dict:
         raise NotReady("the release gate passed for another version of the video: run the final gates, the "
                        "final-cut review and the release gate on the current one")
     return g
+
+
+def ledger_entry(run: Path, delivered_at: str | None = None) -> dict:
+    """The run's entry in the channel's ledger (schemas/ledger.json): the Pages ledger's fields, status "delivered"."""
+    topic = P.topic(run)
+    cands = read_json(run / "sources.json", {"candidates": []})["candidates"]
+    cand = next((c for c in cands if c.get("id") == topic["topic_id"]), {"sources": []})
+    e = {"schema_version": 1, "run": run.name, "status": "delivered", "delivered_at": delivered_at or utc_now(),
+         "run_date": read_json(run / "run.json")["run_date"], "title": P.load(run)["title"], "slug": topic["slug"],
+         "topic_id": topic["topic_id"],
+         "primary_urls": [s["url"] for s in cand["sources"]
+                          if s.get("primary") and s.get("relation", "subject") == "subject"]}
+    if P.is_series(run):
+        e.update(series=topic["series"], episode=topic["episode"])
+    return e
+
+
+def ledger_file(run: Path) -> Path:
+    """runs/ledger/<run>.json: the ledger folder beside the run folder."""
+    return run.parent / "ledger" / f"{run.name}.json"
 
 
 def description_for_studio(desc: str, marker: str) -> str:
@@ -201,6 +223,8 @@ def sheet(run: Path, meta: dict, files: dict[str, Path], gates: dict, plan: tupl
     out += steps
     out += ["- [ ] Visibility: Private first; watch it once on YouTube (captions, chapters, thumbnail), then Public "
             "or Schedule",
+            f"- [ ] Commit `ledger-{run.name}.json` as `runs/ledger/{run.name}.json` (the channel's record of made "
+            "topics)",
             "- [ ] Keep these files until the video is public: the cloud session's copies are temporary", ""]
     return "\n".join(out)
 
@@ -213,6 +237,7 @@ def build(run: Path, out: Path) -> list[Path]:
     if not yp.exists():
         raise NotReady(f"{rel(yp)} missing: run tools/video/metadata.py")
     meta = read_json(yp)
+    entry = ledger_entry(run)
     files = {"video": video, "captions": final / f"{P.topic(run)['slug']}.srt", "thumbnail": final / "thumbnail.jpg"}
     missing = [rel(p) for p in files.values() if not p.exists()]
     if missing:
@@ -243,6 +268,8 @@ def build(run: Path, out: Path) -> list[Path]:
     (out / "upload_sheet.md").write_text(sheet(run, meta, {k: out / p.name for k, p in files.items()}, gates, plan),
                                          encoding="utf-8")
     written.insert(0, out / "upload_sheet.md")
+    write_json(ledger_file(run), entry)
+    written.append(Path(shutil.copy2(ledger_file(run), out / f"ledger-{run.name}.json")))
     (out / "SHA256SUMS").write_text("".join(f"{sha256_file(p)}  {p.relative_to(out).as_posix()}\n" for p in written),
                                     encoding="utf-8")
     return written + [out / "SHA256SUMS"]
@@ -263,6 +290,7 @@ def main() -> int:
     for p in written:
         print(f"{rel(p)}\t{p.stat().st_size / 1e6:.1f} MB")
     print(f"deliver: {len(written)} files in {rel(out)}; nothing was uploaded")
+    print(f"ledger: {rel(ledger_file(run))}, the channel's record of this video, for the owner to commit")
     return 0
 
 

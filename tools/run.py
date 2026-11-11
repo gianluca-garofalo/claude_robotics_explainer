@@ -20,7 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import (RUNS, SLUG_RE, TEMPLATES, CONFIG, die, load_json, parse_date, ranking_inputs, read_json,  # noqa: E402
-                     rel, resolve_run, sha256_file, today_local, write_json)
+                     read_ledger, rel, resolve_run, sha256_file, today_local, write_json)
 import validate as V  # noqa: E402
 
 SUBDIRS = ["draft", "code/figures", "code/logs", "review", "video/scenes", "video/data", "video/renders",
@@ -35,6 +35,7 @@ def cmd_new(a) -> int:
     if not SLUG_RE.match(slug):
         die("slug must be kebab-case")
     root = Path(a.root) if a.root else RUNS
+    ledger = read_ledger(a.ledger, root)
     base = root / f"{date}-{slug}"
     run, n = base, 2
     while run.exists():
@@ -52,12 +53,7 @@ def cmd_new(a) -> int:
     readme = (TEMPLATES / "run" / "code_README.md").read_text(encoding="utf-8")
     (run / "code" / "README.md").write_text(readme.replace("runs/RUN_FOLDER", rel(run)), encoding="utf-8")
     shutil.copy(TEMPLATES / "run" / "checks.toml", run / "code" / "checks.toml")
-    if a.ledger:
-        shutil.copy(a.ledger, run / "published.json")
-    else:                                  # CI copies the channel's ledger (Pages branch) over this file
-        write_json(run / "published.json", {"schema_version": 1, "runs": {},
-                                            "note": "Empty ledger: local run. CI copies ledger.json from the Pages "
-                                                    "branch here; sources/ and series/ are in covered.json."})
+    write_json(run / "published.json", ledger)
     import coverage
     cov = coverage.build(run, Path(a.series) if a.series else None, Path(a.sources) if a.sources else None)
     write_json(run / "covered.json", cov)
@@ -278,7 +274,8 @@ def main() -> int:
     n.add_argument("--slug")
     n.add_argument("--date")
     n.add_argument("--window-days", type=int, help="search window for this run (default: config/scout.json)")
-    n.add_argument("--ledger", help="a ledger.json to copy in as published.json (default: an empty ledger)")
+    n.add_argument("--ledger", help="a ledger.json (the Pages ledger) merged with <root>/ledger/ into published.json "
+                                    "(default: <root>/ledger/ alone)")
     n.add_argument("--root", help="parent folder (default: runs/)")
     n.add_argument("--sources", help="folder of source documents for covered.json (default: sources/; tests)")
     n.add_argument("--series", help="folder of series plans for covered.json (default: series/; tests)")

@@ -51,7 +51,7 @@ def build(run: Path, series_root: Path | None = None, sources_root: Path | None 
     led_p = run / "published.json"
     led = read_json(led_p, {"runs": {}})
     for name, e in led.get("runs", {}).items():
-        if e.get("status") in ("published", "staged", "rejected"):
+        if e.get("status") in ("published", "staged", "delivered", "rejected"):
             items.append({"source": "ledger", "title": e.get("title") or name, "where": name, "status": e["status"],
                           "slug": e.get("slug"), "primary_urls": e.get("primary_urls", []),
                           "keywords": keywords(f"{e.get('title', '')} {e.get('slug', '')}")})

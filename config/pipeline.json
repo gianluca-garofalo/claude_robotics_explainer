@@ -4,7 +4,7 @@
   "auto_selection": {
     "min_total": 50,
     "require_eligible": true,
-    "skip_ledger_statuses": ["published", "staged", "rejected"],
+    "skip_ledger_statuses": ["published", "staged", "rejected", "delivered"],
     "skip_same_slug": true,
     "skip_same_primary_url": true
   },
