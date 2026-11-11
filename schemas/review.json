@@ -14,9 +14,10 @@
     "finding": {
       "type": "object",
       "required": ["id", "severity", "confidence", "location", "issue", "evidence", "suggested_fix"],
-      "if": {"required": ["id"], "properties": {"id": {"type": "string", "pattern": "^FC-"}}},
+      "if": {"required": ["id"], "properties": {"id": {"type": "string", "pattern": "^(FC|LV)-"}}},
       "then": {"required": ["time_s"], "properties": {"time_s": {
-        "type": "number", "minimum": 0, "description": "a final-cut finding's time in the final video, in seconds"}}},
+        "type": "number", "minimum": 0,
+        "description": "seconds into the final video; at the draft stage (LV-), into the finding's scene"}}},
       "properties": {
         "id": {"$ref": "defs.json#/$defs/finding_id"},
         "severity": {"enum": ["blocker", "major", "minor", "nit"]},

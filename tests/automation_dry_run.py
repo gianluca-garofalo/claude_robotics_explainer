@@ -70,7 +70,8 @@ PIPELINE = json.loads((testenv.CONFIG / "pipeline.json").read_text(encoding="utf
 
 
 def final_cut(run: Path, label: str) -> None:
-    """Frames of the assembled video, the (fixture) final-cut report, the release gate: an open blocker is refused."""
+    """Frames of the assembled video, the (fixture) final-cut and linear-viewer reports, the release gate: an open
+    blocker is refused."""
     step(f"final-cut frames and contact sheets{label}", [PY, "tools/video/final_frames.py", str(run)],
          check=lambda r: (any((run / "review/final_cut").glob("sheet-*.jpg")) and
                           (run / "review/final_cut/frames.json").exists(), r.stdout.strip()[-110:]))
@@ -78,6 +79,7 @@ def final_cut(run: Path, label: str) -> None:
     blocked = dict(rep, findings=rep["findings"] + [dict(rep["findings"][0], id="FC-2", severity="blocker",
                                                          issue="fixture: a label hides the readout")])
     (run / "review/final_cut/final-cut-reviewer.json").write_text(json.dumps(blocked, indent=1))
+    shutil.copy(FIX / "review/final_cut/linear-viewer.json", run / "review/final_cut/linear-viewer.json")
     step(f"final-cut review with an open blocker merged{label}", [PY, "tools/merge_reviews.py", str(run), "--set",
                                                                   "final_cut"])
     step(f"release gate refuses an open blocker (the run goes back){label}",
@@ -282,7 +284,8 @@ def delivered(run: Path) -> tuple[bool, str]:
 
 
 def draft_and_review(run: Path, env: dict, label: str) -> None:
-    """Draft renders with layout logs, design and reading-time checks, and the (fixture) video design review."""
+    """Draft renders with layout logs, design and reading-time checks, and the (fixture) video design and linear-viewer
+    reviews."""
     step(f"draft renders with layout logs{label}", ["bash", "tools/render_video.sh", str(run), "--check"], env=env,
          check=lambda r: (all((run / "video/checks" / f"{s['class']}.layout.json").exists()
                               for s in json.loads((run / "video/plan.json").read_text())["scenes"]), "layout logged"))
@@ -291,8 +294,9 @@ def draft_and_review(run: Path, env: dict, label: str) -> None:
          check=lambda r: (any((run / "review/design/draft").glob("*-sheet.jpg")), r.stdout.strip()[-110:]))
     step(f"reading-time check of the drafts{label}", [PY, "tools/video/check_reading.py", str(run), "--stage", "draft"])
     (run / "review" / "video").mkdir(parents=True, exist_ok=True)
-    shutil.copy(FIX / "review" / "video" / "video-design-reviewer.json", run / "review/video/video-design-reviewer.json")
-    step(f"video design review merged (fixture report){label}",
+    for name in ("video-design-reviewer.json", "linear-viewer.json"):
+        shutil.copy(FIX / "review" / "video" / name, run / "review/video" / name)
+    step(f"video design review and linear viewer merged (fixture reports){label}",
          [PY, "tools/merge_reviews.py", str(run), "--set", "video"],
          check=lambda r: (json.loads((run / "review/video/summary.json").read_text())["scenes_sha256"] is not None,
                           r.stdout.strip()[:110]))

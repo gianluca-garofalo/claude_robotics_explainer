@@ -1,5 +1,6 @@
 """Unit tests for the explainer review wiring: the reviewers the gate requires (the linear-reader with LR- ids), the
-symbol ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py).
+symbol ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py); and the
+linear-viewer of both video reviews (LV- ids, its reports in the gates).
 The prompts themselves are judged by hand: tests/fixtures/review/reader_flow_eval.md."""
 import json
 import re
@@ -163,6 +164,113 @@ class MergeAndGate(unittest.TestCase):
 
     def test_gate_needs_the_linear_reader(self):
         self.assertEqual([r for r in gate.REVIEWERS if not (FIX / f"{r}.json").exists()], [])
+
+
+def viewer_report(*findings):
+    """A linear-viewer report: each finding with its time."""
+    r = report("linear-viewer", *findings)
+    for f in r["findings"]:
+        f["time_s"] = 12.5
+    return r
+
+
+def verdict(fid, value):
+    return {"schema_version": 1, "finding": fid, "verdict": value, "reason": "Watched up to 12.5 s.", "checks_run": []}
+
+
+class LinearViewer(unittest.TestCase):
+    """The linear-reader's video counterpart: an agent with LV- ids, each finding timed, that writes only under review/,
+    run by the design review and the final-cut review and expected in both video review sets. Structure only."""
+
+    def test_agent_definition(self):
+        text = (REPO / ".claude" / "agents" / "linear-viewer.md").read_text(encoding="utf-8")
+        fm = yaml.safe_load(text.split("---")[1])
+        self.assertEqual(fm["name"], "linear-viewer")
+        self.assertIn("reviewer_write_guard.py", json.dumps(fm.get("hooks")))   # writes only under review/
+        self.assertNotRegex(str(fm.get("tools", "")), r"\bEdit\b")
+        self.assertNotIn("model", fm)
+        for name in ("linear-viewer.json", "voice_script.py", "frames.json", "review/checks/"):   # report, inputs
+            self.assertIn(name, text)
+
+    def test_wired_into_both_video_reviews(self):
+        self.assertEqual(validate.ID_PREFIX["linear-viewer"], "LV")
+        self.assertIn("LV-", (REPO / ".claude" / "agents" / "finding-verifier.md").read_text(encoding="utf-8"))
+        for rset, skill in (("video", "manim-video-producer"), ("final_cut", "final-cut-review")):
+            with self.subTest(set=rset):
+                self.assertIn("linear-viewer", gate.VIDEO_REVIEWERS[rset])
+                self.assertIn("`linear-viewer`", (REPO / ".claude" / "skills" / skill / "SKILL.md").read_text(
+                    encoding="utf-8"))
+                for r in gate.VIDEO_REVIEWERS[rset]:          # each: an agent, its ids, a valid fixture report
+                    self.assertTrue((REPO / ".claude" / "agents" / f"{r}.md").is_file(), r)
+                    self.assertIn(r, validate.ID_PREFIX)
+                    self.assertEqual(validate.validate_file("review", FIX / rset / f"{r}.json").errors, [], r)
+
+    def test_ids_and_times(self):
+        def errors(data):
+            rep = validate.Report("test")
+            validate.validate_review(data, rep)
+            return rep.errors
+        self.assertEqual(errors(viewer_report(("LV-1", "major"), ("LV-2", "minor"))), [])
+        self.assertTrue(any("LV-n" in e for e in errors(viewer_report(("VD-1", "major")))))
+        self.assertTrue(any("time_s is required" in e for e in errors(report("linear-viewer", ("LV-1", "minor")))))
+
+
+class VideoReviewGates(unittest.TestCase):
+    """The pre-render and release gates need every reviewer of their set (gate.VIDEO_REVIEWERS); an open confirmed
+    linear-viewer major blocks both, a design reviewer's major does not block the drafts."""
+
+    def setUp(self):
+        self.run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
+        (self.run / "video" / "final").mkdir(parents=True)
+        (self.run / "video" / "plan.json").write_text('{"scenes": []}', encoding="utf-8")
+        (self.run / "video" / "final" / "test.mp4").write_bytes(b"stands in for the assembled video")
+        (self.run / "selection.json").write_text('{"slug": "test"}', encoding="utf-8")
+        for rset, names in gate.VIDEO_REVIEWERS.items():
+            (self.run / "review" / rset / "verify").mkdir(parents=True)
+            for r in names:
+                shutil.copy(FIX / rset / f"{r}.json", self.run / "review" / rset / f"{r}.json")
+
+    def tearDown(self):
+        shutil.rmtree(self.run.parent)
+
+    def write(self, rset, name, data):
+        (self.run / "review" / rset / name).write_text(json.dumps(data), encoding="utf-8")
+
+    def row(self, rset):
+        """Merge the set, then its gate's review row: pre-render for review/video/, release for review/final_cut/."""
+        r = subprocess.run([sys.executable, str(REPO / "tools" / "merge_reviews.py"), str(self.run), "--set", rset],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        g = gate.Gates()
+        (gate.pre_render if rset == "video" else gate.release)(self.run, g, {})
+        return next(c for c in g.checks if c["name"].startswith("video review" if rset == "video" else "final-cut"))
+
+    def test_each_set_needs_the_linear_viewer(self):
+        for rset in gate.VIDEO_REVIEWERS:
+            with self.subTest(set=rset):
+                row = self.row(rset)
+                self.assertTrue(row["ok"], row["detail"])
+                (self.run / "review" / rset / "linear-viewer.json").unlink()
+                row = self.row(rset)
+                self.assertFalse(row["ok"])
+                self.assertIn("no linear-viewer report", row["detail"])
+
+    def test_an_open_lv_major_blocks_both_gates(self):
+        for rset in gate.VIDEO_REVIEWERS:
+            with self.subTest(set=rset):
+                self.write(rset, "linear-viewer.json", viewer_report(("LV-1", "minor"), ("LV-2", "major")))
+                self.write(rset, "verify/LV-2.json", verdict("LV-2", "confirmed"))
+                row = self.row(rset)
+                self.assertFalse(row["ok"])
+                self.assertIn("LV-2", row["detail"])
+                self.write(rset, "resolutions.json", {"resolutions": [{"finding": "LV-2", "status": "fixed",
+                                                                       "note": "The term is explained first now."}]})
+                self.assertTrue(self.row(rset)["ok"])
+
+    def test_a_design_major_does_not_block_the_drafts(self):
+        self.write("video", "video-design-reviewer.json", report("video-design-reviewer", ("VD-1", "major")))
+        self.write("video", "verify/VD-1.json", verdict("VD-1", "confirmed"))
+        self.assertTrue(self.row("video")["ok"])
 
 
 class WorkingFiles(unittest.TestCase):

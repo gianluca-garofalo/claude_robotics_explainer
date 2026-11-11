@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "linear-viewer",
+  "summary": "Fixture report (tests only) from linear-viewer: one scene states its idea, shows an equation, then a curve along which the motion dies out, and ends on the takeaway card; what I took away: the motion dies out. One minor gap, the equation's symbols are never named; no gap in the central argument.",
+  "checks_run": [
+    {"command": "python3 tools/ci/scene_matrix.py runs/<run>", "result": "one scene, TemplateScene (fixture)"},
+    {"command": "python3 tools/video/voice_script.py runs/<run> --out runs/<run>/review/video/SCRIPT.md", "result": "3 blocks (fixture)"}
+  ],
+  "findings": [
+    {
+      "id": "LV-1",
+      "severity": "minor",
+      "location": "TemplateScene, the equation under the title",
+      "time_s": 2.0,
+      "issue": "Fixture finding: the equation's zeta and omega are shown but never named; the curve that follows still says what matters, that the motion dies out.",
+      "evidence": "review/design/draft/frames/TemplateScene/t0002.00.png (fixture); narration: 'Here is the equation that carries it.'",
+      "suggested_fix": "Name omega as the natural frequency and zeta as the damping ratio as the equation appears.",
+      "confidence": "medium"
+    }
+  ]
+}

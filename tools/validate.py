@@ -32,7 +32,7 @@ NOT_REVIEWS = {"summary.json", "check_html.json", "resolutions.json", "lint_html
                "symbol_ledger.json"}           # pipeline records at the top of review/; tool outputs go in review/checks/
 REVIEW_SETS = ("video", "final_cut", "series_plan")         # review/<set>/ hold reports in the same format
 ID_PREFIX = {"technical-correctness-reviewer": "TC", "reference-verifier": "REF", "presentation-reviewer": "PRES",
-             "claims-red-team": "RT", "linear-reader": "LR", "video-design-reviewer": "VD",
+             "claims-red-team": "RT", "linear-reader": "LR", "video-design-reviewer": "VD", "linear-viewer": "LV",
              "final-cut-reviewer": "FC", "series-red-team": "SRT"}   # each reviewer's finding ids: PREFIX-n
 STOP = set("a an and the of for in on to with by from at as is are be via its it this that new using how why what "
            "robot robots robotics control learning".split())

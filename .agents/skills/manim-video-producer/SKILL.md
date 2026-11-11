@@ -47,12 +47,14 @@ render, assembly, final-cut review and hand-over come after the gates (`finish-v
    `check_engagement`, `check_script`, `check_pacing` and `check_sync` (silent drafts keep the planned pauses: the
    draft timeline is the final one). Fix every error; read every warning.
 7. **Design review.** Run each named agent (`.claude/agents/<name>.md`) as a subagent; if your tool has no such agent,
-   use a general-purpose subagent or a fresh context with that file's body as the prompt. The `video-design-reviewer`
-   gets the run path; then one `finding-verifier` per blocker or major `VD-` finding without a verdict; then
+   use a general-purpose subagent or a fresh context with that file's body as the prompt. In parallel, the
+   `video-design-reviewer` gets the run path, and the `linear-viewer` the run path and `draft` and nothing else (it
+   judges whether the video alone can be followed; compare its retelling, the `summary`, with the storyboard's
+   takeaway); then one `finding-verifier` per blocker or major `VD-` or `LV-` finding without a verdict; then
    `python3 tools/merge_reviews.py runs/<run> --set video`. Fix confirmed blockers and majors, record decisions in
-   `review/video/resolutions.json`, re-render and repeat step 6, then the reviewer (second round:
+   `review/video/resolutions.json`, re-render and repeat step 6, then the reviewers (second round:
    [reviewer-contract.md](../explainer-review/reviewer-contract.md)), the verifiers and the merge. At most two rounds;
-   open blockers stop the run at the gate.
+   open blockers and confirmed `LV-` majors stop the run at the gate.
 8. **README** (`video/README.md`): scene -> file -> explainer section -> data and script, the colour meanings, the
    voice (`voice.service` in `config/channel.json`; an AI voice is disclosed in the description;
    `python3 tools/video/voice_script.py runs/<run>` lists the blocks for the owner's own recording) and the "Spoken

@@ -26,6 +26,10 @@ filter. Read `.agents/skills/explainer-review/reviewer-contract.md`.
      Read it, and check the layout facts in `review/design/draft/check_design.json`.
    - `FC-` (`review/final_cut/final-cut-reviewer.json`): extract frames around its `time_s` from
      `video/final/<slug>.mp4` into `review/final_cut/frames/`, and read the captions in `review/final_cut/frames.json`.
+   - `LV-` (`linear-viewer.json` in `review/video/` or `review/final_cut/`): watch up to its `time_s` from the viewer's
+     inputs only (`.claude/agents/linear-viewer.md`: frames and narration; no plan, storyboard or scene code). If what
+     is missing is said or shown before then, quote the caption or frame and refute; if only later or nowhere, confirm.
+     Knowing it yourself does not refute the finding: the video must say it.
    - `SRT-` (`review/series_plan/series-red-team.json` of a planning run): reread the plan and the explainer sections
      it cites, and rerun the scripts it names.
    - Reader flow (`LR-`, or a `PRES-` finding on a missing bridge or an unannounced change of meaning): read the

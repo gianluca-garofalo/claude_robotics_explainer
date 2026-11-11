@@ -1,0 +1,20 @@
+{
+ "schema_version": 1,
+ "reviewer": "linear-viewer",
+ "summary": "Fixture report for the dry runs: watched in order from the frames and the captions alone; the video states its idea, shows how the motion dies out and ends on the takeaway card, which I could state in its words. One minor gap, no blocker or major.",
+ "checks_run": [
+  {"command": "Read review/final_cut/sheet-01.jpg and the captions in review/final_cut/frames.json", "result": "watched in order (fixture)"}
+ ],
+ "findings": [
+  {
+   "id": "LV-1",
+   "severity": "minor",
+   "location": "first scene, the equation under the title",
+   "time_s": 2.0,
+   "issue": "Fixture finding: the equation's symbols are shown but never named; the curve that follows still carries the point.",
+   "evidence": "review/final_cut/frames/t0002.00.jpg (fixture); caption: 'Here is the equation that carries it.'",
+   "suggested_fix": "Name each symbol as the equation appears.",
+   "confidence": "medium"
+  }
+ ]
+}

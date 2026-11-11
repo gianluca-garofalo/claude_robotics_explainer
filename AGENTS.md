@@ -118,4 +118,7 @@ Remaining Action, one run folder per video. People read README.md.
   `.agents/skills/explainer-review/reviewer-contract.md`, never the writer's reasoning. A new review dimension: the
   agent, a line in the explainer-review skill and `.claude/workflows/review-fanout.js`, its id prefix in
   `tools/validate.py` (`ID_PREFIX`), its name in `tools/gate.py` (`REVIEWERS`), a report in
-  `tests/fixtures/run/review/`. A new design check: a fixture from a real render in `tests/fixtures/design/`.
+  `tests/fixtures/run/review/`. A video reviewer: the same, but a line in the design-review step of
+  `manim-video-producer` or in `final-cut-review`, its name in `VIDEO_REVIEWERS` and a report in
+  `tests/fixtures/run/review/video/` or `final_cut/`. A new design check: a fixture from a real render in
+  `tests/fixtures/design/`.

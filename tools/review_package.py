@@ -183,8 +183,8 @@ def main() -> int:
                 out.append(f"- {tool.replace('_', ' ')} ({phase} renders): {r['summary']['errors']} error(s), "
                            f"{r['summary']['warnings']} warning(s)")
     vc = {s: sum(f["severity"] == s for f in vsum["findings"]) for s in SEV}
-    out.append("- video-design-reviewer: " + ", ".join(f"{vc[s]} {s}" for s in SEV)
-               + " (blockers gate the run; the rest is for your judgement)")
+    out.append("- video-design-reviewer and linear-viewer: " + ", ".join(f"{vc[s]} {s}" for s in SEV)
+               + " (blockers and confirmed linear-viewer majors gate the run; the rest is for your judgement)")
     if vsum["findings"]:
         out += ["", "| ID | Severity | Verdict | Status | Location | Issue |", "|---|---|---|---|---|---|"]
         out += [f"| {f['id']} | {f['severity']} | {f['verdict']} | {f['status']} | {cell(f['location'])} | "
