@@ -23,7 +23,7 @@ testenv.activate()                  # fixture config and sources, before any too
 FIX = REPO / "tests" / "fixtures" / "run"
 PY = sys.executable
 sys.path.insert(0, str(REPO / "tools"))
-from gate import REVIEWERS  # noqa: E402
+from gate import REVIEWERS, VIDEO_REVIEWERS  # noqa: E402
 RESULTS: list[tuple[str, str, str]] = []
 
 
@@ -154,13 +154,7 @@ def main() -> int:
                 env=dict(os.environ, MANIM=manim))
 
         if node:
-            run("workflow review-fanout with stub agents", ["node", "-e", WORKFLOW_HARNESS,
-                                                            str(REPO / ".claude" / "workflows" / "review-fanout.js")],
-                check=lambda r: (lambda o: (o["run"] == "runs/fixture" and o["verdicts"] == ["TC-1: refuted (stub)"]
-                                            and len(o["reviewers"]) == len(REVIEWERS) and o["failedReviewers"] == [],
-                                            f"{len(o['reviewers'])} reviewers, {len(o['verdicts'])} verification, "
-                                            "merge step called"))(
-                    json.loads(r.stdout.strip().splitlines()[-1])))
+            workflow_dry_run(rundir, tmp)
         else:
             skip("workflow review-fanout with stub agents", "node not found")
 
@@ -174,20 +168,86 @@ def main() -> int:
             shutil.rmtree(tmp, ignore_errors=True)
 
 
+def workflow_dry_run(rundir: Path, tmp: Path) -> None:
+    """The review-fanout workflow on two review sets, with the args tools/merge_reviews.py --workflow-args prints, stub
+    agents and the real tools behind the review-runner: a report that fails its check goes back to its reviewer once,
+    the serious findings of a report go to one verifier, and the set is merged."""
+    run_dir = tmp / "workflow" / rundir.name
+    shutil.copytree(rundir, run_dir)
+    rv = run_dir / "review"
+
+    def edit(path, change):
+        data = json.loads(path.read_text(encoding="utf-8"))
+        change(data)
+        path.write_text(json.dumps(data, indent=1), encoding="utf-8")
+    (rv / "verify" / "TC-1.json").unlink()                                       # TC-1 waits for a verdict again
+    edit(rv / "technical-correctness-reviewer.json",                             # TC-3: one verifier for both
+         lambda d: d["findings"].append(dict(d["findings"][0], id="TC-3", severity="blocker")))
+    edit(rv / "video" / "video-design-reviewer.json",
+         lambda d: d["findings"].append(dict(d["findings"][0], id="VD-2", severity="major")))
+    good = (rv / "linear-reader.json").read_text(encoding="utf-8")
+    edit(rv / "linear-reader.json", lambda d: d["findings"][0].update(severity="serious"))   # fails its check
+    fixes = {"linear-reader": [str(rv / "linear-reader.json"), good]}           # what it writes when sent back
+    script = str(REPO / ".claude" / "workflows" / "review-fanout.js")
+    for rset, reviewers, verified, resent in (("explainer", REVIEWERS, ["TC-1", "TC-3"], ["linear-reader"]),
+                                              ("video", VIDEO_REVIEWERS["video"], ["VD-2"], [])):
+        wf_args = subprocess.run([PY, "tools/merge_reviews.py", str(run_dir), "--set", rset, "--workflow-args"],
+                                 cwd=REPO, capture_output=True, text=True).stdout.strip()
+
+        def check(r, rset=rset, reviewers=reviewers, verified=verified, resent=resent):
+            try:
+                res = json.loads(r.stdout.strip().splitlines()[-1])
+                out, calls = res["out"], res["calls"]
+                summary = json.loads(((rv if rset == "explainer" else rv / rset) / "summary.json").read_text())
+            except (IndexError, KeyError, ValueError, OSError) as exc:
+                return False, f"no workflow result or summary: {exc}"
+            sent_back = [c for c in calls if c["type"] in resent][1:]
+            wrong = [what for what, ok in (
+                ("reviewers", [x["reviewer"] for x in out["reviewers"]] == list(reviewers)),
+                ("verdicts", sorted(v.split(":")[0] for v in out["verdicts"]) == verified),
+                ("one verifier", [c["type"] for c in calls].count("finding-verifier") == 1),
+                ("sent back", [x["reviewer"] for x in out["reviewers"] if x["resent"]] == resent),
+                ("errors passed on", all("$.findings[0].severity" in c["prompt"] for c in sent_back)),
+                ("failed or invalid", out["failedReviewers"] == out["invalidReports"] == out["uncheckedReports"] == []),
+                ("merge", out["merge"]["exit"] == 0 and summary["set"] == rset),
+                ("independent", summary["independent"] is True),
+                ("all verified", summary["unverified_blocker_major"] == [])) if not ok]
+            return not wrong, (f"wrong: {', '.join(wrong)}" if wrong else
+                               f"{len(out['reviewers'])} reviewers, {len(resent)} sent back, "
+                               f"{len(verified)} finding(s) to one verifier, merged")
+        run(f"workflow review-fanout with stub agents ({rset})",
+            ["node", "-e", WORKFLOW_HARNESS, script, wf_args, PY, str(REPO), json.dumps(fixes)], check=check)
+
+
 WORKFLOW_HARNESS = r"""
 const fs = require('fs');
-const src = fs.readFileSync(process.argv[1], 'utf8').replace('export const meta', 'const meta');
+const cp = require('child_process');
+const [script, wfArgs, py, repo, fixes] = process.argv.slice(1);
+const fix = JSON.parse(fixes);
+const src = fs.readFileSync(script, 'utf8').replace('export const meta', 'const meta');
 const calls = [];
 const g = {
-  args: 'runs/fixture',
-  log: m => calls.push(['log', m]),
-  phase: t => calls.push(['phase', t]),
+  args: JSON.parse(wfArgs),
+  log: m => {},
+  phase: t => {},
   agent: async (prompt, o = {}) => {
-    calls.push(['agent', o.agentType || 'default', o.phase]);
-    if (o.agentType === 'finding-verifier') return { finding: 'TC-1', verdict: 'refuted', reason: 'stub' };
-    if (o.agentType) return { reviewer: o.agentType, findings: o.agentType === 'technical-correctness-reviewer'
-      ? [{ id: 'TC-1', severity: 'major', location: 'eq. (1)', issue: 'stub' }, { id: 'TC-2', severity: 'nit', location: 'x', issue: 'stub' }] : [] };
-    return 'merge: stub';
+    const type = o.agentType || 'default';
+    calls.push({ type, phase: o.phase, prompt });
+    if (type === 'review-runner') {                 // the real tool, as the mechanical agent runs it
+      const cmd = prompt.split('\n').map(s => s.trim()).find(s => s.startsWith('python3 tools/'));
+      const r = cp.spawnSync(py, cmd.split(/\s+/).slice(1), { cwd: repo, encoding: 'utf8' });
+      return { exit_code: r.status, output: (r.stdout || '') + (r.stderr || '') };
+    }
+    if (type === 'finding-verifier') {              // one verdict file per finding the prompt names
+      return { verdicts: [...prompt.matchAll(/(\S+\/verify\/([A-Z]+-\d+)\.json)/g)].map(([, file, id]) => {
+        fs.mkdirSync(require('path').dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify({ schema_version: 1, finding: id, verdict: 'refuted', reason: 'stub',
+                                                checks_run: [] }));
+        return { finding: id, verdict: 'refuted', reason: 'stub' };
+      }) };
+    }
+    if (calls.filter(c => c.type === type).length > 1 && fix[type]) fs.writeFileSync(fix[type][0], fix[type][1]);
+    return `${type}: five-line summary (stub)`;     // a reviewer: its report is already in the run
   },
   parallel: async thunks => Promise.all(thunks.map(t => t().catch(() => null))),
   pipeline: async (items, ...stages) => Promise.all(items.map(async (item, i) => {
@@ -197,11 +257,8 @@ const g = {
   }).map(p => p.catch(() => null))),
 };
 const fn = new Function(...Object.keys(g), `return (async () => {\n${src}\n})();`);
-fn(...Object.values(g)).then(out => {
-  const agents = calls.filter(c => c[0] === 'agent');
-  if (agents.filter(c => c[1] === 'finding-verifier').length !== 1) throw new Error('expected one verifier call');
-  console.log(JSON.stringify(out));
-}).catch(e => { console.error(e.stack || e); process.exit(1); });
+fn(...Object.values(g)).then(out => console.log(JSON.stringify({ out, calls })))
+  .catch(e => { console.error(e.stack || e); process.exit(1); });
 """
 
 

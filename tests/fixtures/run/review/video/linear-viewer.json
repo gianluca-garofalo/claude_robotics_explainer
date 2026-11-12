@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "reviewer": "linear-viewer",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the linear-viewer subagent in the tests and dry runs)",
   "summary": "Fixture report (tests only) from linear-viewer: one scene states its idea, shows an equation, then a curve along which the motion dies out, and ends on the takeaway card; what I took away: the motion dies out. One minor gap, the equation's symbols are never named; no gap in the central argument.",
   "checks_run": [
     {"command": "python3 tools/ci/scene_matrix.py runs/<run>", "result": "one scene, TemplateScene (fixture)"},

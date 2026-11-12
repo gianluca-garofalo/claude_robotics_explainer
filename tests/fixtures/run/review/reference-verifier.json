@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "reviewer": "reference-verifier",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the reference-verifier subagent in the tests and dry runs)",
   "summary": "Fixture report (tests only) from reference-verifier: nothing found.",
   "checks_run": [
     {

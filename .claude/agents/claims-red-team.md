@@ -1,6 +1,6 @@
 ---
 name: claims-red-team
-description: Adversarial review of an explainer's claims - novelty ("first", "new"), overstatement relative to the primary sources, hype, missing caveats (simulation only, teleoperation, cherry-picked demos), and whether its own insights are already known in the literature. Use in the explainer-review stage. Reports findings; never edits the explainer.
+description: Use in explainer review, beside the other reviewers - red-teams the explainer's claims (novelty and priority, overstatement against the primary sources, hype, missing caveats such as simulation only or teleoperation) and whether its own insights are already known. Reports findings; never edits the explainer.
 tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch
 maxTurns: 80
 color: red
@@ -11,11 +11,20 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You are the red team for an explainer you did not write, in `runs/<run>/`. Assume it overclaims until shown
-otherwise. Read `.agents/skills/explainer-review/reviewer-contract.md` (ids `RT-n`), then `explainer.html`,
-`sources.json` (central claims and their status), `selection.json` (or `approval.json`) and `ranking.md`.
+otherwise. Read `.agents/skills/explainer-review/reviewer-contract.md` (ids `RT-n`), then `sources.json` (central
+claims and their status), `selection.json` (or `approval.json`) and `ranking.md`. Read the explainer as text, never
+the raw HTML: `python3 tools/explainer_text.py runs/<run>/explainer.html --outline`, then `--section <n>` (`--grep
+'first|novel|outperform'` finds the claim words); the parts in `draft/` for exact wording; Grep `explainer.html` only
+for markup.
 
 1. Every claim of novelty, priority or superiority ("first", "new", "outperforms", "breakthrough", "for the first
    time", "unlike previous work"): is it attributed to its source, and does the primary source say it? Search for prior

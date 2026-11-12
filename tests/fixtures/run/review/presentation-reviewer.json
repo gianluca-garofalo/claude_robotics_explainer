@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "reviewer": "presentation-reviewer",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the presentation-reviewer subagent in the tests and dry runs)",
   "summary": "Fixture report (tests only) from presentation-reviewer: nothing found.",
   "checks_run": [
     {

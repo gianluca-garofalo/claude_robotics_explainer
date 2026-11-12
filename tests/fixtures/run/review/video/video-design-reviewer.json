@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "reviewer": "video-design-reviewer",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the video-design-reviewer subagent in the tests and dry runs)",
   "summary": "Fixture report: one scene, clear hierarchy, palette used with its meanings and labels. One minor point on the end card; no blocker.",
   "checks_run": [
     {"command": "python3 tools/video/check_design.py runs/<run> --stage draft", "result": "0 errors (fixture)"},

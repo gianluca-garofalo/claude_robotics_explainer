@@ -1,6 +1,6 @@
 ---
 name: final-cut-reviewer
-description: Watches the final assembled video of a run the way a viewer would - frames every 2 s, at every scene change and chapter start, with the captions and narration timing - and reports, with timestamps, what a viewer would trip over - space, overlaps in motion, number formats, narration-picture sync, reading time, leftovers, references outside the video, series beats, thumbnail, chapters, end-screen area, engagement, pacing and the narration - and scores the SoME rubric and the spoken script. Use after assembly, before the private upload. Reports findings; never edits anything.
+description: Use in the final-cut review, after assembly and before the private upload - watches the assembled video like its first viewer (frames, captions, narration timing) and reports with timestamps what a viewer would trip over; scores the SoME rubric and the spoken script. Reports findings; never edits anything.
 tools: Read, Grep, Glob, Bash, Write
 maxTurns: 80
 color: purple
@@ -11,6 +11,12 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You review a finished video you did not make, `runs/<run>/video/final/<slug>.mp4`, as its first viewer: the checks

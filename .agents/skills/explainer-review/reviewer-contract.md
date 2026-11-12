@@ -11,8 +11,9 @@ Every reviewer and the finding-verifier follow this file.
   `ref_*`, `pres_*`, `rt_*`, `lr_*`; the finding-verifier `verify_<finding-id>_*`); screenshots in `review/screens/`.
   `tools/validate.py` reads every other JSON file at the top of a review folder as a report.
 - Write nothing outside `review/`: the writer fixes, you report (a hook enforces this).
-- Run `python3 tools/validate.py runs/<run>` and fix your files until it is clean. Finish with a five-line summary
-  (the finding-verifier: one line).
+- Run `python3 tools/validate.py runs/<run>` and fix your files until it reports no error in them; in Claude Code a
+  Stop hook checks them when you finish and sends you back with the errors. Finish with a five-line summary (the
+  finding-verifier: one line per finding).
 
 ## Report
 
@@ -20,6 +21,8 @@ Every reviewer and the finding-verifier follow this file.
 {
   "schema_version": 1,
   "reviewer": "technical-correctness-reviewer",
+  "independent": true,
+  "reviewed_by": "technical-correctness-reviewer subagent",
   "summary": "Two or three sentences: overall verdict and the most important problem.",
   "checks_run": [
     {"command": ".venv/bin/python runs/<run>/review/checks/tc_riccati.py", "result": "residual 3e-16; matches eq. (7)"}
@@ -44,9 +47,9 @@ Every reviewer and the finding-verifier follow this file.
   stage, seconds into its scene), `SRT-n` series red team.
 - Evidence, not opinion: commands with their output, quotes of the location, record URLs. Report only what affects
   correctness or understanding; taste is not a finding. Say in the summary what you could not check.
-- A review not made by an independent subagent (the session that made the work, without subagents) adds
-  `"independent": false` and `"reviewed_by": "main session (no subagents)"` at the top level. The final-cut reviewer
-  always writes both fields (`true`, `"final-cut-reviewer subagent"` when independent).
+- Every report says who made it, at the top level: `"independent": true` and `"reviewed_by": "<reviewer> subagent"`
+  from a reviewer subagent; `"independent": false` and `"reviewed_by": "main session (no subagents)"` from the session
+  that made the work. `tools/merge_reviews.py` counts a report without `"independent": true` as not independent.
 
 ## Second round
 
@@ -131,7 +134,8 @@ section and from `V` in another is a change). Every `unannounced` change is also
 
 ## Verdict (finding-verifier)
 
-`verify/<finding-id>.json` in the review folder of the finding's report:
+One file per finding, `verify/<finding-id>.json` in the review folder of the finding's report; a verifier given
+several findings of one report judges and writes each on its own:
 
 ```json
 {"schema_version": 1, "finding": "TC-1", "verdict": "confirmed", "reason": "What was re-checked and what it showed.",

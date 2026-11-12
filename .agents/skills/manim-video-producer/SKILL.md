@@ -1,6 +1,6 @@
 ---
 name: manim-video-producer
-description: Produces the narrated Manim (Community Edition) scenes for a finished explainer of the Remaining Action channel - a storyboard that chooses less and different material than the explainer to tell one story, voice-over text, scenes driven by data from the run's code/, video/plan.json (title, summary, tags, chapters, roles, ideas, thumbnail) - and checks them with draft renders, the design, number-format, reading-time, self-contained, structure, engagement, spoken-script, pacing and sync checks and an independent video design review. Use after the explainer passed review, for a series episode, or when asked for a Manim animation of an explainer.
+description: Use after the explainer passed review, for a series episode, or when asked for a Manim animation of an explainer - a storyboard that tells one story, narrated scenes driven by the run's data, video/plan.json, draft renders and their checks, then the independent video design review.
 argument-hint: "runs/<run> [number of scenes]"
 ---
 
@@ -47,15 +47,20 @@ workflow).
    --stage draft` for `check_design`, `check_reading`, `check_numbers`, `check_selfcontained`, `check_series`,
    `check_engagement`, `check_script`, `check_pacing` and `check_sync` (silent drafts keep the planned pauses: the
    draft timeline is the final one). Fix every error; read every warning.
-7. **Design review.** Run each named agent (`.claude/agents/<name>.md`) as a subagent; if your tool has no such agent,
-   use a general-purpose subagent or a fresh context with that file's body as the prompt. In parallel, the
-   `video-design-reviewer` gets the run path, and the `linear-viewer` the run path and `draft` and nothing else (it
-   judges whether the video alone can be followed; compare its retelling, the `summary`, with the storyboard's
-   takeaway); then one `finding-verifier` per blocker or major `VD-` or `LV-` finding without a verdict; then
-   `python3 tools/merge_reviews.py runs/<run> --set video`. Fix confirmed blockers and majors, record decisions in
-   `review/video/resolutions.json`, re-render and repeat step 6, then the reviewers (second round:
-   [reviewer-contract.md](../explainer-review/reviewer-contract.md)), the verifiers and the merge. At most two rounds;
-   open blockers and confirmed `LV-` majors stop the run at the gate.
+7. **Design review.** Run the `review-fanout` workflow (`.claude/workflows/review-fanout.js`) with the args that
+   `python3 tools/merge_reviews.py runs/<run> --set video --workflow-args` prints: in parallel the
+   `video-design-reviewer` and the `linear-viewer` (stage `draft`, nothing else: it judges whether the video alone can
+   be followed; compare its retelling, the `summary`, with the storyboard's takeaway), each report checked, one
+   `finding-verifier` per report for its blocker and major `VD-` or `LV-` findings, then the merge
+   (`review/video/summary.md`); a session that does not prompt (`dontAsk`, CI) needs the allow rule
+   `Workflow(review-fanout)`. Without the Workflow tool, do the same by hand: each reviewer as a subagent (or a fresh
+   context with `.claude/agents/<name>.md` as its prompt) given only the run path, the stage and its report path;
+   `python3 tools/merge_reviews.py runs/<run> --set video --pending <name>` clean (resume it once with the errors);
+   one `finding-verifier` per report for what that lists under `verify`; `python3 tools/merge_reviews.py runs/<run>
+   --set video`. With no subagents at all, write the reports yourself, marked `"independent": false`
+   ([reviewer-contract.md](../explainer-review/reviewer-contract.md)). Fix confirmed blockers and majors, record
+   decisions in `review/video/resolutions.json`, re-render and repeat step 6, then the review again (second round:
+   reviewer-contract.md). At most two rounds; open blockers and confirmed `LV-` majors stop the run at the gate.
 8. **README** (`video/README.md`): scene -> file -> explainer section -> data and script, the colour meanings, the
    voice (`voice.service` in `config/channel.json`; an AI voice is disclosed in the description;
    `python3 tools/video/voice_script.py runs/<run>` lists the blocks for the owner's own recording) and the "Spoken

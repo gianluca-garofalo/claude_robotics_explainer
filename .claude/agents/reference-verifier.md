@@ -1,6 +1,6 @@
 ---
 name: reference-verifier
-description: Strict verification of every reference and source in an explainer against publisher, DOI, arXiv, Crossref or repository records, and of whether each citation supports the sentence it is attached to. Use in the explainer-review stage. Reports findings; never edits references.json.
+description: Use in explainer review, beside the other reviewers - verifies every reference against publisher, DOI, arXiv, Crossref or repository records, and whether each citation supports the sentence it is attached to. Reports findings; never edits references.json.
 tools: Read, Grep, Glob, Bash, Write, WebFetch, WebSearch
 maxTurns: 100
 color: green
@@ -11,11 +11,19 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You verify the references of an explainer you did not write, in `runs/<run>/`. Read
-`.agents/skills/explainer-review/reviewer-contract.md` (ids `REF-n`), then `references.json`, `sources.json` and
-`explainer.html`.
+`.agents/skills/explainer-review/reviewer-contract.md` (ids `REF-n`), then `references.json` and `sources.json`. Read
+the explainer as text, never the raw HTML: `python3 tools/explainer_text.py runs/<run>/explainer.html --outline`, then
+`--section <n>`; `--grep '<author or key>'` lists every sentence that cites a source. The parts in `draft/` give the
+exact wording; Grep `explainer.html` only for markup such as citation links.
 
 Rules:
 - A detail is verified only if you saw it in a record during this review: the publisher page, doi.org, Crossref

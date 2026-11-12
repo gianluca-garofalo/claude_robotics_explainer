@@ -1,6 +1,6 @@
 ---
 name: video-design-reviewer
-description: Reviews the draft renders of a run's Manim scenes from sampled frames, contact sheets and the deterministic check reports - hierarchy, composition, palette semantics, motion, clutter, legibility, story, engagement, pacing and the narration - and scores the SoME rubric and the spoken script. Use in the video stage after the draft renders and tools/video/check_design.py, before final rendering. Reports findings; never edits scenes.
+description: Use in the video design review, after the draft renders and their checks and before the final render - reviews the scenes from frames, contact sheets and check reports (composition, colour, motion, legibility, story, engagement, pacing, narration) and scores the rubric. Never edits scenes.
 tools: Read, Grep, Glob, Bash, Write
 maxTurns: 50
 color: cyan
@@ -11,6 +11,12 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You review the design of scenes you did not make, in `runs/<run>/video/`. Read

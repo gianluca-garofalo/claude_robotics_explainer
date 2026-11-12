@@ -1,13 +1,17 @@
-"""Unit tests for the explainer review wiring: the reviewers the gate requires (the linear-reader with LR- ids), the
-symbol ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py); and the
-linear-viewer of both video reviews (LV- ids, its reports in the gates).
+"""Unit tests for the review wiring: the reviewers the gate requires (the linear-reader with LR- ids), the symbol
+ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py); the linear-viewer of both
+video reviews (LV- ids, its reports in the gates); the one review workflow's args and checks (merge_reviews.py
+--workflow-args and --pending), independence only when a report states it, the reviewers' Stop hook that checks their
+report, and the agents' frontmatter. The workflow itself runs with stub agents in tests/dry_run.py.
 The prompts themselves are judged by hand: tests/fixtures/review/reader_flow_eval.md."""
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -21,18 +25,29 @@ sys.path.insert(0, str(REPO / "tools"))
 
 import explainer_text  # noqa: E402
 import gate  # noqa: E402
+import merge_reviews  # noqa: E402
 import validate  # noqa: E402
 
 CONTRACT = REPO / ".claude" / "skills" / "explainer-review" / "reviewer-contract.md"
 FIX = REPO / "tests" / "fixtures" / "run" / "review"
+AGENTS = REPO / ".claude" / "agents"
+MERGE = REPO / "tools" / "merge_reviews.py"
+WORKFLOW = REPO / ".claude" / "workflows" / "review-fanout.js"
+REPORT_CHECK = REPO / "tools" / "hooks" / "reviewer_report_check.py"
 
 
 def report(reviewer, *findings):
-    return {"schema_version": 1, "reviewer": reviewer, "summary": "Test report.",
-            "checks_run": [{"command": "test", "result": "test"}],
+    return {"schema_version": 1, "reviewer": reviewer, "independent": True, "reviewed_by": f"{reviewer} subagent",
+            "summary": "Test report.", "checks_run": [{"command": "test", "result": "test"}],
             "findings": [{"id": fid, "severity": sev, "location": "Section 6.2", "issue": "An unannounced switch.",
                           "evidence": "Quoted.", "suggested_fix": "Announce it.", "confidence": "high"}
                          for fid, sev in findings]}
+
+
+def frontmatter(path: Path) -> tuple[dict, str]:
+    text = path.read_text(encoding="utf-8")
+    _, fm, body = text.split("---", 2)
+    return yaml.safe_load(fm), body
 
 
 def ledger(*symbols):
@@ -56,6 +71,7 @@ class FiveReviewers(unittest.TestCase):
         fm = yaml.safe_load(text.split("---")[1])
         self.assertEqual(fm["name"], "linear-reader")
         self.assertIn("reviewer_write_guard.py", json.dumps(fm.get("hooks")))   # writes only under review/
+        self.assertIn("reviewer_report_check.py", json.dumps(fm["hooks"].get("Stop")))   # finishes with a valid report
         self.assertNotRegex(str(fm.get("tools", "")), r"\bEdit\b")
         self.assertNotIn("model", fm)
         for name in ("linear-reader.json", "explainer_text.py"):              # its report, the tool it reads with
@@ -69,9 +85,7 @@ class FiveReviewers(unittest.TestCase):
                 self.assertTrue((REPO / ".claude" / "agents" / f"{r}.md").is_file())
                 self.assertIn(r, validate.ID_PREFIX)
                 self.assertIn(r, skill)
-        workflow = (REPO / ".claude" / "workflows" / "review-fanout.js").read_text(encoding="utf-8")
-        listed = re.search(r"const REVIEWERS = \[(.*?)\]", workflow, re.S).group(1)
-        self.assertEqual(re.findall(r"'([\w-]+)'", listed), list(gate.REVIEWERS))
+        self.assertEqual(merge_reviews.review_sets()["explainer"], gate.REVIEWERS)   # the workflow's args
         self.assertIn("LR-", (REPO / ".claude" / "agents" / "finding-verifier.md").read_text(encoding="utf-8"))
 
 
@@ -305,6 +319,262 @@ class WorkingFiles(unittest.TestCase):
             text = (REPO / ".claude" / "agents" / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("review/checks/", text, name)
         self.assertIn("review/checks/", CONTRACT.read_text(encoding="utf-8"))
+
+
+class ReviewWorkflow(unittest.TestCase):
+    """One workflow for every review set: its args come from merge_reviews.py --workflow-args (the reviewers that
+    tools/gate.py requires, and the series red team), the script holds no reviewer list, and every agent it starts
+    exists."""
+
+    def test_args_name_the_reviewers_of_each_set(self):
+        run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
+        run.mkdir()
+        try:
+            for rset in merge_reviews.SETS:
+                with self.subTest(set=rset):
+                    r = subprocess.run([sys.executable, str(MERGE), str(run), "--set", rset, "--workflow-args"],
+                                       capture_output=True, text=True)
+                    self.assertEqual(r.returncode, 0, r.stderr)
+                    args = json.loads(r.stdout)
+                    self.assertEqual((Path(args["run"]).resolve(), args["set"]), (run.resolve(), rset))
+                    want = gate.REVIEWERS if rset == "explainer" else gate.VIDEO_REVIEWERS.get(rset)
+                    if want:
+                        self.assertEqual(tuple(args["reviewers"]), want)
+                    self.assertTrue(args["reviewers"])
+                    for name in args["reviewers"]:          # each an agent with its ids and its report check
+                        self.assertIn(name, validate.ID_PREFIX)
+                        fm, _ = frontmatter(AGENTS / f"{name}.md")
+                        self.assertIn("reviewer_report_check.py", json.dumps(fm["hooks"].get("Stop")))
+        finally:
+            shutil.rmtree(run.parent)
+
+    def test_the_script_holds_no_reviewer_list(self):
+        src = WORKFLOW.read_text(encoding="utf-8")
+        for name in {n for names in merge_reviews.review_sets().values() for n in names}:
+            self.assertNotIn(f"'{name}'", src)
+        started = re.findall(r"agentType: '([\w-]+)'", src)
+        self.assertEqual(sorted(set(started)), ["finding-verifier", "review-runner"])
+        for name in started:
+            self.assertTrue((AGENTS / f"{name}.md").is_file(), name)
+
+
+class Pending(unittest.TestCase):
+    """merge_reviews.py --pending, the check after each reviewer: tools/validate.py on its newest report, the
+    independence fields, its symbol ledger, and its blocker and major findings still without a verdict, per report."""
+
+    def setUp(self):
+        self.run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
+        (self.run / "review" / "verify").mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.run.parent)
+
+    def write(self, name, data):
+        (self.run / "review" / name).write_text(json.dumps(data), encoding="utf-8")
+
+    def pending(self, name):
+        r = subprocess.run([sys.executable, str(MERGE), str(self.run), "--pending", name], capture_output=True,
+                           text=True)
+        out = json.loads(r.stdout)
+        self.assertEqual(r.returncode, 1 if out["errors"] else 0, r.stderr)
+        return out
+
+    def test_missing_invalid_valid(self):
+        self.assertIn("no report", self.pending("linear-reader")["errors"][0])
+        bad = report("linear-reader", ("LR-1", "major"))
+        bad["findings"][0]["severity"] = "serious"
+        self.write("linear-reader.json", bad)
+        self.assertTrue(any("severity" in e for e in self.pending("linear-reader")["errors"]))
+        self.write("linear-reader.json", report("linear-reader", ("LR-1", "major"), ("LR-2", "minor")))
+        out = self.pending("linear-reader")
+        self.assertEqual((out["errors"], [v["findings"] for v in out["verify"]]), ([], [["LR-1"]]))
+        self.assertEqual(Path(out["verify"][0]["report"]).name, "linear-reader.json")
+
+    def test_rounds_and_verdicts(self):
+        self.write("linear-reader.json", report("linear-reader", ("LR-1", "major")))
+        self.write("linear-reader.round2.json", report("linear-reader", ("LR-2", "blocker"), ("LR-3", "minor")))
+        out = self.pending("linear-reader")
+        self.assertEqual(Path(out["report"]).name, "linear-reader.round2.json")       # the newest round is checked
+        self.assertEqual([(Path(v["report"]).name, v["findings"]) for v in out["verify"]],
+                         [("linear-reader.json", ["LR-1"]), ("linear-reader.round2.json", ["LR-2"])])
+        self.write("verify/LR-1.json", verdict("LR-1", "confirmed"))
+        self.assertEqual([v["findings"] for v in self.pending("linear-reader")["verify"]], [["LR-2"]])
+
+    def test_a_report_says_who_made_it(self):
+        silent = report("linear-reader")
+        silent.pop("independent")
+        self.write("linear-reader.json", silent)
+        self.assertTrue(any("independent" in e for e in self.pending("linear-reader")["errors"]))
+        self.write("linear-reader.json", dict(report("linear-reader"), independent=False,
+                                              reviewed_by="main session (no subagents)"))
+        self.assertEqual(self.pending("linear-reader")["errors"], [])
+
+    def test_the_ledger_is_checked_with_its_writer(self):
+        self.write("presentation-reviewer.json", report("presentation-reviewer", ("PRES-2", "major")))
+        self.write("linear-reader.json", report("linear-reader"))
+        self.write("symbol_ledger.json", ledger(P_SWITCH))                  # names PRES-1, which no report holds
+        self.assertTrue(any("PRES-1 is not in" in e for e in self.pending("presentation-reviewer")["errors"]))
+        self.assertEqual(self.pending("linear-reader")["errors"], [])
+
+
+class Independence(unittest.TestCase):
+    """A report is independent only when it says "independent": true; the summary of every set says whether all did."""
+
+    def test_not_stated_is_not_independent(self):
+        run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
+        try:
+            (run / "video" / "final").mkdir(parents=True)
+            (run / "selection.json").write_text('{"slug": "test"}', encoding="utf-8")
+            for rset in ("explainer", "final_cut"):
+                rv = run / "review" if rset == "explainer" else run / "review" / rset
+                rv.mkdir(parents=True, exist_ok=True)
+                with self.subTest(set=rset):
+                    stated = report("linear-viewer" if rset == "final_cut" else "linear-reader")
+                    silent = report("final-cut-reviewer" if rset == "final_cut" else "claims-red-team")
+                    silent.pop("independent")
+                    for data in (stated, silent):
+                        (rv / f"{data['reviewer']}.json").write_text(json.dumps(data), encoding="utf-8")
+
+                    def merged():
+                        r = subprocess.run([sys.executable, str(MERGE), str(run), "--set", rset], capture_output=True,
+                                           text=True)
+                        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                        return json.loads((rv / "summary.json").read_text(encoding="utf-8"))
+                    s = merged()
+                    self.assertIs(s["independent"], False)
+                    self.assertEqual({x["reviewer"]: x["independent"] for x in s["reviewers"]},
+                                     {stated["reviewer"]: True, silent["reviewer"]: False})
+                    self.assertIn("NOT INDEPENDENT", (rv / "summary.md").read_text(encoding="utf-8"))
+                    (rv / f"{silent['reviewer']}.json").write_text(json.dumps(dict(silent, independent=True)),
+                                                                     encoding="utf-8")
+                    self.assertIs(merged()["independent"], True)
+                    self.assertNotIn("NOT INDEPENDENT", (rv / "summary.md").read_text(encoding="utf-8"))
+        finally:
+            shutil.rmtree(run.parent)
+
+
+class ReportCheckHook(unittest.TestCase):
+    """The reviewers' Stop hook: a reviewer finishes only when the files its prompt names (and the JSON it wrote in a
+    review folder) pass tools/validate.py and state who made the report; otherwise exit 2 with the errors."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.run = self.tmp / "runs" / "2026-11-01-test"
+        (self.run / "review" / "verify").mkdir(parents=True)
+        self.report = self.run / "review" / "linear-reader.json"
+        self.prompt = f"Run folder: {self.run}. Your report: {self.report} and its .md."
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def hook(self, agent, prompt, *, written=(), started=0.0, extra="", event="SubagentStop", stdin=None):
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime(started))
+        lines = [{"type": "user", "timestamp": stamp, "message": {"role": "user", "content": prompt}}]
+        lines += [{"type": "assistant", "message": {"role": "assistant", "content": [
+            {"type": "tool_use", "name": "Write", "input": {"file_path": str(p), "content": "..."}}]}} for p in written]
+        transcript = self.tmp / f"agent-{len(list(self.tmp.glob('agent-*')))}.jsonl"
+        transcript.write_text("\n".join(json.dumps(x) for x in lines) + "\n" + extra, encoding="utf-8")
+        ev = {"hook_event_name": event, "agent_type": agent, "agent_transcript_path": str(transcript),
+              "stop_hook_active": False, "cwd": str(self.tmp)}
+        r = subprocess.run([sys.executable, str(REPORT_CHECK)], input=stdin if stdin is not None else json.dumps(ev),
+                           capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=str(self.tmp)))
+        if r.returncode == 2 and r.stdout.strip():
+            self.assertEqual(json.loads(r.stdout)["decision"], "block")     # blocks whatever stderr says
+        return r
+
+    def test_the_report_must_exist_validate_and_say_who_made_it(self):
+        r = self.hook("linear-reader", self.prompt)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("linear-reader.json has not been written", r.stderr)
+        bad = report("linear-reader", ("LR-1", "major"))
+        bad["findings"][0]["severity"] = "serious"
+        self.report.write_text(json.dumps(bad), encoding="utf-8")
+        r = self.hook("linear-reader", self.prompt)
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("$.findings[0].severity", r.stderr)
+        silent = report("linear-reader", ("LR-1", "major"))
+        silent.pop("reviewed_by")
+        self.report.write_text(json.dumps(silent), encoding="utf-8")
+        self.assertIn('"reviewed_by": "linear-reader subagent"', self.hook("linear-reader", self.prompt).stderr)
+        self.assertEqual(self.hook("linear-reader", self.prompt, event="Stop").returncode, 0)   # not a subagent
+        self.report.write_text(json.dumps(report("linear-reader", ("LR-1", "major"))), encoding="utf-8")
+        self.assertEqual(self.hook("linear-reader", self.prompt).returncode, 0)
+
+    def test_a_later_round_goes_beside_the_report(self):
+        self.report.write_text(json.dumps(report("linear-reader", ("LR-1", "major"))), encoding="utf-8")
+        r = self.hook("linear-reader", self.prompt, started=time.time() + 60)    # written before this agent began
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("linear-reader.round2.json", r.stderr)
+        later = self.run / "review" / "linear-reader.round2.json"
+        later.write_text(json.dumps(report("linear-reader", ("LR-2", "huge"))), encoding="utf-8")
+        r = self.hook("linear-reader", self.prompt)                     # the newest round is the one checked
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("linear-reader.round2.json", r.stderr)
+        later.write_text(json.dumps(report("linear-reader", ("LR-2", "minor"))), encoding="utf-8")
+        self.assertEqual(self.hook("linear-reader", self.prompt).returncode, 0)
+
+    def test_verdicts_and_strays(self):
+        target = self.run / "review" / "verify" / "LR-1.json"
+        prompt = f"Report: {self.report}. Write one verdict file per finding:\n- LR-1: {target}"
+        self.assertEqual(self.hook("finding-verifier", prompt).returncode, 2)
+        target.write_text(json.dumps(dict(verdict("LR-1", "confirmed"), verdict="maybe")), encoding="utf-8")
+        self.assertIn("$.verdict", self.hook("finding-verifier", prompt).stderr)
+        target.write_text(json.dumps(verdict("LR-1", "confirmed")), encoding="utf-8")
+        self.assertEqual(self.hook("finding-verifier", prompt).returncode, 0)
+        stray = self.run / "review" / "lr_notes.json"                   # a tool output at the top of review/
+        stray.write_text('{"notes": []}', encoding="utf-8")
+        self.report.write_text(json.dumps(report("linear-reader")), encoding="utf-8")
+        r = self.hook("linear-reader", self.prompt, written=[self.report, stray])
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("review/checks/", r.stderr)
+
+    def test_blocks_at_most_a_few_times_and_fails_closed(self):
+        marks = "".join(f"Report check (tools/hooks/reviewer_report_check.py), attempt {n} of 3\n" for n in (1, 2, 3))
+        self.assertEqual(self.hook("linear-reader", self.prompt, extra=marks).returncode, 0)   # the workflow takes over
+        self.assertEqual(self.hook("linear-reader", "no files named here").returncode, 0)
+        self.assertEqual(self.hook("linear-reader", self.prompt, stdin="not json").returncode, 2)
+
+
+class AgentFrontmatter(unittest.TestCase):
+    """Cost and context: short descriptions, an effort level for the checking and mechanical agents, and every agent
+    that names the explainer reads it as text."""
+
+    def agents(self):
+        for p in sorted(AGENTS.glob("*.md")):
+            yield (p.stem, *frontmatter(p))
+
+    def test_descriptions_are_short(self):
+        skills = [p for p in (REPO / ".claude" / "skills").glob("*/SKILL.md")
+                  if "review-fanout" in p.read_text(encoding="utf-8")]
+        self.assertEqual(len(skills), 4)
+        for name, fm in [(n, fm) for n, fm, _ in self.agents()] + [(p.parent.name, frontmatter(p)[0]) for p in skills]:
+            with self.subTest(name=name):
+                self.assertLessEqual(len(fm["description"]), 320)
+
+    def test_effort_and_tools_of_the_checking_agents(self):
+        fm = dict((n, f) for n, f, _ in self.agents())
+        self.assertIn(fm["finding-verifier"].get("effort"), ("low", "medium"))
+        runner = fm["review-runner"]
+        self.assertEqual((runner.get("effort"), runner.get("tools"), runner.get("omitClaudeMd")), ("low", "Bash", True))
+        self.assertNotIn("hooks", runner)
+
+    def test_reviewers_read_the_explainer_as_text(self):
+        for name, _, body in self.agents():
+            if "explainer.html" in body:
+                with self.subTest(agent=name):
+                    self.assertIn("tools/explainer_text.py", body)
+
+
+class PipelineRule(unittest.TestCase):
+    """The maintainer rules load with the files they are about; AGENTS.md, always loaded, only points to them."""
+
+    def test_paths_and_pointer(self):
+        fm, _ = frontmatter(REPO / ".claude" / "rules" / "pipeline-dev.md")
+        self.assertEqual(sorted(p.split("/")[0] for p in fm["paths"]),
+                         [".agents", ".claude", ".github", "schemas", "tests", "tools"])
+        agents_md = (REPO / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertIn(".claude/rules/pipeline-dev.md", agents_md)
+        self.assertNotIn("## Changing the pipeline", agents_md)
 
 
 class SymbolLedger(unittest.TestCase):

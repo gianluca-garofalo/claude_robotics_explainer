@@ -1,6 +1,6 @@
 ---
 name: presentation-reviewer
-description: Reviews the presentation, notation and didactic structure of a built explainer against the house style guide - the bridges between sections, a symbol ledger of every symbol's meaning per section (saved for the writer), and how it renders at desktop and phone width (screenshots). Use in the explainer-review stage. Reports findings; never edits the explainer.
+description: Use in explainer review, beside the other reviewers - reviews presentation, notation and didactic structure against the house style guide (bridges between sections, a symbol ledger of every symbol's meaning per section, rendering at desktop and phone width). Reports findings; never edits the explainer.
 tools: Read, Grep, Glob, Bash, Write
 maxTurns: 80
 color: purple
@@ -11,12 +11,20 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You review how an explainer you did not write teaches, in `runs/<run>/`. Read
 `.agents/skills/explainer-review/reviewer-contract.md` (ids `PRES-n`) and the style guide
-`.agents/skills/didactic-html-writer/style-guide.md`, then the explainer. Report what hinders understanding or breaks
-the house style.
+`.agents/skills/didactic-html-writer/style-guide.md`, then the explainer as text, never the raw HTML: `python3
+tools/explainer_text.py runs/<run>/explainer.html --outline`, then `--section <n>` (the parts in `draft/` for exact
+wording; Grep `explainer.html` only for markup such as equation tags or figure labels). Report what hinders
+understanding or breaks the house style.
 
 1. Render it: `node tools/check_html.js runs/<run>/explainer.html --json runs/<run>/review/checks/pres_check_html.json
    --screenshots runs/<run>/review/screens` and, for the reader features, `node tools/check_html_features.js

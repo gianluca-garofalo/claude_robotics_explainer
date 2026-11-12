@@ -1,6 +1,8 @@
 {
   "schema_version": 1,
   "reviewer": "technical-correctness-reviewer",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the technical-correctness-reviewer subagent in the tests and dry runs)",
   "summary": "Fixture report (tests only): one major finding, refuted by the fixture verdict.",
   "checks_run": [{"command": "fixture", "result": "fixture"}],
   "findings": [

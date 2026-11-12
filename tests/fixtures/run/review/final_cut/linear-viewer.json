@@ -1,6 +1,8 @@
 {
  "schema_version": 1,
  "reviewer": "linear-viewer",
+ "independent": true,
+ "reviewed_by": "fixture (stands in for the linear-viewer subagent in the tests and dry runs)",
  "summary": "Fixture report for the dry runs: watched in order from the frames and the captions alone; the video states its idea, shows how the motion dies out and ends on the takeaway card, which I could state in its words. One minor gap, no blocker or major.",
  "checks_run": [
   {"command": "Read review/final_cut/sheet-01.jpg and the captions in review/final_cut/frames.json", "result": "watched in order (fixture)"}

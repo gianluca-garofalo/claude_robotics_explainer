@@ -9,10 +9,11 @@ Remaining Action, one run folder per video. People read README.md.
   workflow (SETUP-AUTOMATION.md) runs the same skills.
 - Skills: `.agents/skills/<name>/SKILL.md`; `/<name> args` means: follow that file with those arguments. A skill with
   `disable-model-invocation: true` runs only when the user asks for it.
-- Reviewers: `.claude/agents/<name>.md`. Without named subagents, give that file's body as the prompt to a fresh
-  context or a general-purpose subagent; with neither, follow the skill's "Without subagents" section.
+- Reviewers: `.claude/agents/<name>.md`, which the review skills run through the `review-fanout` workflow. Without
+  named subagents, give that file's body as the prompt to a fresh context or a general-purpose subagent; with neither,
+  follow the skill's fallback without subagents.
 - Read `.claude/rules/manim-scenes.md` before editing scenes, `.claude/rules/run-artifacts.md` before touching run or
-  source folders.
+  source folders, `.claude/rules/pipeline-dev.md` before changing tools, tests, agents, skills, schemas or CI.
 
 ## Commands
 
@@ -26,7 +27,8 @@ Remaining Action, one run folder per video. People read README.md.
   tools/check_html.js FILE` (1400 and 390 px); `python3 tools/explainer_text.py FILE --outline|--section N|--until N`;
   `python3 tools/html_features.py reinject FILE` (refreshes injected CSS and scripts; `--write` applies); `python3
   tools/run_code_checks.py runs/<run>`.
-- Reviews: `python3 tools/merge_reviews.py runs/<run>` (`--set video`: the video review).
+- Reviews: `python3 tools/merge_reviews.py runs/<run>` (`--set video|final_cut|series_plan`; `--workflow-args`: the
+  args of the `review-fanout` workflow; `--pending <reviewer>`: checks one report).
 - Video drafts: `bash tools/render_video.sh runs/<run> --check`, then `check_design.py`, `check_reading.py`,
   `check_selfcontained.py`, `check_numbers.py`, `check_series.py`, `check_engagement.py` and `check_sync.py`
   (warnings first) and `check_script.py` (report only) from `tools/video/`, each with `runs/<run> --stage draft`.
@@ -102,28 +104,3 @@ Remaining Action, one run folder per video. People read README.md.
 - Manim: live numbers with `readout()`, never a `MathTex` inside `always_redraw`. Voice-over text is a string literal:
   CI synthesizes it from the parsed scene files. Scenes derive from `RAScene`, which holds text until it can be read;
   design errors (overlaps, safe areas, contrast, colour-blind pairs) fail the gate.
-
-## Changing the pipeline
-
-- Run "Tests" and `python3 tools/check_source.py --all`; CI adds actionlint and shellcheck. After an HTML template or
-  CSS change, also `node tools/check_html.js` on a source and on the build `python3 tests/dry_run.py --keep` leaves.
-- Tests are hermetic: `tests/fixtures/`, never `sources/`, `series/`, `config/` or wording. Each test module calls
-  `testenv.activate()` before importing a tool; other preferences go through `testenv.variant()` and `testenv.env()`.
-  Only `tests/test_sources_smoke.py` reads `sources/`; `tests/test_hermetic.py` enforces this. Test behaviour, not
-  wording or copied constants; a skill or agent file only for its frontmatter, hooks and the names it cites. Change a
-  fixture with its tests.
-- Documents: shell blocks paste into zsh and bash (no comments, `<placeholders>` or unquoted `[ ] * ?`). No secrets,
-  e-mail addresses, absolute paths or model identifiers anywhere; large binaries go to Git LFS or release assets.
-- Rules for changing the owner's files (automation, hooks, `config/`): CONTRIBUTING.md.
-- A skill: one job; `description` says when to use it; `SKILL.md` under 500 lines (inputs, outputs, the checks that
-  define done, Gotchas with fixes), detail in linked files beside it, only what an agent cannot know; deterministic
-  steps in a `tools/` script (`--help`, exit status, standard library where possible). Side effects or a human
-  decision: `disable-model-invocation: true`. No `model` field in skills, agents or workflows.
-- A reviewer: fresh context, read-mostly tools, the write guard hook, the format of
-  `.agents/skills/explainer-review/reviewer-contract.md`, never the writer's reasoning. A new review dimension: the
-  agent, a line in the explainer-review skill and `.claude/workflows/review-fanout.js`, its id prefix in
-  `tools/validate.py` (`ID_PREFIX`), its name in `tools/gate.py` (`REVIEWERS`), a report in
-  `tests/fixtures/run/review/`. A video reviewer: the same, but a line in the design-review step of
-  `manim-video-producer` or in `final-cut-review`, its name in `VIDEO_REVIEWERS` and a report in
-  `tests/fixtures/run/review/video/` or `final_cut/`. A new design check: a fixture from a real render in
-  `tests/fixtures/design/`.

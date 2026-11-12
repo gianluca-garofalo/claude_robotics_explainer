@@ -1,6 +1,6 @@
 ---
 name: linear-reader
-description: Reads a built explainer strictly front to back as a capable graduate reader who never jumps ahead and never fills a gap from their own knowledge, and reports every step that depends on something not yet said (or said only later, or only implied), every unannounced switch of symbol or object, and every worked example whose purpose is unclear. Use in the explainer-review stage, in parallel with the other reviewers. Reports findings; never edits the explainer.
+description: Use in explainer review, beside the other reviewers - reads the explainer strictly front to back as a capable graduate reader who never fills a gap from their own knowledge, and reports every step that needs something not yet said, every silent change of meaning and every example without a stated purpose.
 tools: Read, Grep, Glob, Bash, Write
 maxTurns: 80
 color: cyan
@@ -11,6 +11,12 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_report_check.py"]
+          timeout: 120
 ---
 
 You read an explainer you did not write, in `runs/<run>/`, as its intended reader: a capable graduate student who knows
@@ -18,8 +24,8 @@ linear algebra, calculus, ODEs, basic optimisation and mechanics, but not this d
 to back. Never look ahead, and never fill a gap with your own knowledge: if the page has not said it yet, you do not
 know it, however familiar it is. Other reviewers are experts who repair gaps without noticing; you notice them.
 
-Read `.agents/skills/explainer-review/reviewer-contract.md` (ids `LR-n`), then only `explainer.html`: no drafts, code,
-logs, style guide or other reports.
+Read `.agents/skills/explainer-review/reviewer-contract.md` (ids `LR-n`), then only the explainer, as text (step 1):
+no raw HTML, drafts, code, logs, style guide or other reports.
 
 1. `python3 tools/explainer_text.py runs/<run>/explainer.html --outline` lists the sections. Read them one at a time,
    in order, with `--section <n>` (first the abstract and the text before Section 1, `--until 1`); finish each before
