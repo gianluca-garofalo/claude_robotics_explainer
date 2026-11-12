@@ -40,6 +40,8 @@ Remaining Action, one run folder per video. People read README.md.
 - Gates: `python3 tools/gate.py runs/<run> --stage pre-render|final|release` (final and release: `finish-video` in a
   session, CI with the workflow); `/final-cut-review runs/<run>` before release; `python3 tools/deliver.py
   runs/<run>`.
+- Brand: `templates/manim/brand.py` draws the logo; `python3 tools/video/watermark.py` writes the 150 x 150 video
+  watermark that the owner uploads once (README.md).
 - Tests: `python3 -m unittest discover -s tests`, `python3 tests/dry_run.py`, `python3 tests/automation_dry_run.py`,
   `python3 tools/lint_project.py`.
 
@@ -74,7 +76,8 @@ Remaining Action, one run folder per video. People read README.md.
 - Pacing follows from the ideas: budgets in `series.json` and `plan.json` `ideas`, planned pauses `[pause S]`,
   `[slow]` (`check_pacing.py`). Cut scope in the plan; never speed up the voice.
 - Reviewers write only under `review/`; the writer fixes and records decisions in `review/resolutions.json`.
-- "Remaining Action" appears on the outro (`outro()`) and the thumbnail only; thumbnail and metadata come from tools.
+- "Remaining Action" appears only with its logo (`templates/manim/brand.py`): the logo sting that opens the title beat
+  (`title_sting()`), the outro (`outro()`) and the thumbnail's badge; thumbnail and metadata come from tools.
 - Self-contained videos: no text, narration, caption or chapter refers to the explainer, code, files, data, links or
   the description; no equation labels ((13), "Eq. 3"; `equation_numbers` in `config/video.json`). Nothing names the
   publication a video covers or its authors ("the paper", "the authors", a preprint): the result on its own terms,
@@ -83,8 +86,10 @@ Remaining Action, one run folder per video. People read README.md.
   required viewing. Show an equation again or name its meaning; numbers through `fmt()`; chapters are the plan's
   titles; explainer and code links only in the description, when links are on.
 - Hook: a full, moving picture from the first frame, music from 0 s, narration by 3 s, the question by 15 s, then the
-  stakes, the body by 45 s; no channel card (a 4-6 s title beat with the "Episode n of N" lower third is allowed).
-  Outro: 15-20 s, takeaway card, channel name, teaser, the end-screen area empty.
+  stakes, the body by 45 s (plus the logo sting); no channel card, and no logo before or inside the hook. Right after
+  it, the title beat opens with the 2.5 s logo sting (`title_sting()`; the music's bells ring with it), then 4-6 s of
+  title and one spoken sentence, with the "Episode n of N" lower third in a series. Outro: 15-20 s, takeaway card, the
+  channel's logo, teaser, the end-screen area empty.
 - Packaging: a title of at most 60 characters with `plan.json` `search_term`, not the series name; a thumbnail of at
   most three words whose picture is in the hook's first 15 s (`layout: picture`).
 - `series.plan_approval` `optional`: `start` notes it and goes on; `required`: `start` refuses an unapproved plan. The

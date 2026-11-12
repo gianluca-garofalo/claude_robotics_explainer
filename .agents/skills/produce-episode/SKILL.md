@@ -1,6 +1,6 @@
 ---
 name: produce-episode
-description: Series mode - makes one narrated episode of a video series (schema 2, in series/) from its source explainer - no scouting, ranking or writing - with the series beats (a hook with a full moving picture from frame 0 and the question by 15 s, a short title beat with the spoken series context, recaps of what it uses, outro with takeaway card and teaser), the design, number, reading-time, self-contained and pacing checks and the video design review, then the pre-render gates; outside GitHub Actions it finishes the video in the session (finish-video) up to the hand-over package for the owner's own upload. Only when the user types /produce-episode (or /produce-from-source follows it).
+description: Series mode - makes one narrated episode of a video series (schema 2, in series/) from its source explainer - no scouting, ranking or writing - with the series beats (a hook with a full moving picture from frame 0 and the question by 15 s, a short title beat opened by the logo sting with the spoken series context, recaps of what it uses, outro with takeaway card and teaser), the design, number, reading-time, self-contained and pacing checks and the video design review, then the pre-render gates; outside GitHub Actions it finishes the video in the session (finish-video) up to the hand-over package for the owner's own upload. Only when the user types /produce-episode (or /produce-from-source follows it).
 argument-hint: "series/<series> <episode number | next> [fresh] | resume runs/<run>"
 disable-model-invocation: true
 ---
@@ -27,9 +27,10 @@ plan's approval state; `python3 tools/series.py from-source sources/<name>` the 
 3. **Scenes.** Invoke the `manim-video-producer` skill on the run: the episode tells its own story with the material
    the plan selected (kept scenes are a starting point). The series beats, with the helpers in `common.py`:
    - the hook (AGENTS.md, Conventions);
-   - right after it, the title beat (`title_beat()`: the title and the "Episode n of N" lower third with what it
-     builds on, the hook's objects still on screen) and one or two spoken sentences: where this episode sits, what it
-     builds on, a welcome for viewers joining here;
+   - right after it, the title beat: the logo sting first (`title_sting()`, 2.5 s without narration over the hook's
+     dimmed objects), then `title_beat()` (the title and the "Episode n of N" lower third with what it builds on, the
+     hook's objects back on screen) and one or two spoken sentences: where this episode sits, what it builds on, a
+     welcome for viewers joining here;
    - one recap scene per must prerequisite: `recap_tag()` for the whole scene, `recap_card(i)` (the earlier episode's
      card, from the same data as its outro), the restatement by meaning, at most a soft pointer by title;
    - the outro: `outro(takeaway_card(), next_title=...)` and the spoken "In the next episode, ..." (none in the

@@ -224,9 +224,13 @@ def plan_events(segments: list[dict], chapters: list[dict], duration: float, gap
         if i + 1 < len(segments):                     # the beat right after the hook: the title / series context
             seg = segments[i + 1]
             t0 = float(seg["start"])
-            t = sting_slot(t0, t0 + float(seg["duration"]), gaps, cfg)
-            if t is not None:
-                stings.append({"t": t, "kind": "hook_title"})
+            if seg.get("logo_at") is not None:        # the logo sting (assemble.py): its steps land on the bells
+                stings.append({"t": round(t0 + float(seg["logo_at"]), 3), "kind": "hook_title", "on": "logo",
+                               "hold": float(seg.get("logo_s") or 0.0)})
+            else:
+                t = sting_slot(t0, t0 + float(seg["duration"]), gaps, cfg)
+                if t is not None:
+                    stings.append({"t": t, "kind": "hook_title"})
     outro_seg = next((s for s in segments if s.get("role") == "outro"), None)
     outro = None if outro_seg is None else float(outro_seg["start"])
     if "outro" in cfg.get("stings", []) and outro is not None:
@@ -400,6 +404,24 @@ def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, rele
         cur = a * cur + (1 - a) * tv
         g[i] = cur
     return 10 ** (np.repeat(g, hop)[:len(voice)] / 20)
+
+
+def sting_hold(n: int, stings: list[dict], ease_s: float = 0.15) -> np.ndarray:
+    """A floor (0 to 1) for the stings' duck gain: 1 for the "hold" seconds of a sting played with the logo, when
+    nothing is said, so its first bells do not wait for the hook's last words to release the duck; eased out over
+    ease_s, as the narration's look-ahead duck begins."""
+    g = np.zeros(n)
+    for s in stings:
+        hold = float(s.get("hold") or 0.0)
+        if hold <= 0:
+            continue
+        a, b = int(float(s["t"]) * SR), int((float(s["t"]) + hold) * SR)
+        e = max(1, min(int(ease_s * SR), b - a))
+        g[a:max(a, b - e)] = 1.0
+        lo, hi = max(a, b - e), min(n, b)
+        if hi > lo:
+            g[lo:hi] = np.maximum(g[lo:hi], np.linspace(1.0, 0.0, hi - lo, endpoint=False))
+    return g
 
 
 def build(final: Path, slug: str, segments: list[dict], chapters: list[dict], duration: float,

@@ -238,11 +238,12 @@ class LogoSting(Animation):
         self.mobject.remove(self.band, self.dot)
 
 
-def logo_sting(scene, at=ORIGIN, size=1.8, stacked=True, variant=VARIANT):
-    """Play the logo sting (STING_S seconds) at `at` and return the lockup, left on screen in its final state. It opens
-    the title beat, right after the hook; its steps land on music.py's hook_title bells when they start with it."""
+def logo_sting(scene, *also, at=ORIGIN, size=1.8, stacked=True, variant=VARIANT):
+    """Play the logo sting (STING_S seconds) at `at`, with the animations `also`, and return the lockup, left on screen
+    in its final state. common.py title_sting() opens the title beat with it; assemble.py starts music.py's hook_title
+    bells where it plays."""
     lockup = logo(size, stacked=stacked, variant=variant).move_to(at)
     sting = LogoSting(lockup)
     scene.add(lockup)
-    scene.play(sting)
+    scene.play(sting, *also)
     return lockup

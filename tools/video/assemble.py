@@ -14,6 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import CONFIG, load_json, rel, resolve_run, write_json  # noqa: E402
+import checks  # noqa: E402
 import music as MU  # noqa: E402
 import plan as P  # noqa: E402
 from media import loudness, probe, read_srt, run, write_srt  # noqa: E402
@@ -86,6 +87,7 @@ def master_audio(joined: Path, out: Path, build: Path, final: Path, slug: str, s
         st_gain = MU.duck_gain(voice.mean(axis=0), MU.SR, float(mcfg.get("sting_duck_db", 14.0)),
                                mcfg["attack_ms"], mcfg["release_ms"], mcfg["lookahead_ms"]) \
             if not silent_voice else np.ones(n)
+        st_gain = np.maximum(st_gain, MU.sting_hold(n, stamp["events"]["stings"]))   # the bells under the logo
         music_mix = bed * gain * 10 ** (g_bed / 20) + st * st_gain * 10 ** (g_st / 20)
         mix = mix + music_mix
         under = None
@@ -238,6 +240,9 @@ def main() -> int:
             changes = music_changes(scene, src.with_suffix(".layout.json"), t)
             if changes:
                 seg["music_changes"] = changes
+            sting = checks.logo_sting(checks.scene_log(renders, scene["class"])[0])
+            if sting is not None:                    # music.py rings the hook_title bells on the logo sting
+                seg["logo_at"], seg["logo_s"] = round(sting[0], 3), round(sting[1] - sting[0], 3)
             for a0, b0, text in read_srt(src.with_suffix(".srt")):
                 cues.append((t + a0, min(t + b0, t + dur), text))
         segments.append(seg)

@@ -49,6 +49,8 @@ In **Auto** mode (when your organization offers it) most commands run without as
 
 - In YouTube Studio, set the channel audience to "not made for kids".
 - Verify the channel by phone (youtube.com/verify) so custom thumbnails work.
+- The video watermark: `python3 tools/video/watermark.py` writes `watermark.png`, the channel's logo at 150 x 150 (or
+  ask a session for it); upload it in YouTube Studio under Customization, Branding, Video watermark.
 - Every upload follows the checklist in its `upload_sheet.md`, including altered or synthetic content "Yes" for the
   AI narration.
 

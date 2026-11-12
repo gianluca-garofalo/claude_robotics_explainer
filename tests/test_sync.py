@@ -190,6 +190,22 @@ class Early(unittest.TestCase):
         fd, stats = CS.check(run, "draft", dict(CFG, lead_max_s=5.0))
         self.assertEqual(by_rule(fd, "early"), [])
 
+    def test_the_channels_name_is_the_logo_not_a_label(self):
+        run = fixture_run(self.d)
+        lp = run / "video" / "checks" / "Robots.layout.json"
+        log = json.loads(lp.read_text())
+        sc = log["scenes"]["Robots"]
+        name = json.loads(Path(os.environ["CHANNEL_CONFIG"]).read_text())["channel_name"]
+        sc["timeline"].append({"id": 900, "kind": "text", "content": name, "font_size": 36.0, "lines": 1,
+                               "live": False, "axis": False, "events": [[1.0, 1, -2.4, -1.2, 2.4, -0.7, 1.0]]})
+        words = name.split()
+        sc["voiceovers"].append({"start": 16.0, "duration": 1.0, "words": len(words), "text": " ".join(words) + ".",
+                                 "timings": [[w, 0.3 * i, None, i] for i, w in enumerate(words)]})
+        lp.write_text(json.dumps(log))
+        fd, stats = CS.check(run, "draft", CFG)
+        self.assertFalse([x for x in by_rule(fd, "early") if name in x["detail"]])   # said 15 s later: still not early
+        self.assertEqual(stats["early"], 1)
+
     def test_final_reads_the_narrations_word_timings(self):
         run = fixture_run(self.d, "final")
         fd, _ = CS.check(run, "final", CFG)

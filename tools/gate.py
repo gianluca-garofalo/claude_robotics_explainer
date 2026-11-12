@@ -147,7 +147,7 @@ def video_checks(run: Path, g: Gates, stage: str) -> None:
 
     def by_scene_files(r):
         now = {f.name: sha256_file(f) for f in sorted((run / "video" / "scenes").glob("*.py"))
-               if f.name not in ("common.py", "voice.py", "reading_model.py")}
+               if f.name not in ("common.py", "voice.py", "reading_model.py", "brand.py")}
         had = r.get("scene_sha256") or {}
         return sorted(n for n in set(now) | set(had) if had.get(n) != now.get(n))
 

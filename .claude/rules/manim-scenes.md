@@ -28,7 +28,8 @@ measured by the check named in each heading.
 - Only the palette and helpers of `common.py`; every colour meaning also said in text and listed in `video/README.md`;
   one colour per quantity (`ceq()`, `quantities`).
 - No images, footage, logos, sound files or URLs from any source: the gates reject third-party media, and
-  `assemble.py` adds the generated music.
+  `assemble.py` adds the generated music. The channel's own logo is code (`brand.py`), shown only by `title_sting()`
+  and `outro()`.
 - Self-contained (AGENTS.md; check_selfcontained.py): LaTeX without equation numbers or tags; to use an equation
   again, show it again or `pin()` it in a corner (check_reading.py `recall`).
 
@@ -36,9 +37,13 @@ measured by the check named in each heading.
 
 - The hook's first picture is built with `self.add()` before the first `play()`; the thumbnail's picture (often the
   draining `meter()`) is on screen by `series.thumbnail_by_s`.
-- `title_beat()` (role `context`) carries the hook's objects into the body, never through an empty frame.
-- `outro(takeaway_card(), ...)` keeps x > `END_SCREEN_X` empty and holds picture and music after the last word
-  (`engagement.outro_tail_min_s`); a question it asks aloud is also on the card, in the same words.
+- The title beat (role `context`) comes right after the hook and carries its objects into the body, never through an
+  empty frame: `self.carry_in(...)` of the hook's last picture, then `clear = title_sting(self)` (the logo sting, 2.5 s
+  without narration over the dimmed picture; never in the hook), then the title on its sentence:
+  `self.play(*clear, FadeIn(head), FadeIn(lower))` with `head, lower = title_beat()`.
+- `outro(takeaway_card(), ...)` (the channel's logo bottom left) keeps x > `END_SCREEN_X` empty and holds picture and
+  music after the last word (`engagement.outro_tail_min_s`); a question it asks aloud is also on the card, in the same
+  words.
 - Series: recap scenes with `recap_tag()` for the whole scene and `recap_card(i)`.
 
 ## Numbers (check_numbers.py, `numbers`)

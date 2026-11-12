@@ -464,7 +464,8 @@ class TitleBeat(unittest.TestCase):
         text = " ".join(x["detail"] for x in w.items if x["check"] == "title beat")
         self.assertIn("lasts 8.4 s", text)
         self.assertIn("speech", text)
-        logs["Ctx"] = {"snapshots": [], "voiceovers": [{"start": 0.0, "duration": 4.0, "text": "x"}], "duration": 5.5}
+        logs["Ctx"] = {"snapshots": [], "voiceovers": [{"start": 2.5, "duration": 4.0, "text": "x"}], "duration": 8.0,
+                       "plays": [{"start": 0.0, "end": 2.5, "anims": ["LogoSting"]}]}     # 5.5 s after the logo sting
         w = CS.Warnings()
         CS.hook_checks(scenes, logs, {"Hook": 0.0, "Ctx": 30.0}, {}, dict(CS.DEFAULTS), w)
         self.assertFalse([x for x in w.items if x["check"] == "title beat"])

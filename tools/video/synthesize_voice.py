@@ -35,7 +35,7 @@ def main() -> int:
     service = service.strip().lower()
     blocks, problems = {}, []
     for f in sorted((run / "video" / "scenes").glob("*.py")):
-        if f.name in ("common.py", "voice.py", "reading_model.py"):
+        if f.name in ("common.py", "voice.py", "reading_model.py", "brand.py"):
             continue
         for key, text in VS.blocks(f):
             if key is None:

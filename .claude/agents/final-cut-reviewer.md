@@ -44,8 +44,10 @@ Go through every contact sheet in order, then open single frames wherever someth
    remains, an earlier label over the new scene.
 7. Self-contained: any reference outside the video, an equation label, another episode named other than by title or
    meaning.
-8. Opening and ending (`check_series.md`): the hook with the thumbnail's picture, the title beat, the music modes and
-   loudness (`assembly.json` "audio"), in a series "Episode n of N" with the titles it builds on and a marked recap,
+8. Opening and ending (`check_series.md`): the hook with the thumbnail's picture, the title beat (it opens with the
+   2.5 s logo sting on the music's bells, the house brand, not a channel card; a logo in the hook is a finding), the
+   music modes and loudness (`assembly.json` "audio"), in a series "Episode n of N" with the titles it builds on and a
+   marked recap,
    with its chapter, for every result used from an earlier episode; the outro.
 9. Packaging: the thumbnail at full size (`video/final/thumbnail.jpg`) and at 168 x 94
    (`review/design/final/thumbnail_168x94.png`); chapter titles and times that match the screen.

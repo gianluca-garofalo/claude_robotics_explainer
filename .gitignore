@@ -15,6 +15,7 @@ media/
 /site/
 .cache/
 /voice-reference/
+/watermark.png
 .venv-auth/
 client_secret*.json
 

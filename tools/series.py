@@ -34,7 +34,7 @@ NEXT_DONE = DONE | {"delivered"}         # made: skipped by `next`, enough for a
 MADE = ("delivered", "staged", "published")   # an episode's status is its most advanced one
 STOP_WORDS = {"a", "an", "and", "as", "at", "by", "for", "in", "is", "of", "on", "or", "the", "to", "with"}
 VOLATILE = {"explainer_sha256", "created_at", "_proposal_notes", "provenance", "plan_approval"}   # not part of the plan
-HELPERS = ("common.py", "voice.py", "reading_model.py")
+HELPERS = ("common.py", "voice.py", "reading_model.py", "brand.py")
 
 
 def slugify(text: str, n: int = 40) -> str:
@@ -546,8 +546,9 @@ def cmd_plan(a) -> int:
 
 HOUSE_RULES = [
     "## House rules for the video (they take precedence)", "",
-    "- Hook first: narration starts at 0 s with the question or object the title promises. No channel card: the "
-    "channel name appears only on the outro and the thumbnail.",
+    "- Hook first: narration starts at 0 s with the question or object the title promises. No channel card and no "
+    "logo in the hook: the title beat right after it opens with the channel's 2.5 s logo sting (`title_sting()`), "
+    "and the channel's name appears only with its logo (that sting, the outro, the thumbnail).",
     "- Series context at the first natural break, about 30-90 s in: one or two spoken sentences (where this episode "
     "sits, what it builds on, a welcome for viewers joining here), over the 4-6 s builds-on frame "
     "(`builds_on()`: \"Episode n of N\" and the titles of the episodes it builds on). No map.",
@@ -556,7 +557,7 @@ HOUSE_RULES = [
     "with a soft pointer by title (\"the episode on ... has the full story\"), never \"you must have watched\".",
     "- Other episodes may be named in the body by title or meaning only when the result is shown in this video; "
     "never by equation number (\"equation 4 of episode 2\").",
-    "- Outro, 15-20 s (plan.json role \"outro\"): this episode's takeaway card and the channel name (`outro()`), the "
+    "- Outro, 15-20 s (plan.json role \"outro\"): this episode's takeaway card and the channel's logo (`outro()`), the "
     "right 40 % of the frame left empty for YouTube's end-screen elements, and a spoken \"In the next episode, "
     "<topic>\" (no teaser in the finale).",
     "- Self-contained: no mention of the explainer, its code, files, data, links or the description; no section, "

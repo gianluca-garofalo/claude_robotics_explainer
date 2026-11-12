@@ -11,9 +11,10 @@ Precondition: the explainer passed review (`python3 tools/run.py status runs/<ru
 own terms and never names the publication it covers or its authors (spoken-script.md). Read first: AGENTS.md
 (Conventions), `.claude/rules/manim-scenes.md` and [spoken-script.md](spoken-script.md).
 
-Output in `runs/<run>/video/`: `storyboard.md`, `scenes/*.py` with `common.py`, `voice.py` and `reading_model.py`,
-`data/*.npz`, `plan.json`, drafts and layout logs in `checks/`, `README.md`; reviews in `review/video/`. The final
-render, assembly, final-cut review and hand-over come after the gates (`finish-video`, or the GitHub workflow).
+Output in `runs/<run>/video/`: `storyboard.md`, `scenes/*.py` with `common.py`, `voice.py`, `reading_model.py` and
+`brand.py`, `data/*.npz`, `plan.json`, drafts and layout logs in `checks/`, `README.md`; reviews in `review/video/`.
+The final render, assembly, final-cut review and hand-over come after the gates (`finish-video`, or the GitHub
+workflow).
 
 ## Procedure
 
@@ -28,7 +29,7 @@ render, assembly, final-cut review and hand-over come after the gates (`finish-v
      explainer.
 2. **Data.** A script in `code/` (listed in `checks.toml`) writes `video/data/<name>.npz`, or the scenes compute closed
    forms of the explainer's equations. Nothing on screen is typed by hand.
-3. **Scenes.** Copy `templates/manim/common.py`, `voice.py`, `reading_model.py` and `scene_template.py` into
+3. **Scenes.** Copy `templates/manim/common.py`, `voice.py`, `reading_model.py`, `brand.py` and `scene_template.py` into
    `video/scenes/`; one file per scene, class renamed.
 4. **Rewrite pass** ([spoken-script.md](spoken-script.md), "The rewrite pass"), with
    `python3 tools/video/check_script.py runs/<run> --stage draft` and the ten scores in `video/README.md`; rewrite

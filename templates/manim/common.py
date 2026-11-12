@@ -344,6 +344,20 @@ def title_beat(title=None, ctx=None, size=40):
     return VGroup(head, lower)
 
 
+def title_sting(scene, *also, dim=0.85, size=1.8):
+    """Open the title beat right after the hook, after carry_in(): the carried picture dims under a veil while the logo
+    sting plays (brand.py, 2.5 s without narration; music.py's hook_title bells ring with it), with the animations
+    `also` (e.g. FadeOut of the hook's question). Returns the animations that clear the logo and the veil, for the
+    play() that brings in the title on its sentence: self.play(*clear, FadeIn(head), FadeIn(lower)), with
+    head, lower = title_beat()."""
+    from brand import logo_sting
+    veil = Rectangle(width=config.frame_width + 1, height=config.frame_height + 1, stroke_width=0, fill_color=BG,
+                     fill_opacity=0.0)
+    scene.add(veil)
+    lockup = logo_sting(scene, veil.animate(run_time=0.4).set_fill(opacity=dim), *also, size=size)
+    return [FadeOut(lockup), FadeOut(veil)]
+
+
 class Meter(VGroup):
     """meter()'s result: frame, fill and readout; level(v) is the y of the fill's top at value v."""
 
@@ -405,7 +419,9 @@ def meter(value, vmax, label="left to pay", height=4.0, width=0.6, decimals=3, c
 
 
 def outro(card, next_title=None):
-    """The outro: the card, an optional "Next: ..." line and the channel name on the left, x > END_SCREEN_X empty."""
+    """The outro: the card, an optional "Next: ..." line and the channel's logo (brand.py logo(), the monogram and the
+    name) on the left, x > END_SCREEN_X empty."""
+    from brand import STROKE, logo
     width = END_SCREEN_X + SAFE_X - 0.4
     if card.width > width:
         card.scale_to_fit_width(width)
@@ -413,9 +429,10 @@ def outro(card, next_title=None):
     parts = [card]
     if next_title:
         parts.append(Text(f"Next: {next_title}", font_size=28, color=MUTED).next_to(card, DOWN, buff=0.45))
-    name = Text(CHANNEL, font_size=30, weight=BOLD, color=MUTED)
-    name.move_to([-SAFE_X + name.width / 2, -SAFE_Y + name.height / 2 + 0.1, 0])
-    parts.append(name)
+    lockup = logo(0.72, color=MUTED)
+    rim = STROKE * 0.72 / 2                         # the strokes reach past their points by half their width
+    lockup.move_to([-SAFE_X + lockup.width / 2 + rim, -SAFE_Y + lockup.height / 2 + 0.1 + rim, 0])
+    parts.append(lockup)
     g = VGroup(*parts)
     for m in parts[1:-1]:
         m.align_to(card, LEFT)

@@ -115,7 +115,7 @@ MEDIA="$RUN/video/media"; mkdir -p "$MEDIA"
 if [ "$MODE" = check ]; then OUTDIR="$RUN/video/checks"; else OUTDIR="$RUN/video/renders"; fi
 
 
-for helper in voice.py reading_model.py; do
+for helper in voice.py reading_model.py brand.py; do
   if [ -f "$RUN/video/scenes/common.py" ] && [ ! -f "$RUN/video/scenes/$helper" ]; then
     cp "$REPO/templates/manim/$helper" "$RUN/video/scenes/$helper"; echo "copied templates/manim/$helper into video/scenes/"
   fi
@@ -123,7 +123,7 @@ done
 EXPLICIT=${#SCENES[@]}
 if [ ${#SCENES[@]} -eq 0 ]; then
   for f in "$RUN"/video/scenes/*.py; do
-    case "$(basename "$f")" in common.py|voice.py|reading_model.py) continue ;; esac
+    case "$(basename "$f")" in common.py|voice.py|reading_model.py|brand.py) continue ;; esac
     while read -r cls; do SCENES+=("$(basename "$f"):$cls"); done < <(
       grep -E '^class [A-Za-z_][A-Za-z0-9_]*\([A-Za-z0-9_.]*Scene\):' "$f" | sed -E 's/^class ([A-Za-z0-9_]+)\(.*/\1/')
   done

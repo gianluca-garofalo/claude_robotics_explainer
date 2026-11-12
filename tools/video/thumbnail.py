@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Make the YouTube thumbnail (JPEG under 2 MB, and thumbnail.json for check_design.py) from plan.json "thumbnail".
+"""Make the YouTube thumbnail (JPEG under 2 MB, and thumbnail.json for check_design.py) from plan.json "thumbnail", with
+the channel's badge (tools/video/watermark.py) in the bottom-left corner.
 
 Usage:
   python3 tools/video/thumbnail.py runs/<run> [--out video/final/thumbnail.jpg]
@@ -19,6 +20,7 @@ from _common import CONFIG, load_json, rel, resolve_run  # noqa: E402
 import plan as P  # noqa: E402
 
 W, H = 1280, 720
+BADGE_PX, BADGE_MARGIN = 84, 40      # the channel's badge (tools/video/watermark.py) in the bottom-left corner
 INK, GREEN, MUTED = (226, 232, 240), (45, 212, 191), (148, 163, 184)
 _BG_HEX = load_json(CONFIG / "video.json").get("palette", {}).get("background", "#0f172a").lstrip("#")
 BG = tuple(int(_BG_HEX[i:i + 2], 16) for i in (0, 2, 4))
@@ -66,6 +68,28 @@ def save(img, out: Path, meta: dict) -> None:
     (out.parent / "thumbnail.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
 
 
+def badge_image():
+    """The channel's badge (the watermark's plate), BADGE_PX square; None, with a warning, without Manim."""
+    try:
+        import watermark
+        return watermark.badge(BADGE_PX)
+    except Exception as exc:                  # no Manim or Cairo here: the channel's name alone
+        print(f"warning: no badge on the thumbnail ({type(exc).__name__}: {exc})", file=sys.stderr)
+        return None
+
+
+def badge_slot() -> tuple[int, int, int, int]:
+    return 64, H - BADGE_MARGIN - BADGE_PX, 64 + BADGE_PX, H - BADGE_MARGIN
+
+
+def has_content(img, box, delta: int = 28) -> bool:
+    """True when anything inside box differs from the background by more than delta."""
+    from PIL import Image, ImageChops
+    part = img.crop(box)
+    diff = ImageChops.difference(part, Image.new("RGB", part.size, BG)).convert("L")
+    return diff.point(lambda v: 255 if v > delta else 0).getbbox() is not None
+
+
 def content_box(img, pad: float = 0.04, delta: int = 28) -> tuple[int, int, int, int]:
     """Bounding box of what differs from the background, padded by `pad` of the frame; the whole frame if nothing."""
     from PIL import ImageChops, Image
@@ -93,14 +117,21 @@ def picture_layout(run: Path, a, img, th: dict, t: float, channel: str) -> int:
     band = tb[3] + 26
     crop = content_box(img)
     pic = img.crop(crop)
-    room_w, room_h = W - 2 * 24, H - band - 16
-    k = min(room_w / pic.size[0], room_h / pic.size[1])
-    pw, ph = max(1, int(pic.size[0] * k)), max(1, int(pic.size[1] * k))
-    pic = pic.resize((pw, ph), Image.LANCZOS)
-    canvas = Image.new("RGB", (W, H), BG)
-    px, py = (W - pw) // 2, band + 8 + (room_h - ph) // 2
-    canvas.paste(pic, (px, py))
-    img = canvas
+
+    def place(room_h):
+        """The picture fitted whole under the band, centred in a room room_h tall: (canvas, its box, its scale)."""
+        k = min((W - 2 * 24) / pic.size[0], room_h / pic.size[1])
+        pw, ph = max(1, int(pic.size[0] * k)), max(1, int(pic.size[1] * k))
+        canvas = Image.new("RGB", (W, H), BG)
+        px, py = (W - pw) // 2, band + 8 + (room_h - ph) // 2
+        canvas.paste(pic.resize((pw, ph), Image.LANCZOS), (px, py))
+        return canvas, [px, py, px + pw, py + ph], k
+    img, box, k = place(H - band - 16)
+    badge, slot = badge_image(), badge_slot()
+    if badge is not None:
+        if has_content(img, (slot[0] - 8, slot[1] - 8, slot[2] + 8, slot[3] + 8)):
+            img, box, k = place(slot[1] - band - 16)                  # the picture ends above the badge
+        img.paste(badge, slot[:2], badge)
     alpha = float(load_json(CONFIG / "video.json").get("design", {}).get("thumbnail_title_shade", 0.82))
     d = ImageDraw.Draw(img)
     d.text((x0, y0), text, font=f_big, fill=INK)
@@ -112,10 +143,12 @@ def picture_layout(run: Path, a, img, th: dict, t: float, channel: str) -> int:
     elements = [{"role": "title", "text": text, "font_px": size, "bbox": list(tb), "color": "#%02x%02x%02x" % INK},
                 {"role": "channel", "text": channel.upper(), "font_px": 22, "decorative": True,
                  "bbox": list(d.textbbox((cx, cy), channel.upper(), font=f_ch)), "color": "#%02x%02x%02x" % MUTED}]
+    if badge is not None:
+        elements.append({"role": "badge", "decorative": True, "bbox": list(slot)})
     out = Path(a.out) if a.out else run / "video" / "final" / "thumbnail.jpg"
     save(img, out, {"size": [W, H], "layout": "picture", "elements": elements,
                     "frame": {"scene": th["scene"], "scene_time": float(th["time"]), "video_time": round(t, 3)},
-                    "picture": {"crop": list(crop), "box": [px, py, px + pw, py + ph], "scale": round(k, 3)},
+                    "picture": {"crop": list(crop), "box": box, "scale": round(k, 3)},
                     "panel": {"band": band, "fade": 0, "shade": alpha}})
     print(f"wrote {rel(out)} ({out.stat().st_size / 1e3:.0f} kB, picture layout, frame at {t:.1f} s of the final "
           f"video, content {crop} scaled {k:.2f} under the title band)")
@@ -165,11 +198,19 @@ def main() -> int:
         d.text((64, y), line, font=f_big, fill=INK)
         y += 110
     d.rectangle((64, y + 6, 64 + 220, y + 14), fill=GREEN)
-    d.text((64, H - 78), channel.upper(), font=font(34), fill=MUTED)
+    badge, slot = badge_image(), badge_slot()
+    name_at = (64, H - 78)
+    if badge is not None:                               # the badge in the corner, the channel's name beside it
+        img.paste(badge, slot[:2], badge)
+        nb = d.textbbox((0, 0), channel.upper(), font=font(34))
+        name_at = (slot[2] + 18, (slot[1] + slot[3]) // 2 - (nb[1] + nb[3]) // 2)
+    d.text(name_at, channel.upper(), font=font(34), fill=MUTED)
     union = [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
     elements = [{"role": "title", "text": th["text"], "font_px": 92, "bbox": union, "color": "#%02x%02x%02x" % INK},
                 {"role": "channel", "text": channel.upper(), "font_px": 34, "decorative": True,
-                 "bbox": list(d.textbbox((64, H - 78), channel.upper(), font=font(34))), "color": "#%02x%02x%02x" % MUTED}]
+                 "bbox": list(d.textbbox(name_at, channel.upper(), font=font(34))), "color": "#%02x%02x%02x" % MUTED}]
+    if badge is not None:
+        elements.append({"role": "badge", "decorative": True, "bbox": list(slot)})
     out = Path(a.out) if a.out else run / "video" / "final" / "thumbnail.jpg"
     save(img, out, {"size": [W, H], "elements": elements,
                     "frame": {"scene": th["scene"], "scene_time": float(th["time"]), "video_time": round(t, 3)},

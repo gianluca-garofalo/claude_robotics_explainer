@@ -27,7 +27,7 @@ DEFAULTS = {"speech_start_max_s": 3.0, "question_by_s": 15, "first_frame_min_cov
             "title_max_chars": 60, "thumbnail_max_words": 3, "thumbnail_by_s": 15, "title_beat_max_s": 6.5,
             "title_beat_min_speech": 0.5, "context_min_s": 30, "context_max_s": 90, "builds_on_min_s": 4,
             "builds_on_max_s": 6, "recap_min_s": 15, "recap_max_s": 75, "outro_min_s": 15, "outro_max_s": 20,
-            "endscreen_x_min": 1.4}
+            "endscreen_x_min": 1.4, "logo_sting_start_max_s": 1.0}
 NUMWORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"]
 
 
@@ -110,20 +110,44 @@ def hook_checks(scenes: list[dict], logs: dict, starts: dict, narration: dict, c
         w.add("hook first", asked, f"the hook's question comes at {asked:.0f} s (by {cfg['question_by_s']} s)")
     for s in [s for s in scenes if s.get("role") == "context"][:1]:
         log = logs.get(s["class"]) or {}
-        dur = log.get("duration", 0.0)
+        sting = checks.logo_sting(log)
+        dur = log.get("duration", 0.0) - (sting[1] - sting[0] if sting else 0.0)   # the logo sting is not counted
+        after = " after the logo sting" if sting else ""
         said = sum(v.get("duration", 0.0) for v in log.get("voiceovers", []))
         if log and dur > cfg["title_beat_max_s"]:
-            w.add("title beat", starts.get(s["class"]), f"the title beat lasts {dur:.1f} s (at most "
+            w.add("title beat", starts.get(s["class"]), f"the title beat lasts {dur:.1f} s{after} (at most "
                   f"{cfg['title_beat_max_s']:g} s): one spoken sentence over the title, then the body")
-        if log and dur and said / dur < cfg["title_beat_min_speech"]:
-            w.add("title beat", starts.get(s["class"]), f"the title beat is {said / dur:.0%} speech (at least "
+        if log and dur > 0 and said / dur < cfg["title_beat_min_speech"]:
+            w.add("title beat", starts.get(s["class"]), f"the title beat is {said / dur:.0%} speech{after} (at least "
                   f"{cfg['title_beat_min_speech']:.0%}): no long silent hold on the title card")
+    sting_s = logo_sting_checks(scenes, logs, starts, cfg, w)
     body = next((s for s in scenes if s.get("role") in (None, "body")), None)
     if body is not None and body["class"] in starts and (logs.get(body["class"]) or starts[body["class"]] > 0):
-        t0 = starts[body["class"]]
-        if t0 > cfg["body_by_s"]:
-            w.add("hook first", t0, f"the body starts at {t0:.0f} s (by {cfg['body_by_s']} s): shorten the hook and "
-                  "the series context")
+        t0, limit = starts[body["class"]], cfg["body_by_s"] + sting_s
+        if t0 > limit:
+            w.add("hook first", t0, f"the body starts at {t0:.0f} s (by {limit:g} s"
+                  f"{', the logo sting included' if sting_s else ''}): shorten the hook and the series context")
+
+
+def logo_sting_checks(scenes: list[dict], logs: dict, starts: dict, cfg: dict, w: checks.Findings) -> float:
+    """The logo sting (brand.py) opens the scene right after the hook, never the hook itself; returns its length."""
+    hook = scenes[0]
+    inside = checks.logo_sting(logs.get(hook["class"]) or {}) if hook.get("role") in (None, "hook") else None
+    if inside:
+        w.add("hook first", starts.get(hook["class"], 0.0) + inside[0], "the logo sting plays inside the hook: it "
+              "opens the title beat, after the hook (title_sting() after carry_in())")
+    if len(scenes) < 2 or not logs.get(scenes[1]["class"]):
+        return 0.0
+    nxt = scenes[1]["class"]
+    sting = checks.logo_sting(logs[nxt])
+    if sting is None:
+        w.add("title beat", starts.get(nxt), f"{nxt}, right after the hook, does not open with the logo sting: "
+              "title_sting() after carry_in(), then the title")
+        return 0.0
+    if sting[0] > cfg["logo_sting_start_max_s"]:
+        w.add("title beat", (starts.get(nxt) or 0.0) + sting[0], f"the logo sting starts {sting[0]:.1f} s into {nxt} "
+              f"(at most {cfg['logo_sting_start_max_s']:g} s): play it first, right after the hook")
+    return sting[1] - sting[0]
 
 
 def packaging(plan: dict, cfg: dict, w: checks.Findings) -> None:

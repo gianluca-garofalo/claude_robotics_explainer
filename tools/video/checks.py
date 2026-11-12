@@ -10,8 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from _common import utc_now, write_json  # noqa: E402
 
-HELPERS = ("common.py", "voice.py", "reading_model.py")      # copied next to the scenes; not scenes themselves
+HELPERS = ("common.py", "voice.py", "reading_model.py", "brand.py")   # copied next to the scenes; not scenes themselves
 SENTENCE_END = (".", "!", "?", "…")
+LOGO_STING = "LogoSting"                                    # templates/manim/brand.py: the logo sting's animation
 
 
 class Findings:
@@ -74,6 +75,14 @@ def scene_log(folder: Path, cls: str) -> tuple[dict, Path | None]:
         return {}, None
     scenes = json.loads(lp.read_text(encoding="utf-8")).get("scenes", {})
     return scenes.get(cls) or next(iter(scenes.values()), {}), lp
+
+
+def logo_sting(log: dict) -> tuple[float, float] | None:
+    """(start, end) in scene seconds of the logo sting a scene's layout log records, or None."""
+    for p in log.get("plays") or []:
+        if LOGO_STING in (p.get("anims") or []):
+            return float(p["start"]), float(p["end"])
+    return None
 
 
 def intervals(events: list, end: float) -> list[tuple[float, float]]:

@@ -7,8 +7,9 @@ Usage:
 
 Rules (thresholds in config/video.json "sync"):
   early       a text label or equation appears more than lead_max_s before the narration first says its words
-              (normalized, simply stemmed); items never spoken and the hook's opening frame are skipped. Word
-              timings: the draft's silent voice (layout logs), the final narration (video/voice/manifest.json).
+              (normalized, simply stemmed); items never spoken, the channel's name (the logo) and the hook's opening
+              frame are skipped. Word timings: the draft's silent voice (layout logs), the final narration
+              (video/voice/manifest.json).
   unanchored  one play() in a voiceover block reveals two or more separate pictures (FadeIn, Create, Write, the Grow
               animations, DrawBorderThenFill, or a LaggedStart, AnimationGroup or Succession of them) with no
               wait_until_word or wait_until_bookmark right before it, or one after another from that one word.
@@ -127,6 +128,7 @@ def timeline(run: Path, stage: str) -> dict:
     if stage == "final":
         seg = {s.get("class"): s for s in read_json(run / "video" / "final" / "assembly.json", {}).get("segments", [])}
     voiced = narration(run) if stage == "final" else {}
+    channel = str(load_json(CONFIG / "channel.json").get("channel_name") or "").strip().lower()
     t, blocks, items, sha = 0.0, [], [], {}
     for i, s in enumerate(plan.get("scenes", [])):
         cls = s["class"]
@@ -146,6 +148,8 @@ def timeline(run: Path, stage: str) -> dict:
             on = [e for e in it.get("events") or [] if e[1] == 1]
             if not on or it.get("live") or it.get("axis") or it.get("kind") not in ("text", "math"):
                 continue
+            if channel and str(it.get("content") or "").strip().lower() == channel:
+                continue                              # the logo's name (brand.py), not a label the narration names
             t0 = float(on[0][0])
             items.append({"scene": cls, "kind": it["kind"], "content": str(it.get("content") or ""), "t": t0,
                           "t_on": off + t0, "opening": i == 0 and t0 <= 0.05})

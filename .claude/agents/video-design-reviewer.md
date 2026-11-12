@@ -44,8 +44,9 @@ why). Check:
 6. Story: one story at a depth the video can carry; walking or cramming the explainer's sections is `major`.
 7. Opening and ending (`check_series.md`): an empty or near-empty first frame, a set-up first line, a late question,
    no stakes, or a picture that answers its question before it is asked is `major`. Also the thumbnail's picture early
-   in the hook, the hook's objects carried into the title beat, the packaging, the outro, and in a series the spoken
-   context over the builds-on frame and a marked recap, with its chapter, for everything used.
+   in the hook, the hook's objects carried into the title beat (dimmed under its 2.5 s logo sting, the house brand,
+   never in the hook), the packaging, the outro, and in a series the spoken context over the builds-on frame and a
+   marked recap, with its chapter, for everything used.
 8. Engagement (`check_engagement.md`): every rule of manim-scenes.md, One moving world, and every field of the
    storyboard's craft plan, on the frames. Also `major`: no central metaphor doing work in most body scenes; formula
    before picture for the central argument; a refill just before "the bill only goes down". Findings: content in a

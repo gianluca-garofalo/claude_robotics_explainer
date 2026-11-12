@@ -1,5 +1,7 @@
 """Unit tests for the original music and the mastering chain (tools/video/music.py, tools/video/assemble.py), the
-music provenance stamp, the per-scene music modes, and the opening and packaging warnings of check_series.py."""
+music provenance stamp, the per-scene music modes, the logo sting on the bells, and the opening and packaging warnings
+of check_series.py."""
+import ast
 import json
 import shutil
 import subprocess
@@ -127,6 +129,73 @@ class Modes(unittest.TestCase):
             self.assertIn(c, [round(x, 3) for x in times])              # a chord change on every chapter start
 
 
+def brand_notes() -> list[float]:
+    """NOTES of templates/manim/brand.py, the times its logo sting reaches its corners, read without Manim."""
+    tree = ast.parse((REPO / "templates" / "manim" / "brand.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(getattr(t, "id", None) == "NOTES" for t in node.targets):
+            return [float(v) for v in ast.literal_eval(node.value)]
+    raise AssertionError("templates/manim/brand.py defines no NOTES")
+
+
+def onsets(x: np.ndarray, sr: int, n: int) -> list[float]:
+    """The n strongest note onsets of x in seconds, at least 0.1 s apart: peaks of the spectral flux."""
+    win, hop = 1024, sr // 400
+    frames = np.lib.stride_tricks.sliding_window_view(np.pad(x, (win, win)), win)[::hop]
+    mag = np.abs(np.fft.rfft(frames * np.hanning(win), axis=1))
+    flux = np.maximum(mag[1:] - mag[:-1], 0.0).sum(axis=1)
+    t = (np.arange(1, len(mag)) * hop - win / 2) / sr               # frame centres
+    peaks = sorted((i for i in range(1, len(flux) - 1) if flux[i] >= flux[i - 1] and flux[i] > flux[i + 1]),
+                   key=lambda i: -flux[i])
+    chosen: list[int] = []
+    for i in peaks:
+        if len(chosen) < n and all(abs(t[i] - t[j]) > 0.1 for j in chosen):
+            chosen.append(i)
+    return sorted(float(t[i]) for i in chosen)
+
+
+class LogoSting(unittest.TestCase):
+    def test_the_logo_steps_land_on_the_bells(self):
+        p = MU.PRESETS["calm-pad"]
+        heard = onsets(MU.sting(p).sum(axis=0), MU.SR, len(p["motif"]))
+        drawn = brand_notes()
+        self.assertEqual(len(heard), len(drawn))
+        for h, d in zip(heard, drawn):
+            self.assertAlmostEqual(h, d, delta=0.02)
+
+    def test_the_hook_title_bells_ring_on_the_logo_sting(self):
+        cfg = dict(MU.DEFAULTS)
+        gaps = MU.pauses(voice(spans=((2.0, 6.0), (9.0, 11.5), (13.0, 15.0), (16.0, 17.5))), MU.SR, 1.2)
+        segs = segments()
+        segs[1].update(logo_at=0.3, logo_s=2.5)                      # the sting starts 0.3 s into the title beat
+        ev = MU.plan_events(segs, CHAPTERS, 24.0, gaps, cfg)
+        self.assertEqual([(s["t"], s.get("on"), s.get("hold")) for s in ev["stings"] if s["kind"] == "hook_title"],
+                         [(8.3, "logo", 2.5)])
+        del segs[1]["logo_at"], segs[1]["logo_s"]                    # without it, a pause holds the bells
+        ev = MU.plan_events(segs, CHAPTERS, 24.0, gaps, cfg)
+        slot = MU.sting_slot(8.0, 12.0, gaps, cfg)
+        self.assertEqual([s["t"] for s in ev["stings"] if s["kind"] == "hook_title"], [] if slot is None else [slot])
+
+    def test_the_bells_are_not_ducked_while_the_logo_plays(self):
+        stings = [{"t": 2.0, "kind": "hook_title", "on": "logo", "hold": 2.5}, {"t": 5.0, "kind": "outro"}]
+        g = MU.sting_hold(int(6 * MU.SR), stings)
+
+        def at(s):
+            return float(g[int(s * MU.SR)])
+        self.assertEqual([at(1.9), at(2.0), at(4.3), at(4.6), at(5.5)], [0.0, 1.0, 1.0, 0.0, 0.0])
+        self.assertTrue(0.0 < at(4.45) < 1.0)                        # eased out as the narration's duck begins
+
+    def test_assembly_finds_the_logo_sting(self):
+        import checks
+        tree = ast.parse((REPO / "templates" / "manim" / "brand.py").read_text(encoding="utf-8"))
+        classes = [n.name for n in tree.body if isinstance(n, ast.ClassDef)]
+        self.assertIn(checks.LOGO_STING, classes)                    # the animation's name is what the probe logs
+        log = {"plays": [{"start": 0.0, "end": 0.4, "anims": ["FadeOut"]},
+                         {"start": 0.4, "end": 2.9, "anims": [checks.LOGO_STING, "_MethodAnimation"]}]}
+        self.assertEqual(checks.logo_sting(log), (0.4, 2.9))
+        self.assertIsNone(checks.logo_sting({"plays": [{"start": 0.0, "end": 1.0, "anims": ["Create"]}]}))
+
+
 class Generator(unittest.TestCase):
     @unittest.skipUnless(HAS_FFMPEG, "ffmpeg not installed")
     def test_reproducible_and_stamped(self):
@@ -204,6 +273,7 @@ class Mastering(unittest.TestCase):
 
 class OpeningAndPackaging(unittest.TestCase):
     CFG = dict(CS.DEFAULTS)
+    STING = {"start": 0.0, "end": 2.5, "anims": ["LogoSting", "_MethodAnimation"]}
 
     def plan(self, **kw):
         p = {"title": "Why Does MPC Converge? A One-Step Proof", "search_term": "MPC",
@@ -235,10 +305,10 @@ class OpeningAndPackaging(unittest.TestCase):
         scenes = [{"class": "Hook", "role": "hook"}, {"class": "Ctx", "role": "context"}, {"class": "Body", "role": "body"}]
         good = {"Hook": self.log(big, [{"start": 2.0, "duration": 4.0, "text": "Plans, steps."},
                                        {"start": 7.0, "duration": 4.0, "text": "Why should it ever arrive?"}]),
-                "Ctx": dict(self.log([], [{"start": 0.0, "duration": 4.0, "text": "Episode one of seven."}]),
-                            duration=5.0), "Body": self.log([], [])}
+                "Ctx": dict(self.log([], [{"start": 2.5, "duration": 4.0, "text": "Episode one of seven."}]),
+                            duration=7.5, plays=[self.STING]), "Body": self.log([], [])}
         w = CS.Warnings()
-        CS.hook_checks(scenes, good, {"Hook": 0.0, "Ctx": 30.0, "Body": 36.0}, {}, self.CFG, w)
+        CS.hook_checks(scenes, good, {"Hook": 0.0, "Ctx": 30.0, "Body": 37.5}, {}, self.CFG, w)
         self.assertEqual(w.items, [])
         late = {"Hook": self.log([], [{"start": 0.1, "duration": 30.0, "text": "A long set-up, then: why?"}]),
                 "Ctx": self.log([], []), "Body": self.log([], [])}
@@ -246,6 +316,29 @@ class OpeningAndPackaging(unittest.TestCase):
         CS.hook_checks(scenes, late, {"Hook": 0.0, "Ctx": 60.0, "Body": 76.0}, {}, self.CFG, w)
         text = " ".join(x["detail"] for x in w.items)
         for part in ("first frame", "question", "body starts"):
+            self.assertIn(part, text)
+
+    def test_logo_sting_after_the_hook_not_in_it(self):
+        big = [{"bbox": [-5, -2, 2, 2], "stroke_opacity": 1, "fill_opacity": 0, "order": 1, "top": 0}]
+        scenes = [{"class": c, "role": r} for c, r in (("Hook", "hook"), ("Ctx", "context"), ("Body", "body"))]
+        hook = self.log(big, [{"start": 2.0, "duration": 4.0, "text": "Why should it ever arrive?"}])
+        ctx = dict(self.log([], [{"start": 2.5, "duration": 4.5, "text": "Episode one of seven."}]), duration=8.0,
+                   plays=[self.STING])
+        body = self.log([], [])
+
+        def found(logs, starts):
+            w = CS.Warnings()
+            CS.hook_checks(scenes, logs, starts, {}, self.CFG, w)
+            return " ".join(x["detail"] for x in w.items)
+        # the title beat's limits leave out its sting, and the body's limit gains it
+        self.assertEqual(found({"Hook": hook, "Ctx": ctx, "Body": body}, {"Hook": 0.0, "Ctx": 39.0, "Body": 47.0}), "")
+        text = found({"Hook": hook, "Ctx": dict(ctx, plays=[]), "Body": body}, {"Hook": 0.0, "Ctx": 39.0, "Body": 47.0})
+        for part in ("does not open with the logo sting", "lasts 8.0 s", "body starts"):
+            self.assertIn(part, text)
+        late = dict(self.STING, start=2.0, end=4.5)
+        text = found({"Hook": dict(hook, plays=[self.STING]), "Ctx": dict(ctx, plays=[late]), "Body": body},
+                     {"Hook": 0.0, "Ctx": 30.0, "Body": 38.0})
+        for part in ("inside the hook", "starts 2.0 s into Ctx"):
             self.assertIn(part, text)
 
 
