@@ -42,8 +42,7 @@ SETTINGS_KEYS_USED = {"$schema", "permissions", "hooks", "env", "sandbox"}
 SIDE_EFFECT_SKILLS = {"produce-explainer", "approve-topic", "produce-episode", "produce-from-source", "plan-series"}
 SKILLS_LINK_FIX = "rm -rf .claude/skills && ln -s ../.agents/skills .claude/skills"
 # The owner's folders (AGENTS.md, Rules): an Edit deny rule each, which the sandbox also applies to Bash.
-OWNER_DIRS = ("config", "series", "sources", "tools/hooks", "tools/human", "tools/publish", "tools/ci", ".github", "ci",
-              ".agents")
+OWNER_DIRS = ("config", "series", "sources", "tools/hooks", "tools/human", "tools/publish", "tools/ci", ".github", "ci")
 # Run files that only the pipeline's tools write: deny them as bare names. Claude Code applies a bare name at any depth
 # to its file tools, but gives the sandbox only <project>/<name>; a **/ glob becomes an OS-level deny on macOS that
 # also stops the tool that writes the file.

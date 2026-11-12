@@ -21,5 +21,6 @@ paths:
 - In a series run (`episode.json`), `explainer.html` and `code/` are copies of the source: never edit them. A source
   without companion code gives the run an empty `code/` (from `templates/run/`) for the episode's own scripts.
 - `sources/` holds the series' source documents: read them, never modify them (a changed explainer needs a new series
-  plan). `tools/run_code_checks.py sources/<name>` runs the scripts in a temporary copy; only `code/logs/` changes.
+  plan). `tools/run_code_checks.py sources/<name> --logs <dir>` runs the scripts in a temporary copy and writes the logs to
+  `<dir>` (the sandbox keeps `sources/` read-only).
 - `python3 tools/run.py status runs/<run>` tells you what is done, stale or next.

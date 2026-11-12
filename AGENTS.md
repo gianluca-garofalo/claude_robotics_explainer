@@ -8,7 +8,9 @@ Remaining Action, one run folder per video. People read README.md.
   `/produce-explainer [focus]`. Outside GitHub Actions `finish-video` renders, reviews and packages; the optional
   workflow (SETUP-AUTOMATION.md) runs the same skills.
 - Skills: `.agents/skills/<name>/SKILL.md`; `/<name> args` means: follow that file with those arguments. A skill with
-  `disable-model-invocation: true` runs only when the user asks for it.
+  `disable-model-invocation: true` runs only when the user asks for it. The production stages are in `produce-explainer/stages.md` and
+  `produce-episode/stages.md`, which callers follow directly. Web reading happens only in the scout's own context
+  (`news-scout` agent).
 - Reviewers: `.claude/agents/<name>.md`, which the review skills run through the `review-fanout` workflow. Without
   named subagents, give that file's body as the prompt to a fresh context or a general-purpose subagent; with neither,
   follow the skill's fallback without subagents.
@@ -58,7 +60,7 @@ Remaining Action, one run folder per video. People read README.md.
   one.
 - The owner's files, never edited: `config/`, `series/` (plans enter only through `tools/series.py write`; only the
   owner approves one, when `series.plan_approval` asks), `sources/`, `tools/hooks/`, `tools/human/`,
-  `tools/publish/`, `tools/ci/`, `.github/`, `ci/`. During a run also leave `tools/`, `templates/` and `docker/`.
+  `tools/publish/`, `tools/ci/`, `.github/`, `ci/`. During a run also leave `tools/`, `templates/`, `.agents/` and `docker/`.
 
 ## Conventions
 

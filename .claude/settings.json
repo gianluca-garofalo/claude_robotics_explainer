@@ -3,7 +3,11 @@
   "permissions": {
     "allow": [
       "Bash(python3 tools/*)",
-      "Bash(.venv/bin/python *)",
+      "Bash(.venv/bin/python tools/*)",
+      "Bash(.venv/bin/python -m unittest *)",
+      "Bash(.venv/bin/python tests/*)",
+      "Bash(.venv/bin/python templates/manim/voice.py *)",
+      "Bash(.venv/bin/python runs/*)",
       "Bash(.venv/bin/manim *)",
       "Bash(node tools/*)",
       "Bash(bash tools/render_video.sh *)",
@@ -56,7 +60,6 @@
       "Edit(published.json)",
       "Edit(/series/**)",
       "Edit(/sources/**)",
-      "Edit(/.agents/**)",
       "Edit(/.github/**)",
       "Edit(/tools/publish/**)",
       "Edit(/tools/ci/**)",
