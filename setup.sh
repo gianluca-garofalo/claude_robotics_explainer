@@ -11,9 +11,9 @@
 #   options: --no-node (skip npm and Chromium), --no-browser (skip the Chromium download), --no-voice-model,
 #            --system-deps-only (install the system packages, then stop)
 #
-# System packages (Cairo/Pango headers, ffmpeg, TeX + dvisvgm, Node.js, the DejaVu fonts) are only printed unless
-# you pass --with-system-deps. Windows: use WSL (Ubuntu). If ./setup.sh says "permission denied" (an unzip tool
-# dropped the exec bit): chmod +x setup.sh tools/*.sh tools/ci/*.sh
+# System packages (Cairo/Pango headers, ffmpeg, TeX + dvisvgm, Node.js, DejaVu fonts, bubblewrap and socat for the
+# Claude Code sandbox on Linux) are only printed unless you pass --with-system-deps. Windows: use WSL 2. If ./setup.sh
+# says "permission denied" (an unzip tool dropped the exec bit): chmod +x setup.sh tools/*.sh tools/ci/*.sh
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -34,7 +34,7 @@ done
 OS="$(uname -s)"
 APT_PKGS="build-essential python3-dev python3-venv pkg-config libcairo2-dev libpango1.0-dev ffmpeg sox \
 texlive-latex-base texlive-latex-extra texlive-fonts-recommended texlive-science cm-super dvisvgm nodejs npm \
-fonts-dejavu-core fontconfig"
+fonts-dejavu-core fontconfig bubblewrap socat"
 BREW_PKGS="python@3.13 pkg-config cairo pango fontconfig ffmpeg sox node"
 BREW_CASKS="mactex-no-gui font-dejavu"            # MacTeX brings latex and dvisvgm; DejaVu is the scenes' font
 if [ "$(uname -s)" = Darwin ] && [ -d /Library/TeX/texbin ]; then
@@ -51,13 +51,18 @@ find_python() {
   done
 }
 node_ready() { have node && have npm && node -e 'process.exit(parseInt(process.versions.node, 10) < 18 ? 1 : 0)'; }
+# .claude/skills must be the link to ../.agents/skills (a zip download or a checkout without links breaks it)
+skills_link_ok() { [ -L .claude/skills ] && [ "$(cd .claude/skills 2>/dev/null && pwd -P)" = "$(cd .agents/skills && pwd -P)" ]; }
 find_python
+# Inside Claude Code's sandbox the home folder is read-only: no system packages, npm cache or browser download there
+SANDBOXED=0
+if [ -d "$HOME" ] && [ ! -w "$HOME" ]; then SANDBOXED=1; fi
 
 missing=(); sys_missing=()
-report() {  # name ok hint [user]  (user = installed by this script; anything else is a system package)
+report() {  # name ok hint [user|manual]  (user: installed by this script; manual: the hint says how; else system)
   if [ "$2" = 1 ]; then printf '  %-34s ok\n' "$1"; return; fi
   printf '  %-34s MISSING  %s\n' "$1" "$3"; missing+=("$1")
-  [ "${4:-}" = user ] || sys_missing+=("$1")
+  case "${4:-}" in user|manual) ;; *) sys_missing+=("$1") ;; esac
 }
 
 echo "Prerequisites:"
@@ -74,6 +79,21 @@ elif ls "$HOME/Library/Fonts"/DejaVuSans*.ttf /Library/Fonts/DejaVuSans*.ttf >/d
 report "DejaVu fonts" $font_ok "(the scenes' font: another font changes text widths and the design checks)"
 node_ok=0; node_ready && node_ok=1
 [ $NODE = 1 ] && report "node >= 18 + npm" $node_ok "(HTML render checks)"
+# Claude Code's sandbox (.claude/settings.json): built into macOS; bubblewrap and socat on Linux and WSL 2. Without
+# them Claude Code runs its commands unsandboxed (README.md, Sandbox).
+if [ "$OS" = Linux ]; then
+  report "bubblewrap + socat (sandbox)" "$(have bwrap && have socat && echo 1 || echo 0)" \
+    "(Claude Code's sandbox; without them its commands run unsandboxed)"
+  if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo 0)" = 1 ] \
+     && [ ! -e /etc/apparmor.d/bwrap ]; then
+    report "AppArmor profile for bubblewrap" 0 "(Ubuntu stops the sandbox without it: README.md, Sandbox)" manual
+  fi
+elif [ "$OS" = Darwin ]; then
+  printf '  %-34s ok\n' "sandbox (built into macOS)"
+fi
+[ $SANDBOXED = 1 ] && printf '  %-34s %s\n' "Claude Code sandbox" "active (this command runs inside it)"
+report "skills link (.claude/skills)" "$(skills_link_ok && echo 1 || echo 0)" \
+  "(fix: rm -rf .claude/skills && ln -s ../.agents/skills .claude/skills)" manual
 report ".venv (Python env)" "$([ -x .venv/bin/python ] && echo 1 || echo 0)" "(created by ./setup.sh)" user
 report ".venv manim" "$([ -x .venv/bin/manim ] && echo 1 || echo 0)" "(installed by ./setup.sh)" user
 [ $NODE = 1 ] && report "node_modules (playwright, katex)" "$([ -d node_modules/playwright ] && [ -d node_modules/katex ] && echo 1 || echo 0)" "(installed by ./setup.sh)" user
@@ -96,6 +116,17 @@ if [ $CHECK = 1 ]; then
     exit 1
   fi
   echo "All prerequisites present."; exit 0
+fi
+
+if ! skills_link_ok; then
+  echo ".claude/skills is not the link to ../.agents/skills (a zip download or a checkout without links): fix it with" >&2
+  echo "  rm -rf .claude/skills && ln -s ../.agents/skills .claude/skills" >&2
+  exit 1
+fi
+if [ $SYSDEPS = 1 ] && [ $SANDBOXED = 1 ]; then
+  echo "System packages need root outside Claude Code's sandbox: run ./setup.sh --with-system-deps in your own" \
+       "terminal, or in the cloud environment's setup script (README.md)" >&2
+  exit 1
 fi
 
 if [ $SYSDEPS = 1 ]; then
@@ -146,8 +177,16 @@ echo "== Python venv (.venv)"
 if [ $NODE = 1 ]; then
   if [ $node_ok = 1 ]; then
     echo "== npm packages (playwright, katex 0.16.9)"
+    if [ $SANDBOXED = 1 ]; then          # the sandbox's proxy and a cache in the project: the home folder is read-only
+      export npm_config_cache="$PWD/.cache/npm"
+      unset npm_config_proxy npm_config_https_proxy npm_config_noproxy NPM_CONFIG_PROXY NPM_CONFIG_HTTPS_PROXY \
+        NPM_CONFIG_NOPROXY
+    fi
     npm install --no-fund --no-audit
-    if [ $BROWSER = 1 ]; then
+    if [ $BROWSER = 1 ] && [ $SANDBOXED = 1 ]; then
+      echo "note: Chromium for Playwright installs outside the project, which the sandbox closes: run" \
+           "'npx playwright install chromium' in your own terminal (new explainers need it)" >&2
+    elif [ $BROWSER = 1 ]; then
       echo "== Chromium for Playwright"
       npx playwright install chromium
     fi
@@ -171,7 +210,9 @@ echo "== Self-test"
   || echo "warning: a source document in sources/ has errors (above): /produce-from-source stops on them" >&2
 page=""
 for f in sources/*/explainer.html; do [ -f "$f" ] && { page="$f"; break; }; done
-if [ $NODE = 1 ] && [ -d node_modules/playwright ] && [ -n "$page" ]; then
+if [ $SANDBOXED = 1 ]; then
+  echo "note: render self-test skipped: the browser runs outside the sandbox (node tools/check_html.js FILE --offline)"
+elif [ $NODE = 1 ] && [ -d node_modules/playwright ] && [ -n "$page" ]; then
   rc=0; node tools/check_html.js "$page" --offline || rc=$?
   if [ $rc = 3 ]; then
     echo "Render checker not ready (no Chromium): run 'npx playwright install chromium' (series episodes do not" \

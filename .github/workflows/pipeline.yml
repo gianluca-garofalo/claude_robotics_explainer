@@ -123,7 +123,11 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /robotics-news-scout ${{ steps.start.outputs.run }} ${{ inputs.focus }}
-          claude_args: --permission-mode dontAsk --max-turns 80 --max-budget-usd ${{ vars.CLAUDE_BUDGET_SCOUT_USD || '6' }}
+          # --settings as well: the settings input installs ci/*.json as user settings, which the project's
+          # .claude/settings.json overrides and widens (its sandbox keys and WebFetch hosts)
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }}
+            --permission-mode dontAsk --max-turns 80 --max-budget-usd ${{ vars.CLAUDE_BUDGET_SCOUT_USD || '6' }}
       - name: Validate the candidates
         env:
           RUN: ${{ steps.start.outputs.run }}
@@ -209,7 +213,9 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /virality-ranker ${{ needs.scout.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 40 --max-budget-usd ${{ vars.CLAUDE_BUDGET_RANK_USD || '3' }}
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }} --disallowedTools "WebFetch WebSearch"
+            --permission-mode dontAsk --max-turns 40 --max-budget-usd ${{ vars.CLAUDE_BUDGET_RANK_USD || '3' }}
       - name: Automatic topic approval (deterministic, logged)
         id: select
         env:
@@ -231,7 +237,10 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /didactic-html-writer ${{ steps.select.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_WRITE_USD || '25' }}
+          # the writer reads the primary sources and the records behind references.json: it keeps WebFetch
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }}
+            --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_WRITE_USD || '25' }}
       - name: Explainer checks (deterministic)
         env:
           RUN: ${{ steps.select.outputs.run }}
@@ -249,7 +258,9 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /explainer-review ${{ steps.select.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '25' }}
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }}
+            --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '25' }}
       - name: Storyboard, narrated scenes, design review (Claude)
         uses: anthropics/claude-code-action@v1
         with:
@@ -258,7 +269,9 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /manim-video-producer ${{ steps.select.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_VIDEO_USD || '20' }}
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }} --disallowedTools "WebFetch WebSearch"
+            --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_VIDEO_USD || '20' }}
       - name: Upload the run
         if: always() && steps.select.outputs.run != ''
         uses: actions/upload-artifact@v4
@@ -330,7 +343,9 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /produce-episode resume ${{ steps.start.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_EPISODE_USD || '20' }}
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }} --disallowedTools "WebFetch WebSearch"
+            --permission-mode dontAsk --max-turns 250 --max-budget-usd ${{ vars.CLAUDE_BUDGET_EPISODE_USD || '20' }}
       - name: Upload the run
         if: always() && steps.start.outputs.run != ''
         uses: actions/upload-artifact@v4
@@ -603,7 +618,9 @@ jobs:
           github_token: ${{ github.token }}
           settings: ${{ env.CLAUDE_SETTINGS }}
           prompt: /final-cut-review ${{ needs.gate.outputs.run }}
-          claude_args: --permission-mode dontAsk --max-turns 120 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '10' }}
+          claude_args: >-
+            --settings ${{ env.CLAUDE_SETTINGS }} --disallowedTools "WebFetch WebSearch"
+            --permission-mode dontAsk --max-turns 120 --max-budget-usd ${{ vars.CLAUDE_BUDGET_REVIEW_USD || '10' }}
       - name: Upload the review only
         if: always()
         uses: actions/upload-artifact@v4

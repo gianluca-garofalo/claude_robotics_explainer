@@ -1,6 +1,6 @@
 ---
 name: finish-video
-description: Finishes a video inside the session when no GitHub workflow will - narration in the configured voice (voice.service in config/channel.json), the 1080p render, the final design and reading checks, assembly with captions and chapters, thumbnail and metadata, the final gates, the final-cut review (independent reviewer subagent, adversarial verification of blocker and major findings), the release gate, fixes and re-renders for blockers, and the hand-over package in deliver/ (video, captions, thumbnail, upload sheet with the YouTube Studio checklist) that the owner downloads and uploads by hand. Use after the pre-render gates of /produce-episode or /produce-explainer pass outside GitHub Actions, or when asked to finish, render or hand over a run. Never uploads, commits or pushes.
+description: Use after the pre-render gates pass outside GitHub Actions, or when asked to finish, render or hand over a run. Narration in the configured voice, 1080p render, final checks and gates, final-cut review, fixes, then the deliver/ package the owner uploads by hand. Never uploads, commits or pushes.
 argument-hint: "runs/<run>"
 ---
 
@@ -75,4 +75,7 @@ The final-cut-review skill's own section applies: the review, the merged summary
   For a large MP4, `split -b 90m runs/<run>/deliver/<slug>.mp4 runs/<run>/deliver/<slug>.mp4.part-` makes parts the
   owner joins with `cat <slug>.mp4.part-* > <slug>.mp4` and checks against `SHA256SUMS`.
 - Never run `tools/publish/`, `git push` or anything that uploads (AGENTS.md, Rules).
+- Narration refused by the sandbox (the proxy's `403` for the speech host) means the region of `AZURE_SERVICE_REGION`
+  is not in `sandbox.network.allowedDomains` of `.claude/settings.json`: tell the owner which host (README.md,
+  Sandbox); no other voice stands in.
 - A new session starts without this session's `runs/`: the report names the next episode by number.

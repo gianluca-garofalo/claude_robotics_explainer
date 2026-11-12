@@ -24,7 +24,7 @@ sessions use (the environment menu in the session's title bar, then Edit):
    ```
 
    The keyless Piper voice (`voice.service` `piper` in `config/channel.json`) needs `huggingface.co`, `hf.co` and
-   `*.hf.co` instead.
+   `*.hf.co` instead. For another region, change the host names here and in `.claude/settings.json` (Sandbox, below).
 2. **Environment variables**: `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION` (`swedencentral`), the key and
    region of your Azure Speech resource.
 3. **Setup script** (it runs as root on Ubuntu 24.04 in the folder above the repository; change the folder name if
@@ -38,12 +38,16 @@ sessions use (the environment menu in the session's title bar, then Edit):
    .venv/bin/python -m pip install -r requirements-voice.txt
    ```
 
-   It installs the system packages, `.venv`, the npm packages and the Azure Speech SDK; the first session spends some
-   minutes here. `--no-browser` skips Chromium, which only new explainers need. Without a setup script, ask the
-   session to run `bash setup.sh --with-system-deps --no-browser`.
+   It installs the system packages (bubblewrap and socat among them, for Claude Code's sandbox), `.venv`, the npm
+   packages and the Azure Speech SDK; the first session spends some minutes here. `--no-browser` skips Chromium, which
+   only new explainers need. Without a setup script, ask the session to run `bash setup.sh --with-system-deps
+   --no-browser`; the sandbox then starts from the next session.
 
-Loosen nothing else: `.claude/settings.json` already allows the pipeline's commands and denies `git push` and uploads.
-In **Auto** mode (when your organization offers it) most commands run without asking.
+Start every session on this repository alone. Its `.claude/settings.json` (allow and deny rules, hooks, sandbox) loads
+only in a session that starts at the repository root: a session with several repositories, or a thread of a project,
+runs without it, and nothing there denies a push or an upload. The three entry commands check this first and stop
+with "guards off: start the session at the repository root". Loosen nothing else. In **Auto** mode (when your
+organization offers it) most commands run without asking.
 
 ### Once: the YouTube channel
 
@@ -69,9 +73,10 @@ In **Auto** mode (when your organization offers it) most commands run without as
    `ledger-<run>.json` as `runs/ledger/<run>.json`: the channel's record of made topics.
 4. Watch the video and upload it in YouTube Studio with the sheet.
 
-When something is missing, the session says what: a host the network refused (add it under Allowed domains), the
-setup command that failed (fix the setup script); then start a new session. A session without subagents says so at
-the start: its red team and final-cut review are not independent, so it hands over the plan before any episode.
+When something is missing, the session says what: a host the network refused (add it under Allowed domains, and to
+`sandbox.network.allowedDomains` in `.claude/settings.json` when the sandbox refused it), the setup command that
+failed (fix the setup script); then start a new session. A session without subagents says so at the start: its red
+team and final-cut review are not independent, so it hands over the plan before any episode.
 
 ## Local setup (Linux, macOS, WSL)
 
@@ -83,20 +88,26 @@ Python 3.11 or newer, Node.js 18 or newer; on Windows, use WSL. In a terminal in
 ```
 
 `--check` lists what is missing and changes nothing; for missing system packages (Cairo and Pango headers, ffmpeg,
-TeX Live with dvisvgm, Node.js, the DejaVu fonts) it prints the apt or Homebrew command, and `./setup.sh
---with-system-deps` runs it first. `./setup.sh` builds `.venv` (Manim, manim-voiceover, the scientific stack, Piper),
-installs the npm packages and Chromium and downloads the Piper voice. The channel voice also needs
-`.venv/bin/python -m pip install -r requirements-voice.txt` and `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION`
-in the environment, never in a file. If `./setup.sh` says "permission denied" (an unzip tool dropped the executable
-bit):
+TeX Live with dvisvgm, Node.js, the DejaVu fonts, on Linux bubblewrap and socat for the sandbox) it prints the apt or
+Homebrew command, and `./setup.sh --with-system-deps` runs it first. `./setup.sh` builds `.venv` (Manim,
+manim-voiceover, the scientific stack, Piper), installs the npm packages and Chromium and downloads the Piper voice.
+The channel voice also needs `.venv/bin/python -m pip install -r requirements-voice.txt` and `AZURE_SUBSCRIPTION_KEY`
+and `AZURE_SERVICE_REGION` in the environment, never in a file. If `./setup.sh` says "permission denied" (an unzip
+tool dropped the executable bit):
 
 ```bash
 chmod +x setup.sh tools/*.sh tools/ci/*.sh
 ```
 
-Then start your coding agent in the folder: for Claude Code, `claude`, and accept the workspace trust dialog (the
-hooks and allow rules need it). Manim installation problems and their fixes are in
-`.agents/skills/manim-video-producer/manim-setup.md`.
+Then start your coding agent in the folder: for Claude Code, `claude` in the repository root (its settings, hooks and
+sandbox load only there), and accept the workspace trust dialog (the hooks and allow rules need it). If `--check`
+reports the skills link missing (a zip download or a checkout without symbolic links), restore it:
+
+```bash
+rm -rf .claude/skills && ln -s ../.agents/skills .claude/skills
+```
+
+Manim installation problems and their fixes are in `.agents/skills/manim-video-producer/manim-setup.md`.
 
 ### macOS (zsh)
 
@@ -145,6 +156,37 @@ changes text widths. Not yet tested on a Mac.
   `/approve-topic runs/<run> <topic-id>`. If hooks are off (workspace not trusted, or an agent without hooks), run
   `python3 tools/human/approve_topic.py runs/<run> <topic-id>` yourself, in your own terminal.
 - `python3 tools/run.py status runs/<run>` shows where a run stands; `/produce-explainer resume runs/<run>` continues.
+
+## Sandbox
+
+`.claude/settings.json` turns on Claude Code's sandbox for the shell commands a session runs and everything they
+start. They write only inside the project and the temp folder, never in `config/`, `series/`, `sources/`,
+`.agents/`, `.github/`, `ci/` or the owner's parts of `tools/` (the deny rules hold for them too, as a "Read-only
+file system" error), and reach only the hosts in `sandbox.network.allowedDomains`: arXiv, the Azure Speech hosts of
+`swedencentral`, YouTube suggestions, the YouTube Data API and Google Trends (`tools/search_demand.py`), Hugging Face
+(the Piper voice), PyPI and npm. Another host gets the proxy's `403` in Auto mode and in sessions that do not ask;
+a session in the default mode asks you first (only your own `~/.claude/settings.json` can set
+`sandbox.network.strictAllowlist` to refuse it outright). The hosts only WebFetch reads (DOI, Crossref, OpenReview,
+publishers, GitHub) are in `deniedDomains`, since Claude Code would otherwise open every `WebFetch(domain:)` host to
+the shell as well. The allow rules still decide which commands run without asking, and no command is retried outside
+the sandbox.
+
+- Outside it: the hooks; `python3 tools/series.py write`, the one way a plan enters `series/`; and
+  `node tools/check_html.js`, since a full Chromium (the fallback of the cloud image) opens a Unix socket at start,
+  which the sandbox refuses.
+- Another Azure region: replace `swedencentral` in both Azure hosts, here and in the cloud environment.
+- Linux and WSL 2 need bubblewrap and socat: `./setup.sh --with-system-deps` installs them, and `./setup.sh --check`
+  reports `bubblewrap + socat (sandbox) MISSING` without them. Ubuntu 24.04 on a desktop also needs the AppArmor
+  profile for bubblewrap from Claude Code's sandboxing documentation ("Add an AppArmor profile for bubblewrap"), which
+  `--check` reports as well. macOS has the sandbox built in.
+- Where the sandbox cannot start (no bubblewrap, WSL 1, Windows without WSL), Claude Code runs the commands
+  unsandboxed, as its documentation says for `sandbox.failIfUnavailable` off; the deny rules and hooks still apply.
+  Run inside a session, `bash setup.sh --check` lists "Claude Code sandbox" as active when the sandbox is on.
+- Inside the sandbox `./setup.sh` sets up `.venv`, the npm packages and the voice model; system packages and Chromium
+  need your own terminal or the cloud environment's setup script.
+- Limits: on Linux the sandbox holds folder rules only, so `Edit(**/approval.json)` binds the file tools and the
+  hooks but not a script; and the hooks and the two commands above run code from `tools/` and `.venv`, which a
+  sandboxed command can change. The sandbox stops accidents and stray network calls, not a determined agent.
 
 ## Adding a new source
 

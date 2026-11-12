@@ -1,6 +1,6 @@
 ---
 name: approve-topic
-description: Records the user's approval of one ranked topic so that writing can start, when config/pipeline.json sets topic_approval to human. The user types it; Claude never runs it.
+description: Only when the user types /approve-topic with a run and a topic id (topic_approval human in config/pipeline.json). A hook records approval.json from what the user typed; then the run continues with the explainer. Claude never runs it.
 argument-hint: "runs/<run> <topic-id> [note]"
 disable-model-invocation: true
 ---
@@ -13,5 +13,5 @@ user saw. Never write or edit `approval.json` yourself.
    (workspace not trusted, or hooks disabled): tell the user, point to the manual fallback in README.md, and stop.
 2. If `approval.json` has a `gate_status` starting with `excluded`, tell the user how the explainer will handle the
    gate reason (for example an evidence box that separates what the paper shows from what was only claimed).
-3. Continue: `python3 tools/run.py finalize <run>` (renames the folder to the topic slug), the `didactic-html-writer`
-   skill, then `/produce-explainer` from its step 6.
+3. Continue with `.agents/skills/produce-explainer/stages.md` from its stage 5 (Write) on that run, through stage 11:
+   the stages of `/produce-explainer`, which only the user can invoke as a command.

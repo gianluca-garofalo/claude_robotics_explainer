@@ -49,12 +49,14 @@
       "Edit(/config/**)",
       "Edit(/tools/hooks/**)",
       "Edit(/tools/human/**)",
-      "Edit(**/selection.json)",
-      "Edit(**/episode.json)",
-      "Edit(**/search.json)",
-      "Edit(**/covered.json)",
-      "Edit(**/published.json)",
+      "Edit(selection.json)",
+      "Edit(episode.json)",
+      "Edit(search.json)",
+      "Edit(covered.json)",
+      "Edit(published.json)",
       "Edit(/series/**)",
+      "Edit(/sources/**)",
+      "Edit(/.agents/**)",
       "Edit(/.github/**)",
       "Edit(/tools/publish/**)",
       "Edit(/tools/ci/**)",
@@ -67,6 +69,44 @@
       "Read(./.env)",
       "Read(./.env.*)"
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false,
+    "allowUnsandboxedCommands": false,
+    "excludedCommands": [
+      "python3 tools/series.py write *",
+      "node tools/check_html.js *"
+    ],
+    "network": {
+      "allowedDomains": [
+        "arxiv.org",
+        "export.arxiv.org",
+        "swedencentral.tts.speech.microsoft.com",
+        "swedencentral.api.cognitive.microsoft.com",
+        "suggestqueries.google.com",
+        "www.googleapis.com",
+        "trends.google.com",
+        "huggingface.co",
+        "hf.co",
+        "*.hf.co",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "registry.npmjs.org"
+      ],
+      "deniedDomains": [
+        "doi.org",
+        "api.crossref.org",
+        "openreview.net",
+        "*.ieee.org",
+        "dl.acm.org",
+        "roboticsproceedings.org",
+        "proceedings.mlr.press",
+        "www.science.org",
+        "www.nature.com",
+        "github.com"
+      ]
+    }
   },
   "hooks": {
     "PreToolUse": [

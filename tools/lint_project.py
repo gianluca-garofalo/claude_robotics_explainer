@@ -37,9 +37,21 @@ CLAUDE = REPO / ".claude"
 SKILLS = REPO / ".agents" / "skills"           # .claude/skills links here
 TOOLS = {"Read", "Grep", "Glob", "Bash", "Edit", "Write", "NotebookEdit", "WebFetch", "WebSearch", "TodoWrite",
          "Skill", "Agent", "LSP", "PowerShell", "Monitor", "TaskStop", "SendMessage", "ToolSearch", "EnterWorktree",
-         "ExitWorktree", "Artifact"}
-SETTINGS_KEYS_USED = {"$schema", "permissions", "hooks", "env"}
+         "ExitWorktree", "Artifact", "Workflow"}
+SETTINGS_KEYS_USED = {"$schema", "permissions", "hooks", "env", "sandbox"}
 SIDE_EFFECT_SKILLS = {"produce-explainer", "approve-topic", "produce-episode", "produce-from-source", "plan-series"}
+SKILLS_LINK_FIX = "rm -rf .claude/skills && ln -s ../.agents/skills .claude/skills"
+# The owner's folders (AGENTS.md, Rules): an Edit deny rule each, which the sandbox also applies to Bash.
+OWNER_DIRS = ("config", "series", "sources", "tools/hooks", "tools/human", "tools/publish", "tools/ci", ".github", "ci",
+              ".agents")
+# Run files that only the pipeline's tools write: deny them as bare names. Claude Code applies a bare name at any depth
+# to its file tools, but gives the sandbox only <project>/<name>; a **/ glob becomes an OS-level deny on macOS that
+# also stops the tool that writes the file.
+TOOL_WRITTEN = ("selection.json", "episode.json", "search.json", "covered.json", "published.json")
+# What may leave the sandbox: a repository tool and its subcommand (writes the sandbox denies, or a browser).
+SANDBOX_EXCLUDABLE = re.compile(r"^(python3 tools/[\w/-]+\.py|node tools/[\w/-]+\.js)( [a-z][\w-]*)? \*$")
+# Claude steps of the workflow that read the web; every other one runs with --disallowedTools "WebFetch WebSearch".
+WEB_SKILLS = {"robotics-news-scout", "didactic-html-writer", "explainer-review"}
 
 TEXT_SUFFIXES = {".md", ".py", ".js", ".json", ".toml", ".txt", ".sh", ".html", ".css", ".yml", ".yaml", ".cfg", ""}
 SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", "media", "runs", ".cache"}   # without git only
@@ -259,10 +271,68 @@ def lint_settings(out: Out):
         if re.match(r"^(Write|NotebookEdit|Glob)\(", rule):
             out.err(where, f"{rule!r} never matches: use Edit(...) or Read(...) path rules")
     hook_scripts(where, data.get("hooks"), out)
-    deny = " ".join(map(str, perms.get("deny", [])))
+    deny_rules = [str(r) for r in perms.get("deny", [])]
+    deny = " ".join(deny_rules)
     for must in ("git push", "gh release", "approval.json"):
         if must not in deny:
             out.err(where, f"project policy: deny rules must cover {must!r}")
+    for d in OWNER_DIRS:
+        if f"Edit(/{d}/**)" not in deny_rules:
+            out.err(where, f"deny rules must include Edit(/{d}/**): {d}/ is the owner's (AGENTS.md, Rules)")
+    for name in TOOL_WRITTEN:
+        if f"Edit({name})" not in deny_rules:
+            out.err(where, f"deny rules must include Edit({name}): only a tool writes it")
+        for rule in deny_rules:
+            if rule.startswith("Edit(") and rule.endswith(f"/{name})"):
+                out.err(where, f"{rule}: write Edit({name}); with the sandbox on, a path pattern also stops the tool "
+                               f"that writes {name} on macOS")
+    lint_sandbox(where, data.get("sandbox"), perms, out)
+
+
+def lint_sandbox(where: str, sb, perms: dict, out: Out):
+    """The project's sandbox: on, no unsandboxed retry, the allow rules still decide, every Bash host explicit."""
+    if not isinstance(sb, dict) or sb.get("enabled") is not True:
+        out.err(where, "sandbox.enabled must be true: the deny rules and the network allowlist then hold for Bash too")
+        return
+    if sb.get("allowUnsandboxedCommands") is not False:
+        out.err(where, "sandbox.allowUnsandboxedCommands must be false: no retry outside the sandbox")
+    if sb.get("autoAllowBashIfSandboxed") is not False:
+        out.err(where, "sandbox.autoAllowBashIfSandboxed must be false: on Linux the sandbox cannot hold a **/ rule "
+                       "such as Edit(**/approval.json), so the allow rules keep deciding which commands run")
+    for cmd in sb.get("excludedCommands") or []:
+        if not SANDBOX_EXCLUDABLE.match(str(cmd)):
+            out.err(where, f"sandbox.excludedCommands {cmd!r}: only `python3 tools/<x>.py [subcommand] *` or "
+                           "`node tools/<x>.js *` may run outside the sandbox")
+    net = sb.get("network") if isinstance(sb.get("network"), dict) else {}
+    allowed, denied = set(net.get("allowedDomains") or []), set(net.get("deniedDomains") or [])
+    if not allowed:
+        out.err(where, "sandbox.network.allowedDomains must list the hosts Bash needs")
+    for rule in perms.get("allow", []):
+        m = re.match(r"^WebFetch\(domain:(.+)\)$", str(rule))
+        if m and m.group(1) not in allowed | denied:
+            out.err(where, f"{rule}: Claude Code also adds this host to the hosts Bash may reach; list it in "
+                           "sandbox.network.allowedDomains (Bash needs it) or deniedDomains (only WebFetch does)")
+    for host in sorted(allowed & denied):
+        out.err(where, f"sandbox.network: {host} is both allowed and denied")
+
+
+def skills_link_problem(link: Path, target: Path) -> str | None:
+    """None when `link` is a symbolic link that resolves to `target`, else what is wrong with it."""
+    if link.is_symlink():
+        if link.resolve() == target.resolve():
+            return None
+        return f"links to {os.readlink(link)}, not to ../.agents/skills"
+    if link.is_dir():
+        return "is a folder, not a symbolic link (a zip download or a copy replaced the link)"
+    if link.exists():
+        return "is a file, not a symbolic link (a checkout without symbolic links, as on Windows without WSL)"
+    return "is missing"
+
+
+def lint_skills_link(out: Out):
+    problem = skills_link_problem(CLAUDE / "skills", SKILLS)
+    if problem:
+        out.err(".claude/skills", f"{problem}: Claude Code finds the skills through it. Fix: {SKILLS_LINK_FIX}")
 
 
 CI_MUST_DENY = ("git push", "Bash(gh *)", "Bash(curl *)", "tools/publish", "auto_select", "approval.json",
@@ -301,6 +371,9 @@ def lint_ci_settings(out: Out):
         if sb is not None:
             if (sb.get("network") or {}).get("allowedDomains"):
                 out.warn(where, "sandbox: Bash may reach " + ", ".join(sb["network"]["allowedDomains"]))
+            if (sb.get("network") or {}).get("strictAllowlist") is not True:
+                out.err(where, "sandbox.network.strictAllowlist must be true: otherwise the project's allowedDomains "
+                               "and WebFetch(domain:...) rules add their hosts to the ones Bash may reach in CI")
             if not any(v.get("name") == "GITHUB_TOKEN" and v.get("mode") == "deny"
                        for v in (sb.get("credentials") or {}).get("envVars", []) if isinstance(v, dict)):
                 out.err(where, "sandbox.credentials must deny GITHUB_TOKEN")
@@ -363,14 +436,23 @@ def lint_actions(out: Out):
                     out.err(jw, "runs Claude: every checkout needs persist-credentials: false")
             for st in claude:
                 w = st.get("with") or {}
-                args = str(w.get("claude_args", ""))
+                args, name = str(w.get("claude_args", "")), st.get("name", "?")
                 for flag in ("--max-turns", "--max-budget-usd", "--permission-mode dontAsk"):
                     if flag not in args:
-                        out.err(jw, f"step {st.get('name', '?')!r}: claude_args needs {flag}")
+                        out.err(jw, f"step {name!r}: claude_args needs {flag}")
                 if re.search(r"--model\b|--dangerously|bypassPermissions", args):
-                    out.err(jw, f"step {st.get('name', '?')!r}: no model override or permission bypass")
+                    out.err(jw, f"step {name!r}: no model override or permission bypass")
                 if not w.get("settings"):
-                    out.err(jw, f"step {st.get('name', '?')!r}: pass the CI settings (ci/*.json)")
+                    out.err(jw, f"step {name!r}: pass the CI settings (ci/*.json)")
+                elif f"--settings {w['settings']}" not in args:
+                    out.err(jw, f"step {name!r}: claude_args needs --settings {w['settings']} as well: the settings "
+                                "input installs them as user settings, below the project's .claude/settings.json")
+                skill = re.match(r"^\s*/([\w-]+)", str(w.get("prompt", "")))
+                no_web = re.search(r"--disallowedTools[ =]\"?[^\"]*\bWebFetch\b[^\"]*\bWebSearch\b|"
+                                   r"--disallowedTools[ =]\"?[^\"]*\bWebSearch\b[^\"]*\bWebFetch\b", args)
+                if not (skill and skill.group(1) in WEB_SKILLS) and not no_web:
+                    out.err(jw, f"step {name!r}: needs no web: add --disallowedTools \"WebFetch WebSearch\" to "
+                                "claude_args (or add its skill to WEB_SKILLS in tools/lint_project.py)")
 
 
 SH_GUARD = '[ -n "${BASH_VERSION:-}" ] || exec bash "$0" "$@"'    # sh or zsh hand the script over to bash
@@ -504,6 +586,7 @@ def main() -> int:
         lint_rules(out)
         lint_workflows(out)
         lint_settings(out)
+        lint_skills_link(out)
     if a.automation or every:
         lint_ci_settings(out)
         lint_actions(out)
