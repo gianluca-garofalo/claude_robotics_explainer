@@ -75,6 +75,24 @@ class SplitMath(unittest.TestCase):
         self.assertEqual(segs[0][0], "inline")
 
 
+class UnverifiedReferences(unittest.TestCase):
+    """--strict refuses a reference the build marks [unverified], never an evidence box's status label."""
+
+    def errors(self, body: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as tmp:
+            page = Path(tmp) / "page.html"
+            page.write_text(body, encoding="utf-8")
+            return [i["code"] for i in lint_html.lint(page, strict=True) if i["level"] == "error"]
+
+    def test_only_the_reference_marker_counts(self):
+        evidence = ('<div class="evidence"><ul><li><span class="status unverified">not verified</span> A claim made '
+                    'only in a press release.</li></ul></div>')
+        ref = build_explainer.format_ref({"key": "lab2026", "type": "web", "authors": ["Example Lab"], "title": "Demo",
+                                          "year": 2026, "verification": {"status": "unverified"}})
+        self.assertNotIn("unverified-refs", self.errors(evidence))
+        self.assertIn("unverified-refs", self.errors(evidence + f'<ol class="references">\n{ref}\n</ol>'))
+
+
 class Validators(unittest.TestCase):
     def setUp(self):
         self.src = json.loads((FIX / "sources.json").read_text())

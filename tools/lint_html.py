@@ -154,8 +154,8 @@ class Collector:
                         self.external.append((name, url, line))
             if name == "li" and t.get("id", "").startswith("ref-"):
                 self.refs.append(t["id"])
-            if name == "span" and "unverified" in t.get("class", ()):
-                self.unverified_refs += 1
+            if name == "span" and "unverified" in t.get("class", ()) and _ancestor(t, "ol", "references"):
+                self.unverified_refs += 1                    # the build's marker, not an evidence box's status
             if name == "figure":
                 svgs = t.find_all("svg")
                 self.figures.append({"line": line, "caption": t.find("figcaption") is not None,
