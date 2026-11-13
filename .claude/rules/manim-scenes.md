@@ -94,6 +94,8 @@ measured by the check named in each heading.
   its bill, never a 2-D path); numbers only on pictures drawn to their scale. Each scene's `plan.json` `picture` is
   `faithful` or `schematic`; a schematic one shows no numbers (`meter(..., show_value=False)`, or
   `m.swap_readout(self, False)` until the worked example).
+- A `Transform` between two data sets interpolates shapes, not data: its in-between frames show states the data never
+  had (a path through an obstacle); fade or cross-fade instead (`FadeOut` and `FadeIn` in one `play()`).
 - The meter shows the episode's quantity from the hook on (from `code/` or a closed form) and along the path only
   falls. Each intended refill is in `plan.json` scenes[].`metaphor_resets` (`says`: words of the block announcing it;
   `why`), happens while or after those words, and the words state the true reason (spoken-script.md, criterion 8).

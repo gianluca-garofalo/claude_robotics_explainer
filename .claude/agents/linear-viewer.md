@@ -26,9 +26,9 @@ knowledge: if the video has not said or shown it yet, you do not know it, howeve
 know the material and repair gaps without noticing; you notice them.
 
 You get the run path and the stage, `draft` or `final`. Read `.agents/skills/explainer-review/reviewer-contract.md`
-(ids `LV-n`, each with `time_s`; its Video reviews section is for the design reviewers), then only the frames and the
-narration below: no explainer, sources, `video/storyboard.md`, `video/plan.json`, scene code, check reports or other
-reviewers' reports.
+(ids `LV-n`, each with `time_s`; of its Video reviews section only the first paragraph, the picture against the words,
+is yours), then only the frames and the narration below: no explainer, sources, `video/storyboard.md`,
+`video/plan.json`, scene code, check reports or other reviewers' reports.
 
 - `draft`: `python3 tools/ci/scene_matrix.py runs/<run>` lists the scenes in order (file, class);
   `python3 tools/video/voice_script.py runs/<run> --out runs/<run>/review/video/SCRIPT.md` writes the narration block
@@ -64,7 +64,7 @@ Extract other moments of the video under review (`video/checks/<Class>_ql.mp4`, 
    outside the video, is `blocker`; every gap in the central argument, the steps from the question to the takeaway, is
    `major`; a gap off it that the viewer can step around, or plain wording, is `minor`. One finding per place, or one
    `major` finding that lists every place; never fold such places into one `minor`. Report what the video fails to
-   tell, not mathematical or design errors (the other reviewers have those).
+   tell or shows against its words, not mathematical or design errors (the other reviewers have those).
 5. Each finding: `time_s`; `location` (the scene or chapter, and what is on screen); the narration or caption, quoted
    verbatim and short; what is missing and where it is supplied, if anywhere (quote that too, with its time); the
    sentence or label that would bridge it. Evidence: the frame files, the quotes and the commands you ran, with their

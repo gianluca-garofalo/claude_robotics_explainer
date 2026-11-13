@@ -96,7 +96,12 @@ most five.
 
 ## Video reviews
 
-Judge against AGENTS.md (Conventions), `.claude/rules/manim-scenes.md` and
+Every video reviewer (`VD-`, `FC-`, `LV-`): each statement the narration or a caption makes about what is on screen
+(a spread, a collapse, an avoidance, a winner) is visible at that moment; look at the frames at those words and inside
+the transitions near them. Anything on screen that contradicts a statement is at least `major`: the better method
+failing, an in-between frame showing what the words deny.
+
+The design reviewers (`VD-`, `FC-`) judge against AGENTS.md (Conventions), `.claude/rules/manim-scenes.md` and
 `.agents/skills/manim-video-producer/spoken-script.md`. Confirm or dismiss every error and warning of the check
 reports with what you see, and look for what they cannot see; evidence is the frame file and time, the caption text
 and the tool output. Always `major`:
@@ -107,7 +112,7 @@ and the tool output. Always `major`:
 - in the idea declarations (`plan.json` `ideas`, audited against what you hear): an undeclared result, a step (`of`)
   that needs its own explanation, a result the series plan (`episode.json` `ideas`) does not budget.
 
-Both video reviewers add, at the top level, and as tables in the `.md`:
+Both design reviewers add, at the top level, and as tables in the `.md`:
 
 - `"rubric"`: the SoME rubric, `{"motivation" | "clarity" | "novelty" | "memorability": {"score": 1-5, "evidence":
   "frame file and time"}}`: why a viewer should care, and by when; whether each step can be followed from the
