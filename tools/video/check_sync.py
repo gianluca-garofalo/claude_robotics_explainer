@@ -11,8 +11,9 @@ Rules (thresholds in config/video.json "sync"):
               frame are skipped. Word timings: the draft's silent voice (layout logs), the final narration
               (video/voice/manifest.json).
   unanchored  one play() in a voiceover block reveals two or more separate pictures (FadeIn, Create, Write, the Grow
-              animations, DrawBorderThenFill, or a LaggedStart, AnimationGroup or Succession of them) with no
-              wait_until_word or wait_until_bookmark right before it, or one after another from that one word.
+              animations, DrawBorderThenFill, or a LaggedStart, AnimationGroup or Succession of them) that do not all
+              start within lead_max_s of a word: a wait_until_word or wait_until_bookmark, or a play that runs until a
+              word, with only plays in between.
 Findings are warnings; with sync.errors_block_gate true the early ones are errors. Exit status 1 on an error.
 """
 from __future__ import annotations
@@ -360,8 +361,19 @@ def events(body: list, local: set) -> list[tuple[str, ast.Call]]:
     return out
 
 
-def unanchored(files: list[Path], fd: checks.Findings) -> int:
-    """Plays inside voiceover blocks that reveal several pictures off the words that name them."""
+def run_time(call: ast.Call) -> float | str | None:
+    """A play's seconds when written as a number (1 when not given), "word" when it runs until a word, else None."""
+    rt = next((k.value for k in call.keywords if k.arg == "run_time"), None)
+    if rt is None:
+        return 1.0
+    if any(isinstance(x, ast.Call) and _name(x) in WORD_TIMES for x in ast.walk(rt)):
+        return "word"
+    return float(rt.value) if isinstance(rt, ast.Constant) and isinstance(rt.value, (int, float)) else None
+
+
+def unanchored(files: list[Path], fd: checks.Findings, window: float = DEFAULTS["lead_max_s"]) -> int:
+    """Plays inside voiceover blocks that reveal several pictures off the words that name them: more than `window`
+    seconds after the last word timed in the block, or with another wait in between."""
     src, seen = Source(files), set()
     for f, exc in src.broken.items():
         fd.add("source", "warning", f.name, f"not checked: the file does not parse ({exc.msg}, line {exc.lineno})")
@@ -373,9 +385,15 @@ def unanchored(files: list[Path], fd: checks.Findings) -> int:
                 local = methods | {n.name for n in ast.walk(fn) if isinstance(n, ast.FunctionDef) and n is not fn}
                 for w in (n for n in ast.walk(fn) if isinstance(n, ast.With)
                           and any(_name(it.context_expr) == "voiceover" for it in n.items)):
-                    evs = events(w.body, local)
-                    for i, (k, call) in enumerate(evs):
-                        if k != "play" or (f, call.lineno) in seen:
+                    since = None                     # seconds since the last word timed, None: no word in reach
+                    for k, call in events(w.body, local):
+                        if k != "play":
+                            since = 0.0 if k == "sync" else None
+                            continue
+                        rt, start = run_time(call), since
+                        timed = start is not None and isinstance(rt, float)
+                        since = 0.0 if rt == "word" else start + rt if timed else None
+                        if (f, call.lineno) in seen:
                             continue
                         pics: dict[str, tuple[bool, bool]] = {}
                         for a in call.args:
@@ -383,13 +401,13 @@ def unanchored(files: list[Path], fd: checks.Findings) -> int:
                                 old = pics.get(key, (False, False))
                                 pics[key] = (old[0] or many, old[1] or st)
                         n = sum(2 if many else 1 for many, _ in pics.values())
-                        anchored = i > 0 and evs[i - 1][0] == "sync"
+                        near = start is not None and start <= window
                         staggered = any(st for _, st in pics.values())
-                        if n < 2 or (anchored and not staggered):
+                        if n < 2 or near and (not staggered or timed and start + rt <= window):
                             continue
                         seen.add((f, call.lineno))
                         names = ", ".join(f"{k}[...]" if many else k for k, (many, _) in pics.items())
-                        how = ("one after another from one word" if anchored else
+                        how = ("one after another from one word" if near else
                                "one after another, tied to no word" if staggered else "at once, tied to no word")
                         fd.add("unanchored", "warning", cls.name, f"{f.name}:{call.lineno}: one play() shows "
                                f"{'several' if n > len(pics) else n} pictures ({names}) {how}: show each as the "
@@ -405,7 +423,7 @@ def check(run: Path, stage: str, cfg: dict) -> tuple[checks.Findings, dict]:
     tl = timeline(run, stage)
     stats = early(tl, cfg, fd)
     files = checks.scene_files(run)
-    stats["unanchored"] = unanchored(files, fd)
+    stats["unanchored"] = unanchored(files, fd, float(cfg["lead_max_s"]))
     stats["layout_sha256"] = tl["layout_sha256"]
     stats["scene_sha256"] = {f.name: sha256_file(f) for f in files}
     return fd, stats
@@ -425,7 +443,7 @@ def main() -> int:
             ap.error(f"no such folder: {a.scenes}")
         fd, stage = Findings(), "scenes"
         files = [f for f in sorted(folder.glob("*.py")) if f.name not in checks.HELPERS]
-        stats = {"unanchored": unanchored(files, fd)}
+        stats = {"unanchored": unanchored(files, fd, float(cfg["lead_max_s"]))}
         out = Path(a.out) if a.out else None
         sha = {}
     elif a.run:
