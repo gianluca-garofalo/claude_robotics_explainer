@@ -11,9 +11,10 @@ Rules (thresholds in config/video.json "sync"):
               frame are skipped. Word timings: the draft's silent voice (layout logs), the final narration
               (video/voice/manifest.json).
   unanchored  one play() in a voiceover block reveals two or more separate pictures (FadeIn, Create, Write, the Grow
-              animations, DrawBorderThenFill, or a LaggedStart, AnimationGroup or Succession of them) that do not all
-              start within lead_max_s of a word: a wait_until_word or wait_until_bookmark, or a play that runs until a
-              word, with only plays in between.
+              animations, DrawBorderThenFill, or a LaggedStart, AnimationGroup or Succession of them) more than
+              lead_max_s after the last word timed in the block (a wait_until_word or wait_until_bookmark, or a play
+              that runs until a word, with only plays since), or one after another from that word; the members of one
+              collection may build up one after another.
 Findings are warnings; with sync.errors_block_gate true the early ones are errors. Exit status 1 on an error.
 """
 from __future__ import annotations
@@ -206,10 +207,24 @@ def _name(node) -> str:
     return f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
 
 
+def loop_items(target: ast.AST, it: ast.AST) -> list[tuple[str, ast.expr]]:
+    """(name, an item of what it runs over) of a loop: x in xs, a, b in zip(xs, ys), i, x in enumerate(xs)."""
+    if isinstance(target, (ast.Tuple, ast.List)) and _name(it) in ("zip", "enumerate"):
+        names = target.elts[1:] if _name(it) == "enumerate" else target.elts
+        runs = it.args[:1] if _name(it) == "enumerate" else it.args
+        return [x for t, r in zip(names, runs) for x in loop_items(t, r)] if len(names) == len(runs) else []
+    return [(target.id, ast.Subscript(value=it, slice=ast.Constant(0), ctx=ast.Load()))] \
+        if isinstance(target, ast.Name) else []
+
+
 def assignments(fn: ast.AST) -> dict[str, list[tuple[int, ast.expr]]]:
-    """{name: [(line, value)]} of a function's assignments in line order; a tuple target's names get their elements."""
+    """{name: [(line, value)]} of a function's assignments and loop variables in line order; a tuple target's names get
+    their elements."""
     out: dict[str, list] = {}
     for n in ast.walk(fn):
+        if isinstance(n, ast.For):
+            for name, v in loop_items(n.target, n.iter):
+                out.setdefault(name, []).append((n.lineno, v))
         if not isinstance(n, ast.Assign):
             continue
         for t in n.targets:
@@ -235,10 +250,10 @@ class Source:
             except SyntaxError as exc:
                 self.broken[f] = exc
         self.funcs = {}
-        for tree in self.trees.values():
-            for n in tree.body:
-                if isinstance(n, ast.FunctionDef):
-                    self.funcs.setdefault(n.name, n)
+        trees = list(self.trees.values())
+        for n in [n for t in trees for n in t.body] + [n for t in trees for n in ast.walk(t)]:
+            if isinstance(n, ast.FunctionDef):           # module helpers first, then methods and helpers inside them
+                self.funcs.setdefault(n.name, n)
         self._returns: dict[str, bool] = {}
 
     def returns_text(self, name: str, depth: int) -> bool:
@@ -251,7 +266,7 @@ class Source:
         return self._returns[name]
 
     def is_text(self, e: ast.AST, env: dict, line: int, depth: int = 0) -> bool:
-        if depth > 6:
+        if depth > 12:
             return False
         if isinstance(e, ast.Name):
             vals = env.get(e.id, [])
@@ -261,6 +276,11 @@ class Source:
             return self.is_text(e.value, env, line, depth + 1)
         if isinstance(e, ast.IfExp):
             return self.is_text(e.body, env, line, depth + 1) and self.is_text(e.orelse, env, line, depth + 1)
+        if isinstance(e, (ast.List, ast.Tuple, ast.Set)):
+            return bool(e.elts) and all(self.is_text(x, env, line, depth + 1) for x in e.elts)
+        if isinstance(e, (ast.ListComp, ast.GeneratorExp, ast.SetComp)):
+            inner = dict(env, **{k: [(line, v)] for g in e.generators for k, v in loop_items(g.target, g.iter)})
+            return self.is_text(e.elt, inner, line, depth + 1)
         if not isinstance(e, ast.Call):
             return False
         name = _name(e)
@@ -270,9 +290,10 @@ class Source:
             return bool(e.args) and self.is_text(e.args[0], env, line, depth + 1)
         if name in ("VGroup", "Group"):
             return bool(e.args) and all(self.is_text(a, env, line, depth + 1) for a in e.args)
-        if isinstance(e.func, ast.Attribute):            # a mobject's method returns the mobject
-            return self.is_text(e.func.value, env, line, depth + 1)
-        return name in self.funcs and self.returns_text(name, depth)
+        if isinstance(e.func, ast.Attribute) and not (isinstance(e.func.value, ast.Name)
+                                                      and e.func.value.id in ("self", "scene")):
+            return self.is_text(e.func.value, env, line, depth + 1)      # a mobject's method returns the mobject
+        return name in self.funcs and self.returns_text(name, depth)       # a helper, or the scene's own method
 
 
 def picture_key(e: ast.AST) -> str:
@@ -292,12 +313,16 @@ def picture_key(e: ast.AST) -> str:
     return node.id if isinstance(node, ast.Name) else ast.unparse(e)
 
 
-def revealed(node: ast.AST, src: Source, env: dict, stagger: bool = False) -> list[tuple[str, bool, bool]]:
-    """(picture, several, one after another) of each picture an animation reveals; texts are left out."""
+def revealed(node: ast.AST, src: Source, env: dict, stagger: bool = False) -> list[tuple[str, int, bool]]:
+    """(picture, kind, one after another) of each picture an animation reveals, texts left out; kind 0 is one picture,
+    1 the members of one collection (a name, starred or looped over), 2 several separately named ones."""
     line = getattr(node, "lineno", 0)
 
     def picture(e) -> bool:
         return not src.is_text(e, env, line)
+
+    def several(e) -> int:
+        return 1 if isinstance(e, (ast.Name, ast.Attribute, ast.Subscript)) else 2
     if isinstance(node, ast.Starred):
         v = node.value
         if isinstance(v, (ast.ListComp, ast.GeneratorExp)) and isinstance(v.elt, ast.Call) and v.generators \
@@ -305,10 +330,10 @@ def revealed(node: ast.AST, src: Source, env: dict, stagger: bool = False) -> li
             gen, target = v.generators[0], v.elt.args[0]
             loop = isinstance(target, ast.Name) and isinstance(gen.target, ast.Name) and target.id == gen.target.id
             if picture(gen.iter if loop else target):
-                return [(ast.unparse(gen.iter), True, stagger)]
+                return [(ast.unparse(gen.iter), several(gen.iter), stagger)]
         elif isinstance(v, ast.Call) and _name(v) == "map" and len(v.args) > 1 and isinstance(v.args[0], ast.Name) \
                 and v.args[0].id in REVEALS and picture(v.args[1]):
-            return [(ast.unparse(v.args[1]), True, stagger)]
+            return [(ast.unparse(v.args[1]), several(v.args[1]), stagger)]
         return []
     if not isinstance(node, ast.Call):
         return []
@@ -317,13 +342,13 @@ def revealed(node: ast.AST, src: Source, env: dict, stagger: bool = False) -> li
         for t in (node.args if name == "FadeIn" else node.args[:1]):
             if isinstance(t, ast.Starred):
                 if picture(t.value):
-                    out.append((ast.unparse(t.value), True, stagger))
+                    out.append((ast.unparse(t.value), several(t.value), stagger))
             elif picture(t):
-                out.append((picture_key(t), False, stagger))
+                out.append((picture_key(t), 0, stagger))
     elif name == "LaggedStartMap":
         if len(node.args) > 1 and isinstance(node.args[0], ast.Name) and node.args[0].id in REVEALS \
                 and picture(node.args[1]):
-            out.append((ast.unparse(node.args[1]), True, True))
+            out.append((ast.unparse(node.args[1]), several(node.args[1]), True))
     elif name in GROUPS:
         lag = next((k.value for k in node.keywords if k.arg == "lag_ratio"), None)
         st = stagger or name in STAGGERS or (lag is not None and not (isinstance(lag, ast.Constant) and not lag.value))
@@ -373,7 +398,7 @@ def run_time(call: ast.Call) -> float | str | None:
 
 def unanchored(files: list[Path], fd: checks.Findings, window: float = DEFAULTS["lead_max_s"]) -> int:
     """Plays inside voiceover blocks that reveal several pictures off the words that name them: more than `window`
-    seconds after the last word timed in the block, or with another wait in between."""
+    seconds after the last word timed in the block, with another wait in between, or one after another from it."""
     src, seen = Source(files), set()
     for f, exc in src.broken.items():
         fd.add("source", "warning", f.name, f"not checked: the file does not parse ({exc.msg}, line {exc.lineno})")
@@ -395,18 +420,19 @@ def unanchored(files: list[Path], fd: checks.Findings, window: float = DEFAULTS[
                         since = 0.0 if rt == "word" else start + rt if timed else None
                         if (f, call.lineno) in seen:
                             continue
-                        pics: dict[str, tuple[bool, bool]] = {}
+                        pics: dict[str, tuple[int, bool]] = {}
                         for a in call.args:
-                            for key, many, st in revealed(a, src, env):
-                                old = pics.get(key, (False, False))
-                                pics[key] = (old[0] or many, old[1] or st)
-                        n = sum(2 if many else 1 for many, _ in pics.values())
+                            for key, kind, st in revealed(a, src, env):
+                                old = pics.get(key, (0, False))
+                                pics[key] = (max(old[0], kind), old[1] or st)
+                        n = sum(2 if kind else 1 for kind, _ in pics.values())
                         near = start is not None and start <= window
-                        staggered = any(st for _, st in pics.values())
-                        if n < 2 or near and (not staggered or timed and start + rt <= window):
+                        turns = sum(2 if kind == 2 else 1 for kind, st in pics.values() if st)  # a collection: one
+                        if n < 2 or near and turns < 2:
                             continue
                         seen.add((f, call.lineno))
-                        names = ", ".join(f"{k}[...]" if many else k for k, (many, _) in pics.items())
+                        staggered = turns > 0
+                        names = ", ".join(f"{k}[...]" if kind else k for k, (kind, _) in pics.items())
                         how = ("one after another from one word" if near else
                                "one after another, tied to no word" if staggered else "at once, tied to no word")
                         fd.add("unanchored", "warning", cls.name, f"{f.name}:{call.lineno}: one play() shows "

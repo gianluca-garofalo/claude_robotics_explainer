@@ -168,14 +168,18 @@ class SourceRule(unittest.TestCase):
 
 RESULTS = '''
 class Results(RAScene):
+    def value(self, text, bar):                                     # a label from the scene's own method
+        return Text(text, font_size=26).next_to(bar, UP, buff=0.15)
+
     def construct(self):
-        def tag(text, bar):                                         # a value pill over its bar
-            box = RoundedRectangle(width=1.3, height=0.5, corner_radius=0.12).next_to(bar, UP, buff=0.15)
-            return VGroup(box, Text(text, font_size=26).move_to(box))
+        def name(text, bar):                                        # a label from a helper inside construct
+            return Text(text, font_size=24).next_to(bar, DOWN, buff=0.15)
         base = Line(LEFT * 3, RIGHT * 3).shift(DOWN * 2)
         sim = Rectangle(width=1.0, height=3.2).next_to(base, UP, buff=0).shift(LEFT * 1.4)
         real = Rectangle(width=1.0, height=2.1).next_to(base, UP, buff=0).shift(RIGHT * 1.4)
-        sim_tag, real_tag = tag("92 %", sim), tag("61 %", real)
+        sim_tag, real_tag = self.value("92 %", sim), self.value("61 %", real)
+        names = VGroup(*[name(s, b) for s, b in (("simulated", sim), ("real", real))])
+        dots = VGroup(*[Dot(sim.get_top() + UP * 0.2 * (k + 1)) for k in range(5)])
         with self.voiceover(text="Both robots were tested: the simulated one succeeds ninety-two times in a hundred, "
                                  "the real one sixty-one.") as tr:
 '''
@@ -187,36 +191,80 @@ def results(*lines: str) -> list[int]:
     return [x["line"] - RESULTS.count("\n") for x in found]
 
 
-class PairedReveals(unittest.TestCase):
-    """A bar and its value pill shown together: on the word of the play right before them, or of the plays shortly
-    before them in the same block; far from any word they still warn."""
+class Anchors(unittest.TestCase):
+    """Pictures shown together shortly after the last word timed in their block are on that word; later, after
+    another wait or in the next block, they are not."""
 
-    def test_pairs_tied_to_one_word(self):
-        self.assertEqual(results('self.wait_until_word("both robots")',
-                                 'self.play(GrowFromEdge(sim, DOWN), FadeIn(sim_tag), run_time=0.4)',
-                                 'self.play(GrowFromEdge(real, DOWN), FadeIn(real_tag), run_time=0.4)'), [])
-        self.assertEqual(results('self.wait_until_word("simulated")',               # the bar, then its pill
-                                 'self.play(LaggedStart(GrowFromEdge(sim, DOWN), FadeIn(sim_tag), lag_ratio=0.5), '
-                                 'run_time=0.8)'), [])
-        self.assertEqual(results('self.play(Create(base), run_time=self.time_until_word("simulated"))',
-                                 'self.play(GrowFromEdge(sim, DOWN), FadeIn(sim_tag), run_time=0.5)',
-                                 'self.play(sim.animate.set_fill(opacity=0.5), '
-                                 'run_time=max(self.time_until_word("real one"), 0.5))',
-                                 'self.play(GrowFromEdge(real, DOWN), FadeIn(real_tag), run_time=0.5)'), [])
+    def test_pictures_shortly_after_their_word(self):
+        self.assertEqual(results('self.wait_until_word("both robots")', 'self.play(Create(base), run_time=0.4)',
+                                 'self.play(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN), run_time=0.5)'), [])
+        self.assertEqual(results('self.play(Create(base), run_time=self.time_until_word("both robots"))',
+                                 'self.play(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN), run_time=0.5)'), [])
 
-    def test_pairs_far_from_their_word(self):
-        self.assertEqual(results('self.wait_until_word("simulated")',
-                                 'self.play(GrowFromEdge(sim, DOWN), FadeIn(sim_tag), run_time=0.5)',
-                                 'self.play(sim.animate.set_fill(opacity=0.5), run_time=1.2)',
-                                 'self.play(GrowFromEdge(real, DOWN), FadeIn(real_tag), run_time=0.5)'), [4])
-        self.assertEqual(results('self.wait_until_word("simulated")', 'self.read(sim)',      # another wait between
-                                 'self.play(GrowFromEdge(real, DOWN), FadeIn(real_tag), run_time=0.5)'), [3])
-        self.assertEqual(results('self.wait_until_word("simulated")',               # a long stagger
-                                 'self.play(Succession(GrowFromEdge(sim, DOWN), FadeIn(sim_tag)), run_time=2.4)'), [2])
-        self.assertEqual(results('self.wait_until_word("simulated")',               # the next block has no anchor
-                                 'self.play(GrowFromEdge(sim, DOWN), run_time=0.5)',
+    def test_pictures_far_from_any_word(self):
+        self.assertEqual(results('self.wait_until_word("both robots")', 'self.play(Create(base), run_time=0.5)',
+                                 'self.play(base.animate.set_stroke(width=6), run_time=1.2)',
+                                 'self.play(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN), run_time=0.5)'), [4])
+        self.assertEqual(results('self.wait_until_word("both robots")', 'self.read(base)',
+                                 'self.play(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN), run_time=0.5)'), [3])
+        self.assertEqual(results('self.wait_until_word("both robots")', 'self.play(Create(base), run_time=0.5)',
                                  'with self.voiceover(text="And the real one?"):',
-                                 '    self.play(GrowFromEdge(real, DOWN), FadeIn(real_tag), run_time=0.5)'), [4])
+                                 '    self.play(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN), run_time=0.5)'), [4])
+
+
+class Labels(unittest.TestCase):
+    """A label made by a helper, the scene's method, a comprehension or a loop is a label: with its picture, one."""
+
+    def test_labels_however_they_are_made(self):
+        self.assertEqual(results('self.play(GrowFromEdge(sim, DOWN), FadeIn(sim_tag), FadeIn(names[0]))',
+                                 'for bar, lab in zip((sim, real), names):',
+                                 '    self.play(GrowFromEdge(bar, DOWN), FadeIn(lab))',
+                                 'self.wait_until_word("real one")',
+                                 'self.play(LaggedStart(GrowFromEdge(real, DOWN), FadeIn(real_tag), '
+                                 'lag_ratio=0.5))'), [])
+        self.assertEqual(results('self.play(GrowFromEdge(sim, DOWN), Create(base))'), [1])     # two pictures
+
+
+class Staggers(unittest.TestCase):
+    """From one word, the members of one collection may build up one after another; separate pictures may not."""
+
+    def test_one_collection_builds_up(self):
+        self.assertEqual(results('self.wait_until_word("ninety-two")',
+                                 'self.play(LaggedStart(*[GrowFromCenter(d) for d in dots], lag_ratio=0.3), '
+                                 'FadeIn(sim_tag), run_time=2.4)'), [])
+        self.assertEqual(results('self.play(LaggedStart(*[GrowFromCenter(d) for d in dots], lag_ratio=0.3))'), [1])
+
+    def test_separate_pictures_from_one_word(self):
+        self.assertEqual(results('self.wait_until_word("both robots")',
+                                 'self.play(LaggedStart(GrowFromEdge(sim, DOWN), GrowFromEdge(real, DOWN)), '
+                                 'run_time=0.6)'), [2])
+        self.assertEqual(results('self.wait_until_word("both robots")',
+                                 'self.play(LaggedStart(*[GrowFromEdge(b, DOWN) for b in (sim, real)]), '
+                                 'run_time=0.6)'), [2])
+
+
+class Reported(unittest.TestCase):
+    """The three plays a news run reported as unanchored, in their context (tests/fixtures/sync/reported/): two start
+    on the word the play before them runs until, one builds its bars up from its bookmark."""
+
+    def test_in_their_context_they_are_anchored(self):
+        fd = CS.Findings()
+        CS.unanchored(sorted((FIX / "reported").glob("*.py")), fd)
+        self.assertEqual(fd.items, [])
+
+    def test_with_no_word_in_reach_they_warn(self):
+        found = unanchored('''
+            class OneUpdate(RAScene):
+                def construct(self):
+                    line, ticks = Line(LEFT * 4, RIGHT * 4), VGroup(*[Line(UP, DOWN) for _ in range(11)])
+                    bars_c = VGroup(*[Rectangle(height=h) for h in (1, 3, 5, 3, 1)])
+                    with self.voiceover(text="Five of them land near it.") as tr:
+                        self.play(Create(line), FadeIn(ticks), run_time=until(tr, "five"))
+                    with self.voiceover(text="Together they cost half the update.") as tr:
+                        self.play(LaggedStart(*[GrowFromEdge(b, DOWN) for b in bars_c], lag_ratio=0.15),
+                                  run_time=until(tr, "half"))
+        ''')
+        self.assertEqual([x["line"] for x in found], [7, 9])
 
 
 class Early(unittest.TestCase):
