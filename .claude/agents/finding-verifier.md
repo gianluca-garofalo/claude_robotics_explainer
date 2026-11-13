@@ -12,6 +12,11 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+    - matcher: "WebFetch|Bash"
+      hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_fetch_guard.py"]
   Stop:
     - hooks:
         - type: command
@@ -48,8 +53,8 @@ never carry a verdict or a reason over from another finding, and write its verdi
      missing link, the announcement or the example's purpose is stated before the location, quote it and refute; if it
      comes only later or nowhere, confirm. Knowing the step yourself does not refute the finding: the page must say it.
 3. Decide: `confirmed` (you reproduced the problem), `refuted` (you have evidence that the finding is wrong: say
-   exactly what shows it) or `uncertain` (you could not decide: record unreachable, wording ambiguous). Prefer
-   `uncertain` to guessing.
+   exactly what shows it) or `uncertain` (you could not decide: record unreachable after one try, wording ambiguous).
+   Prefer `uncertain` to guessing.
 4. Write each verdict (reviewer-contract.md, Verdict) to the file your prompt names, `verify/<finding-id>.json` next to
    the report: `review/verify/`, `review/video/verify/`, `review/final_cut/verify/` or `review/series_plan/verify/`.
    Run `python3 tools/validate.py runs/<run>` and reply with one line per finding: the id, the verdict and the reason.

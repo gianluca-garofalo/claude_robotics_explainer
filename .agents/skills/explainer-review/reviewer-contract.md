@@ -11,6 +11,8 @@ Every reviewer and the finding-verifier follow this file.
   `ref_*`, `pres_*`, `rt_*`, `lr_*`; the finding-verifier `verify_<finding-id>_*`); screenshots in `review/screens/`.
   `tools/validate.py` reads every other JSON file at the top of a review folder as a report.
 - Write nothing outside `review/`: the writer fixes, you report (a hook enforces this).
+- Read web pages only with WebFetch, never curl or wget (they wait on a permission prompt and stall the review). A
+  host that is refused or does not answer costs one try: report the record as not reachable and go on.
 - Run `python3 tools/validate.py runs/<run>` and fix your files until it reports no error in them; in Claude Code a
   Stop hook checks them when you finish and sends you back with the errors. Finish with a five-line summary (the
   finding-verifier: one line per finding).

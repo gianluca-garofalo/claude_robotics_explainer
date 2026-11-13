@@ -11,6 +11,11 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+    - matcher: "WebFetch|Bash"
+      hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_fetch_guard.py"]
   Stop:
     - hooks:
         - type: command
@@ -33,9 +38,10 @@ Rules:
   shows is a finding; the fix is usually to remove it, not to guess another.
 - An entry that only secondary sources confirm (citing papers, tables of contents, catalogues) is `secondary_only`.
 - News, posts and videos: check the publisher, the date, and that the page says what the explainer attributes to it.
-- A record you cannot reach (blocked host, timeout, paywall) goes in the audit table and the summary with its URL, host
-  and error; never guess what it says or count its fields as confirmed. Sandboxed sessions often block doi.org,
-  api.crossref.org, publisher sites, ar5iv and university repositories; GitHub's runners reach them.
+- A record you cannot reach (blocked host, timeout, paywall) costs one try: it goes in the audit table and the summary
+  with its URL, host and error, and you try no other URL on that host; never guess what it says or count its fields as
+  confirmed. Sandboxed sessions often block doi.org, api.crossref.org, publisher sites, ar5iv and university
+  repositories; GitHub's runners reach them.
 
 1. Each entry of `references.json`: open its record(s), compare every field (authors, title, venue, year, volume,
    number, pages, DOI, arXiv id, URL), and note what you saw where.
