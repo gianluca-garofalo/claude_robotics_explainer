@@ -12,7 +12,7 @@ const path = require('path');
 const KATEX_PREFIX = 'https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/';
 const MIN_LABEL_PX = 9;           // tools/html_features.py scales figure labels up to this
 const REPO = path.resolve(__dirname, '..');
-const PREINSTALLED_CHROMIUM = '/opt/pw-browsers/chromium';    // cloud images
+const PW_BROWSERS = '/opt/pw-browsers';    // cloud images: preinstalled Playwright browsers
 
 function parseArgs(argv) {
   const a = { file: null, json: null, shots: null, offline: !!process.env.CHECK_HTML_OFFLINE, katex: null, widths: [1400, 390] };
@@ -44,15 +44,27 @@ function findKatex(explicit) {
   return null;
 }
 
-// Playwright's pinned Chromium, else $CHROMIUM_PATH or the preinstalled one when the pinned build is not installed.
-async function launchChromium(chromium) {
-  try { return await chromium.launch(); } catch (e) {
-    const alt = process.env.CHROMIUM_PATH || (fs.existsSync(PREINSTALLED_CHROMIUM) ? PREINSTALLED_CHROMIUM : null);
-    if (!alt || !e.message.includes("Executable doesn't exist")) throw e;
-    const browser = await chromium.launch({ executablePath: alt });
-    console.log(`browser: ${alt} (Chromium ${browser.version()}; Playwright's pinned build is not installed)`);
+// $CHROMIUM_PATH, the preinstalled headless shells (newest first), then the full Chromium, which aborts in the
+// sandbox: its ProcessSingleton opens a Unix socket.
+function browserCandidates(root = PW_BROWSERS) {
+  let shells = [];
+  try { shells = fs.readdirSync(root).filter(d => /^chromium_headless_shell-\d+$/.test(d)); } catch (e) { /* none */ }
+  shells.sort((x, y) => y.split('-')[1] - x.split('-')[1]);
+  const exe = d => path.join(root, d, 'chrome-headless-shell-linux64', 'chrome-headless-shell');
+  return [process.env.CHROMIUM_PATH, ...shells.map(exe), path.join(root, 'chromium')].filter(p => p && fs.existsSync(p));
+}
+
+// Playwright's pinned headless shell; if it does not start, the first candidate that does; if none, the first error.
+async function launchChromium(chromium, candidates) {
+  let first;
+  try { return await chromium.launch(); } catch (e) { first = e; }
+  for (const alt of candidates || browserCandidates()) {
+    let browser;
+    try { browser = await chromium.launch({ executablePath: alt }); } catch (e) { continue; }
+    console.log(`browser: ${alt} (Chromium ${browser.version()}; Playwright's pinned build did not start)`);
     return browser;
   }
+  throw first;
 }
 
 // Runs inside the page.
@@ -268,5 +280,5 @@ async function main() {
   process.exit(report.pass ? 0 : 1);
 }
 
-module.exports = { findKatex, launchChromium };
+module.exports = { findKatex, launchChromium, browserCandidates };
 if (require.main === module) main().catch(e => { console.error('check_html crashed: ' + (e && e.stack || e)); process.exit(3); });
