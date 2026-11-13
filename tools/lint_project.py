@@ -47,8 +47,10 @@ OWNER_DIRS = ("config", "series", "sources", "tools/hooks", "tools/human", "tool
 # to its file tools, but gives the sandbox only <project>/<name>; a **/ glob becomes an OS-level deny on macOS that
 # also stops the tool that writes the file.
 TOOL_WRITTEN = ("selection.json", "episode.json", "search.json", "covered.json", "published.json")
-# What may leave the sandbox: a repository tool and its subcommand (writes the sandbox denies, or a browser).
-SANDBOX_EXCLUDABLE = re.compile(r"^(python3 tools/[\w/-]+\.py|node tools/[\w/-]+\.js)( [a-z][\w-]*)? \*$")
+# What may leave the sandbox: a repository tool and its subcommand (writes the sandbox denies, or a browser), and
+# exactly `git fetch [origin]`: the configured remote, whose URL a sandboxed command cannot change (.git/config).
+SANDBOX_EXCLUDABLE = re.compile(r"^(python3 tools/[\w/-]+\.py|node tools/[\w/-]+\.js)( [a-z][\w-]*)? \*$"
+                                r"|^git fetch( origin)?$")
 # Claude steps of the workflow that read the web; every other one runs with --disallowedTools "WebFetch WebSearch".
 WEB_SKILLS = {"robotics-news-scout", "didactic-html-writer", "explainer-review"}
 
@@ -300,8 +302,8 @@ def lint_sandbox(where: str, sb, perms: dict, out: Out):
                        "such as Edit(**/approval.json), so the allow rules keep deciding which commands run")
     for cmd in sb.get("excludedCommands") or []:
         if not SANDBOX_EXCLUDABLE.match(str(cmd)):
-            out.err(where, f"sandbox.excludedCommands {cmd!r}: only `python3 tools/<x>.py [subcommand] *` or "
-                           "`node tools/<x>.js *` may run outside the sandbox")
+            out.err(where, f"sandbox.excludedCommands {cmd!r}: only `python3 tools/<x>.py [subcommand] *`, "
+                           "`node tools/<x>.js *` or exactly `git fetch [origin]` may run outside the sandbox")
     net = sb.get("network") if isinstance(sb.get("network"), dict) else {}
     allowed, denied = set(net.get("allowedDomains") or []), set(net.get("deniedDomains") or [])
     if not allowed:

@@ -176,7 +176,7 @@ the sandbox.
 
 - Outside it: the hooks; `python3 tools/series.py write`, the one way a plan enters `series/`; and
   `node tools/check_html.js`, since a full Chromium (the fallback of the cloud image) opens a Unix socket at start,
-  which the sandbox refuses.
+  which the sandbox refuses. Also `git fetch` and `git fetch origin`, typed alone: the project's remote, never a push.
 - Another Azure region: replace `swedencentral` in both Azure hosts, here and in the cloud environment.
 - Linux and WSL 2 need bubblewrap and socat: `./setup.sh --with-system-deps` installs them, and `./setup.sh --check`
   reports `bubblewrap + socat (sandbox) MISSING` without them. Ubuntu 24.04 on a desktop also needs the AppArmor
@@ -188,7 +188,7 @@ the sandbox.
 - Inside the sandbox `./setup.sh` sets up `.venv`, the npm packages and the voice model; system packages and Chromium
   need your own terminal or the cloud environment's setup script.
 - Limits: on Linux the sandbox holds folder rules only, so `Edit(**/approval.json)` binds the file tools and the
-  hooks but not a script; and the hooks and the two commands above run code from `tools/` and `.venv`, which a
+  hooks but not a script; and the hooks and the two tools above run code from `tools/` and `.venv`, which a
   sandboxed command can change. The sandbox stops accidents and stray network calls, not a determined agent.
 
 ## Adding a new source

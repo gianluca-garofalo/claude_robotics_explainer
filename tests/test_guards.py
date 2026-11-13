@@ -74,7 +74,8 @@ class SkillsLink(unittest.TestCase):
 class SandboxLint(unittest.TestCase):
     """The project's sandbox block: on, no unsandboxed retry, allow rules still decide, every Bash host explicit."""
     GOOD = {"enabled": True, "allowUnsandboxedCommands": False, "autoAllowBashIfSandboxed": False,
-            "excludedCommands": ["python3 tools/example.py write *", "node tools/example.js *"],
+            "excludedCommands": ["python3 tools/example.py write *", "node tools/example.js *", "git fetch",
+                                 "git fetch origin"],
             "network": {"allowedDomains": ["arxiv.org"], "deniedDomains": ["code.example.org"]}}
     ALLOW = ["WebFetch(domain:arxiv.org)", "WebFetch(domain:code.example.org)"]
 
@@ -93,6 +94,12 @@ class SandboxLint(unittest.TestCase):
             "auto-allow": dict(self.GOOD, autoAllowBashIfSandboxed=True),
             "interpreter excluded": dict(self.GOOD, excludedCommands=["python3 *"]),
             "shell excluded": dict(self.GOOD, excludedCommands=["bash -c *"]),
+            # a fetch leaves the sandbox only for the configured remote: no URL, option (--upload-pack) or wildcard
+            "fetch anything": dict(self.GOOD, excludedCommands=["git fetch *"]),
+            "fetch a URL": dict(self.GOOD, excludedCommands=["git fetch https://code.example.org/x.git"]),
+            "fetch an option": dict(self.GOOD, excludedCommands=["git fetch --upload-pack=x origin"]),
+            "git excluded": dict(self.GOOD, excludedCommands=["git *"]),
+            "push excluded": dict(self.GOOD, excludedCommands=["git push origin"]),
         }
         for name, sb in bad.items():
             with self.subTest(case=name):

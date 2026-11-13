@@ -79,7 +79,9 @@
     "allowUnsandboxedCommands": false,
     "excludedCommands": [
       "python3 tools/series.py write *",
-      "node tools/check_html.js *"
+      "node tools/check_html.js *",
+      "git fetch",
+      "git fetch origin"
     ],
     "network": {
       "allowedDomains": [
