@@ -32,8 +32,8 @@ NOT_REVIEWS = {"summary.json", "check_html.json", "resolutions.json", "lint_html
                "symbol_ledger.json"}           # pipeline records at the top of review/; tool outputs go in review/checks/
 REVIEW_SETS = ("video", "final_cut", "series_plan")         # review/<set>/ hold reports in the same format
 ID_PREFIX = {"technical-correctness-reviewer": "TC", "reference-verifier": "REF", "presentation-reviewer": "PRES",
-             "claims-red-team": "RT", "linear-reader": "LR", "video-design-reviewer": "VD", "linear-viewer": "LV",
-             "final-cut-reviewer": "FC", "series-red-team": "SRT"}   # each reviewer's finding ids: PREFIX-n
+             "claims-red-team": "RT", "linear-reader": "LR", "experiment-auditor": "EA", "video-design-reviewer": "VD",
+             "linear-viewer": "LV", "final-cut-reviewer": "FC", "series-red-team": "SRT"}   # finding ids: PREFIX-n
 STOP = set("a an and the of for in on to with by from at as is are be via its it this that new using how why what "
            "robot robots robotics control learning".split())
 NOUNS = {"object": "an object", "array": "a list", "string": "a string", "integer": "an integer", "number": "a number",
@@ -266,8 +266,8 @@ def validate_references(data, rep: Report) -> None:
 
 def validate_review(data, rep: Report) -> None:
     if not isinstance(data, dict) or ("reviewer" not in data and "findings" not in data):
-        rep.err("not a reviewer report: only reports and the pipeline's records sit at the top of review/; "
-                "tool outputs and a reviewer's own files go in review/checks/ (named tc_*, ref_*, pres_*, rt_*, lr_*)")
+        rep.err("not a reviewer report: only reports and the pipeline's records sit at the top of review/; tool "
+                "outputs and a reviewer's own files go in review/checks/ (named tc_*, ref_*, pres_*, rt_*, lr_*, ea_*)")
         return
     rep.errors += schema_errors("review", data)
     reviewer, ids = data.get("reviewer"), set()

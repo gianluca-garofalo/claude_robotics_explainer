@@ -26,9 +26,10 @@ import plan as P  # noqa: E402
 import voice_script as VS  # noqa: E402
 
 REVIEWERS = ("technical-correctness-reviewer", "reference-verifier", "presentation-reviewer", "claims-red-team",
-             "linear-reader")
-VIDEO_REVIEWERS = {"video": ("video-design-reviewer", "linear-viewer"),         # review/video/: the drafts
+             "linear-reader", "experiment-auditor")
+VIDEO_REVIEWERS = {"video": ("video-design-reviewer", "linear-viewer", "experiment-auditor"),   # review/video/: drafts
                    "final_cut": ("final-cut-reviewer", "linear-viewer")}        # review/final_cut/: the assembled video
+DRAFT_MAJORS = ("linear-viewer", "experiment-auditor")   # whose confirmed majors stop the drafts, as blockers do
 PRESETS = {"l": (854, 480, 15), "m": (1280, 720, 30), "h": (1920, 1080, 60), "k": (3840, 2160, 60)}
 MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".mov", ".webm", ".svg"}
 AUDIO_SUFFIXES = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus"}
@@ -367,15 +368,16 @@ def pre_render(run: Path, g: Gates, cfg: dict):
         current = s.get("scenes_sha256") == merge_reviews.scenes_sha256(run)
         missing = [n for n in VIDEO_REVIEWERS["video"] if n not in {r["reviewer"] for r in s.get("reviewers", [])}]
         open_blk, _, unverified = open_serious(s.get("findings", []), s.get("unverified_blocker_major", []))
-        lv_maj = open_serious([f for f in s.get("findings", []) if f.get("reviewer") == "linear-viewer"], [])[1]
+        maj = open_serious([f for f in s.get("findings", []) if f.get("reviewer") in DRAFT_MAJORS], [])[1]
         ok = not missing and current and not open_blk and not unverified \
-            and len(lv_maj) <= cfg.get("max_open_confirmed_major", 0)
+            and len(maj) <= cfg.get("max_open_confirmed_major", 0)
         return ok, (f"no {' or '.join(missing)} report" if missing else
                     "reviewed scenes or plan changed since (merge_reviews.py --set video)" if not current else
-                    f"{' and '.join(VIDEO_REVIEWERS['video'])} reports merged for the current scenes; open blockers "
-                    f"{open_blk or 'none'}, open confirmed linear-viewer majors {lv_maj or 'none'}, blockers never "
-                    f"verified {unverified or 'none'}")
-    g.guard("video review: design and linear viewer (blockers; linear-viewer majors)", design_review)
+                    f"{', '.join(VIDEO_REVIEWERS['video'])} reports merged for the current scenes; open blockers "
+                    f"{open_blk or 'none'}, open confirmed {' or '.join(DRAFT_MAJORS)} majors {maj or 'none'}, "
+                    f"blockers never verified {unverified or 'none'}")
+    g.guard("video review: design, linear viewer, experiment audit (blockers; linear-viewer and experiment-auditor "
+            "majors)", design_review)
 
 
 def final(run: Path, g: Gates, cfg: dict, channel: dict, require_links: bool, allow_silent: bool,

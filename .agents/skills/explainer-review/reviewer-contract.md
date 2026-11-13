@@ -8,7 +8,8 @@ Every reviewer and the finding-verifier follow this file.
   could not check) in the run's review folder: `review/` (explainer), `review/video/` (video drafts),
   `review/final_cut/` (final cut) or `review/series_plan/` (series plan).
 - Your own scripts, notes and tool outputs go in `review/checks/`, named with your id prefix in lower case (`tc_*`,
-  `ref_*`, `pres_*`, `rt_*`, `lr_*`; the finding-verifier `verify_<finding-id>_*`); screenshots in `review/screens/`.
+  `ref_*`, `pres_*`, `rt_*`, `lr_*`, `ea_*`; the finding-verifier `verify_<finding-id>_*`); screenshots in
+  `review/screens/`; the experiment-auditor's probes and their logs in `review/audit/`.
   `tools/validate.py` reads every other JSON file at the top of a review folder as a report.
 - Write nothing outside `review/`: the writer fixes, you report (a hook enforces this).
 - Read web pages only with WebFetch, never curl or wget (they wait on a permission prompt and stall the review). A
@@ -44,9 +45,9 @@ Every reviewer and the finding-verifier follow this file.
 ```
 
 - Ids, one prefix per reviewer (`tools/validate.py` checks it): `TC-n` technical correctness, `REF-n` references,
-  `PRES-n` presentation, `RT-n` claims red team, `LR-n` linear reader, `VD-n` video design, `FC-n` final cut (each
-  finding also has `time_s`, seconds into the final video), `LV-n` linear viewer (each with `time_s`; at the draft
-  stage, seconds into its scene), `SRT-n` series red team.
+  `PRES-n` presentation, `RT-n` claims red team, `LR-n` linear reader, `EA-n` experiment audit, `VD-n` video design,
+  `FC-n` final cut (each finding also has `time_s`, seconds into the final video), `LV-n` linear viewer (each with
+  `time_s`; at the draft stage, seconds into its scene), `SRT-n` series red team.
 - Evidence, not opinion: commands with their output, quotes of the location, record URLs. Report only what affects
   correctness or understanding; taste is not a finding. Say in the summary what you could not check.
 - Every report says who made it, at the top level: `"independent": true` and `"reviewed_by": "<reviewer> subagent"`
@@ -83,6 +84,11 @@ a missing recap, content in the end-screen area); `minor` = polish; `nit` = at m
 Linear viewer (`LV-`): `blocker` = the takeaway cannot be reached from the video alone, or a reference to material
 outside the video; `major` = a gap in the central argument, from the question to the takeaway; `minor` = a gap off it
 that the viewer can step around; `nit` = at most five.
+
+Experiment audit (`EA-`, explainer and video): a claim the code does not support (it measures something else under
+that word, or compares quantities computed differently), or one that flips under a probe, is `blocker` when the
+takeaway rests on it, else `major`; a missing model statement is `major` when a probe changes the result, else
+`minor`.
 
 Series plans (`SRT-`): `blocker` = an episode would teach something wrong, or cannot be followed alone; `major` =
 overloaded, unsourced numbers, a missing recap, a dishonest prerequisite; `minor` = clarity, order, length; `nit` = at

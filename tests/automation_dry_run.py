@@ -284,8 +284,8 @@ def delivered(run: Path) -> tuple[bool, str]:
 
 
 def draft_and_review(run: Path, env: dict, label: str) -> None:
-    """Draft renders with layout logs, design and reading-time checks, and the (fixture) video design and linear-viewer
-    reviews."""
+    """Draft renders with layout logs, design and reading-time checks, and the (fixture) reports of the video design
+    review."""
     step(f"draft renders with layout logs{label}", ["bash", "tools/render_video.sh", str(run), "--check"], env=env,
          check=lambda r: (all((run / "video/checks" / f"{s['class']}.layout.json").exists()
                               for s in json.loads((run / "video/plan.json").read_text())["scenes"]), "layout logged"))
@@ -294,9 +294,9 @@ def draft_and_review(run: Path, env: dict, label: str) -> None:
          check=lambda r: (any((run / "review/design/draft").glob("*-sheet.jpg")), r.stdout.strip()[-110:]))
     step(f"reading-time check of the drafts{label}", [PY, "tools/video/check_reading.py", str(run), "--stage", "draft"])
     (run / "review" / "video").mkdir(parents=True, exist_ok=True)
-    for name in ("video-design-reviewer.json", "linear-viewer.json"):
-        shutil.copy(FIX / "review" / "video" / name, run / "review/video" / name)
-    step(f"video design review and linear viewer merged (fixture reports){label}",
+    for p in (FIX / "review" / "video").glob("*.json"):
+        shutil.copy(p, run / "review/video" / p.name)
+    step(f"video design review merged (fixture reports){label}",
          [PY, "tools/merge_reviews.py", str(run), "--set", "video"],
          check=lambda r: (json.loads((run / "review/video/summary.json").read_text())["scenes_sha256"] is not None,
                           r.stdout.strip()[:110]))

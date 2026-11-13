@@ -47,6 +47,10 @@ never carry a verdict or a reason over from another finding, and write its verdi
      Knowing it yourself does not refute the finding: the video must say it.
    - `SRT-` (`review/series_plan/series-red-team.json` of a planning run): reread the plan and the explainer sections
      it cites (as text, above), and rerun the scripts it names.
+   - `EA-` (`experiment-auditor.json` in `review/` or `review/video/`): read the code and log lines it names, rerun its
+     probe (`.venv/bin/python runs/<run>/review/audit/ea_<name>.py`) and, where you can, recompute the quantity your
+     own way, from a copy of `code/` when the code writes files. The words decide what the code must measure: the
+     code's own definition of "collided" or "reached" does not refute the finding.
    - Reader flow (`LR-`, or a `PRES-` finding on a missing bridge or an unannounced change of meaning): read the
      explainer in order up to the location (`python3 tools/explainer_text.py runs/<run>/explainer.html --until
      <section>`, then the section) and search what comes before it (`--until <section> --grep '<pattern>'`). If the

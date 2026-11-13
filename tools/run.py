@@ -162,7 +162,7 @@ def status(run: Path) -> list[dict]:
 
     rs = run / "review" / "summary.json"
     if not rs.exists():
-        add("review", "todo", "explainer-review (five reviewers, verification, tools/merge_reviews.py)")
+        add("review", "todo", "explainer-review (six reviewers, verification, tools/merge_reviews.py)")
     else:
         s = read_json(rs)
         open_ = [f for f in s.get("findings", []) if f.get("severity") in ("blocker", "major")

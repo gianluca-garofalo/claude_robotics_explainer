@@ -232,7 +232,7 @@ draft/            meta.json, outline.md, NN-name.html parts (the writer edits th
 references.json   bibliography with verification records
 code/             scripts, checks.toml, README.md (script to section), figures/, logs/
 explainer.html    built from draft/ by tools/build_explainer.py
-review/           reviewer reports, verify/, summary.md, gates.md, design/, video/, final_cut/
+review/           reviewer reports, verify/, summary.md, gates.md, audit/, design/, video/, final_cut/
 video/            storyboard.md, scenes/, data/, plan.json, checks/, voice/, renders/, final/
 deliver/          the hand-over package (tools/deliver.py)
 publish/          stage.json (CI only)

@@ -1,6 +1,6 @@
 ---
 name: explainer-review
-description: Use when a built explainer needs its independent review, or as stage 7 of /produce-explainer - five reviewer subagents in parallel (technical, references, presentation and notation, claims red team, linear reader), verification of blocker and major findings, one merged and ranked summary.
+description: Use when a built explainer needs its independent review, or as stage 7 of /produce-explainer - six reviewer subagents in parallel (technical, references, presentation and notation, claims red team, linear reader, experiment audit), verification of blocker and major findings, one merged and ranked summary.
 argument-hint: "runs/<run>"
 ---
 
@@ -13,10 +13,11 @@ build first. The reviewers' format and severities: [reviewer-contract.md](review
 
 1. **Review: fan out, check, verify, merge.** `python3 tools/merge_reviews.py runs/<run> --workflow-args` prints the
    run, the set and its reviewers (`tools/gate.py` `REVIEWERS`). Run the `review-fanout` workflow
-   (`.claude/workflows/review-fanout.js`, the Workflow tool) with that object as its args. It starts the five reviewers
+   (`.claude/workflows/review-fanout.js`, the Workflow tool) with that object as its args. It starts the six reviewers
    in parallel, each with only the run path and its report path: `technical-correctness-reviewer` (`TC-`),
    `reference-verifier` (`REF-`), `presentation-reviewer` (`PRES-`, also `review/symbol_ledger.json`),
-   `claims-red-team` (`RT-`) and `linear-reader` (`LR-`, strictly front to back). It checks each report with
+   `claims-red-team` (`RT-`), `linear-reader` (`LR-`, strictly front to back) and `experiment-auditor` (`EA-`, the
+   run's own code behind each result, its probes in `review/audit/`). It checks each report with
    `merge_reviews.py --pending <name>` (the checks of `tools/validate.py` and the independence fields) and sends a
    reviewer whose report fails back once with the errors; gives the blocker and major findings of each report to one
    `finding-verifier` (`review/verify/<id>.json`); then merges (`review/summary.md`, `summary.json`). Its result names

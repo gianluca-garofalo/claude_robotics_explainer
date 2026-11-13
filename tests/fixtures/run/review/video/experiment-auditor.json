@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "experiment-auditor",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the experiment-auditor subagent in the tests and dry runs)",
+  "summary": "Fixture report (tests only) from experiment-auditor: the one scene draws the closed-form damped oscillator (zeta 0.15, omega 2, 401 samples over 10 s) and the narration states no number or comparison; a probe on ten times as many samples draws the same curve. One minor point: the scene never says which damping it shows.",
+  "checks_run": [
+    {"command": ".venv/bin/python runs/<run>/review/audit/ea_samples.py", "result": "fixture: 401 against 4001 samples, largest difference of the drawn curve 3e-4 (review/audit/ea_samples.log)"}
+  ],
+  "findings": [
+    {
+      "id": "EA-1",
+      "severity": "minor",
+      "location": "TemplateScene, 'This curve shows how the motion dies out.'",
+      "issue": "Fixture finding: the curve is one damping ratio of the closed form (zeta 0.15), but neither the narration nor the picture says which, so 'the motion dies out' reads as general.",
+      "evidence": "scene_template.py: x = exp(-z w t) cos(w_d t) with z = 0.15, w = 2 (fixture).",
+      "suggested_fix": "Name the damping as the curve is drawn, or label the curve with it.",
+      "confidence": "medium"
+    }
+  ]
+}

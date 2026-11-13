@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "experiment-auditor",
+  "independent": true,
+  "reviewed_by": "fixture (stands in for the experiment-auditor subagent in the tests and dry runs)",
+  "summary": "Fixture report (tests only) from experiment-auditor: P, K and the descent defect trace to descent_demo.py and its log; the defect stays at rounding level over 200 steps and from other initial states. One minor point: the verification table does not state the initial state.",
+  "checks_run": [
+    {"command": ".venv/bin/python runs/<run>/review/audit/ea_descent.py", "result": "fixture: 200 steps from x0 in {-3, 0.5, 1, 2}, largest defect 9e-16; P and K as logged (review/audit/ea_descent.log)"}
+  ],
+  "findings": [
+    {
+      "id": "EA-1",
+      "severity": "minor",
+      "location": "Section 2.1, verification table, row 'P, K and equation (1) on 20 steps'",
+      "issue": "Fixture finding: the row does not say that the 20 steps start from x0 = 1 (only the figure caption does); the probe from other initial states finds the same defect, so the claim holds as written.",
+      "evidence": "descent_demo.py: x = 1.0 before the loop; probe output above (fixture).",
+      "suggested_fix": "Add 'from x0 = 1' to the row.",
+      "confidence": "high"
+    }
+  ]
+}

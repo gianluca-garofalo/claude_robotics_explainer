@@ -49,9 +49,10 @@ workflow).
    draft timeline is the final one). Fix every error; read every warning.
 7. **Design review.** Run the `review-fanout` workflow (`.claude/workflows/review-fanout.js`) with the args that
    `python3 tools/merge_reviews.py runs/<run> --set video --workflow-args` prints: in parallel the
-   `video-design-reviewer` and the `linear-viewer` (stage `draft`, nothing else: it judges whether the video alone can
-   be followed; compare its retelling, the `summary`, with the storyboard's takeaway), each report checked, one
-   `finding-verifier` per report for its blocker and major `VD-` or `LV-` findings, then the merge
+   `video-design-reviewer`, the `linear-viewer` (stage `draft`, nothing else: it judges whether the video alone can
+   be followed; compare its retelling, the `summary`, with the storyboard's takeaway) and the `experiment-auditor` (the
+   scripts behind `video/data/` and every number or comparison the narration states), each report checked, one
+   `finding-verifier` per report for its blocker and major `VD-`, `LV-` or `EA-` findings, then the merge
    (`review/video/summary.md`); a session that does not prompt (`dontAsk`, CI) needs the allow rule
    `Workflow(review-fanout)`. Without the Workflow tool, do the same by hand: each reviewer as a subagent (or a fresh
    context with `.claude/agents/<name>.md` as its prompt) given only the run path, the stage and its report path;
@@ -60,7 +61,8 @@ workflow).
    --set video`. With no subagents at all, write the reports yourself, marked `"independent": false`
    ([reviewer-contract.md](../explainer-review/reviewer-contract.md)). Fix confirmed blockers and majors, record
    decisions in `review/video/resolutions.json`, re-render and repeat step 6, then the review again (second round:
-   reviewer-contract.md). At most two rounds; open blockers and confirmed `LV-` majors stop the run at the gate.
+   reviewer-contract.md). At most two rounds; open blockers and confirmed `LV-` and `EA-` majors stop the run at the
+   gate.
 8. **README** (`video/README.md`): scene -> file -> explainer section -> data and script, the colour meanings, the
    voice (`voice.service` in `config/channel.json`; an AI voice is disclosed in the description;
    `python3 tools/video/voice_script.py runs/<run>` lists the blocks for the owner's own recording) and the "Spoken

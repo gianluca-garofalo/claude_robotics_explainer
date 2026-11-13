@@ -1,6 +1,7 @@
 """Unit tests for the review wiring: the reviewers the gate requires (the linear-reader with LR- ids), the symbol
 ledger (schema, cross-check, summary) and the reading-order text (tools/explainer_text.py); the linear-viewer of both
-video reviews (LV- ids, its reports in the gates); the one review workflow's args and checks (merge_reviews.py
+video reviews (LV- ids, its reports in the gates); the experiment-auditor of the explainer and the video drafts (EA-
+ids, its probes in review/audit/); the one review workflow's args and checks (merge_reviews.py
 --workflow-args and --pending), independence only when a report states it, the reviewers' Stop hook that checks their
 report, and the agents' frontmatter. The workflow itself runs with stub agents in tests/dry_run.py.
 The prompts themselves are judged by hand: tests/fixtures/review/reader_flow_eval.md."""
@@ -61,7 +62,7 @@ P_SWITCH = {"symbol": "p", "finding": "PRES-1", "uses": [
      "change": "unannounced"}]}
 
 
-class FiveReviewers(unittest.TestCase):
+class ExplainerReviewers(unittest.TestCase):
     """Every reviewer the gate requires is an agent, part of the skill and the workflow, with its own finding ids; the
     linear-reader writes only under review/. Structure only: the prompts' wording is judged by hand
     (tests/fixtures/review/reader_flow_eval.md)."""
@@ -229,9 +230,87 @@ class LinearViewer(unittest.TestCase):
         self.assertTrue(any("time_s is required" in e for e in errors(report("linear-viewer", ("LV-1", "minor")))))
 
 
+class ExperimentAuditor(unittest.TestCase):
+    """The auditor of the run's own code: an agent with EA- ids in the explainer review and the video design review,
+    that writes only under review/ and keeps its probes and their logs in review/audit/, which neither the report
+    checks, the merge, the code checks nor the gate read or run. Structure only."""
+
+    def test_agent_definition(self):
+        fm, body = frontmatter(AGENTS / "experiment-auditor.md")
+        self.assertEqual(fm["name"], "experiment-auditor")
+        self.assertEqual({t.strip() for t in fm["tools"].split(",")}, {"Read", "Grep", "Glob", "Bash", "Write"})
+        self.assertIn("reviewer_write_guard.py", json.dumps(fm["hooks"]["PreToolUse"]))   # writes only under review/
+        self.assertIn("reviewer_report_check.py", json.dumps(fm["hooks"]["Stop"]))       # finishes with a valid report
+        self.assertNotIn("reviewer_fetch_guard.py", json.dumps(fm["hooks"]))              # reads no web page
+        self.assertNotIn("model", fm)
+        for name in ("review/audit/", ".venv/bin/python runs/", "explainer_text.py", "voice_script.py"):
+            self.assertIn(name, body)
+
+    def test_wired_into_both_review_sets(self):
+        self.assertEqual(validate.ID_PREFIX["experiment-auditor"], "EA")
+        self.assertIn("EA-", (AGENTS / "finding-verifier.md").read_text(encoding="utf-8"))
+        run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
+        run.mkdir()
+        try:
+            for rset, skill, names in (("explainer", "explainer-review", gate.REVIEWERS),
+                                       ("video", "manim-video-producer", gate.VIDEO_REVIEWERS["video"])):
+                with self.subTest(set=rset):
+                    self.assertIn("experiment-auditor", names)
+                    self.assertIn("`experiment-auditor`", (REPO / ".claude" / "skills" / skill / "SKILL.md").read_text(
+                        encoding="utf-8"))
+                    fixture = merge_reviews.review_dir(FIX.parent, rset) / "experiment-auditor.json"
+                    self.assertEqual(validate.validate_file("review", fixture).errors, [])
+                    r = subprocess.run([sys.executable, str(MERGE), str(run), "--set", rset, "--workflow-args"],
+                                       capture_output=True, text=True)
+                    self.assertIn("experiment-auditor", json.loads(r.stdout)["reviewers"])
+        finally:
+            shutil.rmtree(run.parent)
+
+    def test_ids(self):
+        def errors(name, fid):
+            rep = validate.Report("test")
+            validate.validate_review(report(name, (fid, "major")), rep)
+            return rep.errors
+        self.assertEqual(errors("experiment-auditor", "EA-1"), [])
+        self.assertTrue(any("EA-n" in e for e in errors("experiment-auditor", "TC-1")))
+        self.assertTrue(any("TC-n" in e for e in errors("technical-correctness-reviewer", "EA-1")))
+
+    def test_probes_are_neither_reports_nor_companion_code(self):
+        tmp = Path(tempfile.mkdtemp())
+        run, guard = tmp / "runs" / "2026-11-01-test", REPO / "tools" / "hooks" / "reviewer_write_guard.py"
+        try:
+            shutil.copytree(FIX.parent / "code", run / "code")
+            (run / "video").mkdir()
+            (run / "video" / "plan.json").write_text('{"scenes": []}', encoding="utf-8")
+            audit = run / "review" / "audit"
+            audit.mkdir(parents=True)
+            shutil.copy(FIX / "experiment-auditor.json", run / "review")
+            (audit / "ea_dt.py").write_text("raise SystemExit('a probe, not a companion check')\n", encoding="utf-8")
+            (audit / "ea_dt.log").write_text("half the step: the same ordering\n", encoding="utf-8")
+            (audit / "ea_dt.json").write_text('{"dt": [0.1, 0.05]}', encoding="utf-8")
+            for path, want in ((audit / "ea_seeds.py", 0), (run / "code" / "descent_demo.py", 2)):
+                ev = {"tool_name": "Write", "tool_input": {"file_path": str(path)}}
+                r = subprocess.run([sys.executable, str(guard)], input=json.dumps(ev), capture_output=True, text=True,
+                                   env=dict(os.environ, CLAUDE_PROJECT_DIR=str(tmp)))
+                self.assertEqual(r.returncode, want, path)
+            self.assertEqual([e for rep in validate.validate_run(run) for e in rep.errors], [])
+            r = subprocess.run([sys.executable, str(MERGE), str(run)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            r = subprocess.run([sys.executable, str(REPO / "tools" / "run_code_checks.py"), str(run)],
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            self.assertNotIn("ea_dt", r.stdout)
+            g = gate.Gates()
+            gate.pre_render(run, g, {})
+            row = next(c for c in g.checks if c["name"] == "companion code checks")
+            self.assertTrue(row["ok"], row["detail"])
+        finally:
+            shutil.rmtree(tmp)
+
+
 class VideoReviewGates(unittest.TestCase):
     """The pre-render and release gates need every reviewer of their set (gate.VIDEO_REVIEWERS); an open confirmed
-    linear-viewer major blocks both, a design reviewer's major does not block the drafts."""
+    linear-viewer major blocks both, an experiment-auditor major the drafts, a design reviewer's major does not."""
 
     def setUp(self):
         self.run = Path(tempfile.mkdtemp()) / "2026-11-01-test"
@@ -280,6 +359,17 @@ class VideoReviewGates(unittest.TestCase):
                 self.write(rset, "resolutions.json", {"resolutions": [{"finding": "LV-2", "status": "fixed",
                                                                        "note": "The term is explained first now."}]})
                 self.assertTrue(self.row(rset)["ok"])
+
+    def test_an_open_ea_major_blocks_the_drafts(self):
+        self.write("video", "experiment-auditor.json",
+                   report("experiment-auditor", ("EA-1", "minor"), ("EA-2", "major")))
+        self.write("video", "verify/EA-2.json", verdict("EA-2", "confirmed"))
+        row = self.row("video")
+        self.assertFalse(row["ok"])
+        self.assertIn("EA-2", row["detail"])
+        self.write("video", "resolutions.json", {"resolutions": [{"finding": "EA-2", "status": "fixed",
+                                                                  "note": "Collisions checked along each segment."}]})
+        self.assertTrue(self.row("video")["ok"])
 
     def test_a_design_major_does_not_block_the_drafts(self):
         self.write("video", "video-design-reviewer.json", report("video-design-reviewer", ("VD-1", "major")))

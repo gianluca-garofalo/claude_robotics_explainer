@@ -167,8 +167,9 @@ def main() -> int:
     counts = {s: sum(f["severity"] == s for f in summary["findings"]) for s in SEV}
     out += ["", "### Review findings", "",
             ("Series mode: the explainer was reviewed when it was first published; this run reviewed the video. "
-             if series else "Five independent reviewers, one of them reading strictly front to back; blocker and "
-             "major findings were checked by a verifier before any fix. ") + ", ".join(f"{counts[s]} {s}" for s in SEV) + ".", ""]
+             if series else "Six independent reviewers, one reading strictly front to back, one auditing the run's "
+             "own experiments; blocker and major findings were checked by a verifier before any fix. ")
+            + ", ".join(f"{counts[s]} {s}" for s in SEV) + ".", ""]
     if summary["findings"]:
         out += ["| ID | Severity | Verdict | Status | Location | Issue |", "|---|---|---|---|---|---|"]
         out += [f"| {f['id']} | {f['severity']} | {f['verdict']} | {f['status']} | {cell(f['location'])} | "
@@ -183,8 +184,9 @@ def main() -> int:
                 out.append(f"- {tool.replace('_', ' ')} ({phase} renders): {r['summary']['errors']} error(s), "
                            f"{r['summary']['warnings']} warning(s)")
     vc = {s: sum(f["severity"] == s for f in vsum["findings"]) for s in SEV}
-    out.append("- video-design-reviewer and linear-viewer: " + ", ".join(f"{vc[s]} {s}" for s in SEV)
-               + " (blockers and confirmed linear-viewer majors gate the run; the rest is for your judgement)")
+    out.append("- video-design-reviewer, linear-viewer and experiment-auditor: "
+               + ", ".join(f"{vc[s]} {s}" for s in SEV) + " (blockers and confirmed linear-viewer and "
+               "experiment-auditor majors gate the run; the rest is for your judgement)")
     if vsum["findings"]:
         out += ["", "| ID | Severity | Verdict | Status | Location | Issue |", "|---|---|---|---|---|---|"]
         out += [f"| {f['id']} | {f['severity']} | {f['verdict']} | {f['status']} | {cell(f['location'])} | "
