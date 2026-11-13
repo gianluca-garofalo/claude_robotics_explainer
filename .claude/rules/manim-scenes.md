@@ -79,7 +79,7 @@ measured by the check named in each heading.
 - The picture's content draws, moves or changes while the narration talks (`frozen_narration_*`; at least half the
   runtime moving); split long blocks with bookmarks and animate what is said. The motion measure compares grayscale
   frames at low resolution (`motion_size`), so a thin curve being drawn or a small moving dot can read as frozen:
-  check such warnings on the frames.
+  check such warnings on the frames. A fade or an opacity change alone counts as frozen.
 - Emphasis is not motion: `Indicate`, `Circumscribe`, `Flash`, `pulse()` name an object once, as the narration names
   it (one short cue per new term, in the object's colour or `INK`, never the default yellow); never looped or as
   filler. A sentence during which nothing can move needs its own picture.

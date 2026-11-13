@@ -8,6 +8,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 
@@ -191,6 +192,60 @@ class EmphasisIsNotMotion(unittest.TestCase):
             voc = CE.vocabulary(d / "f.py", "Fidget")
             self.assertEqual(len(voc["emphasis_loops"]), 1)
             self.assertEqual(voc["counts"].get("Circumscribe"), 1)
+        finally:
+            shutil.rmtree(d)
+
+
+class FadesAreNotMotion(unittest.TestCase):
+    """Narration over labels that only fade in and dim is a frozen picture; over a dot that moves it is not."""
+    STARTS = [2.0 + 4 * k for k in range(7)]                    # a 1 s play every 4 s, narration from 1 s to 29 s
+
+    def scene(self, moving):
+        """The layout log of a 30 s scene and its grey frames at 4 fps."""
+        fr = np.full((121, 180, 320), 15, dtype=np.uint8)
+        for i in range(121):
+            done = [min(max(i / 4 - t0, 0.0), 1.0) for t0 in self.STARTS]
+            if moving:                                           # each play moves the dot 40 px to the right
+                x = int(20 + 40 * sum(done))
+                fr[i, 140:160, x:x + 20] = 215
+            else:                                                # a label fades in, the next play dims it
+                for k in range(0, 7, 2):
+                    dim = done[k + 1] if k < 6 else 0.0
+                    fr[i, 10:30, 20 + 40 * k:60 + 40 * k] = int(15 + 200 * done[k] - 120 * dim)
+
+        def snap(t):
+            n = sum(t0 + 1.0 <= t for t0 in self.STARTS)
+            if moving:
+                return {"t": t, "texts": [], "paths": [{"id": 1, "bbox": [-6 + n, -2.2, -5.6 + n, -1.8],
+                                                        "points": [[-5.8 + n, -2.0]]}]}
+            return {"t": t, "texts": [{"id": 10 + k, "bbox": [-6 + k, 3.0, -5 + k, 3.4], "content": f"step {k}"}
+                                      for k in range(0, n, 2)], "paths": []}
+        plays = [{"start": t0, "end": t0 + 1.0, "anims": ["animate"] if moving or k % 2 else ["FadeIn"]}
+                 for k, t0 in enumerate(self.STARTS)]
+        times = sorted({0.0} | {t + d for t in self.STARTS for d in (0.0, 1.0)})
+        return {"duration": 30.0, "timeline": [], "plays": plays, "snapshots": [snap(t) for t in times],
+                "voiceovers": [{"start": 1.0, "duration": 28.0, "text": "Step by step, the plan gets cheaper."}]}, fr
+
+    def test_fades_and_dims_are_frozen_movement_is_not(self):
+        d = Path(tempfile.mkdtemp())
+        try:
+            run = d / "run"
+            (run / "video" / "scenes").mkdir(parents=True)
+            (run / "video" / "checks").mkdir(parents=True)
+            (run / "video" / "scenes" / "s.py").write_text(SCENES, encoding="utf-8")
+            frames = {}
+            for cls, moving in (("Fades", False), ("Moves", True)):
+                log, frames[cls] = self.scene(moving)
+                (run / "video" / "checks" / f"{cls}.layout.json").write_text(json.dumps({"scenes": {cls: log}}))
+            (run / "video" / "plan.json").write_text(json.dumps({"scenes": [
+                {"file": "s.py", "class": c, "role": "body"} for c in frames]}))
+            with mock.patch.object(CE, "frames", lambda video, cfg: frames[video.name.split("_")[0]]):
+                fd, stats = CE.check(run, "draft", CFG)
+            motion = {(x["where"], x["severity"]) for x in fd.items if x["check"] == "motion"}
+            self.assertIn(("Fades", "error"), motion)                   # 28 s of narration and nothing moves
+            self.assertFalse([m for m in motion if m[0] == "Moves"])
+            self.assertEqual(stats["scenes"]["Fades"]["moving_share"], 0.0)
+            self.assertGreater(stats["scenes"]["Fades"]["moving_share_raw"], 0.1)   # the frames do change
         finally:
             shutil.rmtree(d)
 

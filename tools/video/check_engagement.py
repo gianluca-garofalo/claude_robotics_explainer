@@ -54,6 +54,7 @@ TRANSFORMS = {"Transform", "ReplacementTransform", "TransformMatchingTex", "Tran
 EQUATIONS = {"MathTex", "Tex", "eq", "ceq"}
 EMPHASIS = {"Indicate", "Circumscribe", "Flash", "ShowPassingFlash", "ShowPassingFlashWithThinningStrokeWidth",
             "Wiggle", "FocusOn", "ApplyWave", "Blink", "pulse"}
+STILL = {"FadeIn", "FadeOut", "Hold"}             # change no place or outline: a fade only opacity, a hold nothing
 COUNTED = TRANSFORMS | EQUATIONS | {"FadeIn", "FadeOut", "Write", "Create", "GrowArrow", "GrowFromEdge", "Indicate",
                                     "Circumscribe", "Brace", "BraceLabel", "ValueTracker", "readout", "meter",
                                     "carry_over", "beat", "budget_bars", "SurroundingRectangle", "LaggedStart"}
@@ -145,6 +146,28 @@ def mask_emphasis(moving: list[bool], spans_: list[tuple[float, float]], dt: flo
         a, b = i * dt, (i + 1) * dt
         if out[i] and any(s0 - 1e-6 <= a and b <= s1 + 1e-6 for s0, s1 in spans_):
             out[i] = False
+    return out
+
+
+def shapes(snap: dict) -> dict:
+    """{id: place and outline, or text} of a layout snapshot's objects, whatever their opacity or colour."""
+    return {x["id"]: (x.get("bbox"), x.get("points") or x.get("content"))
+            for x in (snap.get("texts") or []) + (snap.get("paths") or [])}
+
+
+def shape_spans(log: dict, cfg: dict) -> list[tuple[float, float]] | None:
+    """(start, end) where something moves, grows or changes its outline or text: the plays of other animations than
+    fades, holds, emphasis and .animate, and the times between two layout snapshots in which an object changes place,
+    outline or text; None for a log without plays."""
+    if "plays" not in log:
+        return None
+    snaps = log.get("snapshots") or []
+    calm = STILL | ({"animate"} if snaps else set()) | (set() if cfg["emphasis_counts_as_motion"] else EMPHASIS)
+    out = [(p["start"], p["end"]) for p in log["plays"] if set(p.get("anims") or []) - calm]
+    for a, b in zip(snaps, snaps[1:]):
+        sa, sb = shapes(a), shapes(b)
+        if any(sa[k] != sb[k] for k in sa.keys() & sb.keys()):
+            out.append((a["t"], b["t"]))
     return out
 
 
@@ -593,7 +616,11 @@ def check(run: Path, stage: str, cfg: dict, use_video: bool = True) -> tuple[che
             continue
         raw = motion_of(fr, cfg)
         emph = emphasis_spans(log)
-        mv = raw if (emph is None or cfg["emphasis_counts_as_motion"]) else mask_emphasis(raw, emph, dt)
+        # a fade or an opacity change alone is not motion (half an interval of slack: frames and log differ by a frame)
+        shaped = shape_spans(log, cfg)
+        mv = raw if shaped is None else [m and overlap(((k - 0.5) * dt, (k + 1.5) * dt), shaped) > 0
+                                         for k, m in enumerate(raw)]
+        mv = mv if (emph is None or cfg["emphasis_counts_as_motion"]) else mask_emphasis(mv, emph, dt)
         all_moving += mv
         st["moving_share"] = round(sum(mv) / len(mv), 3) if mv else 0.0
         st["moving_share_raw"] = round(sum(raw) / len(raw), 3) if raw else 0.0
