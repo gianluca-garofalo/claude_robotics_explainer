@@ -148,24 +148,24 @@
       "kind": "concept",
       "pretraining": true,
       "scene": "Bill",
-      "bookmark": "stage",
-      "shows": "stage cost"
+      "shows": "stage cost",
+      "says": "the stage cost"
     },
     {
       "id": "end-region",
       "kind": "concept",
       "pretraining": true,
       "scene": "Bill",
-      "bookmark": "reg",
-      "shows": "end region"
+      "shows": "end region",
+      "says": "the end region"
     },
     {
       "id": "end-cost",
       "kind": "concept",
       "pretraining": true,
       "scene": "Bill",
-      "bookmark": "end",
-      "shows": "end cost"
+      "shows": "end cost",
+      "says": "the end cost"
     },
     {
       "id": "remaining-action",
@@ -198,8 +198,8 @@
       "id": "reference-step",
       "kind": "concept",
       "scene": "ShiftedPlan",
-      "bookmark": "ref",
-      "shows": "reference step"
+      "shows": "reference step",
+      "says": "a reference step"
     },
     {
       "id": "end-test",
@@ -260,8 +260,8 @@
       "id": "asymptotic-stability",
       "kind": "concept",
       "scene": "WhatItBuys",
-      "bookmark": "as",
-      "shows": "asymptotic stability"
+      "shows": "asymptotic stability",
+      "says": "asymptotic stability"
     },
     {
       "kind": "prompt",
@@ -272,8 +272,8 @@
       "id": "one-step-bill",
       "kind": "concept",
       "scene": "OneStepTest",
-      "bookmark": "osb",
-      "shows": "one step left"
+      "shows": "one step left",
+      "says": "the one-step bill"
     },
     {
       "id": "one-step-test",
@@ -312,8 +312,8 @@
       "id": "terminal-names",
       "kind": "concept",
       "scene": "OneStepTest",
-      "bookmark": "tn",
-      "shows": "terminal cost"
+      "shows": "terminal cost",
+      "says": "the terminal cost"
     },
     {
       "kind": "summary",

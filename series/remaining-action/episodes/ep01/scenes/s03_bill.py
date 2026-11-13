@@ -82,7 +82,9 @@ class Bill(RAScene):
             self.wait_until_bookmark("r2")
             self.play(GrowArrow(arrows[0]), FadeIn(chips[1], shift=DOWN * 0.1), run_time=0.8)
             self.wait_until_bookmark("r3")
-            self.play(GrowArrow(arrows[1]), FadeIn(chips[2], shift=DOWN * 0.1), run_time=0.8)
+            self.play(GrowArrow(arrows[1]), run_time=max(self.time_until_word("one test"), 0.4))
+            self.wait_until_word("one test")                       # v8: the chip on its words
+            self.play(FadeIn(chips[2], shift=DOWN * 0.1), run_time=0.5)
 
         # concept 1: the window (a plan of a fixed number of steps; only the first is taken)
         plan = plan_path(PLAN_Q)
@@ -132,7 +134,8 @@ class Bill(RAScene):
                       LaggedStart(*[seg.animate.set_stroke(L, width=6) for seg in plan[0]], lag_ratio=0.5),
                       run_time=max(until(tr, "stage", 1.0) - 0.1, 0.8))
             self.wait_until_bookmark("stage")
-            self.play(FadeIn(stage_lab), plan[0][1].animate.set_stroke(width=9), run_time=1.0)
+            self.play(plan[0][1].animate.set_stroke(width=9), run_time=max(self.time_until_word("stage cost"), 0.4))
+            self.play(FadeIn(stage_lab), run_time=0.6)              # v8: the label on its words
             self.play(plan[0][1].animate.set_stroke(width=6), run_time=max(tr.get_remaining_duration(), 0.5))
         with self.voiceover(text="You pay for how fast the step moves. And you pay for how far it is from the target. "
                                  "<bookmark mark='sp'/>Take a small step near the target. It costs very little. "
@@ -141,7 +144,9 @@ class Bill(RAScene):
             self.play(LaggedStart(*[seg.animate.set_stroke(width=9) for seg in plan[0]], lag_ratio=0.4),
                       run_time=max(t1 * 0.4, 0.8))
             self.play(LaggedStart(*[seg.animate.set_stroke(width=6) for seg in plan[0]], lag_ratio=0.3),
-                      LaggedStart(*[Create(r) for r in rays], lag_ratio=0.3), run_time=max(t1 * 0.6, 1.0))
+                      run_time=max(self.time_until_word("how far"), 0.6))
+            self.wait_until_word("how far")                        # v8: the distances on their words
+            self.play(Create(rays, lag_ratio=0.3), run_time=max(until(tr, "sp", 1.0), 1.0))
             self.wait_until_bookmark("sp")
             self.play(plan[0][-1].animate.set_stroke(width=10), rays[-1].animate.set_stroke(width=5),
                       run_time=max(tr.get_remaining_duration() * 0.6, 0.8))
@@ -170,14 +175,16 @@ class Bill(RAScene):
                                  "[pause 1.6]") as tr:
             self.play(om[0].animate.set_stroke(width=7), run_time=max(until(tr, "reg", 1.0) - 0.2, 0.8))
             self.wait_until_bookmark("reg")
-            self.play(om[0].animate.set_fill(opacity=0.32).set_stroke(width=5), FadeIn(reg_lab), run_time=1.0)
+            self.play(om[0].animate.set_fill(opacity=0.32).set_stroke(width=5),
+                      run_time=max(self.time_until_word("end region"), 0.4))
+            self.play(FadeIn(reg_lab), run_time=0.6)                # v8: the label on its words
             ghost = dot.copy().set_opacity(0.5)
             route = VMobject().set_points_as_corners([dot.get_center()] + [d.get_center() for d in plan[1]])
             self.play(MoveAlongPath(ghost, route), run_time=max(tr.get_remaining_duration() - 0.3, 1.0))
             self.play(FadeOut(ghost), run_time=0.3)
-        with self.voiceover(text="<bookmark mark='cand'/>Here are a few other plans. The controller could pick "
-                                 "any of them. <bookmark mark='c2'/>Each one has the same number of steps. And "
-                                 "every one of them ends in there. [pause 1.6]") as tr:
+        with self.voiceover(text="<bookmark mark='cand'/>Here are some other possible plans. The controller could "
+                                 "choose any of them. <bookmark mark='c2'/>Each one has the same number of steps, "
+                                 "and every one finishes inside the region. [pause 1.6]") as tr:
             g1 = dot.copy().set_opacity(0.5)
             r1 = VMobject().set_points_as_corners([dot.get_center()] + [d.get_center() for d in alts[0][1]])
             self.play(Create(alts[0][0], lag_ratio=1.0), FadeIn(alts[0][1], lag_ratio=0.5), MoveAlongPath(g1, r1),
@@ -205,7 +212,8 @@ class Bill(RAScene):
                                  "[pause 1.6]") as tr:
             self.play(TransformFromCopy(end_dot, wb), run_time=max(until(tr, "end", 1.2) - 0.2, 1.0))
             self.wait_until_bookmark("end")
-            self.play(FadeIn(end_lab), wb.animate.set_stroke(width=6), run_time=1.0)
+            self.play(wb.animate.set_stroke(width=6), run_time=max(self.time_until_word("end cost"), 0.4))
+            self.play(FadeIn(end_lab), run_time=0.6)                # v8: the label on its words
             self.play(end_dot.animate.scale(1 / 1.5), wb.animate.set_stroke(width=2),
                       run_time=max(tr.get_remaining_duration(), 0.5))
         totals = VGroup(*[DashedVMobject(Rectangle(width=0.6, height=t * SCALE).move_to(
@@ -247,10 +255,15 @@ class Bill(RAScene):
         vn = ceq(r"V_N(q)", r"=", r"\min", r"\Big[", r"\sum L_d", r"+", r"W", r"\Big]", font_size=44)
         vn.move_to([-1.6, EQ_Y + 0.05, 0])
         self.play(TransformFromCopy(m.frame, vn[0]), FadeIn(vn[1]), run_time=0.8)      # the picture first
-        with self.voiceover(text="<bookmark mark='eq'/>In symbols, it's this. You add up the stage costs, "
+        with self.voiceover(text="<bookmark mark='eq'/>In symbols, it's this. V is the bill from the point q, with "
+                                 "N steps in the window. You add up the stage costs, "
                                  "<bookmark mark='w'/>add the end cost, <bookmark mark='mn'/>and take the cheapest "
                                  "plan. [pause 1.8]") as tr:
-            self.play(TransformFromCopy(plan[0], vn[4]), run_time=max(until(tr, "w", 1.0), 1.0))
+            t0 = self.time_until_word("stage costs")             # v8 (final cut LV-1): V, q and N named
+            self.play(vn[0].animate.scale(1.15), q_lab.animate.scale(1.25), run_time=max(t0 * 0.5, 0.5))
+            self.play(vn[0].animate.scale(1 / 1.15), q_lab.animate.scale(1 / 1.25), run_time=max(t0 * 0.5, 0.5))
+            self.wait_until_word("stage costs")
+            self.play(TransformFromCopy(plan[0], vn[4]), run_time=max(until(tr, "w", 1.0), 0.8))
             self.wait_until_bookmark("w")
             self.play(FadeIn(vn[5]), TransformFromCopy(end_dot, vn[6]), run_time=max(until(tr, "mn", 0.8), 0.8))
             self.wait_until_bookmark("mn")

@@ -59,16 +59,37 @@ class Example(RAScene):
                                  "one coordinate, and every step pays for its speed and for its distance from the "
                                  "target, both with weight one. [pause 1.2]") as tr:
             self.play(dot.animate.move_to(at(0.0, 0.0)), run_time=max(until(tr, "c", 1.0) - 0.1, 1.0))
-            self.wait_until_bookmark("c")
-            self.play(Create(one), FadeIn(one_lab), run_time=1.0)
-            self.play(dot.animate.move_to(at(E.Q0, 0)), run_time=max(tr.get_remaining_duration() * 0.5, 1.0))
-            self.play(dot.animate.move_to(at(0.35, 0)), run_time=max(tr.get_remaining_duration(), 0.8))
+            self.wait_until_bookmark("c")                          # v8 (VD-2): the axis, then one step and its costs
+            t0 = self.time_until_word("speed")
+            self.play(Indicate(axis, color=INK, scale_factor=1.02), Indicate(q_lab, color=INK),
+                      run_time=max(t0 * 0.5, 0.6))
+            self.play(dot.animate.move_to(at(0.75, 0)), run_time=max(t0 * 0.5, 0.4))
+            self.wait_until_word("speed")
+            stp = Arrow(at(0.75, 0) + UP * 0.35, at(0.45, 0) + UP * 0.35, buff=0.0, color=INK, stroke_width=6,
+                        max_tip_length_to_length_ratio=0.3)
+            c_speed = Rectangle(width=0.24, height=0.3, stroke_width=0, fill_color=qcolor("L_d"),
+                                fill_opacity=0.9).move_to(at(0.45, 0) + UP * 1.0 + LEFT * 0.5)
+            c_dist = c_speed.copy().next_to(c_speed, UP, buff=0.04)
+            reach = DashedLine(at(0.0, 0) + UP * 0.2, at(0.45, 0) + UP * 0.2, dash_length=0.08).set_stroke(MUTED, 3)
+            wt = Text(f"weight {fmt(1, exact=True)}", font_size=28, color=INK).next_to(VGroup(c_speed, c_dist), LEFT,
+                                                                                        buff=0.3)
+            self.play(GrowArrow(stp), dot.animate.move_to(at(0.45, 0)), run_time=max(self.time_until_word("distance")
+                                                                                      * 0.5, 0.4))
+            self.play(FadeIn(c_speed), run_time=0.4)
+            self.wait_until_word("distance")
+            self.play(Create(reach), run_time=0.5)
+            self.play(FadeIn(c_dist), run_time=0.4)
+            self.wait_until_word("weight one")
+            self.play(FadeIn(wt), run_time=0.5)
+            self.play(Indicate(VGroup(c_speed, c_dist), color=qcolor("L_d"), scale_factor=1.06),
+                      run_time=max(tr.get_remaining_duration(), 0.6))
         big = omega_interval(Q_DRAW)
         big[1].set_stroke(opacity=0.0)               # the whole drawn line: no end tick beside the "1"
         big_tag = region_label(big)
         big_tag.next_to(at(-Q_DRAW, 0), DOWN, buff=0.3).shift(RIGHT * 1.0)
         with self.voiceover(text="<bookmark mark='reg2'/>Nothing limits the steps here. And the end region is the "
                                  "whole line. [pause 1.2]") as tr:
+            self.play(FadeOut(VGroup(stp, c_speed, c_dist, reach, wt)), run_time=0.5)
             self.play(Transform(iv, big), Transform(tag, big_tag), run_time=max(tr.get_remaining_duration(), 1.2))
 
         # the end cost, weight 1.2; a guess first, then the test at the start: 0.6 against 0.59
@@ -82,7 +103,7 @@ class Example(RAScene):
                                  "single step to plan, will this end cost pass the test? [pause 3.8]") as tr:
             self.play(Indicate(VGroup(test, tbox), color=INK, scale_factor=1.08), run_time=max(until(tr, "ask4", 1.0),
                                                                                                  1.0))
-            self.play(dot.animate.move_to(at(E.Q0, 0)), run_time=max(tr.get_remaining_duration() - 0.2, 1.0))
+            self.play(dot.animate.move_to(at(0.0, 0)), run_time=max(tr.get_remaining_duration() - 0.2, 1.0))
         vb = bowl(K1, qcolor("V"))
         w_lab = readout("end cost", lambda: E.W_Q0, decimals=2, color=qcolor("W"), font_size=28)
         w_lab.add_updater(lambda r: r.move_to(at(E.Q0, E.W_Q0) + LEFT * 2.35 + UP * 0.05))
@@ -91,13 +112,19 @@ class Example(RAScene):
                                  "<bookmark mark='ex'/>The end cost there is zero point six, and the best one-step "
                                  "bill is about zero point five nine, <bookmark mark='lw'/>lower, so the test "
                                  "passes. [pause 2.8]") as tr:
-            self.play(dot.animate.move_to(at(E.Q0, E.W_Q0)), run_time=max(until(tr, "ex", 1.0) - 0.9, 1.0))
+            self.play(dot.animate.move_to(at(E.Q0, 0)), run_time=max(self.time_until_word("at one"), 0.6))
+            self.wait_until_word("at one")                         # v8 (VD-2): the start point on its words
+            self.play(Create(one), FadeIn(one_lab), run_time=0.6)
+            self.play(dot.animate.move_to(at(E.Q0, E.W_Q0)), run_time=max(until(tr, "ex", 1.0) - 0.9, 0.6))
             self.play(FadeIn(w_lab), run_time=0.8)
             self.wait_until_bookmark("ex")
+            self.play(Indicate(w_lab, color=qcolor("W"), scale_factor=1.06),
+                      run_time=max(self.time_until_word("best one-step bill"), 0.5))
+            self.wait_until_word("best one-step bill")             # v8 (final cut FC-2): the fill on its words
             t1 = until(tr, "lw", 1.6)
             self.play(Create(vb), dot.animate.move_to(at(E.Q0, E.V1_Q0)), v.animate.set_value(E.V1_Q0),
-                      run_time=max(t1 * 0.35, 0.8))
-            m.swap_readout(self, True, max(t1 * 0.2, 0.4))
+                      run_time=max(t1 * 0.6, 0.6))
+            m.swap_readout(self, True, max(t1 * 0.3, 0.3))
             self.wait_until_bookmark("lw")
             self.play(Indicate(VGroup(test, tbox), color=INK, scale_factor=1.08), run_time=max(
                 tr.get_remaining_duration(), 0.8))
@@ -166,9 +193,13 @@ class Example(RAScene):
             y -= h
         with self.voiceover(text="<bookmark mark='dd'/>At every step, the bill fell by more than that step cost. "
                                  "Now it's down to about zero point two four. [pause 1.8]") as tr:
-            self.play(FadeIn(trail[-1], scale=0.5), Create(bracket), run_time=1.0)
-            self.play(LaggedStart(*[GrowFromEdge(b, UP) for b in costs], lag_ratio=0.6),
-                      run_time=max(tr.get_remaining_duration() - 0.2, 1.2))
+            self.play(FadeIn(trail[-1], scale=0.5), run_time=max(self.time_until_word("fell"), 0.5))
+            self.wait_until_word("fell")                           # v8: the drop, then the step costs, on their words
+            self.play(Create(bracket), run_time=max(self.time_until_word("step cost"), 0.6))
+            self.wait_until_word("step cost")
+            rt = max(tr.get_remaining_duration() - 0.2, 1.2) / len(costs)
+            for b in costs:
+                self.play(GrowFromEdge(b, UP), run_time=rt)
 
         # why one point settles every point: a ghost point slides along the bowls; the ratio never changes
         qt = ValueTracker(E.Q0)
@@ -183,14 +214,17 @@ class Example(RAScene):
         with self.voiceover(text="[slow] Why does it pass at every point, and not only at one? <bookmark "
                                  "mark='ra'/>Both bills grow with the square of the distance, so their ratio never "
                                  "changes, and passing at one point means passing everywhere. [pause 2.2]") as tr:
-            t0 = until(tr, "ra", 1.2)
-            self.play(FadeOut(VGroup(marks, bracket, costs, one, one_lab)), run_time=min(t0 * 0.4, 1.0))  # bars at 1
-            self.play(FadeIn(ghost), FadeIn(bars), FadeIn(ratio), run_time=max(t0 * 0.6 - 0.1, 0.6))
-            self.wait_until_bookmark("ra")
-            t1 = max(tr.get_remaining_duration(), 2.0)
-            self.play(qt.animate.set_value(0.45), run_time=t1 * 0.4)
-            self.play(qt.animate.set_value(-0.8), run_time=t1 * 0.35)
-            self.play(qt.animate.set_value(0.85), run_time=t1 * 0.25)
+            self.play(FadeOut(VGroup(marks, bracket, costs, one, one_lab)),
+                      run_time=max(self.time_until_word("every point"), 0.6))       # bars at 1
+            self.wait_until_word("every point")                    # v8: the point, its bills, their ratio, each on its words
+            self.play(FadeIn(ghost), run_time=0.5)
+            self.wait_until_word("both bills")
+            self.play(FadeIn(bars), run_time=0.5)
+            self.play(qt.animate.set_value(0.45), run_time=max(self.time_until_word("ratio"), 0.6))
+            self.play(FadeIn(ratio), run_time=0.5)
+            t1 = max(tr.get_remaining_duration(), 1.6)
+            self.play(qt.animate.set_value(-0.8), run_time=t1 * 0.55)
+            self.play(qt.animate.set_value(0.85), run_time=t1 * 0.45)
         for x in (ghost, bars, ratio):
             x.clear_updaters()
         self.play(FadeOut(VGroup(ghost, bars, ratio)), run_time=0.6)
@@ -205,10 +239,13 @@ class Example(RAScene):
         tag_f = VGroup(cross, fails).arrange(RIGHT, buff=0.15).next_to(tw, RIGHT, buff=0.6)
         guide.clear_updaters()
         m.swap_readout(self, False, 0.7, FadeOut(guide), FadeOut(dot), FadeOut(trail), FadeOut(wq))   # FC-1, round 4
-        self.play(FadeIn(tw), Transform(wb, tb), Transform(vb, vtb), run_time=2.8)    # the picture first
+        self.play(Transform(wb, tb), Transform(vb, vtb), run_time=2.8)    # the picture first; its label on its words
         with self.voiceover(text="What about the plain textbook end cost, with weight one? <bookmark mark='tb'/>It "
                                  "fails this test, by a hair. [pause 1.8]") as tr:
-            self.play(wb.animate.set_stroke(width=9), run_time=max(until(tr, "tb", 1.0) - 0.1, 0.8))
+            self.play(wb.animate.set_stroke(width=8), run_time=max(self.time_until_word("textbook"), 0.3))
+            self.wait_until_word("textbook")                       # v8 (final cut FC-15): the label on its words
+            self.play(FadeIn(tw), run_time=0.5)
+            self.play(wb.animate.set_stroke(width=9), run_time=max(until(tr, "tb", 0.6) - 0.1, 0.4))
             self.wait_until_bookmark("tb")
             self.play(FadeIn(tag_f), FadeIn(p_v, scale=0.5), run_time=0.5)
             self.play(wb.animate.set_stroke(width=6), run_time=max(tr.get_remaining_duration(), 0.8))
@@ -220,9 +257,11 @@ class Example(RAScene):
         tb_ratio.add_updater(lambda r: r.shift([-4.5 - r.get_left()[0], 2.15 - r.get_y(), 0]))
         with self.voiceover(text="At the start, its one-step bill comes out just above its end cost. <bookmark "
                                  "mark='why'/>Why? That's a story for a later episode. [pause 1.8]") as tr:
-            rt = max(until(tr, "why", 2.0), 2.0)
-            self.play(LaggedStart(*[GrowFromEdge(b, DOWN) for b in tb_bars], lag_ratio=0.4), run_time=rt * 0.55)
-            self.play(FadeIn(tb_ratio), run_time=rt * 0.45)
+            self.wait_until_word("one-step bill")                  # v8: each bar on its words
+            self.play(GrowFromEdge(tb_bars[1], DOWN), run_time=max(self.time_until_word("end cost"), 0.5))
+            self.wait_until_word("end cost")
+            self.play(GrowFromEdge(tb_bars[0], DOWN), run_time=0.6)
+            self.play(FadeIn(tb_ratio), run_time=max(until(tr, "why", 0.6), 0.6))
             self.wait_until_bookmark("why")
             self.play(p_v.animate.scale(1.3), run_time=max(tr.get_remaining_duration() * 0.5, 0.5))
             self.play(p_v.animate.scale(1 / 1.3), run_time=max(tr.get_remaining_duration(), 0.5))

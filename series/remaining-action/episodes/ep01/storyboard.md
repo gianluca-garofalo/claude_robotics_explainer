@@ -1,4 +1,4 @@
-# Storyboard: Why Does MPC Converge? A One-Step Proof (episode 1 of 8, version 7)
+# Storyboard: Why Does MPC Converge? A One-Step Proof (episode 1 of 8, version 8)
 
 Explainer: `../explainer.html` (a source: this video tells one story with less, and different, material). Audience:
 students and engineers who have heard of MPC and want the stability argument in one line. Channel: Remaining Action.
@@ -7,6 +7,35 @@ step's cost, because the old plan shifted by one step plus one reference step is
 that single step pays for it. Version 7 is built under the pacing rules of 2026-11-07 (`config/video.json` "pacing",
 rules P1-P20): v6 was judged too fast to absorb (about 16 claims and 25 concepts in ten minutes, 2.2 s after its
 starred results, 0.26 s between blocks, 131 s without a pause).
+
+## What changed against v7 (released 2026-11-07)
+
+Version 8 keeps the story, the material and the ideas of v7; only the timing, the branding and the voice changed.
+
+- **Narration and picture in sync** (`check_sync.py`). Every picture, label and equation now appears as the narration
+  names it (`wait_until_word`): the hook's pictograms on "robot arms", "legged robots" and "cars"; the orbit before
+  the circling dot on "circling"; the step's cost on "costs"; the distance rays on "how far"; the labels stage cost,
+  end region, end cost, "tomorrow?", reference step, asymptotic stability and terminal cost on their words (v7: 1.2 to
+  3.7 s early); in the one-step test the probe on "point", the outside on "outside", the step's fall on "single
+  step", the legend on "one-step bill"; the window squares on "window"; in the example the drop on "fell", each step
+  cost on "step cost", the ghost point, its bills and their ratio each on its words, and the textbook bars on
+  "one-step bill" and "end cost". The ideas whose label waits for its term are declared by the words that state it
+  (`plan.json` ideas[].says). v7: 18 findings; v8: none.
+- **Branding.** The title beat opens with the 2.5 s logo sting (`title_sting()`) over the hook's dimmed last picture.
+- **Narration.** Every block synthesized afresh under the gentler pace cap (160 words per minute plus 5 %), with
+  retakes for silences inside phrases (at most 0.2 s) and at least 0.6 s after a sentence that ends a block:
+  `[pause 0]` only where the sentence continues (and on the hook's last block, before the sting's silence). Seven
+  blocks were reworded to meet the cap or to give a natural break, with the same meaning.
+- **Design review, round 1** (`review/video/resolutions.json`). Three confirmed majors fixed without new material: in
+  ShiftedPlan the reference step's cost steps out to the left, clear of the meter, labelled "its cost" and "saved" on
+  their words (VD-1); the Example's first block pictures one step and its two costs with "weight 1" on their words, and
+  the start tick "1" waits for "put the controller at one" (VD-2); the reverse direction of the one-step test gets its
+  reason (the one-step bill is the best step's cost plus the end cost where it lands, finite only inside the region) in a
+  block before the claim (LV-7). The hook's orbit is neutral, not the amber of a step's cost (VD-6).
+- **Final-cut review, round 1** (`review/final_cut/resolutions.json`). Four confirmed majors fixed: the dot lands on
+  the bowl where its height equals the meter's value (FC-1); the Example's meter fills on "the best one-step bill"
+  (FC-2); V, q, N and "q plus" are said as the equations form (LV-1); the stability sentence says why the falling bill
+  brings the dot to the target: it can't fall below zero, so the step costs must shrink, which only happens there (LV-4).
 
 ## What changed against v6 (released 2026-11-06)
 

@@ -145,7 +145,10 @@ class OneStepTest(RAScene):
         probe = Dot(at(-0.62, 0, VZ), radius=0.12, color=INK).set_opacity(0.6)
         with self.voiceover(text="[slow] And now take a point outside the region. <bookmark mark='ask2'/>With no "
                                  "steps left, what's the bill there? [pause 3.8]") as tr:
-            self.play(Create(outside), FadeIn(probe), run_time=1.2)
+            self.wait_until_word("point")                          # v8: the point, then the outside, on their words
+            self.play(FadeIn(probe), run_time=0.4)
+            self.wait_until_word("outside")
+            self.play(Create(outside), run_time=0.8)
             rt = max(tr.get_remaining_duration() - 0.6, 1.2)
             self.play(probe.animate.move_to(at(-0.72, 0, VZ)), run_time=rt * 0.5)
             self.play(probe.animate.move_to(at(-0.62, 0, VZ)), run_time=rt * 0.5)
@@ -175,8 +178,12 @@ class OneStepTest(RAScene):
         cost = vbar(ph, W(ph), W(ph) + LD_S * p * p, qcolor("L_d"), VZ, dx=-2 * x_off, width=0.36)
         with self.voiceover(text="[slow] Now give the controller a single step. <bookmark mark='osb'/>The one-step "
                                  "bill is the lowest bill it can reach with that step. [pause 1.2]") as tr:
-            self.play(dot.animate.move_to(at(p, W(p), VZ)), FadeIn(one_row[0]), FadeIn(one_row[1]), run_time=1.0)
-            self.play(FadeIn(fall), GrowFromEdge(cost, DOWN), run_time=max(tr.get_remaining_duration(), 0.8))
+            self.play(dot.animate.move_to(at(p, W(p), VZ)), run_time=max(self.time_until_word("single step"), 0.6))
+            self.wait_until_word("single step")                    # v8: the step's fall, the legend, the step's cost
+            self.play(FadeIn(fall), run_time=max(self.time_until_word("one-step bill"), 0.6))
+            self.wait_until_word("one-step bill")
+            self.play(FadeIn(one_row[0]), FadeIn(one_row[1]), run_time=0.6)
+            self.play(GrowFromEdge(cost, DOWN), run_time=max(tr.get_remaining_duration(), 0.8))
         with self.voiceover(text="[slow] The reference step is one plan it could pick, and the test says that plan "
                                  "costs no more than the end cost. <bookmark mark='lo'/>The best one-step bill can "
                                  "only be lower still. [pause 1.8]") as tr:
@@ -213,23 +220,31 @@ class OneStepTest(RAScene):
                                  "[pause 2.4]") as tr:
             self.play(dot.animate.move_to(at(ph, W(ph), VZ)), run_time=max(tr.get_remaining_duration() * 0.5, 0.8))
             self.play(dot.animate.move_to(at(p, W(p), VZ)), run_time=max(tr.get_remaining_duration(), 0.8))
-        with self.voiceover(text="It also works the other way round. <bookmark mark='cv'/>When the best one-step bill "
-                                 "is no higher than the end cost, its best step is a reference step that passes the "
-                                 "test. [pause 1.8]") as tr:                # v7 (final-cut round 2, FC-1): the converse
-            q_best = 0.6 * p                                          # where the best single step lands
-            best = Arrow(at(p, 0, VZ) + UP * 0.72, at(q_best, 0, VZ) + UP * 0.72, buff=0.0, color=qcolor("V"),
-                         stroke_width=6, max_tip_length_to_length_ratio=0.3)
-            land = Dot(at(q_best, W(q_best), VZ), radius=0.1, color=qcolor("V"))
-            self.play(GrowArrow(best), run_time=max(until(tr, "cv", 1.0) - 0.1, 0.8))
-            self.wait_until_bookmark("cv")
-            rt = max(tr.get_remaining_duration(), 2.4)
+        q_best = 0.6 * p                                              # where the best single step lands
+        best = Arrow(at(p, 0, VZ) + UP * 0.72, at(q_best, 0, VZ) + UP * 0.72, buff=0.0, color=qcolor("V"),
+                     stroke_width=6, max_tip_length_to_length_ratio=0.3)
+        land = Dot(at(q_best, W(q_best), VZ), radius=0.1, color=qcolor("V"))
+        with self.voiceover(text="It also works in reverse. The one-step bill is the best step's cost, plus the end "
+                                 "cost where it lands, and it's finite only inside the region. [pause 0.8]") as tr:
+            # v8 (LV-7): the reason first, each part on its words
+            self.play(step.animate.set_stroke(width=8), run_time=max(self.time_until_word("best step's"), 0.4))
+            self.wait_until_word("best step's")
+            self.play(GrowArrow(best), run_time=0.8)
+            self.wait_until_word("where it lands")
             self.play(MoveAlongPath(dot, bowl(W_K, qcolor("W"), VZ, q_best, p).reverse_direction()), FadeIn(land),
-                      run_time=rt * 0.4)
-            self.play(best.animate.set_color(INK), step.animate.set_stroke(width=9), run_time=rt * 0.3)
-            self.play(FadeOut(VGroup(best, land)), dot.animate.move_to(at(p, W(p), VZ)),
-                      step.animate.set_stroke(width=6), run_time=rt * 0.3)
-        with self.voiceover(text="[slow] Before we go on, take one more look at the test. <bookmark mark='ask3'/>What's "
-                                 "in it, and what's missing? [pause 4.4]") as tr:
+                      step.animate.set_stroke(width=6), run_time=max(self.time_until_word("finite"), 0.8))
+            self.wait_until_word("finite")
+            self.play(Indicate(infs, color=INK, scale_factor=1.15), run_time=max(tr.get_remaining_duration(), 0.8))
+        with self.voiceover(text="<bookmark mark='cv'/>So when that bill is no higher than the end cost here, the best "
+                                 "step lands inside and pays for itself: a reference step that passes the test. "
+                                 "[pause 1.8]") as tr:                # v7 (final-cut round 2, FC-1): the converse
+            rt = max(tr.get_remaining_duration(), 2.4)
+            self.play(land.animate.scale(1.4), iv[0].animate.set_stroke(width=20), run_time=rt * 0.35)
+            self.play(best.animate.set_color(INK), land.animate.scale(1 / 1.4), iv[0].animate.set_stroke(width=14),
+                      run_time=rt * 0.3)
+            self.play(FadeOut(VGroup(best, land)), dot.animate.move_to(at(p, W(p), VZ)), run_time=rt * 0.35)
+        with self.voiceover(text="[slow] Before we continue, look again at the test. <bookmark mark='ask3'/>What does "
+                                 "it contain, and what's missing? [pause 4.4]") as tr:
             self.play(FadeOut(VGroup(tick, q_tag)), run_time=0.6)
             self.play(MoveAlongPath(dot, bowl(W_K, qcolor("W"), VZ, ph, p)), run_time=max(until(tr, "ask3", 1.0), 1.0))
             self.play(MoveAlongPath(dot, bowl(W_K, qcolor("W"), VZ, ph, p).reverse_direction()),
@@ -239,10 +254,10 @@ class OneStepTest(RAScene):
                 .move_to([-3.2, -3.05, 0])
         gone = win_row(6)
         win_tag = Text("window", font_size=28, color=INK).next_to(gone, RIGHT, buff=0.3)
-        with self.voiceover(text="The answer is the window. <bookmark mark='wf'/>There's the end cost, the region and a "
+        with self.voiceover(text="The answer is the window. <bookmark mark='wf'/>There's the end cost, the region, and a "
                                  "single step, but no window length at all. [pause 1.8]") as tr:
-            self.play(LaggedStart(*[FadeIn(sq) for sq in gone], lag_ratio=0.2), FadeIn(win_tag),
-                      run_time=max(until(tr, "wf", 0.8), 0.8))
+            self.wait_until_word("window")                         # v8: the window on its word
+            self.play(FadeIn(gone, lag_ratio=0.2), FadeIn(win_tag), run_time=max(until(tr, "wf", 0.8), 0.8))
             self.wait_until_bookmark("wf")
             rt = max(tr.get_remaining_duration() / 4, 0.6)
             self.play(wb.animate.set_stroke(width=10), run_time=rt)
@@ -271,8 +286,9 @@ class OneStepTest(RAScene):
         ts.move_to(ztag).shift(RIGHT * (ts.width - ztag.width) / 2)
         with self.voiceover(text="<bookmark mark='tn'/>The end cost is called the terminal cost. <bookmark "
                                  "mark='tn2'/>The region, the terminal set. [pause 1.2]") as tr:
-            self.play(FadeIn(tc, shift=UP * 0.1), run_time=0.5)
-            self.play(wb.animate.set_stroke(width=9), run_time=max(until(tr, "tn2", 1.0) - 0.1, 0.5))
+            self.play(wb.animate.set_stroke(width=9), run_time=max(self.time_until_word("terminal cost"), 0.5))
+            self.play(FadeIn(tc, shift=UP * 0.1), run_time=0.5)    # v8: the name on its words
+            self.play(wb.animate.set_stroke(width=8), run_time=max(until(tr, "tn2", 0.5) - 0.1, 0.3))
             self.wait_until_bookmark("tn2")
             self.play(Succession(FadeOut(tag, run_time=0.4), FadeIn(ts, run_time=0.6)), wb.animate.set_stroke(width=6),
                       run_time=max(tr.get_remaining_duration(), 1.0))

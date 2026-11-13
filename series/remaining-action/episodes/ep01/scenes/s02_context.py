@@ -28,9 +28,9 @@ class SeriesContext(RAScene):
         head, lower = title_beat()
         om = omega()
         start = the_dot(body_point(PLAN_Q[0], 0))
-        self.play(FadeOut(question), run_time=0.35)                # FC-6: the question leaves before the title comes
-        with self.voiceover(text="Episode one of eight. The proof <bookmark mark='go'/> takes one step. [pause 0]") as tr:
-            self.play(FadeIn(head), FadeIn(lower, shift=UP * 0.1), run_time=0.6)
+        clear = title_sting(self, FadeOut(question, run_time=0.35))   # v8: the logo sting opens the title beat
+        with self.voiceover(text="Episode one of eight. The proof <bookmark mark='go'/> takes one step.") as tr:
+            self.play(*clear, FadeIn(head), FadeIn(lower, shift=UP * 0.1), run_time=0.6)
             self.wait_until_bookmark("go")
             self.play(FadeOut(VGroup(head, lower)), FadeOut(trail),             # the label alone throughout
                       FadeOut(dot), FadeIn(start), Transform(target, om), v.animate.set_value(0.0),

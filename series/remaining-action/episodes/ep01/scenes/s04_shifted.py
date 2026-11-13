@@ -82,8 +82,9 @@ class ShiftedPlan(RAScene):
         with self.voiceover(text="Not on its own. Today's best plan says nothing about how tomorrow's bill "
                                  "compares with today's. <bookmark mark='o'/>Each new plan could just push the hard "
                                  "part a little further out, again and again. [pause 1.8]") as tr:
-            self.play(FadeIn(ghost), FadeIn(ask), run_time=1.0)
-            self.play(t.animate.set_value(BILL * 0.9), run_time=until(tr, "o", 1.0), rate_func=smooth)
+            self.play(FadeIn(ghost), run_time=max(self.time_until_word("tomorrow's"), 0.6))
+            self.play(FadeIn(ask), t.animate.set_value(BILL * 0.9), run_time=until(tr, "o", 1.0),   # v8: on its word
+                      rate_func=smooth)
             self.wait_until_bookmark("o")
             rt = max(tr.get_remaining_duration(), 2.0)
             self.play(t.animate.set_value(BILL * 1.1), run_time=rt / 3, rate_func=smooth)
@@ -161,9 +162,10 @@ class ShiftedPlan(RAScene):
                       *[TransformFromCopy(seg, sq) for seg, sq in zip(plan[0][1:], row[:3])],
                       Create(row[3]), FadeIn(win_lab, shift=UP * 0.1), run_time=max(until(tr, "ref", 1.6) - 0.1, 1.2))
             self.wait_until_bookmark("ref")
-            rt = max(tr.get_remaining_duration(), 1.6)
-            self.play(GrowArrow(ref), FadeIn(ref_lab), om[0].animate.set_fill(opacity=0.38), run_time=rt * 0.45)
-            self.play(TransformFromCopy(ref, full[3]), FadeOut(row[3]), run_time=rt * 0.55)
+            self.play(GrowArrow(ref), om[0].animate.set_fill(opacity=0.38),
+                      run_time=max(self.time_until_word("reference step"), 0.6))
+            self.play(FadeIn(ref_lab), run_time=0.5)                # v8: the label on its words
+            self.play(TransformFromCopy(ref, full[3]), FadeOut(row[3]), run_time=max(tr.get_remaining_duration(), 0.8))
             row.remove(row[3])
             row.add(full[3])
 
@@ -178,8 +180,9 @@ class ShiftedPlan(RAScene):
         spare = Line(wnew.get_top() + RIGHT * 0.5, [X_AFTER + 0.5, wold.get_top()[1], 0], color=qcolor("W"),
                      stroke_width=8)
         with self.voiceover(text="[slow] Here's the one condition we need. It's a test on the end region "
-                                 "alone. <bookmark mark='t'/>Along the reference step, the end cost has to fall by "
-                                 "at least what that step costs. [pause 1.8]") as tr:
+                                 "alone. <bookmark mark='t'/>From every point of the region, there must be a reference "
+                                 "step that stays inside, and along it, the end cost has to fall by at least what that "
+                                 "step costs. [pause 1.8]") as tr:
             self.play(FadeOut(VGroup(rest_lab, rest_brace)), FadeOut(VGroup(row, win_lab)),
                       TransformFromCopy(ref, extra),
                       run_time=max(until(tr, "t", 1.2) - 0.1, 1.0))
@@ -190,14 +193,25 @@ class ShiftedPlan(RAScene):
         with self.voiceover(text="[slow] <bookmark mark='f'/>Then the extra step pays for itself. <bookmark "
                                  "mark='io'/>In other words, its cost comes out of the end cost it saves. "
                                  "[pause 1.8]") as tr:
-            self.play(Create(spare), ref_cost.animate.shift(RIGHT * 0.9),          # room to spare; the cost steps out
-                      run_time=max(until(tr, "io", 1.0) - 0.1, 1.0))
+            self.play(Create(spare), ref_cost.animate.shift(LEFT * 0.9),           # v8 (VD-1): the cost steps out to
+                      run_time=max(until(tr, "io", 1.0) - 0.1, 1.0))           # the left, clear of the meter
+            cost_lab = attach(Text("its cost", font_size=28, color=L), ref_cost.copy().shift(LEFT * 0.9),
+                              direction=LEFT, buff=0.25)
+            saved_lab = Text("saved", font_size=28, color=qcolor("W"))
+            saved_lab.next_to(cost_lab, UP, buff=0.3).align_to(cost_lab, RIGHT)
+            saved_lab = attach(saved_lab, spare)
             self.wait_until_bookmark("io")
             old_box = DashedVMobject(Rectangle(width=0.7, height=wold.height).move_to(wold), num_dashes=24)
             old_box.set_stroke(qcolor("W"), width=3)
-            rt = max(tr.get_remaining_duration(), 1.6)
-            self.play(Create(old_box), run_time=rt * 0.5)
-            self.play(ref_cost.animate.shift(LEFT * 0.9), FadeOut(old_box), run_time=rt * 0.5)
+            self.play(Create(old_box), run_time=max(self.time_until_word("its cost"), 0.4))
+            self.wait_until_word("its cost")
+            self.play(FadeIn(cost_lab), run_time=0.5)
+            self.play(spare.animate.set_stroke(width=11), run_time=max(self.time_until_word("saves"), 0.4))
+            self.wait_until_word("saves")
+            self.play(FadeIn(saved_lab), spare.animate.set_stroke(width=8), run_time=0.5)
+            rt = max(tr.get_remaining_duration(), 2.4)               # the return spans the hold: no dead air
+            self.play(ref_cost.animate.shift(RIGHT * 0.9), FadeOut(old_box), FadeOut(VGroup(cost_lab, saved_lab)),
+                      run_time=rt)
 
         # the best plan from the new point can only be cheaper: one blue block, what is left to pay from there
         best = block(BEST_NEXT, qcolor("V"), bottom=level(PLAN_COSTS[0]))
@@ -219,7 +233,7 @@ class ShiftedPlan(RAScene):
         ineq = ceq(r"V_N(q)", r"\ \ge\ ", r"L_d(q,q^+)", r"+", r"V_N(q^+)", font_size=44).move_to([-2.4, EQ_Y, 0])
         with self.voiceover(text="[slow] <bookmark mark='ln'/>Now read the bars as one line. <bookmark mark='a'/>Today's bill "
                                  "<bookmark mark='l'/>covers the first step's cost, <bookmark mark='n'/>plus "
-                                 "everything that's left to pay from the new point. [pause 2]") as tr:
+                                 "everything that's left to pay from the new point, q plus. [pause 2]") as tr:
             self.play(paid.animate.set_stroke(width=4), run_time=max(until(tr, "a", 0.6) - 0.05, 0.5))
             self.wait_until_bookmark("a")
             self.play(TransformFromCopy(m.frame, ineq[0]), FadeIn(ineq[1]), run_time=0.9)
@@ -242,8 +256,8 @@ class ShiftedPlan(RAScene):
                          Line([drop_x - 0.12, level(BILL), 0], [drop_x, level(BILL), 0]),
                          Line([drop_x - 0.12, level(BEST_NEXT), 0], [drop_x, level(BEST_NEXT), 0])
                          ).set_stroke(qcolor("V"), width=5)
-        with self.voiceover(text="<bookmark mark='rs'/>In plain words, with every step, the bill drops by at least "
-                                 "what that step costs. [pause 1.8]") as tr:
+        with self.voiceover(text="<bookmark mark='rs'/>Put plainly, each step lowers the bill by at least "
+                                 "its cost. [pause 1.8]") as tr:
             self.play(Create(bracket), FadeOut(best_lab), run_time=1.0)
             self.play(paid.animate.next_to(bracket, RIGHT, buff=0.12).align_to(bracket, UP),
                       best.animate.align_to(m.frame, DOWN), run_time=max(tr.get_remaining_duration() - 0.2, 1.0))
@@ -262,7 +276,7 @@ class ShiftedPlan(RAScene):
             self.play(Transform(row, slots([L] * 2 + [INK])), win_lab.animate.next_to(slots([L] * 2 + [INK]), RIGHT,
                                                                                        buff=0.3),
                       run_time=max(tr.get_remaining_duration(), 0.8))
-        with self.voiceover(text="<bookmark mark='sum2'/>So that's the whole argument. The old plan, shifted by a "
+        with self.voiceover(text="<bookmark mark='sum2'/>That's the whole argument. The old plan, shifted one "
                                  "step and capped with a reference step, is why the bill can only fall. [pause 1.8]") as tr:
             walker = dot.copy().set_opacity(0.55)
             self.play(FadeOut(VGroup(row, win_lab)), run_time=0.6)

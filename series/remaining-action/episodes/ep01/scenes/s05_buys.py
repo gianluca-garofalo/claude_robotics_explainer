@@ -56,8 +56,8 @@ class WhatItBuys(RAScene):
         # the bonus: from the new point there is always a plan into the region
         shifted_route = VMobject().set_points_as_corners([p1] + [d.get_center() for d in plan[1][1:]] + [ref_end])
         walker = dot.copy().set_opacity(0.55)
-        with self.voiceover(text="And there's a bonus here. <bookmark mark='feas'/>From the new point there's always a "
-                                 "plan into the region, the shifted one, so the controller can always plan again. "
+        with self.voiceover(text="And there's a bonus. <bookmark mark='feas'/>From the new point, the shifted plan "
+                                 "always reaches the region, so the controller can always plan again. "
                                  "[pause 1.8]") as tr:
             self.play(FadeOut(VGroup(paid, bracket, best)), run_time=max(until(tr, "feas", 0.8) - 0.1, 0.6))
             self.wait_until_bookmark("feas")
@@ -74,21 +74,22 @@ class WhatItBuys(RAScene):
 
         def on_bowl(q):
             return at(q, V_SCHEM * q * q)
+        q_start = -float(np.sqrt(BEST_NEXT / V_SCHEM))      # v8 (final cut FC-1): the bowl's height there = the meter
         guide = always_redraw(lambda: meter_guide(dot.get_center(), m))
-        with self.voiceover(text="Now let's slice the picture through the target. Above every point, draw what's "
-                                 "left to pay from there. <bookmark mark='s'/>You get a bowl, and the dot sits on it "
+        with self.voiceover(text="Now slice the picture through the target. Above every point, draw what's "
+                                 "left to pay from there. <bookmark mark='s'/>You get a bowl. The dot sits on it, "
                                  "at the height the meter shows.") as tr:
             t1 = until(tr, "s", 2.4)
             self.play(FadeOut(VGroup(plan, ref)), run_time=t1 * 0.25)
             self.play(om[0].animate.stretch_to_fit_height(0.08).stretch_to_fit_width(iv.width).move_to(REST),
                       om[1].animate.move_to(REST), Create(axis), FadeIn(q_lab),
-                      dot.animate.move_to(at(S04_QS[0], 0)), run_time=t1 * 0.4)
+                      dot.animate.move_to(at(q_start, 0)), run_time=t1 * 0.4)
             self.play(FadeOut(om), FadeIn(iv), FadeIn(tag), desc.animate.scale(0.75).move_to(DESC_PIN),
                       box.animate.scale(0.75).move_to(DESC_PIN), run_time=t1 * 0.35)
             self.wait_until_bookmark("s")
             rt = max(tr.get_remaining_duration(), 2.0)
             self.play(Create(vb), run_time=rt * 0.55)
-            self.play(dot.animate.move_to(on_bowl(S04_QS[0])), run_time=rt * 0.25)
+            self.play(dot.animate.move_to(on_bowl(q_start)), run_time=rt * 0.25)
             self.add(guide)
             self.play(FadeIn(guide), run_time=rt * 0.2)
 
@@ -109,8 +110,9 @@ class WhatItBuys(RAScene):
         slider = Dot(at(-OMEGA_B, W_K * OMEGA_B ** 2), radius=0.1, color=qcolor("W"))
         with self.voiceover(text="[slow] Two mild conditions finish the job. <bookmark mark='c1'/>Every step away "
                                  "from the target has to cost something, <bookmark mark='c2'/>and the end cost must "
-                                 "fade away at the target, without jumps. <bookmark mark='stab'/>Then the dot slides "
-                                 "down the bowl, step after step, and settles at the bottom. [pause 1.8]") as tr:
+                                 "fade away at the target, without jumps. <bookmark mark='stab'/>The bill can't fall below "
+                                 "zero, so the step costs must shrink, and that only happens at the target. [pause 1.5] So the "
+                                 "dot slides down the bowl and settles at the bottom. [pause 1.8]") as tr:
             self.play(FadeOut(lyap), run_time=max(until(tr, "c1", 0.5) - 0.05, 0.5))
             self.wait_until_bookmark("c1")
             t1 = until(tr, "c2", 1.5)
@@ -134,11 +136,11 @@ class WhatItBuys(RAScene):
         last = [-0.06, -0.035]
         with self.voiceover(text="<bookmark mark='as'/>Settling at the bottom like this is called asymptotic "
                                  "stability. [pause 1.8]") as tr:
-            rt = max(tr.get_remaining_duration(), 1.6)
-            self.play(FadeIn(stable, shift=DOWN * 0.15), dot.animate.move_to(on_bowl(last[0])),
-                      v.animate.set_value(V_SCHEM * last[0] ** 2), run_time=rt / 2)
+            self.play(dot.animate.move_to(on_bowl(last[0])), v.animate.set_value(V_SCHEM * last[0] ** 2),
+                      run_time=max(self.time_until_word("asymptotic stability"), 0.6))
+            self.play(FadeIn(stable, shift=DOWN * 0.15), run_time=0.6)   # v8: the name on its words
             self.play(dot.animate.move_to(on_bowl(last[1])), v.animate.set_value(V_SCHEM * last[1] ** 2),
-                      run_time=rt / 2)
+                      run_time=max(tr.get_remaining_duration(), 0.8))
         guide.clear_updaters()
         self.play(FadeOut(guide), run_time=0.3)
         carry_over(self, axis, q_lab, iv, tag, vb, wb, dot, m, desc, box)

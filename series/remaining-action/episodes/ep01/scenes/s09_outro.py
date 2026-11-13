@@ -32,15 +32,15 @@ class Outro(RAScene):
         pts = [outro_point(LOOP[k][0], k) for k in range(n_steps + 1)]
         dot = Dot(pts[0], radius=DOT_R * 0.8, color=INK)
         trail = VGroup()
-        self.play(FadeIn(om), FadeIn(dot, scale=0.5), run_time=0.4)
+        self.play(FadeIn(om), FadeIn(dot, scale=0.5), run_time=0.3)
         for k in range(n_steps):
             seg = Line(pts[k], pts[k + 1], color=INK, stroke_width=5)
             frac = (k + 1) / n_steps
             self.play(Create(seg), dot.animate.move_to(pts[k + 1]), v.animate.set_value(v0 * (1 - frac)),
-                      run_time=0.13, rate_func=smooth)
+                      run_time=0.1, rate_func=smooth)
             trail.add(seg)
             self.bring_to_front(dot)
-        self.play(om[0].animate.set_fill(opacity=0.5), run_time=0.3)
+        self.play(om[0].animate.set_fill(opacity=0.5), run_time=0.2)
 
         # the takeaway card: "One test, on one step" above the result (no empty frame on the way)
         ctx = series_context() or {}
@@ -62,11 +62,11 @@ class Outro(RAScene):
         ask = Text("Why does the textbook weight fail?", font_size=28, color=INK)
         ask.next_to(g[1], DOWN, buff=0.35).align_to(g[1], LEFT)
         m.freeze()
-        self.play(FadeOut(VGroup(om, dot, trail, m)), FadeIn(g[-1]), FadeIn(g[0][0]), run_time=0.6)
-        with self.voiceover(text="One test, on one step, and that's why it arrives. [pause 0.3]") as tr:
+        self.play(FadeOut(VGroup(om, dot, trail, m)), FadeIn(g[-1]), FadeIn(g[0][0]), run_time=0.4)
+        with self.voiceover(text="One test, on one step, and that's why it arrives. [pause 0.6]") as tr:
             self.play(FadeIn(g[0][1], lag_ratio=0.1), run_time=max(tr.get_remaining_duration(), 1.6))
         with self.voiceover(text="In the next episode, <bookmark mark='n'/>the step shrinks to zero. And a momentum "
-                                 "shows up that nobody put in. [pause 0.3]") as tr:
+                                 "shows up that nobody put in. [pause 0.7]") as tr:
             self.wait_until_bookmark("n")
             self.play(FadeIn(g[1], shift=UP * 0.1), run_time=max(min(tr.get_remaining_duration(), 1.2), 0.8))
         with self.voiceover(text="Until then, why does the textbook weight fail? [pause 1.6]") as tr:
