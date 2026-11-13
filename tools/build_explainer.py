@@ -136,6 +136,7 @@ def load_svg(run: Path, name: str) -> str:
     s = p.read_text(encoding="utf-8")
     s = re.sub(r"<\?xml.*?\?>", "", s, flags=re.S)
     s = re.sub(r"<!DOCTYPE.*?>", "", s, flags=re.S)
+    s = re.sub(r"<metadata\b.*?</metadata>", "", s, flags=re.S)   # matplotlib's RDF: not drawn, unknown tags
     s = re.sub(r"<!--.*?-->", "", s, flags=re.S).strip()
     s = HF.theme_svg(s)
     prefix = re.sub(r"[^\w-]", "-", name)

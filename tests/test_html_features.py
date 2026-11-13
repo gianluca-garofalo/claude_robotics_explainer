@@ -147,6 +147,24 @@ class Builder(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_a_matplotlib_figure_builds_and_lints(self):
+        """A figure saved by plain plt.savefig(path, format="svg") builds under --strict: the build drops its RDF
+        <metadata> (tags the lint does not know), and the page is the one its drawing alone gives."""
+        svg = (REPO / "tests" / "fixtures" / "figures" / "matplotlib.svg").read_text(encoding="utf-8")
+        drawing = svg[:svg.index("<metadata>")] + svg[svg.index("</metadata>") + len("</metadata>"):]
+        pages = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for i, figure in enumerate((svg, drawing)):
+                run = Path(tmp) / f"run{i}"
+                shutil.copytree(REPO / "tests" / "fixtures" / "run", run)
+                (run / "code" / "figures").mkdir(parents=True, exist_ok=True)
+                (run / "code" / "figures" / "concept.svg").write_text(figure, encoding="utf-8")
+                r = subprocess.run([sys.executable, "tools/build_explainer.py", str(run), "--strict"], cwd=REPO,
+                                   capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)          # built, and the strict lint passes
+                pages.append((run / "explainer.html").read_text(encoding="utf-8"))
+        self.assertEqual(pages[0].split(), pages[1].split())
+
 
 LEGACY_PAGE_TAIL = "\n<p>Text $a=b$ stays.</p>\n</article>\n"
 
