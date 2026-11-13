@@ -28,7 +28,8 @@ workflow).
      `python3 tools/video/idea_budget.py runs/<run>`. Too many ideas for one video: cut them, or leave them to the
      explainer.
 2. **Data.** A script in `code/` (listed in `checks.toml`) writes `video/data/<name>.npz`, or the scenes compute closed
-   forms of the explainer's equations. Nothing on screen is typed by hand.
+   forms of the explainer's equations. Nothing on screen is typed by hand. The data come from the same model and
+   parameters as the explainer's results, or the narration says how they differ.
 3. **Scenes.** Copy `templates/manim/common.py`, `voice.py`, `reading_model.py`, `brand.py` and `scene_template.py` into
    `video/scenes/`; one file per scene, class renamed.
 4. **Rewrite pass** ([spoken-script.md](spoken-script.md), "The rewrite pass"), with

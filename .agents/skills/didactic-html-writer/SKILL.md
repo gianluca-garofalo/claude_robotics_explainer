@@ -26,7 +26,11 @@ Inputs: the approved topic, `sources.json`, `ranking.md`. Outputs in the run: `d
    table (style guide, Symbols).
 3. **Code first.** Scripts in `code/` (numpy, scipy, sympy, matplotlib), the manifest `code/checks.toml` and
    `code/README.md` (scripts mapped to sections); figures to `code/figures/NAME.svg`. Run
-   `.venv/bin/python tools/run_code_checks.py runs/<run>` and copy every number from `code/logs/`.
+   `.venv/bin/python tools/run_code_checks.py runs/<run>` and copy every number from `code/logs/`. Every simulated or
+   numerical result states its model beside it: step size, input limits, what is checked and how often (at the
+   samples only, or along the path between them), seeds and trials. Before you write a result, check that it holds
+   with the step size halved and with new seeds (the same conclusion, its numbers within their stated precision), in a
+   script listed in `checks.toml` that prints the check and fails when it does not hold: the gate re-runs it.
 4. **References.** `references.json` from the records you opened (format below): every field as the record shows it,
    a DOI only if you saw it there, `checked_against` naming those records. A record counts as seen only if you fetched
    it during this run (a search result or a page that did not load is not): cite prior work from a reachable record

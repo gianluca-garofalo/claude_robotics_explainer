@@ -29,8 +29,9 @@ Your report path says what you audit:
 - `review/experiment-auditor.json`: every number, table value, comparison and claim about the run's own experiments
   (simulations, sampled checks, timings) in the explainer, read as text: `python3 tools/explainer_text.py
   runs/<run>/explainer.html --outline`, then `--section <n>`; the parts in `draft/` for exact wording.
-- `review/video/experiment-auditor.json` (stage `draft`): the scripts in `code/` that write `video/data/`, the data each
-  scene draws (`video/README.md`, the scene files), and every number or comparison the narration states (`python3
+- `review/video/experiment-auditor.json` (stage `draft`): the scripts in `code/` that write `video/data/` (the
+  explainer's model and parameters, unless the narration says how they differ), the data each scene draws
+  (`video/README.md`, the scene files), and every number or comparison the narration states (`python3
   tools/video/voice_script.py runs/<run> --out runs/<run>/review/video/SCRIPT.md`) or a scene shows.
 
 For each result:
