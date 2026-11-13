@@ -23,10 +23,13 @@ sessions use (the environment menu in the session's title bar, then Edit):
    swedencentral.api.cognitive.microsoft.com
    ```
 
-   The keyless Piper voice (`voice.service` `piper` in `config/channel.json`) needs `huggingface.co`, `hf.co` and
-   `*.hf.co` instead. For another region, change the host names here and in `.claude/settings.json` (Sandbox, below).
+   The ranking's interest signals (`tools/search_demand.py`) need `suggestqueries.google.com`, `www.googleapis.com`
+   and `trends.google.com`. The keyless Piper voice (`voice.service` `piper` in `config/channel.json`) needs
+   `huggingface.co`, `hf.co` and `*.hf.co` instead. For another region, change the host names here and in `.claude/settings.json` (Sandbox, below).
 2. **Environment variables**: `AZURE_SUBSCRIPTION_KEY` and `AZURE_SERVICE_REGION` (`swedencentral`), the key and
-   region of your Azure Speech resource.
+   region of your Azure Speech resource. For views and coverage of competing videos, a YouTube Data API key (free, in
+   the Google Cloud console): best as a network secret for `www.googleapis.com` with the header `X-goog-api-key`, plus
+   `YOUTUBE_API_KEY=via-proxy` as a variable; without it the ranking leaves search demand and supply gap out.
 3. **Setup script** (it runs as root on Ubuntu 24.04 in the folder above the repository; change the folder name if
    yours differs):
 

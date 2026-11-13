@@ -7,7 +7,7 @@
       "weight": 0.1,
       "computed": true,
       "description": "Days from the newest primary source about the topic (relation subject) to the run date, computed by tools/rank_topics.py; unknown, not 0, when no such source is dated.",
-      "bands_days": [[7, 5], [14, 4], [30, 3], [90, 2], [365, 1]],
+      "bands_days": [[14, 5], [30, 4], [45, 3], [90, 2], [365, 1]],
       "older": 0,
       "source": "dates"
     },

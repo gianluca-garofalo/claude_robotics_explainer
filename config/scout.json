@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "window_days": 14,
+  "window_days": 45,
   "max_candidates": 8,
   "min_candidates": 3,
   "primary_source_kinds": ["paper", "preprint", "official_post", "code", "dataset"],

@@ -59,8 +59,8 @@ class Live:
         self.key = os.environ.get("YOUTUBE_API_KEY", "")
         self.quota = 0
 
-    def _get(self, url: str) -> bytes:
-        req = urllib.request.Request(url, headers={"User-Agent": "remaining-action-pipeline/1"})
+    def _get(self, url: str, headers: dict | None = None) -> bytes:
+        req = urllib.request.Request(url, headers={"User-Agent": "remaining-action-pipeline/1", **(headers or {})})
         with urllib.request.urlopen(req, timeout=self.cfg.get("timeout_s", 15)) as r:
             return r.read()
 
@@ -74,16 +74,18 @@ class Live:
         if not self.key:
             raise LookupError("skipped: no YOUTUBE_API_KEY")
         after = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=self.cfg["published_within_days"]))
-        params = {"part": "snippet", "type": "video", "maxResults": 25, "order": "relevance", "q": q, "key": self.key,
+        params = {"part": "snippet", "type": "video", "maxResults": 25, "order": "relevance", "q": q,
                   "publishedAfter": after.strftime("%Y-%m-%dT%H:%M:%SZ"), "relevanceLanguage": self.cfg.get("language", "en"),
                   "regionCode": self.cfg.get("region", "US")}
-        found = json.loads(self._get("https://www.googleapis.com/youtube/v3/search?" + urllib.parse.urlencode(params)))
+        auth = {"X-goog-api-key": self.key}   # a header, so a proxy network secret can supply it
+        found = json.loads(self._get("https://www.googleapis.com/youtube/v3/search?" + urllib.parse.urlencode(params),
+                                     auth))
         self.quota += 100
         items = [{"id": i["id"]["videoId"], "title": i["snippet"]["title"], "channel": i["snippet"]["channelTitle"],
                   "published": i["snippet"]["publishedAt"][:10]} for i in found.get("items", []) if "videoId" in i["id"]]
         if items:
             stats = json.loads(self._get("https://www.googleapis.com/youtube/v3/videos?" + urllib.parse.urlencode(
-                {"part": "statistics", "id": ",".join(i["id"] for i in items), "key": self.key})))
+                {"part": "statistics", "id": ",".join(i["id"] for i in items)}), auth))
             self.quota += 1
             views = {v["id"]: int(v.get("statistics", {}).get("viewCount", 0)) for v in stats.get("items", [])}
             for i in items:
