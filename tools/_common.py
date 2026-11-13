@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+os.environ.setdefault("MPLCONFIGDIR", str(REPO / ".cache" / "matplotlib"))   # the sandbox's home is read-only
 _VENV_PY = REPO / ".venv" / "bin" / "python"
 if (sys.prefix == sys.base_prefix and _VENV_PY.exists() and not os.environ.get("RA_NO_VENV")
         and Path(sys.argv[0]).resolve().is_relative_to(REPO / "tools")):   # python3 tools/x.py -> the .venv

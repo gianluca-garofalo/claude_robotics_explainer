@@ -1,4 +1,5 @@
-"""The tools inside Claude Code's sandbox: check_html.js finds a browser that starts there."""
+"""The tools inside Claude Code's sandbox: check_html.js finds a browser that starts there; matplotlib gets a writable
+cache."""
 import json
 import os
 import shutil
@@ -71,6 +72,31 @@ class BrowserFallback(unittest.TestCase):
             self.assertEqual(json.loads(got[-1]), [str(p) for p in (own, shell[1250], shell[999], full)])
             got = self.node(script, str(root), CHROMIUM_PATH=str(root / "missing"))
             self.assertEqual(json.loads(got[-1]), [str(p) for p in (shell[1250], shell[999], full)])
+
+
+class MatplotlibCache(unittest.TestCase):
+    """The sandbox's home is read-only: the tools, and the code scripts they run, give matplotlib
+    <repo>/.cache/matplotlib unless MPLCONFIGDIR is set."""
+
+    def seen_by_a_script(self, **env) -> str:
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "runs" / "demo"
+            (run / "code").mkdir(parents=True)
+            (run / "code" / "probe.py").write_text("import os\nprint('MPLCONFIGDIR=%s' % os.getenv('MPLCONFIGDIR'))\n")
+            (run / "code" / "checks.toml").write_text('[[check]]\nscript = "probe.py"\n')
+            base = {k: v for k, v in os.environ.items() if k != "MPLCONFIGDIR"}
+            r = subprocess.run([sys.executable, str(REPO / "tools" / "run_code_checks.py"), str(run)],
+                               capture_output=True, text=True, env=dict(base, **env))
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            log = (run / "code" / "logs" / "probe.py.log").read_text()
+            return log.split("MPLCONFIGDIR=", 1)[1].splitlines()[0]
+
+    def test_unset_gives_the_repos_cache(self):
+        self.assertEqual(self.seen_by_a_script(), str(REPO / ".cache" / "matplotlib"))
+
+    def test_a_set_value_is_kept(self):
+        with tempfile.TemporaryDirectory() as mine:
+            self.assertEqual(self.seen_by_a_script(MPLCONFIGDIR=mine), mine)
 
 
 if __name__ == "__main__":
