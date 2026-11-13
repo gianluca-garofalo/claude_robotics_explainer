@@ -248,6 +248,22 @@ class Ducking(unittest.TestCase):
         self.assertGreater(db[int(5.9 * sr)], -1.0)                     # mostly recovered (release time constant)
         self.assertLess(db[int(4.3 * sr)], -4.0)                        # the release is slow (900 ms)
 
+    def test_the_duck_holds_through_the_last_word(self):
+        """The look-ahead advances the duck, never its release: a bed ducked to 1 dB inside the limit of the check
+        (music_under_voice_max_lu) stays there until the voice stops (an outro's last words measured -11.8 dB)."""
+        cfg = dict(MU.DEFAULTS)
+        sr, limit = 8000, float(cfg["music_under_voice_max_lu"])
+        duck = float(cfg["bed_in_gaps_lu"]) - float(cfg["bed_under_voice_lu"])
+        t = np.arange(sr * 5) / sr
+        v = np.where((t >= 1) & (t < 3), 0.3 * np.sin(2 * np.pi * 200 * t), 0.0)       # the last word ends at 3 s
+        bed = 0.3 * np.sin(2 * np.pi * 300 * t) * 10 ** ((limit + duck - 1) / 20)
+        music = bed * MU.duck_gain(v, sr, duck, cfg["attack_ms"], cfg["release_ms"], cfg["lookahead_ms"])
+
+        def power(x):                                                   # the last second of words, in 50 ms frames
+            return (x[2 * sr:3 * sr] ** 2).reshape(20, -1).mean(axis=1)
+        under = 10 * np.log10(power(music) / power(v))
+        self.assertLessEqual(under.max(), limit, under.round(2))
+
     def test_pauses(self):
         gaps = MU.pauses(voice(), MU.SR, 1.2)
         self.assertEqual(gaps[0][0], 0.0)

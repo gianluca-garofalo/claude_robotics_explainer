@@ -385,8 +385,8 @@ def synthesize(ev: dict, seed: int, preset: str = "calm-pad", cfg: dict | None =
 
 def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, release_ms: float, lookahead_ms: float,
               threshold_db: float = -40.0, hop_s: float = 0.005) -> np.ndarray:
-    """Sidechain gain (linear, per sample) lowering the music by duck_db while the narration, advanced by
-    lookahead_ms, speaks; one-pole attack and release on a 5 ms grid."""
+    """Sidechain gain (linear, per sample) lowering the music by duck_db from lookahead_ms before the narration
+    speaks until it stops; one-pole attack and release on a 5 ms grid."""
     hop = max(1, int(sr * hop_s))
     nfr = int(np.ceil(len(voice) / hop))
     pad = np.zeros(nfr * hop)
@@ -394,8 +394,8 @@ def duck_gain(voice: np.ndarray, sr: int, duck_db: float, attack_ms: float, rele
     rms = np.sqrt(np.mean(pad.reshape(nfr, hop) ** 2, axis=1) + 1e-20)
     active = (20 * np.log10(rms) > threshold_db).astype(float)
     shift = int(round(lookahead_ms / 1000 / hop_s))
-    if shift:
-        active = np.concatenate([active[shift:], np.zeros(shift)])
+    if shift:                                       # the look-ahead moves the starts only, never the ends
+        active = np.maximum(active, np.concatenate([active[shift:], np.zeros(shift)]))
     target = -duck_db * active
     a_att = np.exp(-hop_s / max(attack_ms / 1000, 1e-4))
     a_rel = np.exp(-hop_s / max(release_ms / 1000, 1e-4))
