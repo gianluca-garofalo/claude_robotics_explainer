@@ -18,6 +18,7 @@ testenv.activate()                  # fixture config and sources, before any too
 sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "video"))
 
+import build_explainer  # noqa: E402
 import html_features as HF  # noqa: E402
 import lint_html  # noqa: E402
 from check_design import contrast, hex_rgb  # noqa: E402
@@ -164,6 +165,34 @@ class Builder(unittest.TestCase):
                 self.assertEqual(r.returncode, 0, r.stdout + r.stderr)          # built, and the strict lint passes
                 pages.append((run / "explainer.html").read_text(encoding="utf-8"))
         self.assertEqual(pages[0].split(), pages[1].split())
+
+    def test_a_matplotlib_figure_keeps_its_stroke_style_to_itself(self):
+        """matplotlib's <style>*{stroke-linejoin: round; stroke-linecap: butt}</style>, inlined, styled every SVG on the
+        page: the figure's root carries the two properties instead, for its own shapes; a style's other rules stay."""
+        with tempfile.TemporaryDirectory() as tmp:
+            run = Path(tmp) / "run"
+            shutil.copytree(REPO / "tests" / "fixtures" / "run", run)
+            figs = run / "code" / "figures"
+            figs.mkdir(parents=True, exist_ok=True)
+            shutil.copy(REPO / "tests" / "fixtures" / "figures" / "matplotlib.svg", figs / "concept.svg")
+            (figs / "drawn.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" aria-label='
+                                            '"A corner"><path d="M0 10L5 0L10 10" fill="none" stroke="#000"/></svg>')
+            part = run / "draft" / "10-idea.html"
+            part.write_text(part.read_text().replace("</section>", "<figure><!--SVG:drawn--><figcaption>Figure "
+                            "[[figdef:drawn]]. A corner drawn by hand.</figcaption></figure>\n</section>", 1))
+            r = subprocess.run([sys.executable, "tools/build_explainer.py", str(run), "--strict"], cwd=REPO,
+                               capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+            soup = lint_html.parse((run / "explainer.html").read_text(encoding="utf-8"))
+            (figs / "styled.svg").write_text('<svg aria-label="x"><style>*{stroke-linecap: butt}.a{opacity: 0.5}'
+                                             '</style></svg>')
+            styled = build_explainer.load_svg(run, "styled")
+        for style in soup.find_all("style"):
+            self.assertNotRegex(style.get_text(), r"\*\s*\{[^}]*stroke")         # no "*" stroke rule for the page
+        mpl, drawn = (soup.find("figure", id=f"fig-{n}").find("svg") for n in ("concept", "drawn"))
+        self.assertEqual((mpl.get("stroke-linejoin"), mpl.get("stroke-linecap")), ("round", "butt"))
+        self.assertIsNone(drawn.get("stroke-linejoin"))
+        self.assertIn("<style>.a{opacity: 0.5}</style>", styled)
 
 
 LEGACY_PAGE_TAIL = "\n<p>Text $a=b$ stays.</p>\n</article>\n"

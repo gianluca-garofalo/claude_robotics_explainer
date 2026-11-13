@@ -129,6 +129,24 @@ def format_ref(r: dict) -> str:
 
 
 # --------------------------------------------------------------------------- SVG figures
+STAR_RULE = re.compile(r"(^|\})\s*\*\s*\{([^}]*)\}")
+
+
+def star_rules(svg: str) -> tuple[str, dict]:
+    """The SVG without the "*" rules of its <style> elements, which inline would style every SVG on the page
+    (matplotlib's *{stroke-linejoin: round; stroke-linecap: butt}), and their declarations; a style left empty goes."""
+    props = {}
+
+    def rule(r):
+        props.update((k.strip(), v.strip()) for k, v in (d.split(":", 1) for d in r.group(2).split(";") if ":" in d))
+        return r.group(1)
+
+    def style(m):
+        css = STAR_RULE.sub(rule, m.group(2))
+        return m.group(1) + css + m.group(3) if css.strip() else ""
+    return re.sub(r"(<style\b[^>]*>)(.*?)(</style>)", style, svg, flags=re.S), props
+
+
 def load_svg(run: Path, name: str) -> str:
     p = run / "code" / "figures" / f"{name}.svg"
     if not p.exists():
@@ -138,6 +156,7 @@ def load_svg(run: Path, name: str) -> str:
     s = re.sub(r"<!DOCTYPE.*?>", "", s, flags=re.S)
     s = re.sub(r"<metadata\b.*?</metadata>", "", s, flags=re.S)   # matplotlib's RDF: not drawn, unknown tags
     s = re.sub(r"<!--.*?-->", "", s, flags=re.S).strip()
+    s, star = star_rules(s)
     s = HF.theme_svg(s)
     prefix = re.sub(r"[^\w-]", "-", name)
     s = re.sub(r'\bid="([^"]+)"', lambda m: f'id="{prefix}-{m.group(1)}"', s)
@@ -161,6 +180,9 @@ def load_svg(run: Path, name: str) -> str:
         new = new[:-1] + f' style="width:100%;{mw}height:auto"' + ">"
     if "role=" not in new:
         new = new[:-1] + ' role="img"' + ">"
+    for k, v in star.items():                   # presentation attributes: inherited by this figure's shapes only
+        if f" {k}=" not in new:
+            new = new[:-1] + f' {k}="{html.escape(v)}"' + ">"
     if "aria-label=" not in new:
         print(f"warning: {rel(p)} has no aria-label; add a one-line description of the figure", file=sys.stderr)
     return s.replace(tag, new, 1)
