@@ -249,6 +249,16 @@ class FadesAreNotMotion(unittest.TestCase):
         finally:
             shutil.rmtree(d)
 
+    def test_an_emphasis_swell_in_the_snapshots_is_not_motion(self):
+        def snap(t, half):
+            return {"t": t, "texts": [{"id": 1, "bbox": [-half, -half, half, half], "content": "100"}], "paths": []}
+        log = {"plays": [{"start": 1.0, "end": 3.5, "anims": ["Indicate"]}, {"start": 4.0, "end": 5.0,
+                                                                            "anims": ["animate"]}],
+               "snapshots": [snap(1.0, 0.5), snap(2.0, 0.6), snap(3.0, 0.55), snap(3.5, 0.5), snap(4.0, 0.5),
+                             snap(5.0, 0.8)]}
+        self.assertEqual(CE.shape_spans(log, CFG), [(4.0, 5.0)])           # the number grows; its Indicate is not
+        self.assertIn((1.0, 3.5), CE.shape_spans(log, dict(CFG, emphasis_counts_as_motion=True)))
+
 
 class JargonAndThumbnail(unittest.TestCase):
     def test_new_terms_per_block(self):

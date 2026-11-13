@@ -158,13 +158,17 @@ def shapes(snap: dict) -> dict:
 def shape_spans(log: dict, cfg: dict) -> list[tuple[float, float]] | None:
     """(start, end) where something moves, grows or changes its outline or text: the plays of other animations than
     fades, holds, emphasis and .animate, and the times between two layout snapshots in which an object changes place,
-    outline or text; None for a log without plays."""
+    outline or text, unless the plays then only fade, hold or emphasise; None for a log without plays."""
     if "plays" not in log:
         return None
     snaps = log.get("snapshots") or []
-    calm = STILL | ({"animate"} if snaps else set()) | (set() if cfg["emphasis_counts_as_motion"] else EMPHASIS)
+    quiet = STILL | (set() if cfg["emphasis_counts_as_motion"] else EMPHASIS)
+    calm = quiet | ({"animate"} if snaps else set())
     out = [(p["start"], p["end"]) for p in log["plays"] if set(p.get("anims") or []) - calm]
     for a, b in zip(snaps, snaps[1:]):
+        during = [set(p.get("anims") or []) for p in log["plays"] if p["start"] < b["t"] and p["end"] > a["t"]]
+        if during and all(x <= quiet for x in during):
+            continue                               # an emphasis swelling, a fade shifting in: not motion
         sa, sb = shapes(a), shapes(b)
         if any(sa[k] != sb[k] for k in sa.keys() & sb.keys()):
             out.append((a["t"], b["t"]))
