@@ -244,9 +244,11 @@ def plan_events(segments: list[dict], chapters: list[dict], duration: float, gap
         a, b = round(float(s["start"]), 3), round(float(s["start"]) + float(s["duration"]), 3)
         m = s.get("music") or scene_mode(s, cfg)
         for t, m2 in sorted(s.get("music_changes") or []):
-            if a < float(t) < b and m2 in MODES:
-                modes.append([a, round(float(t), 3), m])
-                a, m = round(float(t), 3), m2
+            t = round(float(t), 3)
+            if a <= t < b and m2 in MODES:
+                if t > a:                                  # a cue on the scene's first words holds from its start
+                    modes.append([a, t, m])
+                a, m = t, m2
         modes.append([a, b, m])
 
     def mode_at(t):

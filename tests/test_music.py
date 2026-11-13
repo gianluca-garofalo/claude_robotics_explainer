@@ -114,6 +114,18 @@ class Modes(unittest.TestCase):
             if "music_from" in m]
         self.assertTrue(msgs)
 
+    def test_a_cue_on_the_scenes_first_words(self):
+        """A music_from cue on the block that opens the scene (0.0 s into it) holds from the scene's start; it was
+        dropped, and the outro needed a lead-in before its first words."""
+        cfg = dict(MU.DEFAULTS)
+        segs = segments()
+        segs[-1]["music_changes"] = [[18.0, "low"]]
+        ev = MU.plan_events(segs, CHAPTERS, 24.0, [], cfg)
+        self.assertEqual(ev["modes"][-1], [18.0, 24.0, "low"])
+        self.assertTrue(all(a < b for a, b, _ in ev["modes"]), ev["modes"])     # no empty span before the cue
+        low = 10 ** (MU.mode_offset_db("low", cfg) / 20)
+        self.assertAlmostEqual(MU.mode_gain(int(24 * MU.SR), ev, cfg)[int(21.0 * MU.SR)], low, places=3)
+
     def test_events(self):
         cfg = dict(MU.DEFAULTS)
         gaps = MU.pauses(voice(), MU.SR, 1.2)
