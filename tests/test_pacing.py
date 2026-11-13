@@ -463,7 +463,7 @@ class Rules(unittest.TestCase):
 
     def test_p6_silence_after_a_starred_result(self):
         star = {"id": "descent", "kind": "star", "scene": "Body", "says": "what's left to pay has dropped"}
-        fd, _ = self.make([(1.0, self.STAR + " So the controller arrives.")], [star])
+        fd, _ = self.make([(1.0, self.STAR), (7.8, "So the controller arrives.")], [star])
         self.assertIn("P6", self.rules(fd, "error"))                       # the next sentence follows at once
         fd, stats = self.make([(1.0, self.STAR + " [pause 3] In words, every step pays its way.")],
                               [star, {"kind": "restatement", "of": "descent", "scene": "Body", "says": "In words"}])
@@ -473,6 +473,16 @@ class Rules(unittest.TestCase):
                           [star], holds=[(6.4, 9.4)])                    # a hold of the picture after the block
         self.assertNotIn("P6", self.rules(fd, "error"))
         self.assertIn("P6", self.rules(fd, "warning"))                     # no restatement declared
+
+    def test_p6_a_starred_result_of_two_sentences_holds_after_the_second(self):
+        star = {"id": "descent", "kind": "star", "scene": "Body", "says": "what's left to pay has dropped"}
+        rest = {"kind": "restatement", "of": "descent", "scene": "Body", "says": "In words"}
+        two = self.STAR + " So every step pays for itself."
+        fd, stats = self.make([(1.0, two + " [pause 3]"), (14.0, "In words, the bill only falls.")], [star, rest])
+        self.assertNotIn("P6", self.rules(fd))
+        self.assertGreaterEqual(stats["ideas"][0]["silence_after_s"], 2.5)
+        fd, _ = self.make([(1.0, two), (10.2, "In words, the bill only falls.")], [star, rest])
+        self.assertIn("P6", self.rules(fd, "error"))                       # the next block follows its end at once
 
     def test_p7_stretches_without_a_pause(self):
         long = " ".join(["Every step of the plan adds a small cost to the bill, and the bill keeps track."] * 16)
@@ -715,7 +725,7 @@ class Rules(unittest.TestCase):
         self.assertIn("consequence", roles)                               # from the series plan, not "key"
 
     def test_cli_and_gate_report_without_blocking(self):
-        self.make([(1.0, self.STAR + " So the controller arrives.")],
+        self.make([(1.0, self.STAR), (7.8, "So the controller arrives.")],
                   [{"id": "descent", "kind": "star", "scene": "Body", "says": "what's left to pay"}])
         r = subprocess.run([sys.executable, str(REPO / "tools" / "video" / "check_pacing.py"), str(self.run),
                             "--stage", "draft"], capture_output=True, text=True, env=testenv.env())

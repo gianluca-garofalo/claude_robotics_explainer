@@ -284,6 +284,12 @@ def place_ideas(tl: dict, sents: list[dict], fd: checks.Findings) -> list[dict]:
         s = next((x for x in sents if x["block"] == bi and x["i0"] <= wi <= x["i1"]), None)
         w = tl["blocks"][bi]["words"][wi]
         out.append(dict(idea, label=label, t=w["t0"], t_end=s["t1"] if s else w["t1"], sentence=s, block=bi))
+    for i in out:                          # a starred result ends where its block does, or where the next idea starts
+        s = i["sentence"]
+        if i.get("kind") == "star" and s:
+            nxt = min([x["sentence"]["i0"] for x in out if x["block"] == s["block"] and x["sentence"]
+                       and x["sentence"]["i0"] > s["i1"]] or [math.inf])
+            i["t_end"] = max(x["t1"] for x in sents if x["block"] == s["block"] and s["i0"] <= x["i0"] < nxt)
     return sorted(out, key=lambda x: x["t"])
 
 
