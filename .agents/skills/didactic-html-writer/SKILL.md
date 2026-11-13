@@ -28,8 +28,10 @@ Inputs: the approved topic, `sources.json`, `ranking.md`. Outputs in the run: `d
    `code/README.md` (scripts mapped to sections); figures to `code/figures/NAME.svg`. Run
    `.venv/bin/python tools/run_code_checks.py runs/<run>` and copy every number from `code/logs/`.
 4. **References.** `references.json` from the records you opened (format below): every field as the record shows it,
-   a DOI only if you saw it there, `checked_against` naming those records. `unverified` is for drafting only: the
-   strict build refuses it.
+   a DOI only if you saw it there, `checked_against` naming those records. A record counts as seen only if you fetched
+   it during this run (a search result or a page that did not load is not): cite prior work from a reachable record
+   (arXiv, Crossref by DOI), otherwise mark it `secondary_only`. `unverified` is for drafting only: the strict build
+   refuses it.
 5. **Draft parts** `draft/NN-name.html` with the markers of components.html, and `draft/meta.json` (`title`,
    `subtitle`, `date`, optional `html_title`). End with the verification section (`sec-verification`).
 6. **Build and check** until clean: `python3 tools/build_explainer.py runs/<run> --strict`, then

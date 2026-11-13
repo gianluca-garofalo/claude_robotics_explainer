@@ -36,7 +36,8 @@ Rules:
   Memory is not a record.
 - Never supply a DOI, page range, volume or author list you did not see. A detail in `references.json` that no record
   shows is a finding; the fix is usually to remove it, not to guess another.
-- An entry that only secondary sources confirm (citing papers, tables of contents, catalogues) is `secondary_only`.
+- An entry that only secondary sources confirm (citing papers, tables of contents, catalogues, search results) is
+  `secondary_only`.
 - News, posts and videos: check the publisher, the date, and that the page says what the explainer attributes to it.
 - A record you cannot reach (blocked host, timeout, paywall) costs one try: it goes in the audit table and the summary
   with its URL, host and error, and you try no other URL on that host; never guess what it says or count its fields as

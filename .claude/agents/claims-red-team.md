@@ -33,7 +33,8 @@ for markup.
 
 1. Every claim of novelty, priority or superiority ("first", "new", "outperforms", "breakthrough", "for the first
    time", "unlike previous work"): is it attributed to its source, and does the primary source say it? Search for prior
-   work (WebSearch) that makes it false or weaker, and cite what you find.
+   work (WebSearch) that makes it false or weaker, and cite it from a record you fetched in this review (arXiv,
+   Crossref by DOI, a publisher page that loads); prior work seen only in search results is secondary-only: say so.
 2. Every insight the explainer presents as its own: if textbooks or surveys already have it, the explainer must cite
    them instead.
 3. Every statement about the news against the primary source and the claim statuses in `sources.json`: unverified or
