@@ -49,8 +49,9 @@ class Fixture(unittest.TestCase):
                        "'explainer'", "numbered reference 'Eq. 3'", "numbered reference 'Section 6.5'", "URL",
                        "equation label '\\qquad(18)'", "equation label '(19)'", "equation label '\\tag{3}'",
                        "equation label command '\\label'", "circled number", "equation reference 'equation 2'",
-                       "link 'linked'", "the video's description", "cross-episode equation number 'equation 4 of episode 2'",
-                       "numbered reference 'figure 2'", "(\\star)"):
+                       "link 'linked in the description'", "the video's description",
+                       "cross-episode equation number 'equation 4 of episode 2'", "numbered reference 'figure 2'",
+                       "(\\star)"):
             self.assertIn(needle, out, needle)
         for allowed in ("Two-link", "y(0)", "\\frac{\\kappa q^2}{2}", "'last episode'"):
             self.assertNotIn(allowed, "\n".join(ln for ln in out.splitlines() if ln.startswith("ERROR")), allowed)
@@ -78,6 +79,19 @@ class Rules(unittest.TestCase):
         for text, rule in bad.items():
             with self.subTest(text=text):
                 self.assertIn(rule, [f["rule"] for f in self.found([text])])
+
+    def test_link_counts_only_with_an_outward_cue(self):
+        ordinary = ["That link is what we'll need next.", "the missing link between energy and time",
+                    "These two ideas are linked.", "linking the torque to the acceleration", "a weak link in the chain",
+                    "the link below the elbow", "the link hangs below the joint", "The masses are linked by a spring.",
+                    "Follow the link's tip as it swings."]
+        self.assertEqual(self.found(ordinary), [])
+        outward = ["Follow the link to try it.", "the link below", "the link in the description",
+                   "It's linked in the notes.", "Links are in the description.", "Click on the link above.",
+                   "I've linked the full derivation below.", "There's a link to it in the show notes."]
+        for text in outward:
+            with self.subTest(text=text):
+                self.assertIn("link", [f["rule"] for f in self.found([text])])
 
     def test_other_episodes_by_title_and_meaning_are_not_flagged(self):
         ok = ["In the episode on Gauss's principle we saw the forces balance.", "Previously, the window was one step.",

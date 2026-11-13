@@ -43,6 +43,14 @@ PUBLICATION = re.compile(
     r"|\b(?:the|these|those|their|its)\s+researchers?\b|\bet\.?\s+al\b\.?", re.I)
 HINT = {"publication or its authors": "say the result and its caveats on their own terms; the description credits "
                                       "the source"}
+# a link out of the video ("follow the link", "the link below", "linked in the notes"), not a connection ("that link
+# is what we need", "the masses are linked") or a robot's link
+OUTWARD = (r"(?:down\s+)?(?:below|above)\b(?!\s+(?:the|a|an|its?|this|that|each|every|their|our|all)\b)"
+           r"|in\s+(?:(?:the|my|our)\s+)?(?:[\w-]+\s+)?(?:description|notes|comments?|bio|cards?)\b")
+LINK = re.compile(rf"\b(?:follow|click|tap|open|visit|check\s+out)\s+(?:on\s+)?(?:the|this|that|these|those|a|my|our)"
+                  rf"\s+(?:[\w-]+\s+)?links?\b(?!['’])"
+                  rf"|\blinks?\s+(?:to\s+(?:[\w'’-]+\s+){{0,3}}?)?(?:(?:is|are)\s+)?(?:{OUTWARD})"
+                  rf"|\blink(?:ed|ing)\s+(?:[\w'’-]+\s+){{0,3}}?(?:{OUTWARD})", re.I)
 
 # (rule, regex): plain text (narration, captions, chapters, on-screen Text, \text{} inside math)
 PLAIN = [
@@ -57,7 +65,7 @@ PLAIN = [
         r"|appendices|website|webpage|web page|html|pdf|source files?)\b", re.I)),
     ("the video's description", re.compile(r"\b(?:in|see|check|from) the description\b|\bdescription (?:below|box)\b"
                                            r"|\bpinned comment\b", re.I)),
-    ("link", re.compile(r"\blink(?:s|ed|ing)?\b", re.I)),
+    ("link", LINK),
     ("publication or its authors", PUBLICATION),
     ("hard prerequisite", re.compile(
         r"\byou\s+(?:must|need\s+to|have\s+to|should)\s+(?:have\s+)?(?:watched|watch|seen|see)\b"
