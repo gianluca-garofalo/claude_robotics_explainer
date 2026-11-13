@@ -18,7 +18,7 @@ testenv.activate()                  # fixture config and sources, before any too
 
 GUARD = REPO / "tools" / "hooks" / "reviewer_fetch_guard.py"
 AGENTS = REPO / ".claude" / "agents"
-GUARDED = ("reference-verifier", "finding-verifier", "claims-red-team")
+GUARDED = ("reference-verifier", "finding-verifier", "claims-red-team", "technical-correctness-reviewer")
 
 
 class FetchGuard(unittest.TestCase):
@@ -93,9 +93,10 @@ class FetchGuard(unittest.TestCase):
 
 class GuardedAgents(unittest.TestCase):
     def test_the_web_reading_reviewers_carry_it(self):
+        fms = {p.stem: yaml.safe_load(p.read_text(encoding="utf-8").split("---")[1]) for p in AGENTS.glob("*.md")}
+        self.assertEqual({n for n, fm in fms.items() if "WebFetch" in str(fm.get("tools"))}, {*GUARDED, "news-scout"})
         for name in GUARDED + ("news-scout",):
-            fm = yaml.safe_load((AGENTS / f"{name}.md").read_text(encoding="utf-8").split("---")[1])
-            groups = [g for g in fm["hooks"]["PreToolUse"] if "reviewer_fetch_guard.py" in json.dumps(g)]
+            groups = [g for g in fms[name]["hooks"]["PreToolUse"] if "reviewer_fetch_guard.py" in json.dumps(g)]
             with self.subTest(agent=name):
                 if name == "news-scout":                                  # it reads lab pages on any host
                     self.assertEqual(groups, [])

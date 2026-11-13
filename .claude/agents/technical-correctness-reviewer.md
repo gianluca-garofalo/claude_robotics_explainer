@@ -11,6 +11,11 @@ hooks:
         - type: command
           command: "python3"
           args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_write_guard.py"]
+    - matcher: "WebFetch|Bash"
+      hooks:
+        - type: command
+          command: "python3"
+          args: ["${CLAUDE_PROJECT_DIR}/tools/hooks/reviewer_fetch_guard.py"]
   Stop:
     - hooks:
         - type: command

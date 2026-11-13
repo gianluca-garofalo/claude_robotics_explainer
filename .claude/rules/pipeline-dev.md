@@ -33,7 +33,9 @@ For whoever changes the tools, tests, agents, skills, schemas or CI (AGENTS.md p
 - A reviewer: fresh context, read-mostly tools, the format of `.agents/skills/explainer-review/reviewer-contract.md`,
   the explainer read as text (`tools/explainer_text.py`), never the writer's reasoning; in its frontmatter the write
   guard (`tools/hooks/reviewer_write_guard.py`, PreToolUse) and the report check
-  (`tools/hooks/reviewer_report_check.py`, Stop). A new review dimension: the agent, a line in the explainer-review skill, its id prefix in `tools/validate.py`
+  (`tools/hooks/reviewer_report_check.py`, Stop); with WebFetch, also the fetch guard
+  (`tools/hooks/reviewer_fetch_guard.py`, PreToolUse on `WebFetch|Bash`).
+  A new review dimension: the agent, a line in the explainer-review skill, its id prefix in `tools/validate.py`
   (`ID_PREFIX`), its name in `tools/gate.py` (`REVIEWERS`), a report in `tests/fixtures/run/review/`. A video
   reviewer: the same, but a line in the design-review step of `manim-video-producer` or in `final-cut-review`, its
   name in `VIDEO_REVIEWERS` and a report in `tests/fixtures/run/review/video/` or `final_cut/`. A new design check: a
