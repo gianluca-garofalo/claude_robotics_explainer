@@ -40,3 +40,11 @@ CLAUDE.local.md
 Thumbs.db
 .idea/
 .vscode/
+
+# Empty placeholders the Linux sandbox creates for its deny rules on these run-file names at the project root
+/approval.json
+/selection.json
+/episode.json
+/search.json
+/covered.json
+/published.json
