@@ -2,7 +2,7 @@
   "schema_version": 1,
   "run": "2026-11-13-sampling-mpc-as-sequential-monte-carlo",
   "status": "delivered",
-  "delivered_at": "2026-11-13T13:37:45+00:00",
+  "delivered_at": "2026-11-14T13:45:17+00:00",
   "run_date": "2026-11-13",
   "title": "Sampling-based MPC: why long look-aheads fail",
   "slug": "sampling-mpc-as-sequential-monte-carlo",
